@@ -1,0 +1,3 @@
+discord.py[voice]
+dpytest
+pytest_discord
