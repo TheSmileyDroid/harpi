@@ -32,11 +32,6 @@ async def voice_client(ctx: commands.Context) -> discord.VoiceClient:
     return voice
 
 
-'''
-Usar link do google translate para fazer a conversão de texto para voz
-'''
-
-
 class TTS(commands.Cog):
 
     @commands.command(name='f')
@@ -44,6 +39,7 @@ class TTS(commands.Cog):
         voice: discord.VoiceClient = await voice_client(ctx)
         if voice.is_playing():
             return await ctx.send('Já estou reproduzindo algo')
+        text = text.replace(' ', '%20')
         voice.play(
             discord.FFmpegPCMAudio(
                 f'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q={text}&tl=pt-BR'  # noqa E501
