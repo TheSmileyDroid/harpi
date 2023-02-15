@@ -256,6 +256,8 @@ class Music(commands.Cog):
 
     @commands.command()
     async def volume(self, ctx: commands.Context, volume: int):
+        if volume > 200 or volume < 0:
+            return await ctx.send('Volume inválido')
         _voice_client = await voice_client(ctx)
         guild_data.set_volume(ctx, volume / 100)
         if not _voice_client.is_playing():
