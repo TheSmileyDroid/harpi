@@ -1,5 +1,6 @@
 from discord.ext import commands
 import discord
+import urllib.parse
 
 
 def guild(ctx: commands.Context) -> discord.Guild:
@@ -39,7 +40,7 @@ class TTS(commands.Cog):
         voice: discord.VoiceClient = await voice_client(ctx)
         if voice.is_playing():
             return await ctx.send('Já estou reproduzindo algo')
-        text = text.replace(' ', '%20')
+        text = urllib.parse.quote_plus(text)
         voice.play(
             discord.FFmpegPCMAudio(
                 f'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q={text}&tl=pt-BR'  # noqa E501
