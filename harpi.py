@@ -15,6 +15,7 @@ class Harpi(commands.Bot):
         await self.load_extension('src.modules.tts')
         await self.load_extension('src.modules.music')
         await self.load_extension('src.modules.basic')
+        await self.load_extension('src.modules.dice')
         return await super().setup_hook()
 
     async def on_ready(self):
