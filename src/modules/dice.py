@@ -4,25 +4,20 @@ from discord.ext import commands
 
 class Dice(commands.Cog):
 
-    @commands.command()
-    async def roll(self, ctx: commands.Context, *, dice: str):
-        number, sides = dice.split('d')
-        number = int(number)
-        sides = int(sides)
-        if number > 100:
-            await ctx.send('Você não pode rolar mais de 100 dados')
-            return
-        if sides > 100:
-            await ctx.send('Você não pode rolar dados com mais de 100 lados')
-            return
-        if number < 1:
-            await ctx.send('Você não pode rolar menos de 1 dado')
-            return
-        if sides < 1:
-            await ctx.send('Você não pode rolar dados com menos de 1 lado')
-            return
-        rolls = [str(random.randint(1, sides)) for _ in range(number)]
-        await ctx.send(', '.join(rolls))
+    @commands.command(name='d', aliases=['dado', 'rolar', 'roll', 'r'])
+    async def roll(self, ctx, *, dice: str):
+        try:
+            rolls, limit = map(int, dice.split('d'))
+        except Exception:
+            return await ctx.send('Formato inválido')
+        if rolls > 100:
+            return await ctx.send('Máximo de 100 dados')
+        if limit > 400:
+            return await ctx.send('Máximo de 400 lados')
+        result: list = [random.randint(1, limit) for _ in range(rolls)]
+        text = ', '.join(map(str, result))
+        text += f' = **{sum(result)}**'
+        await ctx.send(text)
 
 
 async def setup(bot):
