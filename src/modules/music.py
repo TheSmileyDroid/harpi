@@ -2,7 +2,7 @@ import asyncio
 import contextlib
 from discord.ext import commands
 from src.modules.errors.bad_link import BadLink
-import youtube_dl
+import yt_dlp as youtube_dl
 import discord
 
 youtube_dl.utils.bug_reports_message = lambda: ''
@@ -171,7 +171,7 @@ class Music(commands.Cog):
         await self.play_current(ctx)
 
     async def play_current(self, ctx: commands.Context):
-        with contextlib.suppress(IndexError):
+        with contextlib.suppress(Exception):
             data = guild_data.queue(ctx)[0]
             _voice_client = await voice_client(ctx)
             if _voice_client.is_playing():
