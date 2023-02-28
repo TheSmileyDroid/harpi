@@ -3,9 +3,14 @@ import logging
 import os
 from discord.ext import commands
 
+
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s:%(levelname)s:%(name)s: %(message)s',
+                    style='%')
+
 handler = logging.FileHandler(filename='discord.log',
-                              encoding='utf-8',
-                              mode='w')
+                              mode='w',
+                              encoding='utf-8')
 
 
 class Harpi(commands.Bot):
