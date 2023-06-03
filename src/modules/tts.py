@@ -1,9 +1,10 @@
+from discord.ext.commands.context import Context
 from discord.ext import commands
 import discord
 import urllib.parse
 
 
-def guild(ctx: commands.Context) -> discord.Guild:
+def guild(ctx: Context) -> discord.Guild:
     if ctx.guild is None:
         raise commands.NoPrivateMessage(
             'Este comando não pode ser usado em MP')

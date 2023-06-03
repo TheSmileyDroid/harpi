@@ -71,9 +71,11 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
             data = data['entries'][0]
         filename = data['url'] if 'url' in data else ytdl.prepare_filename(
             data)
-        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options),
-                   data=data,
-                   volume=volume)
+        return cls(discord.FFmpegPCMAudio(
+            filename,
+            **ffmpeg_options),  # type: ignore
+            data=data,
+            volume=volume)
 
 
 class GuildsData:
@@ -180,7 +182,9 @@ class Music(commands.Cog):
                 await YoutubeDLSource.from_music_data(data),
                 after=lambda _: asyncio.run_coroutine_threadsafe(
                     self.play_next(ctx), ctx.bot.loop).result())
-            _voice_client.source.volume = guild_data.volume(ctx)
+
+            _voice_client.source.volume = guild_data.volume(  # type: ignore
+                ctx)
 
     @commands.command()
     async def pause(self, ctx: commands.Context):
@@ -251,7 +255,7 @@ class Music(commands.Cog):
         _queue = guild_data.queue(ctx)
         if _queue is None:
             return await ctx.send('Não há nada na fila')
-        guild_data.queue(ctx).shuffle()
+        guild_data.queue(ctx).shuffle()  # type: ignore
         await ctx.send('Fila embaralhada')
 
     @commands.command()
@@ -262,7 +266,7 @@ class Music(commands.Cog):
         guild_data.set_volume(ctx, volume / 100)
         if not _voice_client.is_playing():
             return
-        _voice_client.source.volume = volume / 100
+        _voice_client.source.volume = volume / 100  # type: ignore
         await ctx.send(f'Volume alterado para {volume}%')
 
     @commands.command()
@@ -270,7 +274,9 @@ class Music(commands.Cog):
         _voice_client = await voice_client(ctx)
         if not _voice_client.is_playing():
             return await ctx.send('O player já está parado')
-        await ctx.send(f'Tocando **{_voice_client.source.title}**')
+
+        await ctx.send(
+            f'Tocando **{_voice_client.source.title}**')  # type: ignore
 
     @commands.command()
     async def join(self, ctx: commands.Context):
