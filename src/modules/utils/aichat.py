@@ -39,6 +39,9 @@ class AIChat:
             res += "\nLinks:"
             for link in links:
                 res += f"\n{link.encode().decode('unicode_escape')}"
+
+        if res.startswith("Harpi: "):
+            res = res[7:]
         return res
 
     def get_response_you(self, prompt: str) -> tuple[str, list[str]]:
