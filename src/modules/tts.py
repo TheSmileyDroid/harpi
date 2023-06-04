@@ -2,6 +2,8 @@ from discord.ext.commands.context import Context
 from discord.ext import commands
 import discord
 import urllib.parse
+from src.modules.utils.aichat import AIChat
+from src.modules.utils.guild import guild_data
 
 
 def guild(ctx: Context) -> discord.Guild:
@@ -34,18 +36,28 @@ async def voice_client(ctx: commands.Context) -> discord.VoiceClient:
     return voice
 
 
+async def say(ctx: commands.Context, text: str):
+    voice: discord.VoiceClient = await voice_client(ctx)
+    if voice.is_playing():
+        return await ctx.send('Já estou reproduzindo algo')
+    text = urllib.parse.quote_plus(text)
+    voice.play(
+        discord.FFmpegPCMAudio(
+            f'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q={text}&tl=pt-BR'  # noqa E501
+        ))
+
+
 class TTS(commands.Cog):
 
     @commands.command(name='f')
     async def tts(self, ctx, *, text: str):
-        voice: discord.VoiceClient = await voice_client(ctx)
-        if voice.is_playing():
-            return await ctx.send('Já estou reproduzindo algo')
-        text = urllib.parse.quote_plus(text)
-        voice.play(
-            discord.FFmpegPCMAudio(
-                f'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q={text}&tl=pt-BR'  # noqa E501
-            ))
+        await say(ctx, text)
+
+    @commands.command(name='fc')
+    async def fchat(self, ctx, *, text: str):
+        chat: AIChat = guild_data.chat(ctx)
+        response = chat.chat(text)
+        await say(ctx, response)
 
 
 async def setup(bot):
