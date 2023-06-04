@@ -52,6 +52,17 @@ class AIChat:
             prompt=prompt,
             chat=self.chat_mem)
 
+        if response.text != "Unable to fetch the response, Please try again.":
+            for i in range(4):
+                response = you.Completion.create(
+                    prompt=prompt,
+                    chat=self.chat_mem)
+                if response.text != "Unable to fetch the response, Please try again.":  # noqa
+                    break
+
+        if response.text != "Unable to fetch the response, Please try again.":
+            raise Exception(response.text)
+
         self.chat_mem.append({"question": prompt, "answer": response.text})
 
         return response.text.encode().decode('unicode_escape'), response.links
