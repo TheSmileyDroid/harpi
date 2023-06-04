@@ -52,15 +52,15 @@ class AIChat:
             prompt=prompt,
             chat=self.chat_mem)
 
-        if response.text != "Unable to fetch the response, Please try again.":
+        if "Unable to fetch the response, Please try again." in response.text:
             for i in range(4):
                 response = you.Completion.create(
                     prompt=prompt,
                     chat=self.chat_mem)
-                if response.text != "Unable to fetch the response, Please try again.":  # noqa
+                if "Unable to fetch the response, Please try again." not in response.text:  # noqa: E501
                     break
 
-        if response.text != "Unable to fetch the response, Please try again.":
+        if "Unable to fetch the response, Please try again." in response.text:
             raise Exception(response.text)
 
         self.chat_mem.append({"question": prompt, "answer": response.text})
