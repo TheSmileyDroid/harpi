@@ -1,4 +1,5 @@
 from gpt4free import you
+from src.modules.utils import aiassist
 import src.modules.utils.deepai as deepai
 
 
@@ -6,24 +7,26 @@ class AIChat:
     def __init__(self):
         self.chat_mem = []
         self.deepai_mem = []
+        self.parent_id = None
+        self.system = ''
+        f = open('src/modules/utils/chat_mem.txt', 'r')
+        for line in f:
+            self.system += line
+        f.close()
         self.reset()
 
     def reset(self):
         self.chat_mem = []
         self.deepai_mem = []
-        text = ''
-        f = open('src/modules/utils/chat_mem.txt', 'r')
-        for line in f:
-            text += line
-        f.close()
+        self.parent_id = None
         self.chat_mem.append(
             {
-                "question": text,
+                "question": self.system,
                 "answer": "OK"})
         self.deepai_mem.append(
             {
                 "role": "system",
-                "content": text})
+                "content": self.system})
 
     def chat(self, prompt: str, include_links: bool = False) -> str:
         res, links = self.get_response(prompt)
@@ -69,12 +72,16 @@ class AIChat:
                 "content": response})
         return response.encode().decode('utf-8'), []
 
+    def get_response_aiassist(self, prompt: str) -> tuple[str, list[str]]:
+        req = aiassist.Completion.create(
+            prompt=prompt,
+            systemMessage=self.system,
+            parentMessageId=self.parent_id)
+        self.parent_id = req["parentMessageId"]
+        return req["text"], []
+
     def get_response(self, prompt: str) -> tuple[str, list[str]]:
-        try:
-            return self.get_response_deepai(prompt)
-        except Exception as e:
-            print(e)
-            return self.get_response_you(prompt)
+        return self.get_response_aiassist(prompt)
 
     def clear(self):
         self.reset()
