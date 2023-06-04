@@ -1,6 +1,7 @@
 from gpt4free import you
 from src.modules.utils import aiassist
 import src.modules.utils.deepai as deepai
+from discord.ext import commands
 
 
 class AIChat:
@@ -28,7 +29,11 @@ class AIChat:
                 "role": "system",
                 "content": self.system})
 
-    def chat(self, prompt: str, include_links: bool = False) -> str:
+    def chat(self,
+             ctx: commands.Context,
+             prompt: str,
+             include_links: bool = False) -> str:
+        prompt = ctx.author.name + ": " + prompt
         res, links = self.get_response(prompt)
         if include_links:
             res += "\nLinks:"

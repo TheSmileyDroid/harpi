@@ -56,7 +56,7 @@ class TTS(commands.Cog):
     @commands.command(name='fc')
     async def fchat(self, ctx, *, text: str):
         chat: AIChat = guild_data.chat(ctx)
-        response = chat.chat(text)
+        response = chat.chat(ctx, text)
         await say(ctx, response)
 
 

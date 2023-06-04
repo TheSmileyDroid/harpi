@@ -9,14 +9,14 @@ class Chat(commands.Cog):
     async def chat(self, ctx: commands.Context, *, message: str):
         """Converse com o bot."""
         chat: AIChat = guild_data.chat(ctx)
-        response = chat.chat(message)
+        response = chat.chat(ctx, message)
         await ctx.send(response)
 
     @commands.command()
     async def search(self, ctx: commands.Context, *, message: str):
         """Pesquise algo na internet."""
         chat: AIChat = guild_data.chat(ctx)
-        response = chat.chat(message, include_links=True)
+        response = chat.chat(ctx, message, include_links=True)
         await ctx.send(response)
 
     @commands.command()
