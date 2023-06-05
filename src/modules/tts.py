@@ -1,10 +1,13 @@
+from io import BytesIO
 from discord.ext.commands.context import Context
 from discord.ext import commands
 import discord
-import urllib.parse
+from gtts import gTTS
+
 
 from src.modules.utils.aichat import AIChat
 from src.modules.utils.guild import guild_data
+from src.modules.utils.musicdata import FFmpegPCMAudio
 
 
 def guild(ctx: Context) -> discord.Guild:
@@ -41,11 +44,12 @@ async def say(ctx: commands.Context, text: str):
     voice: discord.VoiceClient = await voice_client(ctx)
     if voice.is_playing():
         return await ctx.send('Já estou reproduzindo algo')
-    text = urllib.parse.quote_plus(text.encode('utf-8'))
-    voice.play(
-        discord.FFmpegPCMAudio(
-            f'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q={text}&tl=pt-BR'  # noqa E501
-        ))
+    fp = BytesIO()
+    tts = gTTS(text=text, lang='pt', tld='com.br')
+    tts.write_to_fp(fp)
+    tts.save("audio.mp3")
+    fp.seek(0)
+    voice.play(FFmpegPCMAudio(fp.read(), pipe=True))
 
 
 class TTS(commands.Cog):
