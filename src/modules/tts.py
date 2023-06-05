@@ -1,4 +1,5 @@
 from io import BytesIO
+from os import makedirs
 from discord.ext.commands.context import Context
 from discord.ext import commands
 import discord
@@ -47,7 +48,8 @@ async def say(ctx: commands.Context, text: str):
     fp = BytesIO()
     tts = gTTS(text=text, lang='pt', tld='com.br')
     tts.write_to_fp(fp)
-    tts.save("audio.mp3")
+    makedirs('.audios', exist_ok=True)
+    tts.save(f".audios/{guild(ctx).id}.mp3")
     fp.seek(0)
     voice.play(FFmpegPCMAudio(fp.read(), pipe=True))
 
