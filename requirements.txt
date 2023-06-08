@@ -1,5 +1,4 @@
 discord.py[voice] >= 2.1
 yt-dlp >= 2023.2.17
-gpt4free >= 1.0.2 
 types-requests
 gTTS

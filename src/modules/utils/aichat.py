@@ -31,8 +31,6 @@ class AIChat:
         prompt = ctx.author.name + ": " + prompt
         res = self.get_response(prompt)
 
-        if res.startswith("Harpi: "):
-            res = res[7:]
         return res
 
     def get_response_aiassist(self, prompt: str) -> str:
