@@ -39,7 +39,8 @@ class AIChat:
         req = aiassist.Completion.create(
             prompt=prompt,
             systemMessage=self.system,
-            parentMessageId=self.parent_id)
+            parentMessageId=self.parent_id,
+            temperature=1)
         self.parent_id = req["parentMessageId"]
         return req["text"]
 
