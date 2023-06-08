@@ -36,6 +36,7 @@ class AIChat:
         return res
 
     def get_response_aiassist(self, prompt: str) -> str:
+        print(prompt)
         req = aiassist.Completion.create(
             prompt=prompt,
             systemMessage=self.system,
