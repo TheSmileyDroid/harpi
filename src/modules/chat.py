@@ -13,13 +13,6 @@ class Chat(commands.Cog):
         await ctx.send(response)
 
     @commands.command()
-    async def search(self, ctx: commands.Context, *, message: str):
-        """Pesquise algo na internet."""
-        chat: AIChat = guild_data.chat(ctx)
-        response = chat.chat(ctx, message, include_links=True)
-        await ctx.send(response)
-
-    @commands.command()
     async def clearchat(self, ctx: commands.Context):
         """Limpe o chat."""
         chat: AIChat = guild_data.chat(ctx)

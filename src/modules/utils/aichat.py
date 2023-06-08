@@ -49,12 +49,12 @@ class AIChat:
             'gpt-4', self.chat_mem, True, self.system)
         answer = ''
         for message in response:
-            answer += message['text']
+            answer += str(message)
         self.chat_mem.append({'role': 'assistant', 'text': answer})
         return answer
 
     def get_response(self, prompt: str) -> str:
-        return self.get_response_pierangelo(prompt)
+        return self.get_response_aiassist(prompt)
 
     def clear(self):
         self.reset()
