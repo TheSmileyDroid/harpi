@@ -4,6 +4,22 @@ from src.modules.utils.aichat import AIChat
 from src.modules.utils.musicdata import MusicData
 
 
+def guild(ctx: commands.Context) -> discord.Guild:
+    if ctx.guild is None:
+        raise commands.NoPrivateMessage(
+            'Este comando não pode ser usado em DMs')
+    return ctx.guild
+
+
+def guild_id(ctx: commands.Context, accepts_dm: bool = False) -> int:
+    if ctx.guild is None:
+        if accepts_dm:
+            return ctx.author.id
+        raise commands.NoPrivateMessage(
+            'Este comando não pode ser usado em DMs')
+    return ctx.guild.id
+
+
 class GuildsData:
 
     def __init__(self) -> None:
@@ -14,8 +30,8 @@ class GuildsData:
         self._skip_flag: dict[int, bool] = {}
 
     def chat(self, ctx) -> AIChat:
-        guild_id = guild(ctx).id
-        return self._chat.setdefault(guild_id, AIChat())
+        id = guild_id(ctx, accepts_dm=True)
+        return self._chat.setdefault(id, AIChat())
 
     def queue(self, ctx) -> list:
         guild_id = guild(ctx).id
@@ -48,10 +64,3 @@ class GuildsData:
 
 global guild_data
 guild_data = GuildsData()
-
-
-def guild(ctx: commands.Context) -> discord.Guild:
-    if ctx.guild is None:
-        raise commands.NoPrivateMessage(
-            'Este comando não pode ser usado em DMs')
-    return ctx.guild
