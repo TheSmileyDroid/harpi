@@ -64,6 +64,8 @@ class TTS(commands.Cog):
     async def fchat(self, ctx, *, text: str):
         chat: AIChat = guild_data.chat(ctx)
         response = chat.chat(ctx, text)
+        if response.startswith('Harpi:'):
+            response = response[6:]
         await say(ctx, response)
 
 
