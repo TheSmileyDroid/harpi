@@ -19,6 +19,13 @@ class Chat(commands.Cog):
         chat.clear()
         await ctx.send('Chat limpo!')
 
+    @commands.command()
+    async def settemp(self, ctx: commands.Context, temp: float):
+        """Defina a temperatura do chat."""
+        chat: AIChat = guild_data.chat(ctx)
+        chat.set_temp(temp)
+        await ctx.send(f'Temperatura definida para {temp}!')
+
 
 async def setup(bot):
     await bot.add_cog(Chat(bot))

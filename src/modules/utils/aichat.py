@@ -18,6 +18,7 @@ class AIChat:
         self.chat_mem = []
         self.deepai_mem = []
         self.parent_id = None
+        self.temp = 0.8
         self.poe_token = os.environ.get('POE_TOKEN')
         self.system = ''
         f = open('src/modules/utils/chat_mem.txt', 'r')
@@ -44,12 +45,15 @@ class AIChat:
 
         return res
 
+    def set_temp(self, temp: float):
+        self.temp = temp
+
     def get_response_aiassist(self, prompt: str) -> str:
         req = aiassist.Completion.create(
             prompt=prompt,
             systemMessage=self.system,
             parentMessageId=self.parent_id,
-            temperature=1)
+            temperature=self.temp,)
         self.parent_id = req["parentMessageId"]
         return req["text"]
 
@@ -61,7 +65,7 @@ class AIChat:
         return req["text"]
 
     def get_response(self, prompt: str) -> str:
-        return self.get_response_poe(prompt)
+        return self.get_response_aiassist(prompt)
 
     def clear(self):
         self.reset()
