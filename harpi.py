@@ -27,6 +27,8 @@ class Harpi(commands.Bot):
 
     async def on_ready(self):
         print(f"Logado como {self.user}!")
+        synced = await self.tree.sync()
+        print(f'Synced {len(synced)} commands.')
 
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.CommandNotFound):
