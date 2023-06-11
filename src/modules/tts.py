@@ -41,10 +41,14 @@ async def voice_client(ctx: commands.Context) -> discord.VoiceClient:
     return voice
 
 
+class AlreadyPlaying(commands.CommandError):
+    pass
+
+
 async def say(ctx: commands.Context, text: str):
     voice: discord.VoiceClient = await voice_client(ctx)
     if voice.is_playing():
-        return await ctx.send('Já estou reproduzindo algo')
+        raise AlreadyPlaying('Já estou reproduzindo algo')
     fp = BytesIO()
     tts = gTTS(text=text, lang='pt', tld='com.br')
     tts.write_to_fp(fp)
@@ -66,7 +70,10 @@ class TTS(commands.Cog):
         response = chat.chat(ctx, text)
         if response.startswith('Harpi:'):
             response = response[6:]
-        await say(ctx, response)
+        try:
+            await say(ctx, response)
+        except AlreadyPlaying:
+            await ctx.send(response)
 
 
 async def setup(bot):
