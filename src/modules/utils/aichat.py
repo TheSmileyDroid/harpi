@@ -1,7 +1,6 @@
 import os
 from src.modules.utils import aiassist
 from discord.ext import commands
-import src.modules.utils.g4f as g4f
 
 
 class AIChat:
@@ -39,9 +38,13 @@ class AIChat:
         return res
 
     def set_temp(self, temp: float):
+        if temp < 0.1 or temp > 0.9:
+            raise ValueError("Temperature must be between 0.1 and 0.9")
         self.temp = temp
 
     def set_top_p(self, top_p: float):
+        if top_p < 0.1 or top_p > 0.9:
+            raise ValueError("Top P must be between 0.1 and 0.9")
         self.top_p = top_p
 
     def get_temp(self) -> float:
@@ -61,15 +64,8 @@ class AIChat:
         self.parent_id = req["parentMessageId"]
         return req["text"]
 
-    def get_response_g4f(self, prompt: str) -> str:
-        self.chat_mem.append({'role': 'user', 'content': prompt})
-        response = g4f.ChatCompletion.create(model='gpt-3.5-turbo',
-                                             messages=self.chat_mem)
-        self.chat_mem.append({'role': 'system', 'content': response})
-        return response
-
     def get_response(self, prompt: str) -> str:
-        return self.get_response_g4f(prompt)
+        return self.get_response_aiassist(prompt)
 
     def clear(self):
         self.reset()
