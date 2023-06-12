@@ -1,16 +1,7 @@
 import os
 from src.modules.utils import aiassist
 from discord.ext import commands
-import poe
-
-models = {
-    'claude-v1': 'a2_2',
-    'claude-instant': 'a2',
-    'claude-instant-100k': 'a2_100k',
-    'sage': 'capybara',
-    'gpt-4': 'beaver',
-    'gpt-3.5-turbo': 'chinchilla',
-}
+import src.modules.utils.g4f as g4f
 
 
 class AIChat:
@@ -19,7 +10,7 @@ class AIChat:
         self.deepai_mem = []
         self.parent_id = None
         self.temp = 0.8
-        self.top_p = 1
+        self.top_p = 0.8
         self.poe_token = os.environ.get('POE_TOKEN')
         self.system = ''
         f = open('src/modules/utils/chat_mem.txt', 'r')
@@ -37,6 +28,7 @@ class AIChat:
         for line in f:
             self.system += line
         f.close()
+        self.chat_mem.append({'role': 'system', 'content': self.system})
 
     def chat(self,
              ctx: commands.Context,
@@ -69,15 +61,15 @@ class AIChat:
         self.parent_id = req["parentMessageId"]
         return req["text"]
 
-    def get_response_poe(self, prompt: str) -> str:
-        client = poe.Client(self.poe_token)
-        poe_system = 'system: your response will be rendered in a discord message, include language hints when returning code like: ```py ...```, and use * or ** or > to create highlights ||\n ' + self.system  # noqa
-        for req in client.send_message(chatbot=models['sage'], message=poe_system+prompt, with_chat_break=False):  # noqa
-            pass
-        return req["text"]
+    def get_response_g4f(self, prompt: str) -> str:
+        self.chat_mem.append({'role': 'user', 'content': prompt})
+        response = g4f.ChatCompletion.create(model='gpt-3.5-turbo',
+                                             messages=self.chat_mem)
+        self.chat_mem.append({'role': 'system', 'content': response})
+        return response
 
     def get_response(self, prompt: str) -> str:
-        return self.get_response_aiassist(prompt)
+        return self.get_response_g4f(prompt)
 
     def clear(self):
         self.reset()

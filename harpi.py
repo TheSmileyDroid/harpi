@@ -35,6 +35,7 @@ class Harpi(commands.Bot):
             await ctx.send("Comando não encontrado.")
         elif isinstance(error, commands.CommandError):
             await ctx.send(f"Erro ao executar o comando: {error}")
+            raise error
         else:
             await ctx.send(f"Erro desconhecido: {error}")
 

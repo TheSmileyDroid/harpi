@@ -9,7 +9,7 @@ class Completion:
         prompt: str = "",
         parentMessageId: str = "",
         temperature: float = 0.8,
-        top_p: float = 1,
+        top_p: float = 0.8,
     ):
         json_data = {
             "prompt": prompt,
