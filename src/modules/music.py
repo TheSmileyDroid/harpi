@@ -4,6 +4,7 @@ from discord.ext import commands
 import discord
 from src.modules.utils.guild import guild, guild_data
 from src.modules.utils.musicdata import MusicData, YoutubeDLSource
+from src.modules.utils.send import send_message
 
 
 def voice_state(ctx: commands.Context) -> discord.VoiceState:
@@ -40,15 +41,18 @@ class Music(commands.Cog):
         if _voice_client.is_playing():
             musics_str = '\n'.join(
                 [f'**{music.title}**' for music in data])
-            await ctx.send(f'Playlist adicionada à fila:\n{musics_str}')
+            await send_message(
+                ctx, content=f'Playlist adicionada à fila:\n{musics_str}')
             return
 
         await self.play_current(ctx)
-        await ctx.send(f'Tocando **{data[0].title}**')
+        await send_message(
+            ctx, f'Tocando **{data[0].title}**')
         musics_str = '\n'.join(
             [f'**{music.title}**' for music in data[1:]])
         if musics_str:
-            await ctx.send(f'Playlist adicionada à fila:\n{musics_str}')
+            await send_message(
+                ctx, f'Playlist adicionada à fila:\n{musics_str}')
 
     async def play_next(self, ctx: commands.Context):
         if guild_data.skip_flag(ctx):
@@ -80,97 +84,118 @@ class Music(commands.Cog):
         _voice_client = await voice_client(ctx)
 
         if _voice_client.is_paused():
-            return await ctx.send('O player já está pausado')
+            return await send_message(
+                ctx, 'O player já está pausado')
         _voice_client.pause()
-        await ctx.send('Pausado')
+        await send_message(
+            ctx, 'Pausado')
 
     @commands.command()
     async def resume(self, ctx: commands.Context):
         _voice_client = await voice_client(ctx)
         if not _voice_client.is_paused():
-            return await ctx.send('O player já está tocando')
+            return await send_message(
+                ctx, 'O player já está tocando')
         _voice_client.resume()
-        await ctx.send('Continuando')
+        await send_message(
+            ctx, 'Continuando')
 
     @commands.command()
     async def stop(self, ctx: commands.Context):
         _voice_client = await voice_client(ctx)
         if not _voice_client.is_playing():
-            return await ctx.send('O player já está parado')
+            return await send_message(
+                ctx, 'O player já está parado')
         _voice_client.stop()
         guild_data.queue(ctx).clear()
-        await ctx.send('Parado')
+        await send_message(
+            ctx, 'Parado')
 
     @commands.command()
     async def skip(self, ctx: commands.Context):
         _voice_client = await voice_client(ctx)
         if not _voice_client.is_playing():
-            return await ctx.send('O player já está parado')
+            return await send_message(
+                ctx, 'O player já está parado')
         guild_data.set_skip_flag(ctx, True)
         _voice_client.stop()
-        await ctx.send('Pulando para a próxima música')
+        await send_message(
+            ctx, 'Pulando para a próxima música')
 
     @commands.command()
     async def queue(self, ctx: commands.Context):
         _queue = guild_data.queue(ctx)
         if _queue is None:
-            return await ctx.send('Não há nada na fila')
+            return await send_message(
+                ctx, 'Não há nada na fila')
         embed = discord.Embed(title='Fila de músicas')
         for index, data in enumerate(_queue):
             embed.add_field(name=f'{index + 1} - {data.title}',
                             value=f'**{data.url}**')
         embed.set_footer(text='Looping ativado' if guild_data.
                          is_looping(ctx) else 'Looping desativado')
-        await ctx.send(embed=embed)
+        await send_message(
+            ctx, embed=embed)
 
     @commands.command()
     async def remove(self, ctx: commands.Context, index: int):
         _queue = guild_data.queue(ctx)
         if _queue is None:
-            return await ctx.send('Não há nada na fila')
+            return await send_message(
+                ctx, 'Não há nada na fila')
         if index > len(_queue):
-            return await ctx.send('Índice inválido')
+            return await send_message(
+                ctx, 'Índice inválido')
         guild_data.queue(ctx).remove(index - 1)
-        await ctx.send(f'Removido índice {index}')
+        await send_message(
+            ctx, f'Removido índice {index}')
 
     @commands.command()
     async def loop(self, ctx: commands.Context):
         guild_data.set_looping(ctx, not guild_data.is_looping(ctx))
-        await ctx.send('Looping ativado' if guild_data.
-                       is_looping(ctx) else 'Looping desativado')
+        await send_message(
+            ctx, 'Looping ativado' if guild_data.
+            is_looping(ctx) else 'Looping desativado')
 
     @commands.command()
     async def shuffle(self, ctx: commands.Context):
         _queue = guild_data.queue(ctx)
         if _queue is None:
-            return await ctx.send('Não há nada na fila')
+            return await send_message(
+                ctx, 'Não há nada na fila')
         guild_data.queue(ctx).shuffle()  # type: ignore
-        await ctx.send('Fila embaralhada')
+        await send_message(
+            ctx, 'Fila embaralhada')
 
     @commands.command()
     async def volume(self, ctx: commands.Context, volume: int):
         if volume > 200 or volume < 0:
-            return await ctx.send('Volume inválido')
+            return await send_message(
+                ctx, 'Volume inválido')
         _voice_client = await voice_client(ctx)
         guild_data.set_volume(ctx, volume / 100)
         if not _voice_client.is_playing():
             return
         _voice_client.source.volume = volume / 100  # type: ignore
-        await ctx.send(f'Volume alterado para {volume}%')
+        await send_message(
+            ctx, f'Volume alterado para {volume}%')
 
     @commands.command()
     async def now(self, ctx: commands.Context):
         _voice_client = await voice_client(ctx)
         if not _voice_client.is_playing():
-            return await ctx.send('Não estou tocando nada agora')
+            return await send_message(
+                ctx, 'Não estou tocando nada agora')
 
-        await ctx.send(
+        await send_message(
+            ctx,
             f'Tocando **{_voice_client.source.title}**')  # type: ignore
 
     @commands.command()
     async def join(self, ctx: commands.Context):
         _voice_client = await voice_client(ctx)
-        await ctx.send(f'Entrando no canal **{_voice_client.channel}**')
+        await send_message(
+            ctx, f'Entrando no canal **{_voice_client.channel}**')
 
 
 async def setup(bot):

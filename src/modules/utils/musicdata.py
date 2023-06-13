@@ -7,6 +7,7 @@ from src.modules.errors.bad_link import BadLink
 import discord
 import yt_dlp as youtube_dl  # type: ignore
 
+
 youtube_dl.utils.bug_reports_message = lambda: ''
 
 ytdl_format_options = {
