@@ -1,9 +1,9 @@
 from discord.ext import commands
 
 
-async def send_message(ctx: commands.Context, message: str):
+async def send_message(ctx: commands.Context, message: str, **kwargs):
     if len(message) > 1999:
         while len(message) > 1999:
-            await ctx.send(message[:1999])
+            await ctx.send(message[:1999], **kwargs)
             message = message[1999:]
-    await ctx.send(message)
+    await ctx.send(message, **kwargs)
