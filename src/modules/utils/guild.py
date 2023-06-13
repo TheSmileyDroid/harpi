@@ -66,9 +66,9 @@ class GuildsData:
         guild_id = guild(ctx).id
         queue = self._queue[guild_id]
         if len(queue) > 1:
-            queue.pop(0)
+            first = queue.pop(0)
             random.shuffle(queue)
-            queue.insert(0, queue.pop())
+            queue.insert(0, first)
             self._queue[guild_id] = queue
 
 
