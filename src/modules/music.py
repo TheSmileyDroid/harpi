@@ -38,14 +38,17 @@ class Music(commands.Cog):
             guild_data.queue(ctx).append(music)
         _voice_client = await voice_client(ctx)
         if _voice_client.is_playing():
-            for music in data:
-                await ctx.send(f'Adicionado **{music.title}** na fila')
+            musics_str = '\n'.join(
+                [f'**{music.title}**' for music in data])
+            await ctx.send(f'Playlist adicionada à fila:\n{musics_str}')
             return
 
         await self.play_current(ctx)
         await ctx.send(f'Tocando **{data[0].title}**')
-        for music in data[1:]:
-            await ctx.send(f'Adicionado **{music.title}** na fila')
+        musics_str = '\n'.join(
+            [f'**{music.title}**' for music in data[1:]])
+        if musics_str:
+            await ctx.send(f'Playlist adicionada à fila:\n{musics_str}')
 
     async def play_next(self, ctx: commands.Context):
         if guild_data.skip_flag(ctx):
@@ -159,7 +162,7 @@ class Music(commands.Cog):
     async def now(self, ctx: commands.Context):
         _voice_client = await voice_client(ctx)
         if not _voice_client.is_playing():
-            return await ctx.send('O player já está parado')
+            return await ctx.send('Não estou tocando nada agora')
 
         await ctx.send(
             f'Tocando **{_voice_client.source.title}**')  # type: ignore

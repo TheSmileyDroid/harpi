@@ -14,8 +14,9 @@ ytdl_format_options = {
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
     'noplaylist': False,
+    'extract_flat': True,
     'nocheckcertificate': True,
-    'ignoreerrors': False,
+    'ignoreerrors': True,
     'logtostderr': False,
     'quiet': True,
     'no_warnings': True,
@@ -40,17 +41,18 @@ class MusicData:
 
     @classmethod
     def from_url(cls, url: str) -> list['MusicData']:
+        print(url)
         with ytdl:
             result = ytdl.extract_info(url, download=False)
         if result is None:
             raise BadLink(url)
         if 'entries' in result:
             return [
-                cls(video['title'], video['webpage_url'])
+                cls(video['title'], video['url'])
                 for video in result['entries']
             ]
         video = result
-        return [cls(video['title'], video['webpage_url'])]
+        return [cls(video['title'], video['url'])]
 
 
 class YoutubeDLSource(discord.PCMVolumeTransformer):
