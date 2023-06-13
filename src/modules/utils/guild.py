@@ -1,3 +1,4 @@
+import random
 from discord.ext import commands
 import discord
 from src.modules.utils.aichat import AIChat
@@ -60,6 +61,15 @@ class GuildsData:
     def set_skip_flag(self, ctx, value: bool):
         guild_id = guild(ctx).id
         self._skip_flag[guild_id] = value
+
+    def shuffle_queue(self, ctx):
+        guild_id = guild(ctx).id
+        queue = self._queue[guild_id]
+        if len(queue) > 1:
+            queue.pop(0)
+            random.shuffle(queue)
+            queue.insert(0, queue.pop())
+            self._queue[guild_id] = queue
 
 
 global guild_data
