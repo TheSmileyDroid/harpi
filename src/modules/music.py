@@ -33,14 +33,19 @@ class Music(commands.Cog):
 
     @commands.command()
     async def play(self, ctx: commands.Context, *, message: str):
-        data = MusicData.from_url(message)
-        guild_data.queue(ctx).append(data)
+        data: list[MusicData] = MusicData.from_url(message)
+        for music in data:
+            guild_data.queue(ctx).append(music)
         _voice_client = await voice_client(ctx)
         if _voice_client.is_playing():
-            return await ctx.send(f'Adicionado **{data.title}** na fila')
+            for music in data:
+                await ctx.send(f'Adicionado **{music.title}** na fila')
+            return
 
         await self.play_current(ctx)
-        await ctx.send(f'Tocando **{data.title}**')
+        await ctx.send(f'Tocando **{data[0].title}**')
+        for music in data[1:]:
+            await ctx.send(f'Adicionado **{music.title}** na fila')
 
     async def play_next(self, ctx: commands.Context):
         if guild_data.skip_flag(ctx):

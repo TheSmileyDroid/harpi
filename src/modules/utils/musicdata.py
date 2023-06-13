@@ -5,7 +5,7 @@ import shlex
 import asyncio
 from src.modules.errors.bad_link import BadLink
 import discord
-import yt_dlp as youtube_dl
+import yt_dlp as youtube_dl  # type: ignore
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 
@@ -39,13 +39,18 @@ class MusicData:
         self.url = url
 
     @classmethod
-    def from_url(cls, url):
+    def from_url(cls, url: str) -> list['MusicData']:
         with ytdl:
             result = ytdl.extract_info(url, download=False)
         if result is None:
             raise BadLink(url)
-        video = result['entries'][0] if 'entries' in result else result
-        return cls(video['title'], video['webpage_url'])
+        if 'entries' in result:
+            return [
+                cls(video['title'], video['webpage_url'])
+                for video in result['entries']
+            ]
+        video = result
+        return [cls(video['title'], video['webpage_url'])]
 
 
 class YoutubeDLSource(discord.PCMVolumeTransformer):
