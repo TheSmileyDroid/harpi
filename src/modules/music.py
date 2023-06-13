@@ -49,7 +49,7 @@ class Music(commands.Cog):
         await send_message(
             ctx, f'Tocando **{data[0].title}**')
         musics_str = '\n'.join(
-            [f' **{music.title}** ' for music in data[1:]])
+            [f'{music.title}' for music in data[1:]])
         if musics_str:
             await send_message(
                 ctx, f'Playlist adicionada à fila:\n{musics_str}')
