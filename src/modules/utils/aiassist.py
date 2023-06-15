@@ -1,4 +1,4 @@
-import urllib.request
+from curl_cffi import requests  # type: ignore
 import json
 
 
@@ -12,15 +12,15 @@ class Completion:
         top_p: float = 0.8,
     ):
         headers = {
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0',  # noqa
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0',
             'Accept': 'application/json, text/plain, */*',
             'Accept-Language': 'pt-BR,en-US;q=0.7,en;q=0.3',
-            'Accept-Encoding': 'gzip, deflate',
+            # 'Accept-Encoding': 'gzip, deflate',
             'Content-Type': 'application/json',
-            'Origin': 'http://huirui.work',
+            'Origin': 'http://aiassist.art',
             'DNT': '1',
             'Connection': 'keep-alive',
-            'Referer': 'http://huirui.work/',
+            'Referer': 'http://aiassist.art/',
         }
 
         json_data = {
@@ -31,12 +31,11 @@ class Completion:
             "top_p": top_p,
         }
 
-        url = "http://43.153.7.56:8080/api/chat-process"
+        url = "http://43.153.7.56:8081/api/chat-process"
 
-        data = json.dumps(json_data).encode("utf-8")
-        req = urllib.request.Request(url, data=data, headers=headers)
-        response = urllib.request.urlopen(req)
-        content = response.read().decode()
+        response = requests.post(
+            url, headers=headers, json=json_data, impersonate="chrome101")
+        content = response.content.decode("utf-8")
 
         return Completion.__load_json(content)
 

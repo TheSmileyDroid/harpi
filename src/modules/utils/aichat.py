@@ -7,7 +7,7 @@ class AIChat:
     def __init__(self):
         self.chat_mem = []
         self.deepai_mem = []
-        self.parent_id = None
+        self.parent_id = ''
         self.temp = 0.8
         self.top_p = 0.8
         self.poe_token = os.environ.get('POE_TOKEN')
@@ -21,7 +21,7 @@ class AIChat:
     def reset(self):
         self.chat_mem = []
         self.deepai_mem = []
-        self.parent_id = None
+        self.parent_id = ''
         self.system = ''
         f = open('src/modules/utils/chat_mem.txt', 'r')
         for line in f:

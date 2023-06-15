@@ -1,7 +1,9 @@
 import asyncio
 import contextlib
-from discord.ext import commands
+
 import discord
+from discord.ext import commands
+
 from src.modules.utils.guild import guild, guild_data
 from src.modules.utils.musicdata import MusicData, YoutubeDLSource
 from src.modules.utils.send import send_message
@@ -72,7 +74,7 @@ class Music(commands.Cog):
             if _voice_client.is_playing():
                 return
             _voice_client.play(
-                await YoutubeDLSource.from_music_data(data),
+                await YoutubeDLSource.from_music_data(data),  # type: ignore
                 after=lambda _: asyncio.run_coroutine_threadsafe(
                     self.play_next(ctx), ctx.bot.loop).result())
 

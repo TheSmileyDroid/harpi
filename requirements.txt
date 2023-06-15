@@ -3,3 +3,5 @@ yt-dlp >= 2023.2.17
 types-requests
 gTTS
 browser_cookie3
+wheel
+curl_cffi

@@ -13,5 +13,5 @@ class TestAIChat(unittest.TestCase):
     def test_chat(self):
         chat = AIChat()
         response = chat.chat(self.ctx, 'Olá')
-        print(response)
+        print(f'Response: {response}')
         self.assertGreater(len(response), 0)
