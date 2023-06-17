@@ -8,8 +8,8 @@ class Basic(commands.Cog):
         await ctx.send('Pong!')
 
     @commands.command()
-    async def echo(self, ctx: commands.Context, *, message: str):
-        await ctx.send(message)
+    async def echo(self, ctx: commands.Context, *, args: str):
+        await ctx.send(args)
 
 
 async def setup(bot):

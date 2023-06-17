@@ -35,8 +35,8 @@ async def voice_client(ctx: commands.Context) -> discord.VoiceClient:
 class Music(commands.Cog):
 
     @commands.command()
-    async def play(self, ctx: commands.Context, *, message: str):
-        data: list[MusicData] = MusicData.from_url(message)
+    async def play(self, ctx: commands.Context, *, args: str):
+        data: list[MusicData] = MusicData.from_url(args)
         for music in data:
             guild_data.queue(ctx).append(music)
         _voice_client = await voice_client(ctx)
@@ -140,17 +140,17 @@ class Music(commands.Cog):
             ctx, embed=embed)
 
     @commands.command()
-    async def remove(self, ctx: commands.Context, index: int):
+    async def remove(self, ctx: commands.Context, args: int):
         _queue = guild_data.queue(ctx)
         if _queue is None:
             return await send_message(
                 ctx, 'Não há nada na fila')
-        if index > len(_queue):
+        if args > len(_queue):
             return await send_message(
                 ctx, 'Índice inválido')
-        guild_data.queue(ctx).remove(index - 1)
+        guild_data.queue(ctx).remove(args - 1)
         await send_message(
-            ctx, f'Removido índice {index}')
+            ctx, f'Removido índice {args}')
 
     @commands.command()
     async def loop(self, ctx: commands.Context):
@@ -170,17 +170,17 @@ class Music(commands.Cog):
             ctx, 'Fila embaralhada')
 
     @commands.command()
-    async def volume(self, ctx: commands.Context, volume: int):
-        if volume > 200 or volume < 0:
+    async def volume(self, ctx: commands.Context, args: int):
+        if args > 200 or args < 0:
             return await send_message(
                 ctx, 'Volume inválido')
         _voice_client = await voice_client(ctx)
-        guild_data.set_volume(ctx, volume / 100)
+        guild_data.set_volume(ctx, args / 100)
         if not _voice_client.is_playing():
             return
-        _voice_client.source.volume = volume / 100  # type: ignore
+        _voice_client.source.volume = args / 100  # type: ignore
         await send_message(
-            ctx, f'Volume alterado para {volume}%')
+            ctx, f'Volume alterado para {args}%')
 
     @commands.command()
     async def now(self, ctx: commands.Context):

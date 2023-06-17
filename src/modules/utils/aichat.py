@@ -1,16 +1,15 @@
-import os
 from src.modules.utils import aiassist
 from discord.ext import commands
+from src.modules.utils.command_runner import CommandRunner
+from src.modules.utils.guild import guild_data
 
 
 class AIChat:
     def __init__(self):
         self.chat_mem = []
-        self.deepai_mem = []
         self.parent_id = ''
         self.temp = 0.8
         self.top_p = 0.8
-        self.poe_token = os.environ.get('POE_TOKEN')
         self.system = ''
         f = open('src/modules/utils/chat_mem.txt', 'r')
         for line in f:
@@ -29,13 +28,31 @@ class AIChat:
         f.close()
         self.chat_mem.append({'role': 'system', 'content': self.system})
 
-    def chat(self,
-             ctx: commands.Context,
-             prompt: str) -> str:
+    async def chat(self,
+                   ctx: commands.Context,
+                   prompt: str) -> str:
         prompt = ctx.author.name + ": " + prompt
         res = self.get_response(prompt)
 
+        command_runner: CommandRunner = guild_data.command_runner(ctx)
+
+        await self.check_commands(ctx, res, command_runner)
+
         return res
+
+    async def check_commands(self, ctx, response: str, command_runner: CommandRunner):
+        text = response
+        if '-[' in text and ']-' in text:
+            runnable_commands = []
+            there_is_a_command = True
+            while there_is_a_command:
+                runnable_commands.append(
+                    text[text.find('-[') + 2:text.find(']-')])
+                text = text[text.find(']-') + 2:]
+                if '-[' not in text or ']-' not in text:
+                    there_is_a_command = False
+            for command in runnable_commands:
+                await command_runner.run_command(ctx, command)
 
     def set_temp(self, temp: float):
         if temp < 0.1 or temp > 0.9:

@@ -2,6 +2,7 @@ import random
 from discord.ext import commands
 import discord
 from src.modules.utils.aichat import AIChat
+from src.modules.utils.command_runner import CommandRunner
 from src.modules.utils.musicdata import MusicData
 
 
@@ -26,6 +27,7 @@ class GuildsData:
     def __init__(self) -> None:
         self._queue: dict[int, list[MusicData]] = {}
         self._chat: dict[int, AIChat] = {}
+        self._command_runner: dict[int, CommandRunner] = {}
         self._is_looping: dict[int, bool] = {}
         self._volume: dict[int, float] = {}
         self._skip_flag: dict[int, bool] = {}
@@ -33,6 +35,10 @@ class GuildsData:
     def chat(self, ctx) -> AIChat:
         id = guild_id(ctx, accepts_dm=True)
         return self._chat.setdefault(id, AIChat())
+
+    def command_runner(self, ctx) -> CommandRunner:
+        id = guild_id(ctx, accepts_dm=True)
+        return self._command_runner.setdefault(id, CommandRunner())
 
     def queue(self, ctx) -> list:
         guild_id = guild(ctx).id

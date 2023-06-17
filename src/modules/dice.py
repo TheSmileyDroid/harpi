@@ -7,11 +7,11 @@ from src.modules.utils.dice_roller import DiceHandler, RandomDiceRoller
 class Dice(commands.Cog):
 
     @commands.command(name='d', aliases=['dado', 'rolar', 'roll', 'r'])
-    async def roll(self, ctx: Context, *, dice: str):
+    async def roll(self, ctx: Context, *, args: str):
         """Rola um dado. Exemplo: -d 1d20+3"""
         try:
             dice_handler = DiceHandler(RandomDiceRoller())
-            result = dice_handler.froll(dice)
+            result = dice_handler.froll(args)
             await ctx.send(result)
         except Exception as e:
             log.error(e)
