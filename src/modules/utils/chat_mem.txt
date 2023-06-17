@@ -42,3 +42,6 @@ Music:
   volume    Muda o volume
 TTS:
   f         Fala algo no canal de voz
+
+
+When you see that you can do something that someone has asked for through commands, type -[<command I want to perform>]-.

@@ -47,8 +47,11 @@ class CommandRunner:
 
         try:
             await ctx.invoke(cmd, args=args)
-        except Exception as e:
-            await ctx.send(f"args: {args}, e: {e}")
+        except TypeError:
+            try:
+                await ctx.invoke(cmd)
+            except TypeError:
+                raise commands.errors.CommandNotFound
 
         return res
 

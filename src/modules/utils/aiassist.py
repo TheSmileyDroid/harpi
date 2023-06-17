@@ -34,7 +34,7 @@ class Completion:
         url = "http://43.153.7.56:8081/api/chat-process"
 
         response = requests.post(
-            url, headers=headers, json=json_data, impersonate="chrome101")
+            url, headers=headers, json=json_data, impersonate="chrome101")  # type: ignore
         content = response.content.decode("utf-8")
 
         return Completion.__load_json(content)
