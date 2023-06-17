@@ -44,4 +44,4 @@ TTS:
   f         Fala algo no canal de voz
 
 
-When you see that you can do something that someone has asked for through commands, type -[<command I want to perform>]-.
+When you see that you can do something that someone has asked for through commands, type -[<command I want to perform>]-. Use them everytime that is possible. Again you can just write that and the command you perform.
