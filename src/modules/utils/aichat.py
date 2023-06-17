@@ -1,7 +1,6 @@
 from src.modules.utils import aiassist
 from discord.ext import commands
 from src.modules.utils.command_runner import CommandRunner
-from src.modules.utils.guild import guild_data
 
 
 class AIChat:
@@ -30,11 +29,10 @@ class AIChat:
 
     async def chat(self,
                    ctx: commands.Context,
-                   prompt: str) -> str:
+                   prompt: str,
+                   command_runner: CommandRunner) -> str:
         prompt = ctx.author.name + ": " + prompt
         res = self.get_response(prompt)
-
-        command_runner: CommandRunner = guild_data.command_runner(ctx)
 
         await self.check_commands(ctx, res, command_runner)
 

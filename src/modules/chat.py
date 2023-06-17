@@ -11,7 +11,8 @@ class Chat(commands.Cog):
     async def chat(self, ctx: commands.Context, *, args: str):
         """Converse com o bot."""
         chat: AIChat = guild_data.chat(ctx)
-        response = await chat.chat(ctx, args)
+        command_runner: CommandRunner = guild_data.command_runner(ctx)
+        response = await chat.chat(ctx, args, command_runner)
         await ctx.send(response)
 
     @commands.command()
