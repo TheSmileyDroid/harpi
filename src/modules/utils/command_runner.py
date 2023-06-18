@@ -35,23 +35,24 @@ class CommandRunner:
     async def run_command(self,
                           ctx: commands.Context,
                           prompt: str) -> str:
-        res = self.get_response(prompt)
+        async with ctx.typing():
+            res = self.get_response(prompt)
 
-        arglist = get_valid_list(res)
+            arglist = get_valid_list(res)
 
-        command = arglist[0]
+            command = arglist[0]
 
-        cmd: commands.Command = ctx.bot.get_command(command)
+            cmd: commands.Command = ctx.bot.get_command(command)
 
-        args = ' '.join(arglist[1:])
+            args = ' '.join(arglist[1:])
 
-        try:
-            await ctx.invoke(cmd, args=args)
-        except TypeError:
             try:
-                await ctx.invoke(cmd)
+                await ctx.invoke(cmd, args=args)
             except TypeError:
-                raise commands.errors.CommandNotFound
+                try:
+                    await ctx.invoke(cmd)
+                except TypeError:
+                    raise commands.errors.CommandNotFound
 
         return res
 

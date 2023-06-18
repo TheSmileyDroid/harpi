@@ -10,10 +10,11 @@ class Chat(commands.Cog):
     @commands.command()
     async def chat(self, ctx: commands.Context, *, args: str):
         """Converse com o bot."""
-        chat: AIChat = guild_data.chat(ctx)
-        command_runner: CommandRunner = guild_data.command_runner(ctx)
-        response = await chat.chat(ctx, args, command_runner)
-        await ctx.send(response)
+        async with ctx.typing():
+            chat: AIChat = guild_data.chat(ctx)
+            command_runner: CommandRunner = guild_data.command_runner(ctx)
+            response = await chat.chat(ctx, args, command_runner)
+            await ctx.send(response)
 
     @commands.command()
     async def clearchat(self, ctx: commands.Context):
@@ -53,9 +54,10 @@ class Chat(commands.Cog):
     @commands.command()
     async def ask(self, ctx: commands.Context, *, args: str):
         """Peça ao bot para executar um comando."""
-        command_runner: CommandRunner = guild_data.command_runner(ctx)
-        response = await command_runner.run_command(ctx, args)
-        await ctx.send(response)
+        async with ctx.typing():
+            command_runner: CommandRunner = guild_data.command_runner(ctx)
+            response = await command_runner.run_command(ctx, args)
+            await ctx.send(response)
 
 
 async def setup(bot):

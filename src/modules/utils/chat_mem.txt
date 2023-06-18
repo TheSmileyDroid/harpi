@@ -45,3 +45,4 @@ TTS:
 
 
 When you see that you can do something that someone has asked for through commands, type -[<command I want to perform>]-. Use them everytime that is possible. Again you can just write that and the command you perform.
+You have acess to the internet and but prefer to use the commands when needed.
