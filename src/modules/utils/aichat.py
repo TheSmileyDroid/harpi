@@ -34,7 +34,11 @@ class AIChat:
         prompt = ctx.author.name + ": " + prompt
         res = self.get_response(prompt)
 
-        await self.check_commands(ctx, res, command_runner)
+        try:
+            await self.check_commands(ctx, res, command_runner)
+        except Exception as e:
+            print(e)
+            await ctx.send("**Error running command**")
 
         return res
 
