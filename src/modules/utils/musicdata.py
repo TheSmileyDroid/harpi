@@ -6,7 +6,7 @@ import asyncio
 from src.modules.errors.bad_link import BadLink
 import discord
 import yt_dlp as youtube_dl  # type: ignore
-
+from requests import get
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 
@@ -34,6 +34,22 @@ ffmpeg_options = {
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
 
+def search(arg):
+    with ytdl:
+        try:
+            get(arg)
+        except Exception:
+            video = ytdl.extract_info(f"ytsearch:{arg}", download=False)
+            if video is None:
+                raise Exception("Não foi possível encontrar nenhum vídeo.")
+            if 'entries' in video:
+                video = video['entries'][0]
+        else:
+            video = ytdl.extract_info(arg, download=False)
+
+    return video
+
+
 class MusicData:
 
     def __init__(self, title, url):
@@ -43,8 +59,7 @@ class MusicData:
     @classmethod
     def from_url(cls, url: str) -> list['MusicData']:
         print(url)
-        with ytdl:
-            result = ytdl.extract_info(url, download=False)
+        result = search(url)
         if result is None:
             raise BadLink(url)
         if 'entries' in result:
