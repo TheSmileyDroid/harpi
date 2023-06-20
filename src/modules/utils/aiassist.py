@@ -35,7 +35,7 @@ class Completion:
 
         response = requests.post(
             url, headers=headers, json=json_data, impersonate="chrome101")  # type: ignore
-        content = response.content.decode("utf-8")
+        content = response.content.decode("utf-8", "ignore")
 
         return Completion.__load_json(content)
 
