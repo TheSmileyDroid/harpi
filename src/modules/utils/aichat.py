@@ -2,6 +2,7 @@ from src.modules.utils import aiassist
 from discord.ext import commands
 from src.modules.utils.bots.command_runner import CommandRunner
 from src.modules.utils.bots.searcher import Searcher
+import time
 
 
 class AIChat:
@@ -12,7 +13,7 @@ class AIChat:
         self.parent_id = ''
         self.temp = 0.8
         self.top_p = 0.8
-        self.system = ''
+        self.system = 'Data atual: ' + time.strftime('%d/%m/%Y') + '\n'
         f = open('src/modules/utils/chat_mem.txt', 'r')
         for line in f:
             self.system += line
