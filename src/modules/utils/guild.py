@@ -2,7 +2,7 @@ import random
 from discord.ext import commands
 import discord
 from src.modules.utils.aichat import AIChat
-from src.modules.utils.command_runner import CommandRunner
+from src.modules.utils.bots.command_runner import CommandRunner
 from src.modules.utils.musicdata import MusicData
 
 

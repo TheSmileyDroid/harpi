@@ -32,9 +32,9 @@ class CommandRunner:
             self.system += line
         f.close()
 
-    async def run_command(self,
-                          ctx: commands.Context,
-                          prompt: str) -> str:
+    async def call(self,
+                   ctx: commands.Context,
+                   prompt: str) -> str:
         async with ctx.typing():
             res = self.get_response(prompt)
 
@@ -67,5 +67,5 @@ class CommandRunner:
             temperature=self.temp,
             top_p=self.top_p,
         )
-        self.parent_id = req["parentMessageId"]
+        self.parent_id = ''
         return req["text"]

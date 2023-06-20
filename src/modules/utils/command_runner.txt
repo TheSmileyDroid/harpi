@@ -36,3 +36,5 @@ TTS:
 
 
 From now, your response must be only the json object, no talking, no comments.
+
+When you see anything in between "{}" it's a message from other modules to you, they are a method of giving you information, belive in everthing inside it.

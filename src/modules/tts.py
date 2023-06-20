@@ -7,7 +7,6 @@ from gtts import gTTS  # type: ignore
 
 
 from src.modules.utils.aichat import AIChat
-from src.modules.utils.command_runner import CommandRunner
 from src.modules.utils.guild import guild_data
 from src.modules.utils.musicdata import FFmpegPCMAudio
 
@@ -68,8 +67,7 @@ class TTS(commands.Cog):
     @commands.command(name='fc', aliases=['fchat'])
     async def fchat(self, ctx, *, text: str):
         chat: AIChat = guild_data.chat(ctx)
-        command_runner: CommandRunner = guild_data.command_runner(ctx)
-        response = await chat.chat(ctx, text, command_runner)
+        response = await chat.chat(ctx, text)
         if response.startswith('Harpi:'):
             response = response[6:]
         try:

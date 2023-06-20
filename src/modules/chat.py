@@ -1,7 +1,7 @@
 from discord.ext import commands
 
 from src.modules.utils.aichat import AIChat
-from src.modules.utils.command_runner import CommandRunner
+from src.modules.utils.bots.command_runner import CommandRunner
 from src.modules.utils.guild import guild_data
 
 
@@ -12,8 +12,7 @@ class Chat(commands.Cog):
         """Converse com o bot."""
         async with ctx.typing():
             chat: AIChat = guild_data.chat(ctx)
-            command_runner: CommandRunner = guild_data.command_runner(ctx)
-            response = await chat.chat(ctx, args, command_runner)
+            response = await chat.chat(ctx, args)
             await ctx.send(response)
 
     @commands.command()
@@ -56,7 +55,7 @@ class Chat(commands.Cog):
         """Peça ao bot para executar um comando."""
         async with ctx.typing():
             command_runner: CommandRunner = guild_data.command_runner(ctx)
-            response = await command_runner.run_command(ctx, args)
+            response = await command_runner.call(ctx, args)
             await ctx.send(response)
 
 

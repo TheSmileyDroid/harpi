@@ -1,10 +1,13 @@
 from src.modules.utils import aiassist
 from discord.ext import commands
-from src.modules.utils.command_runner import CommandRunner
+from src.modules.utils.bots.command_runner import CommandRunner
+from src.modules.utils.bots.searcher import Searcher
 
 
 class AIChat:
     def __init__(self):
+        self.command_runner = CommandRunner()
+        self.searcher = Searcher()
         self.chat_mem = []
         self.parent_id = ''
         self.temp = 0.8
@@ -29,13 +32,20 @@ class AIChat:
 
     async def chat(self,
                    ctx: commands.Context,
-                   prompt: str,
-                   command_runner: CommandRunner) -> str:
-        prompt = ctx.author.name + ": " + prompt
-        res = self.get_response(prompt)
+                   prompt: str) -> str:
+        prompt_with_author = ctx.author.name + ": " + prompt
+
+        info = await self.searcher.call(ctx, prompt)
+
+        if info == '{NOQUERY}':
+            info = ''
+        else:
+            info += '\n\n'
+
+        res = self.get_response(info + prompt_with_author)
 
         try:
-            await self.check_commands(ctx, res, command_runner)
+            await self.check_commands(ctx, res, self.command_runner)
         except Exception as e:
             print(e)
             await ctx.send("**Error running command**")
@@ -54,7 +64,7 @@ class AIChat:
                 if '-[' not in text or ']-' not in text:
                     there_is_a_command = False
             for command in runnable_commands:
-                await command_runner.run_command(ctx, command)
+                await self.command_runner.call(ctx, command)
 
     def set_temp(self, temp: float):
         if temp < 0.1 or temp > 0.9:

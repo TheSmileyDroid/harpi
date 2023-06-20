@@ -5,3 +5,4 @@ gTTS
 browser_cookie3
 wheel
 curl_cffi
+google-api-python-client
