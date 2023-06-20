@@ -23,7 +23,7 @@ def get_valid_list(response: str) -> list[str]:
 
 class CommandRunner:
     def __init__(self):
-        self.temp = 0.2
+        self.temp = 0.1
         self.top_p = 0.1
         self.parent_id = ''
         self.system = ''
@@ -33,26 +33,30 @@ class CommandRunner:
         f.close()
 
     async def call(self,
-                   ctx: commands.Context,
+                   ctx: commands.Context | None,
                    prompt: str) -> str:
-        async with ctx.typing():
-            res = self.get_response(prompt)
 
-            arglist = get_valid_list(res)
+        res = self.get_response(prompt)
 
-            command = arglist[0]
+        print(res)
 
-            cmd: commands.Command = ctx.bot.get_command(command)
+        arglist = get_valid_list(res)
 
-            args = ' '.join(arglist[1:])
+        command = arglist[0]
 
+        if ctx is None:
+            return res
+        cmd: commands.Command = ctx.bot.get_command(command)
+
+        args: str = ' '.join(arglist[1:])
+
+        try:
+            await ctx.invoke(cmd, args=args)  # type: ignore
+        except TypeError:
             try:
-                await ctx.invoke(cmd, args=args)
+                await ctx.invoke(cmd)
             except TypeError:
-                try:
-                    await ctx.invoke(cmd)
-                except TypeError:
-                    raise commands.errors.CommandNotFound
+                raise commands.errors.CommandNotFound
 
         return res
 

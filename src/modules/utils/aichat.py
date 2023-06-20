@@ -31,39 +31,52 @@ class AIChat:
         self.chat_mem.append({'role': 'system', 'content': self.system})
 
     async def chat(self,
-                   ctx: commands.Context,
+                   ctx: commands.Context | None,
                    prompt: str) -> str:
-        prompt_with_author = ctx.author.name + ": " + prompt
+        if ctx is not None:
+            prompt_with_author = ctx.author.name + ": " + prompt
+        else:
+            prompt_with_author = 'smileydroid' + ": " + prompt
 
-        info = await self.searcher.call(ctx, prompt)
+        info = await self.searcher.call(ctx, '"' + prompt + '"')
 
-        if info == '{NOQUERY}':
+        if info == 'NOQUERY':
             info = ''
         else:
             info += '\n\n'
 
+        print(info + prompt_with_author)
+
         res = self.get_response(info + prompt_with_author)
 
         try:
-            await self.check_commands(ctx, res, self.command_runner)
+            await self.check_commands(ctx, res)
+            if ctx is None:
+                return res
         except Exception as e:
             print(e)
+            if ctx is None:
+                return res
             await ctx.send("**Error running command**")
 
         return res
 
-    async def check_commands(self, ctx, response: str, command_runner: CommandRunner):
+    async def check_commands(self, ctx: commands.Context | None, response: str):
         text = response
-        if '-[' in text and ']-' in text:
+        if '{' in text and '}' in text:
             runnable_commands = []
             there_is_a_command = True
             while there_is_a_command:
-                runnable_commands.append(
-                    text[text.find('-[') + 2:text.find(']-')])
-                text = text[text.find(']-') + 2:]
-                if '-[' not in text or ']-' not in text:
+                start = text.find('{')
+                end = text.find('}')
+                if start == -1 or end == -1:
                     there_is_a_command = False
+                    continue
+                command = text[start + 1:end]
+                runnable_commands.append(command)
+                text = text[end + 1:]
             for command in runnable_commands:
+                print(command)
                 await self.command_runner.call(ctx, command)
 
     def set_temp(self, temp: float):

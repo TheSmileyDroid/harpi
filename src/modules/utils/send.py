@@ -1,5 +1,5 @@
 from discord.ext import commands
-from discord import Embed
+from discord import Color, Colour, Embed
 
 
 async def send_message(ctx: commands.Context, message: str | None = None, **kwargs):  # noqa: E501
@@ -15,10 +15,13 @@ async def send_message(ctx: commands.Context, message: str | None = None, **kwar
         if isinstance(embed, Embed):
             if len(embed.fields) > 20:
                 while len(embed.fields) > 20:
+                    color: Colour | None = embed.colour
+                    if color is None:
+                        color = Color.blue()
                     newembed = Embed(
                         title=embed.title,
                         description=embed.description,
-                        color=embed.color)
+                        color=color)
                     for field in embed.fields[:20]:
                         newembed.add_field(
                             name=field.name,
