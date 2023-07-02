@@ -18,7 +18,7 @@ class Searcher:
     async def call(self,
                    ctx: commands.Context | None,
                    prompt: str) -> str:
-        query = self.get_response(prompt, self.querytranslator)
+        query = await self.get_response(prompt, self.querytranslator)
 
         print(query)
 
@@ -37,11 +37,11 @@ class Searcher:
 
         return '{' + result + '}'
 
-    def get_response(self, prompt: str, system: str) -> str:
-        return self.get_response_aiassist(prompt, system)
+    async def get_response(self, prompt: str, system: str) -> str:
+        return await self.get_response_aiassist(prompt, system)
 
-    def get_response_aiassist(self, prompt: str, system: str) -> str:
-        req = aiassist.Completion.create(
+    async def get_response_aiassist(self, prompt: str, system: str) -> str:
+        req = await aiassist.Completion.create(
             prompt=prompt,
             systemMessage=system,
             parentMessageId=self.parent_id,

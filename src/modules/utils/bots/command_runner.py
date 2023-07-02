@@ -36,7 +36,7 @@ class CommandRunner:
                    ctx: commands.Context | None,
                    prompt: str) -> str:
 
-        res = self.get_response(prompt)
+        res = await self.get_response(prompt, ctx)
 
         print(res)
 
@@ -60,11 +60,11 @@ class CommandRunner:
 
         return res
 
-    def get_response(self, prompt: str) -> str:
-        return self.get_response_aiassist(prompt)
+    async def get_response(self, prompt: str, ctx: commands.Context | None) -> str:
+        return await self.get_response_aiassist(prompt, ctx)
 
-    def get_response_aiassist(self, prompt: str) -> str:
-        req = aiassist.Completion.create(
+    async def get_response_aiassist(self, prompt: str, ctx: commands.Context | None) -> str:
+        req = await aiassist.Completion.create(
             prompt=prompt,
             systemMessage=self.system,
             parentMessageId=self.parent_id,

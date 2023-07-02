@@ -1,15 +1,22 @@
+from time import sleep
 from curl_cffi import requests  # type: ignore
 import json
+from discord.ext import commands
+
+from threading import Semaphore
+
+semaphore = Semaphore(1)
 
 
 class Completion:
     @staticmethod
-    def create(
+    async def create(
         systemMessage: str = "You are a helpful assistant",
         prompt: str = "",
         parentMessageId: str = "",
         temperature: float = 0.8,
         top_p: float = 0.8,
+        ctx: commands.Context | None = None,
     ):
         headers = {
             'Content-Type': 'application/json'
@@ -25,8 +32,18 @@ class Completion:
 
         url = "http://43.153.7.56:8081/api/chat-process"
 
+        semaphore.acquire()
         response = requests.post(
             url, headers=headers, json=json_data, impersonate="chrome101")  # type: ignore
+        if (response.status_code != 200 and ctx is not None):
+            await ctx.send("Me desculpe a demora, estou processando sua mensagem!")
+
+        while (response.status_code != 200):
+            response = requests.post(
+                url, headers=headers, json=json_data, impersonate="chrome101")
+            sleep(1)
+        semaphore.release()
+
         content = response.content.decode("utf-8", "ignore")
 
         try:

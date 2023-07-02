@@ -48,7 +48,7 @@ class AIChat:
 
         print(info + prompt_with_author)
 
-        res = self.get_response(info + prompt_with_author)
+        res = await self.get_response(info + prompt_with_author, ctx)
 
         try:
             await self.check_commands(ctx, res)
@@ -96,20 +96,21 @@ class AIChat:
     def get_top_p(self) -> float:
         return self.top_p
 
-    def get_response_aiassist(self, prompt: str) -> str:
-        req = aiassist.Completion.create(
+    async def get_response_aiassist(self, prompt: str, ctx: commands.Context | None = None) -> str:
+        req = await aiassist.Completion.create(
             prompt=prompt,
             systemMessage=self.system,
             parentMessageId=self.parent_id,
             temperature=self.temp,
             top_p=self.top_p,
+            ctx=ctx
         )
         self.parent_id = req["parentMessageId"]
         print(req["text"])
         return req["text"]
 
-    def get_response(self, prompt: str) -> str:
-        return self.get_response_aiassist(prompt)
+    async def get_response(self, prompt: str, ctx: commands.Context | None = None) -> str:
+        return await self.get_response_aiassist(prompt, ctx)
 
     def clear(self):
         self.reset()
