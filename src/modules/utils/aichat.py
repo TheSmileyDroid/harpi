@@ -105,6 +105,7 @@ class AIChat:
             top_p=self.top_p,
         )
         self.parent_id = req["parentMessageId"]
+        print(req["text"])
         return req["text"]
 
     def get_response(self, prompt: str) -> str:

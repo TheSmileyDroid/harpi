@@ -12,15 +12,7 @@ class Completion:
         top_p: float = 0.8,
     ):
         headers = {
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'pt-BR,en-US;q=0.7,en;q=0.3',
-            # 'Accept-Encoding': 'gzip, deflate',
-            'Content-Type': 'application/json',
-            'Origin': 'http://aiassist.art',
-            'DNT': '1',
-            'Connection': 'keep-alive',
-            'Referer': 'http://aiassist.art/',
+            'Content-Type': 'application/json'
         }
 
         json_data = {
@@ -37,10 +29,18 @@ class Completion:
             url, headers=headers, json=json_data, impersonate="chrome101")  # type: ignore
         content = response.content.decode("utf-8", "ignore")
 
-        return Completion.__load_json(content)
+        try:
+            return Completion.__load_json(content)
+        except json.decoder.JSONDecodeError:
+            print(content)
+            raise Exception(content)
 
     @classmethod
     def __load_json(cls, content) -> dict:
         split = content.rsplit("\n", 1)[1]
         to_json = json.loads(split)
         return to_json
+
+
+if __name__ == "__main__":
+    print(Completion.create(prompt="Hello, how are you?"))
