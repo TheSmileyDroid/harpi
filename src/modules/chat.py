@@ -16,6 +16,14 @@ class Chat(commands.Cog):
             await ctx.send(response)
 
     @commands.command()
+    async def search(self, ctx: commands.Context, *, args: str):
+        """Converse com o bot."""
+        async with ctx.typing():
+            chat: AIChat = guild_data.chat(ctx)
+            response = await chat.search(ctx, args)
+            await ctx.send(response)
+
+    @commands.command()
     async def clearchat(self, ctx: commands.Context):
         """Limpe o chat."""
         chat: AIChat = guild_data.chat(ctx)

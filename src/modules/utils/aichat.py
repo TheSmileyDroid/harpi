@@ -31,9 +31,9 @@ class AIChat:
         f.close()
         self.chat_mem.append({'role': 'system', 'content': self.system})
 
-    async def chat(self,
-                   ctx: commands.Context | None,
-                   prompt: str) -> str:
+    async def search(self,
+                     ctx: commands.Context | None,
+                     prompt: str) -> str:
         if ctx is not None:
             prompt_with_author = ctx.author.name + ": " + prompt
         else:
@@ -56,6 +56,30 @@ class AIChat:
         print(info + prompt_with_author)
 
         res = await self.get_response(info + prompt_with_author, ctx)
+
+        try:
+            await self.check_commands(ctx, res)
+            if ctx is None:
+                return res
+        except Exception as e:
+            print(e)
+            if ctx is None:
+                return res
+            await ctx.send("**Error running command**")
+
+        return res
+
+    async def chat(self,
+                   ctx: commands.Context | None,
+                   prompt: str) -> str:
+        if ctx is not None:
+            prompt_with_author = ctx.author.name + ": " + prompt
+        else:
+            prompt_with_author = 'smileydroid' + ": " + prompt
+
+        print(prompt_with_author)
+
+        res = await self.get_response(prompt_with_author, ctx)
 
         try:
             await self.check_commands(ctx, res)
