@@ -39,12 +39,19 @@ class AIChat:
         else:
             prompt_with_author = 'smileydroid' + ": " + prompt
 
-        info = await self.searcher.call(ctx, '"' + prompt + '"')
+        info = ''
 
-        if info == 'NOQUERY':
-            info = ''
-        else:
-            info += '\n\n'
+        try:
+
+            info = await self.searcher.call(ctx, '"' + prompt + '"')
+
+            if info == 'NOQUERY':
+                info = ''
+            else:
+                info += '\n\n'
+        except Exception as e:
+            print(e)
+            info = '\n\n'
 
         print(info + prompt_with_author)
 
