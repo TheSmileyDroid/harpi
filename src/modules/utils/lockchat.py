@@ -34,7 +34,7 @@ class Completion:
 
         answer = ''
 
-        for token in response.iter_lines():  # type: ignore
+        for token in response.content:  # type: ignore
             if b'The model: `gpt-4` does not exist' in token:
                 print('error, retrying...')
                 await Completion.create(messages=messages, temperature=temperature)
@@ -45,6 +45,8 @@ class Completion:
                     answer += token
 
         semaphore.release()
+
+        print(response.content)
 
         print(answer)
 
