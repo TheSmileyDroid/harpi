@@ -33,4 +33,4 @@ async def send_message(ctx: commands.Context, message: str | None = None, **kwar
                         embed.remove_field(0)
                 await ctx.send(embed=embed)
                 return
-    await ctx.send(message, **kwargs)
+    await ctx.send(**kwargs)

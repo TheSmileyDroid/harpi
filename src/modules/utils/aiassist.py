@@ -44,6 +44,8 @@ class Completion:
             sleep(1)
         semaphore.release()
 
+        print(response.content)
+
         content = response.content.decode("utf-8", "ignore")
 
         try:
