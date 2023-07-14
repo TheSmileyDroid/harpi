@@ -1,4 +1,5 @@
 from src.modules.utils import aiassist
+from src.modules.utils import lockchat
 from discord.ext import commands
 from src.modules.utils.bots.command_runner import CommandRunner
 from src.modules.utils.bots.searcher import Searcher
@@ -140,8 +141,19 @@ class AIChat:
         print(req["text"])
         return req["text"]
 
+    async def get_response_lockchat(self, prompt: str, ctx: commands.Context | None = None) -> str:
+        self.chat_mem.append({'role': 'user', 'content': prompt})
+        res = await lockchat.Completion.create(
+            prompt=prompt,
+            messages=self.chat_mem,
+            temperature=self.temp,
+            ctx=ctx
+        )
+        self.chat_mem.append({'role': 'assistant', 'content': res})
+        return res
+
     async def get_response(self, prompt: str, ctx: commands.Context | None = None) -> str:
-        return await self.get_response_aiassist(prompt, ctx)
+        return await self.get_response_lockchat(prompt, ctx)
 
     def clear(self):
         self.reset()
