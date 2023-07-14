@@ -1,36 +1,59 @@
+from typing import Optional, List
+from discord import Embed, Color
 from discord.ext import commands
-from discord import Color, Colour, Embed
 
 
-async def send_message(ctx: commands.Context, message: str | None = None, **kwargs):  # noqa: E501
-    if message is not None:
-        if len(message) > 1999:
-            while len(message) > 1999:
-                await ctx.send(message[:1999], **kwargs)
-                message = message[1999:]
-            await ctx.send(message, **kwargs)
-            return
-    if 'embed' in kwargs:
-        embed = kwargs['embed']
-        if isinstance(embed, Embed):
-            if len(embed.fields) > 20:
-                while len(embed.fields) > 20:
-                    color: Colour | None = embed.colour
-                    if color is None:
-                        color = Color.blue()
-                    newembed = Embed(
-                        title=embed.title,
-                        description=embed.description,
-                        color=color)
-                    for field in embed.fields[:20]:
-                        newembed.add_field(
-                            name=field.name,
-                            value=field.value,
-                            inline=field.inline)
-                    newembed.set_footer(text=embed.footer.text)
-                    await ctx.send(embed=newembed)
-                    for _ in range(20):
-                        embed.remove_field(0)
-                await ctx.send(embed=embed)
-                return
-    await ctx.send(**kwargs)
+class Message:
+
+    def __init__(self, ctx: commands.Context, content: Optional[str] = None):
+        self.ctx = ctx
+        self.content = content
+
+    async def send(self, **kwargs):
+        if self.content:
+            # Split into chunks of 1999 characters long
+            for chunk in self._chunks(self.content, 1999):
+                await self.ctx.send(chunk, **kwargs)
+
+    # SRP: A separate method to split the content into chunks
+    @staticmethod
+    def _chunks(content, size):
+        # For item i in a range that is a length of content
+        for i in range(0, len(content), size):
+            # Create an index range for content of size
+            yield content[i:i + size]
+
+
+class EmbeddedMessage(Message):
+
+    def __init__(self, ctx: commands.Context, embed: Optional[Embed] = None):
+        super().__init__(ctx)
+        self.embed = embed
+
+    async def send(self, **kwargs):
+        # Check if embed exists
+        if self.embed:
+            # Split into chunks of 20 fields
+            for chunk in self._chunks(self.embed.fields, 20):
+                new_embed = Embed(
+                    title=self.embed.title,
+                    description=self.embed.description,
+                    color=self.embed.color or Color.blue()
+                )
+                for field in chunk:
+                    new_embed.add_field(
+                        name=field.name,
+                        value=field.value,
+                        inline=field.inline
+                    )
+                await self.ctx.send(embed=new_embed, **kwargs)
+        else:
+            await super().send(**kwargs)
+
+    # OCP: The `_chunks` method from parent class has been overridden (extended) to support different objects
+    @staticmethod
+    def _chunks(content: List, size):
+        # For item i in a range that is a length of content
+        for i in range(0, len(content), size):
+            # Create an index range for content of size
+            yield content[i:i + size]
