@@ -1,5 +1,4 @@
 import subprocess
-from typing import Any, Dict
 from discord.opus import Encoder
 import io
 import shlex
@@ -26,7 +25,7 @@ ytdl_format_options = {
     'source_address': '0.0.0.0',
 }
 
-ffmpeg_options: dict[str, Any] = {
+ffmpeg_options = {
     'options': '-vn',
     'before_options':
     '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
@@ -70,6 +69,38 @@ class MusicData:
             ]
         video = result
         return [cls(video['title'], video['url'])]
+
+
+class YoutubeDLSource(discord.PCMVolumeTransformer):
+
+    def __init__(self, source, *, data, volume=0.3):
+        super().__init__(source, volume)
+
+        self.data = data
+
+        self.title = data.get('title')
+        self.url = data.get('url')
+
+    @classmethod
+    async def from_music_data(cls,
+                              musicdata: MusicData,
+                              *,
+                              loop=None,
+                              volume=0.3):
+        loop = loop or asyncio.get_event_loop()
+        data = await loop.run_in_executor(
+            None, lambda: ytdl.extract_info(musicdata.url, download=False))
+        if data is None:
+            raise BadLink(musicdata.url)
+        if 'entries' in data:
+            data = data['entries'][0]
+        filename = data['url'] if 'url' in data else ytdl.prepare_filename(
+            data)
+        return cls(discord.FFmpegPCMAudio(
+            filename,
+            **ffmpeg_options),  # type: ignore
+            data=data,
+            volume=volume)
 
 
 class FFmpegPCMAudio(discord.AudioSource):
@@ -121,36 +152,3 @@ class FFmpegPCMAudio(discord.AudioSource):
             proc.communicate()
 
         self._process = None
-
-
-class YoutubeDLSource(discord.PCMVolumeTransformer):
-
-    def __init__(self, source: discord.FFmpegPCMAudio, *, data: Dict[str, Any], volume=0.3):
-        super().__init__(source, volume)
-
-        self.data: Dict[str, Any] = data
-
-        self.title: str = data.get('title') or 'Unknown'
-        self.url: str = data.get('url') or 'Unknown'
-
-    @classmethod
-    async def from_music_data(cls,
-                              musicdata: MusicData,
-                              *,
-                              loop=None,
-                              volume=0.3):
-        loop = loop or asyncio.get_event_loop()
-        result = await loop.run_in_executor(
-            None, lambda: ytdl.extract_info(musicdata.url, download=False))
-        if result is None or result is not dict:
-            raise BadLink(musicdata.url)
-        data: Dict[str, Any] = result
-        if 'entries' in data:
-            data = data['entries'][0]
-        filename = data['url'] if 'url' in data else ytdl.prepare_filename(
-            data)
-        return cls(discord.FFmpegPCMAudio(
-            filename,
-            **ffmpeg_options),
-            data=data,
-            volume=volume)
