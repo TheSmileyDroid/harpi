@@ -125,7 +125,7 @@ class FFmpegPCMAudio(discord.AudioSource):
 
 class YoutubeDLSource(discord.PCMVolumeTransformer):
 
-    def __init__(self, source: FFmpegPCMAudio, *, data: Dict[str, Any], volume=0.3):
+    def __init__(self, source: discord.FFmpegPCMAudio, *, data: Dict[str, Any], volume=0.3):
         super().__init__(source, volume)
 
         self.data: Dict[str, Any] = data
@@ -149,7 +149,7 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
             data = data['entries'][0]
         filename = data['url'] if 'url' in data else ytdl.prepare_filename(
             data)
-        return cls(FFmpegPCMAudio(
+        return cls(discord.FFmpegPCMAudio(
             filename,
             **ffmpeg_options),
             data=data,
