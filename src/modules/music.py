@@ -189,9 +189,14 @@ class Music(commands.Cog):
             return await Message(
                 ctx, 'Não estou tocando nada agora').send()
 
+        source = _voice_client.source
+        if not isinstance(source, YoutubeDLSource):
+            return await Message(
+                ctx, 'Não estou tocando nada agora').send()
+
         await Message(
             ctx,
-            f'Tocando **{_voice_client.source.title}**')  # type: ignore
+            f'Tocando **{source.title}**').send()
 
     @commands.command()
     async def join(self, ctx: commands.Context):
