@@ -1,9 +1,11 @@
 from src.modules.utils import aiassist
-from src.modules.utils import lockchat
+from typing import Optional
 from discord.ext import commands
 from src.modules.utils.bots.command_runner import CommandRunner
 from src.modules.utils.bots.searcher import Searcher
 import time
+
+from src.modules.utils.send import Message
 
 
 class AIChat:
@@ -82,16 +84,6 @@ class AIChat:
 
         res = await self.get_response(prompt_with_author, ctx)
 
-        try:
-            await self.check_commands(ctx, res)
-            if ctx is None:
-                return res
-        except Exception as e:
-            print(e)
-            if ctx is None:
-                return res
-            await ctx.send("**Error running command**")
-
         return res
 
     async def check_commands(self, ctx: commands.Context | None, response: str):
@@ -141,19 +133,10 @@ class AIChat:
         print(req["text"])
         return req["text"]
 
-    async def get_response_lockchat(self, prompt: str, ctx: commands.Context | None = None) -> str:
-        self.chat_mem.append({'role': 'user', 'content': prompt})
-        res = await lockchat.Completion.create(
-            prompt=prompt,
-            messages=self.chat_mem,
-            temperature=self.temp,
-            ctx=ctx
-        )
-        self.chat_mem.append({'role': 'assistant', 'content': res})
-        return res
-
-    async def get_response(self, prompt: str, ctx: commands.Context | None = None) -> str:
-        return await self.get_response_lockchat(prompt, ctx)
+    async def get_response(self, prompt: str, ctx: Optional[commands.Context] = None) -> str:
+        if ctx is None:
+            raise Exception("Desculpe, o sistema de chat está desativado no momento.")
+        return await Message(ctx, "Desculpe, o sistema de chat está desativado no momento.").send()
 
     def clear(self):
         self.reset()
