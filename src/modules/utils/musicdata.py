@@ -1,11 +1,12 @@
 import subprocess
+from typing import Any, Dict
 from discord.opus import Encoder
 import io
 import shlex
 import asyncio
 from src.modules.errors.bad_link import BadLink
 import discord
-import yt_dlp as youtube_dl  # type: ignore
+import yt_dlp as youtube_dl
 from requests import get
 
 youtube_dl.utils.bug_reports_message = lambda: ''
@@ -25,7 +26,7 @@ ytdl_format_options = {
     'source_address': '0.0.0.0',
 }
 
-ffmpeg_options = {
+ffmpeg_options: Dict[str, str] = {
     'options': '-vn',
     'before_options':
     '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
@@ -34,18 +35,21 @@ ffmpeg_options = {
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
 
-def search(arg):
+def search(arg: str) -> Dict[str, Any]:
     with ytdl:
         try:
             get(arg)
         except Exception:
-            video = ytdl.extract_info(f"ytsearch:{arg}", download=False)
-            if video is None:
-                raise Exception("Não foi possível encontrar nenhum vídeo.")
+            video: Dict[str, Any] = ytdl.extract_info(
+                f"ytsearch:{arg}", download=False) or {'entries': None}
             if 'entries' in video:
+                if video['entries'] is None:
+                    raise Exception("Não foi possível encontrar nenhum vídeo.")
                 video = video['entries'][0]
         else:
-            video = ytdl.extract_info(arg, download=False)
+            video = ytdl.extract_info(arg, download=False) or {}
+    if video.get('url') is None:
+        raise Exception("Não foi possível encontrar nenhum vídeo.")
 
     return video
 
@@ -98,7 +102,7 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
             data)
         return cls(discord.FFmpegPCMAudio(
             filename,
-            **ffmpeg_options),  # type: ignore
+            *ffmpeg_options),
             data=data,
             volume=volume)
 

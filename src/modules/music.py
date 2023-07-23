@@ -17,11 +17,11 @@ def voice_state(ctx: commands.Context) -> discord.VoiceState:
     return ctx.author.voice
 
 
-def voice_channel(ctx: commands.Context) -> discord.VoiceChannel:
+def voice_channel(ctx: commands.Context) -> discord.channel.VocalGuildChannel:
     _voice_state = voice_state(ctx)
     if _voice_state.channel is None:
         raise commands.CommandError('Você não está em um canal de voz')
-    return _voice_state.channel  # type: ignore
+    return _voice_state.channel
 
 
 async def voice_client(ctx: commands.Context) -> discord.VoiceClient:

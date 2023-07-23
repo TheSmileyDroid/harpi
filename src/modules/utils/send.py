@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, List
 from discord import Embed, Color
 from discord.ext import commands
@@ -26,13 +27,16 @@ class Message:
 
 class EmbeddedMessage(Message):
 
-    def __init__(self, ctx: commands.Context, embed: Optional[Embed] = None):
+    def __init__(self, ctx: commands.Context, embed: Embed):
         super().__init__(ctx)
         self.embed = embed
 
     async def send(self, **kwargs):
         # Check if embed exists
         if self.embed:
+            if len(self.embed.fields) == 0:
+                logging.warning("Embed has no fields")
+                await super().send(**kwargs)
             # Split into chunks of 20 fields
             for chunk in self._chunks(self.embed.fields, 20):
                 new_embed = Embed(
@@ -48,6 +52,7 @@ class EmbeddedMessage(Message):
                     )
                 await self.ctx.send(embed=new_embed, **kwargs)
         else:
+            logging.debug("Embed doesn't exist")
             await super().send(**kwargs)
 
     # OCP: The `_chunks` method from parent class has been overridden (extended) to support different objects
