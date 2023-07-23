@@ -102,7 +102,7 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
             data)
         return cls(discord.FFmpegPCMAudio(
             filename,
-            *ffmpeg_options),
+            **ffmpeg_options),  # type: ignore
             data=data,
             volume=volume)
 
