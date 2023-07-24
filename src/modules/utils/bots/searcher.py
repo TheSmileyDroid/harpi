@@ -1,6 +1,6 @@
 from src.modules.utils import aiassist
 from discord.ext import commands
-import wikipedia  # type: ignore
+import wikipedia
 
 
 class Searcher:

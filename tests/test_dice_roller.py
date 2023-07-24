@@ -6,10 +6,10 @@ class DeterministicDiceRoller(DiceRoller):
     def __init__(self) -> None:
         self.rolls: list[int] = []
 
-    def roll(self, number_of_dice: int, number_of_sides: int) -> int:
-        result: int = 0
+    def roll(self, number_of_dice: int, number_of_sides: int) -> list[int]:
+        result: list[int] = []
         for _ in range(number_of_dice):
-            result += self.rolls.pop(0)
+            result.append(self.rolls.pop(0))
             print(result)
         return result
 

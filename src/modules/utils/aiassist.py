@@ -1,5 +1,5 @@
 from time import sleep
-from curl_cffi import requests  # type: ignore
+from curl_cffi import requests
 import json
 from discord.ext import commands
 

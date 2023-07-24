@@ -3,7 +3,7 @@ from os import makedirs
 from discord.ext.commands.context import Context
 from discord.ext import commands
 import discord
-from gtts import gTTS  # type: ignore
+from gtts import gTTS
 
 
 from src.modules.utils.aichat import AIChat

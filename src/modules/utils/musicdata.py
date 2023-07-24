@@ -1,11 +1,12 @@
 import subprocess
+from typing import Any, Dict
 from discord.opus import Encoder
 import io
 import shlex
 import asyncio
 from src.modules.errors.bad_link import BadLink
 import discord
-import yt_dlp as youtube_dl  # type: ignore
+import yt_dlp as youtube_dl
 from requests import get
 
 youtube_dl.utils.bug_reports_message = lambda: ''
@@ -25,7 +26,7 @@ ytdl_format_options = {
     'source_address': '0.0.0.0',
 }
 
-ffmpeg_options = {
+ffmpeg_options: Dict[str, str] = {
     'options': '-vn',
     'before_options':
     '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
@@ -46,8 +47,6 @@ def search(arg):
                 video = video['entries'][0]
         else:
             video = ytdl.extract_info(arg, download=False)
-
-    return video
 
 
 class MusicData:
