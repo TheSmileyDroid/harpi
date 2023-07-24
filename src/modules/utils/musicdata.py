@@ -48,6 +48,8 @@ def search(arg):
         else:
             video = ytdl.extract_info(arg, download=False)
 
+    return video
+
 
 class MusicData:
 
