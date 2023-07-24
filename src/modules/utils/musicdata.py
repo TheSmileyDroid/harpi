@@ -35,21 +35,18 @@ ffmpeg_options: Dict[str, str] = {
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
 
-def search(arg: str) -> Dict[str, Any]:
+def search(arg):
     with ytdl:
         try:
             get(arg)
         except Exception:
-            video: Dict[str, Any] = ytdl.extract_info(
-                f"ytsearch:{arg}", download=False) or {'entries': None}
+            video = ytdl.extract_info(f"ytsearch:{arg}", download=False)
+            if video is None:
+                raise Exception("Não foi possível encontrar nenhum vídeo.")
             if 'entries' in video:
-                if video['entries'] is None:
-                    raise Exception("Não foi possível encontrar nenhum vídeo.")
                 video = video['entries'][0]
         else:
-            video = ytdl.extract_info(arg, download=False) or {}
-    if video.get('url') is None:
-        raise Exception("Não foi possível encontrar nenhum vídeo.")
+            video = ytdl.extract_info(arg, download=False)
 
 
 class MusicData:
