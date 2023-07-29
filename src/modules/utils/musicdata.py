@@ -1,5 +1,5 @@
 import subprocess
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from discord.opus import Encoder
 import io
 import shlex
@@ -26,7 +26,7 @@ ytdl_format_options = {
     'source_address': '0.0.0.0',
 }
 
-ffmpeg_options: Dict[str, str] = {
+ffmpeg_options: Dict[str, Any] = {
     'options': '-vn',
     'before_options':
     '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
@@ -86,10 +86,10 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
     async def from_music_data(cls,
                               musicdata: MusicData,
                               *,
-                              loop=None,
+                              loop: Optional[asyncio.AbstractEventLoop] = None,
                               volume=0.3):
-        loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(
+        _loop: asyncio.AbstractEventLoop = loop or asyncio.get_event_loop()
+        data: Any | dict[str, Any] = await _loop.run_in_executor(
             None, lambda: ytdl.extract_info(musicdata.url, download=False))
         if data is None:
             raise BadLink(musicdata.url)
@@ -99,7 +99,7 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
             data)
         return cls(discord.FFmpegPCMAudio(
             filename,
-            **ffmpeg_options),  # type: ignore
+            **ffmpeg_options),
             data=data,
             volume=volume)
 
