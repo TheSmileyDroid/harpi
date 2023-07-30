@@ -33,7 +33,7 @@ class AIChat:
         for line in f:
             self.system += line
         f.close()
-        self.chat_mem.append({'role': 'system', 'content': self.system})
+        self.chat_mem.append({'role': 'user', 'content': self.system})
 
     async def chat(self,
                    ctx: Optional[commands.Context],

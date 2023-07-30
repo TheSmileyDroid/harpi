@@ -29,7 +29,6 @@ def complete(
 ) -> str:
     request_data = {
         "messages": messages,
-        "repetition_penalty": repetition_penalty,
         "do_sample": True,
         'max_tokens': 200,
         "temperature": temperature,
