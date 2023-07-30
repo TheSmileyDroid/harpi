@@ -1,14 +1,10 @@
 from src.modules.utils.models import sabia
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Optional
 from discord.ext import commands
 import time
 
 
-TRoleC = Literal["system"] | Literal["user"] | Literal["assistant"]
-TRole = Literal["role"]
-TContent = Literal["content"]
-TContentC = str
-TMessage = Dict[TRole | TContent, TRoleC | TContentC]
+TMessage = Dict[str, str]
 TMessages = List[TMessage]
 
 

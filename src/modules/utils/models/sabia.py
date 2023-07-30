@@ -1,4 +1,4 @@
-from typing import Dict, List, Literal
+from typing import Dict, Sequence
 import requests
 
 from threading import Semaphore
@@ -10,18 +10,14 @@ auth_header = {
     "authorization": f"Key {my_key}"
 }
 
-RoleC = Literal["system"] | Literal["user"] | Literal["assistant"]
-Role = Literal["role"]
-Content = Literal["content"]
-ContentC = str
-Message = Dict[Role | Content, RoleC | ContentC]
-Messages = List[Message]
+TMessage = Dict[str, str]
+TMessages = Sequence[TMessage]
 
 semaphore = Semaphore(1)
 
 
 def complete(
-        messages: Messages,
+        messages: TMessages,
         temperature: float = 0.7,
         top_p: float = 0.95,
         repetition_penalty: float = 1.0,
