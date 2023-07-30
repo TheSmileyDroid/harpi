@@ -32,43 +32,43 @@ class GuildsData:
         self._volume: dict[int, float] = {}
         self._skip_flag: dict[int, bool] = {}
 
-    def chat(self, ctx) -> AIChat:
+    def chat(self, ctx: commands.Context) -> AIChat:
         id = guild_id(ctx, accepts_dm=True)
         return self._chat.setdefault(id, AIChat())
 
-    def command_runner(self, ctx) -> CommandRunner:
+    def command_runner(self, ctx: commands.Context) -> CommandRunner:
         id = guild_id(ctx, accepts_dm=True)
         return self._command_runner.setdefault(id, CommandRunner())
 
-    def queue(self, ctx) -> list:
+    def queue(self, ctx: commands.Context) -> list:
         guild_id = guild(ctx).id
         return self._queue.setdefault(guild_id, [])
 
-    def is_looping(self, ctx) -> bool:
+    def is_looping(self, ctx: commands.Context) -> bool:
         guild_id = guild(ctx).id
         return self._is_looping.setdefault(guild_id, False)
 
-    def set_looping(self, ctx, value: bool):
+    def set_looping(self, ctx: commands.Context, value: bool):
         guild_id = guild(ctx).id
         self._is_looping[guild_id] = value
 
-    def volume(self, ctx) -> float:
+    def volume(self, ctx: commands.Context) -> float:
         guild_id = guild(ctx).id
         return self._volume.setdefault(guild_id, 0.3)
 
-    def set_volume(self, ctx, value: float):
+    def set_volume(self, ctx: commands.Context, value: float):
         guild_id = guild(ctx).id
         self._volume[guild_id] = value
 
-    def skip_flag(self, ctx) -> bool:
+    def skip_flag(self, ctx: commands.Context) -> bool:
         guild_id = guild(ctx).id
         return self._skip_flag.setdefault(guild_id, False)
 
-    def set_skip_flag(self, ctx, value: bool):
+    def set_skip_flag(self, ctx: commands.Context, value: bool):
         guild_id = guild(ctx).id
         self._skip_flag[guild_id] = value
 
-    def shuffle_queue(self, ctx):
+    def shuffle_queue(self, ctx: commands.Context) -> None:
         guild_id = guild(ctx).id
         queue = self._queue[guild_id]
         if len(queue) > 1:
