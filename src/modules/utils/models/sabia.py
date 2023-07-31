@@ -26,7 +26,7 @@ def complete(
     request_data = {
         "messages": messages,
         "do_sample": True,
-        'max_tokens': 2000,
+        'max_tokens': 900,
         "temperature": temperature,
         "top_p": top_p,
     }
