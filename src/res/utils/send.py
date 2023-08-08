@@ -5,7 +5,6 @@ from discord.ext import commands
 
 
 class Message:
-
     def __init__(self, ctx: commands.Context, content: Optional[str] = None):
         self.ctx = ctx
         self.content = content
@@ -22,11 +21,10 @@ class Message:
         # For item i in a range that is a length of content
         for i in range(0, len(content), size):
             # Create an index range for content of size
-            yield content[i:i + size]
+            yield content[i : i + size]
 
 
 class EmbeddedMessage(Message):
-
     def __init__(self, ctx: commands.Context, embed: Embed):
         super().__init__(ctx)
         self.embed = embed
@@ -42,13 +40,11 @@ class EmbeddedMessage(Message):
                 new_embed = Embed(
                     title=self.embed.title,
                     description=self.embed.description,
-                    color=self.embed.color or Color.blue()
+                    color=self.embed.color or Color.blue(),
                 )
                 for field in chunk:
                     new_embed.add_field(
-                        name=field.name,
-                        value=field.value,
-                        inline=field.inline
+                        name=field.name, value=field.value, inline=field.inline
                     )
                 await self.ctx.send(embed=new_embed, **kwargs)
         else:
@@ -61,4 +57,4 @@ class EmbeddedMessage(Message):
         # For item i in a range that is a length of content
         for i in range(0, len(content), size):
             # Create an index range for content of size
-            yield content[i:i + size]
+            yield content[i : i + size]

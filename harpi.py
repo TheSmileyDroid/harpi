@@ -1,8 +1,8 @@
-import discord
 import logging
 import os
-from discord.ext import commands
 
+import discord
+from discord.ext import commands
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -11,24 +11,25 @@ logging.basicConfig(
 )
 
 handler = logging.FileHandler(
-    filename="discord.log", mode="w", encoding="utf-8")
+    filename="discord.log", mode="w", encoding="utf-8"
+)
 
 
 class Harpi(commands.Bot):
     prefix = "-"
 
     async def setup_hook(self) -> None:
-        await self.load_extension("src.modules.tts")
-        await self.load_extension("src.modules.music")
-        await self.load_extension("src.modules.basic")
-        await self.load_extension("src.modules.dice")
-        await self.load_extension("src.modules.chat")
+        await self.load_extension("src.res.tts")
+        await self.load_extension("src.res.music")
+        await self.load_extension("src.res.basic")
+        await self.load_extension("src.res.dice")
+        await self.load_extension("src.res.chat")
         return await super().setup_hook()
 
     async def on_ready(self):
         print(f"Logado como {self.user}!")
         synced = await self.tree.sync()
-        print(f'Synced {len(synced)} commands.')
+        print(f"Synced {len(synced)} commands.")
 
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.CommandNotFound):

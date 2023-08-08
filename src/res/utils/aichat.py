@@ -1,4 +1,4 @@
-from src.modules.utils.models import sabia
+from src.res.utils.models import sabia
 from typing import Dict, List, Optional
 from discord.ext import commands
 import time
@@ -9,35 +9,33 @@ TMessages = List[TMessage]
 
 
 class AIChat:
-    def __init__(self: 'AIChat'):
+    def __init__(self: "AIChat"):
         self.chat_mem: TMessages = []
         self.temp = 0.8
         self.top_p = 0.8
-        self.system = 'Data atual: ' + time.strftime('%d/%m/%Y') + '\n'
-        f = open('src/modules/utils/chat_mem.txt', 'r')
+        self.system = "Data atual: " + time.strftime("%d/%m/%Y") + "\n"
+        f = open("src/modules/utils/chat_mem.txt", "r")
         for line in f:
             self.system += line
         f.close()
-        self.chat_mem.append({'role': 'system', 'content': self.system})
+        self.chat_mem.append({"role": "system", "content": self.system})
         self.reset()
 
     def reset(self):
         self.chat_mem = []
         self.deepai_mem = []
-        self.system = ''
-        f = open('src/modules/utils/chat_mem.txt', 'r')
+        self.system = ""
+        f = open("src/modules/utils/chat_mem.txt", "r")
         for line in f:
             self.system += line
         f.close()
-        self.chat_mem.append({'role': 'user', 'content': self.system})
+        self.chat_mem.append({"role": "user", "content": self.system})
 
-    async def chat(self,
-                   ctx: Optional[commands.Context],
-                   prompt: str) -> str:
+    async def chat(self, ctx: Optional[commands.Context], prompt: str) -> str:
         if ctx is not None:
             prompt_with_author = ctx.author.name + ": " + prompt
         else:
-            prompt_with_author = 'smileydroid' + ": " + prompt
+            prompt_with_author = "smileydroid" + ": " + prompt
 
         print(prompt_with_author)
 
@@ -61,8 +59,10 @@ class AIChat:
     def get_top_p(self) -> float:
         return self.top_p
 
-    async def get_response_sabia(self, prompt: str, ctx: commands.Context | None = None) -> str:
-        self.chat_mem.append({'role': 'user', 'content': prompt})
+    async def get_response_sabia(
+        self, prompt: str, ctx: commands.Context | None = None
+    ) -> str:
+        self.chat_mem.append({"role": "user", "content": prompt})
 
         answer: str = sabia.complete(
             messages=self.chat_mem,
@@ -70,11 +70,13 @@ class AIChat:
             top_p=self.top_p,
         )
 
-        self.chat_mem.append({'role': 'assistant', 'content': answer})
+        self.chat_mem.append({"role": "assistant", "content": answer})
 
         return answer
 
-    async def get_response(self, prompt: str, ctx: Optional[commands.Context] = None) -> str:
+    async def get_response(
+        self, prompt: str, ctx: Optional[commands.Context] = None
+    ) -> str:
         return await self.get_response_sabia(prompt, ctx)
 
     def clear(self):

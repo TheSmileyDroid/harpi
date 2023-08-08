@@ -18,9 +18,7 @@ class Completion:
         top_p: float = 0.8,
         ctx: commands.Context | None = None,
     ):
-        headers = {
-            'Content-Type': 'application/json'
-        }
+        headers = {"Content-Type": "application/json"}
 
         json_data = {
             "prompt": prompt,
@@ -34,13 +32,17 @@ class Completion:
 
         semaphore.acquire()
         response = requests.post(
-            url, headers=headers, json=json_data, impersonate="chrome101")  # type: ignore
-        if (response.status_code != 200 and ctx is not None):
-            await ctx.send("Me desculpe a demora, estou processando sua mensagem!")
+            url, headers=headers, json=json_data, impersonate="chrome101"
+        )  # type: ignore
+        if response.status_code != 200 and ctx is not None:
+            await ctx.send(
+                "Me desculpe a demora, estou processando sua mensagem!"
+            )
 
-        while (response.status_code != 200):
+        while response.status_code != 200:
             response = requests.post(
-                url, headers=headers, json=json_data, impersonate="chrome101")
+                url, headers=headers, json=json_data, impersonate="chrome101"
+            )
             sleep(1)
         semaphore.release()
 

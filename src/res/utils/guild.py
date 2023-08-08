@@ -1,14 +1,15 @@
 import random
 from discord.ext import commands
 import discord
-from src.modules.utils.aichat import AIChat
-from src.modules.utils.musicdata import MusicData
+from src.res.utils.aichat import AIChat
+from src.res.utils.musicdata import MusicData
 
 
 def guild(ctx: commands.Context) -> discord.Guild:
     if ctx.guild is None:
         raise commands.NoPrivateMessage(
-            'Este comando não pode ser usado em DMs')
+            "Este comando não pode ser usado em DMs"
+        )
     return ctx.guild
 
 
@@ -17,12 +18,12 @@ def guild_id(ctx: commands.Context, accepts_dm: bool = False) -> int:
         if accepts_dm:
             return ctx.author.id
         raise commands.NoPrivateMessage(
-            'Este comando não pode ser usado em DMs')
+            "Este comando não pode ser usado em DMs"
+        )
     return ctx.guild.id
 
 
 class GuildsData:
-
     def __init__(self) -> None:
         self._queue: dict[int, list[MusicData]] = {}
         self._chat: dict[int, AIChat] = {}

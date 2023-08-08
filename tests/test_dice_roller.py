@@ -1,5 +1,5 @@
 import unittest
-from src.modules.utils.dice_roller import DiceHandler, DiceRoller
+from src.res.utils.dice_roller import DiceHandler, DiceRoller
 
 
 class DeterministicDiceRoller(DiceRoller):
@@ -40,5 +40,5 @@ class TestDiceHandler(unittest.TestCase):
         self.assertEqual(result, "7 = 2d6 [7]\n10 = 2d6 [10]\n10 = 2d6 [10]\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
