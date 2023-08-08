@@ -14,7 +14,7 @@ class AIChat:
         self.temp = 0.8
         self.top_p = 0.8
         self.system = "Data atual: " + time.strftime("%d/%m/%Y") + "\n"
-        f = open("src/modules/utils/chat_mem.txt", "r")
+        f = open("src/res/utils/chat_mem.txt", "r")
         for line in f:
             self.system += line
         f.close()
@@ -25,7 +25,7 @@ class AIChat:
         self.chat_mem = []
         self.deepai_mem = []
         self.system = ""
-        f = open("src/modules/utils/chat_mem.txt", "r")
+        f = open("src/res/utils/chat_mem.txt", "r")
         for line in f:
             self.system += line
         f.close()

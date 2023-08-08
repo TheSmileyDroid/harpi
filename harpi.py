@@ -8,6 +8,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s:%(levelname)s:%(name)s: %(message)s",
     style="%",
+    filename="discord.log",
 )
 
 handler = logging.FileHandler(
@@ -17,6 +18,7 @@ handler = logging.FileHandler(
 
 class Harpi(commands.Bot):
     prefix = "-"
+    is_ready_for_commands = False
 
     async def setup_hook(self) -> None:
         await self.load_extension("src.res.tts")
@@ -27,9 +29,19 @@ class Harpi(commands.Bot):
         return await super().setup_hook()
 
     async def on_ready(self):
-        print(f"Logado como {self.user}!")
-        synced = await self.tree.sync()
-        print(f"Synced {len(synced)} commands.")
+        logging.log(logging.INFO, f"Logado como {self.user}!")
+        global guild_ids, bot
+        from src.res.utils.guild import guild_ids
+
+        bot = self
+
+        logging.log(logging.INFO, "Guilds:")
+        async for guild in self.fetch_guilds():
+            if guild.id not in guild_ids.keys():
+                guild_ids.update({guild.id: guild.name})
+            logging.log(logging.INFO, f" - {guild.name}")
+
+        self.is_ready_for_commands = True
 
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.CommandNotFound):
@@ -41,8 +53,16 @@ class Harpi(commands.Bot):
             await ctx.send(f"Erro desconhecido: {error}")
 
 
-if __name__ == "__main__":
+def main(bot: Harpi) -> None:
+    token: str = str(os.getenv("DISCORD_ID"))
+    bot.run(token, log_handler=handler, log_level=logging.INFO)
+
+
+def harpi() -> Harpi:
     intents = discord.Intents.all()
     client = Harpi(command_prefix=Harpi.prefix, intents=intents)
-    token: str = str(os.getenv("DISCORD_ID"))
-    client.run(token, log_handler=handler, log_level=logging.INFO)
+    return client
+
+
+if __name__ == "__main__":
+    main(bot=harpi())
