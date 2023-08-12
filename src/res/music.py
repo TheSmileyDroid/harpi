@@ -4,9 +4,9 @@ import contextlib
 import discord
 from discord.ext import commands
 
-from src.res.utils.guild import guild, guild_data
-from src.res.utils.musicdata import MusicData, YoutubeDLSource
-from src.res.utils.send import EmbeddedMessage, Message
+from .utils.guild import guild, guild_data
+from .utils.musicdata import MusicData, YoutubeDLSource
+from .utils.send import EmbeddedMessage, Message
 
 
 def voice_state(
@@ -73,10 +73,10 @@ class Music(commands.Cog):
         guild_data.queue(ctx).pop(0)
         await self.play_current(ctx)
 
-    async def play_current(self, ctx: commands.Context):
+    async def play_current(self, ctx: commands.Context) -> None:
         with contextlib.suppress(Exception):
-            data = guild_data.queue(ctx)[0]
-            _voice_client = await voice_client(ctx)
+            data: MusicData = guild_data.queue(ctx)[0]
+            _voice_client: discord.VoiceClient = await voice_client(ctx)
             if _voice_client.is_playing():
                 return
             _voice_client.play(
@@ -85,14 +85,14 @@ class Music(commands.Cog):
                     self.play_next(ctx), ctx.bot.loop
                 ).result(),
             )
-            source = _voice_client.source
+            source: discord.AudioSource | None = _voice_client.source
             if not isinstance(source, YoutubeDLSource):
                 return
             source.volume = guild_data.volume(ctx)
 
     @commands.command()
     async def pause(self, ctx: commands.Context):
-        _voice_client = await voice_client(ctx)
+        _voice_client: discord.VoiceClient = await voice_client(ctx)
 
         if _voice_client.is_paused():
             return await Message(ctx, "O player já está pausado").send()

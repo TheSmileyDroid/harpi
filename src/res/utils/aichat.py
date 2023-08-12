@@ -1,3 +1,4 @@
+from io import TextIOWrapper
 from src.res.utils.models import sabia
 from typing import Dict, List, Optional
 from discord.ext import commands
@@ -9,12 +10,12 @@ TMessages = List[TMessage]
 
 
 class AIChat:
-    def __init__(self: "AIChat"):
+    def __init__(self: "AIChat") -> None:
         self.chat_mem: TMessages = []
         self.temp = 0.8
         self.top_p = 0.8
         self.system = "Data atual: " + time.strftime("%d/%m/%Y") + "\n"
-        f = open("src/res/utils/chat_mem.txt", "r")
+        f: TextIOWrapper = open("src/res/utils/chat_mem.txt", "r")
         for line in f:
             self.system += line
         f.close()
@@ -39,7 +40,7 @@ class AIChat:
 
         print(prompt_with_author)
 
-        res = await self.get_response(prompt_with_author, ctx)
+        res: str = await self.get_response(prompt_with_author, ctx)
 
         return res
 

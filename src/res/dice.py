@@ -1,13 +1,14 @@
 from discord import Embed
 from discord.ext import commands
 from discord.ext.commands.context import Context
-from src.res.utils.dice_roller import DiceHandler, RandomDiceRoller
-from src.res.utils.send import EmbeddedMessage
+
+from .utils.dice_roller import DiceHandler, RandomDiceRoller
+from .utils.send import EmbeddedMessage
 
 
 class Dice(commands.Cog):
     @commands.command(name="d", aliases=["dado", "rolar", "roll", "r"])
-    async def roll(self, ctx: Context, *, args: str):
+    async def roll(self, ctx: Context, *, args: str) -> None:
         """Rola um dado. Exemplo: -d 1d20+3"""
         dice_handler = DiceHandler(RandomDiceRoller())
         result = dice_handler.froll(args)

@@ -1,10 +1,10 @@
 from io import BytesIO
 from os import makedirs
-from discord.ext.commands.context import Context
-from discord.ext import commands
-import discord
-from gtts import gTTS
 
+import discord
+from discord.ext import commands
+from discord.ext.commands.context import Context
+from gtts import gTTS
 
 from src.res.utils.aichat import AIChat
 from src.res.utils.guild import guild_data
@@ -46,7 +46,7 @@ class AlreadyPlaying(commands.CommandError):
     pass
 
 
-async def say(ctx: commands.Context, text: str):
+async def say(ctx: commands.Context, text: str) -> None:
     voice: discord.VoiceClient = await voice_client(ctx)
     if voice.is_playing():
         raise AlreadyPlaying("Já estou reproduzindo algo")

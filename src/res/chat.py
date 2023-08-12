@@ -1,8 +1,8 @@
 from discord.ext import commands
 
-from src.res.utils.aichat import AIChat
-from src.res.utils.guild import guild_data
-from src.res.utils.send import Message
+from .utils.aichat import AIChat
+from .utils.guild import guild_data
+from .utils.send import Message
 
 
 class Chat(commands.Cog):
