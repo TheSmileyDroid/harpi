@@ -5,11 +5,8 @@ import discord
 from discord.ext import commands
 
 from src.res.utils.guild import guild, guild_data
-from src.res.utils.musicdata import (
-    MusicData,
-    YoutubeDLSource,
-)
-from src.res.utils.send import Message, EmbeddedMessage
+from src.res.utils.musicdata import MusicData, YoutubeDLSource
+from src.res.utils.send import EmbeddedMessage, Message
 
 
 def voice_state(
@@ -153,7 +150,7 @@ class Music(commands.Cog):
             return await Message(ctx, "Não há nada na fila").send()
         if args > len(_queue):
             return await Message(ctx, "Índice inválido").send()
-        guild_data.queue(ctx).remove(args - 1)
+        guild_data.remove_from_queue(ctx, args - 1)
         await Message(ctx, f"Removido índice {args}").send()
 
     @commands.command()

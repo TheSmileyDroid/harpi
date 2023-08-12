@@ -18,14 +18,14 @@ def complete(
     messages: TMessages,
     temperature: float = 0.7,
     top_p: float = 0.95,
-    repetition_penalty: float = 1.0,
+    repetition_penalty: float = 1.2,
 ) -> str:
     request_data = {
         "messages": messages,
         "do_sample": True,
-        "max_tokens": 900,
         "temperature": temperature,
         "top_p": top_p,
+        "repetition_penalty": repetition_penalty,
     }
 
     url = "https://chat.maritaca.ai/api/chat/inference"
