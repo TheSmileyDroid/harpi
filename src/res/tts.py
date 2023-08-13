@@ -6,9 +6,9 @@ from discord.ext import commands
 from discord.ext.commands.context import Context
 from gtts import gTTS
 
-from src.res.utils.aichat import AIChat
-from src.res.utils.guild import guild_data
-from src.res.utils.musicdata import FFmpegPCMAudio
+from .utils.aichat import AIChat
+from .utils.guild import guild_data
+from .utils.ytmusicdata import FFmpegPCMAudio
 
 
 def guild(ctx: Context) -> discord.Guild:

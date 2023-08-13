@@ -9,6 +9,8 @@ import discord
 import yt_dlp as youtube_dl
 from requests import get
 
+from ..interfaces.imusicdata import IMusicData
+
 youtube_dl.utils.bug_reports_message = lambda: ""
 
 ytdl_format_options = {
@@ -34,6 +36,42 @@ ffmpeg_options: Dict[str, Any] = {
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
 
+class YoutubeDLSource(discord.PCMVolumeTransformer):
+    def __init__(self, source, *, data, volume=0.3):
+        super().__init__(source, volume)
+
+        self.data = data
+
+        self.title = data.get("title")
+        self.url = data.get("url")
+
+    @classmethod
+    async def from_music_data(
+        cls,
+        musicdata: IMusicData,
+        *,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
+        volume=0.3,
+    ):
+        _loop: asyncio.AbstractEventLoop = loop or asyncio.get_event_loop()
+        data: Any | dict[str, Any] = await _loop.run_in_executor(
+            None,
+            lambda: ytdl.extract_info(musicdata.get_url(), download=False),
+        )
+        if data is None:
+            raise BadLink(musicdata.get_url())
+        if "entries" in data:
+            data = data["entries"][0]
+        filename = (
+            data["url"] if "url" in data else ytdl.prepare_filename(data)
+        )
+        return cls(
+            discord.FFmpegPCMAudio(filename, **ffmpeg_options),
+            data=data,
+            volume=volume,
+        )
+
+
 def search(arg):
     with ytdl:
         try:
@@ -50,13 +88,13 @@ def search(arg):
     return video
 
 
-class MusicData:
-    def __init__(self, title, url):
-        self.title = title
-        self.url = url
+class YTMusicData(IMusicData):
+    def __init__(self, title: str, url: str):
+        self._title: str = title
+        self._url: str = url
 
     @classmethod
-    def from_url(cls, url: str) -> list["MusicData"]:
+    def from_url(cls, url: str) -> list["YTMusicData"]:
         print(url)
         result = search(url)
         if result is None:
@@ -67,42 +105,22 @@ class MusicData:
                 for video in result["entries"]
             ]
         video = result
-        return [cls(video["title"], video["url"])]
+        if "original_url" in video.keys():
+            return [cls(video["title"], video["original_url"])]
+        else:
+            return [cls(video["title"], video["url"])]
 
+    def get_title(self) -> str:
+        return self._title
 
-class YoutubeDLSource(discord.PCMVolumeTransformer):
-    def __init__(self, source, *, data, volume=0.3):
-        super().__init__(source, volume)
+    def get_url(self) -> str:
+        return self._url
 
-        self.data = data
+    def get_artist(self) -> str:
+        return "Unknown"
 
-        self.title = data.get("title")
-        self.url = data.get("url")
-
-    @classmethod
-    async def from_music_data(
-        cls,
-        musicdata: MusicData,
-        *,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
-        volume=0.3,
-    ):
-        _loop: asyncio.AbstractEventLoop = loop or asyncio.get_event_loop()
-        data: Any | dict[str, Any] = await _loop.run_in_executor(
-            None, lambda: ytdl.extract_info(musicdata.url, download=False)
-        )
-        if data is None:
-            raise BadLink(musicdata.url)
-        if "entries" in data:
-            data = data["entries"][0]
-        filename = (
-            data["url"] if "url" in data else ytdl.prepare_filename(data)
-        )
-        return cls(
-            discord.FFmpegPCMAudio(filename, **ffmpeg_options),
-            data=data,
-            volume=volume,
-        )
+    async def get_source(self) -> YoutubeDLSource:
+        return await YoutubeDLSource.from_music_data(self)  # type: ignore
 
 
 class FFmpegPCMAudio(discord.AudioSource):
