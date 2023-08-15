@@ -18,14 +18,9 @@ handler = logging.FileHandler(
 
 class Harpi(commands.Bot):
     prefix = "-"
-    is_ready_for_commands = False
 
     async def setup_hook(self) -> None:
-        await self.load_extension("src.res.tts")
-        await self.load_extension("src.res.music")
-        await self.load_extension("src.res.basic")
-        await self.load_extension("src.res.dice")
-        await self.load_extension("src.res.chat")
+        await self.load_extension("src.res")
         return await super().setup_hook()
 
     async def on_ready(self):
@@ -40,8 +35,6 @@ class Harpi(commands.Bot):
             if guild.id not in guild_ids.keys():
                 guild_ids.update({guild.id: guild.name})
             logging.log(logging.INFO, f" - {guild.name}")
-
-        self.is_ready_for_commands = True
 
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.CommandNotFound):

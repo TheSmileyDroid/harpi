@@ -1,11 +1,11 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from discord.ext import commands
 
 from ..utils.aichat import AIChat
 from .imusicqueue import IMusicQueue
 
 
-class IGuildsData(metaclass=ABCMeta):
+class IGuildsData(ABC):
     @abstractmethod
     def chat(self, ctx: commands.Context) -> AIChat:
         pass
@@ -40,4 +40,14 @@ class IGuildsData(metaclass=ABCMeta):
 
     @abstractmethod
     def set_skip_flag(self, ctx: commands.Context, value: bool) -> None:
+        pass
+
+    @abstractmethod
+    def add_custom_data(
+        self, ctx: commands.Context, key: str, value: str
+    ) -> None:
+        pass
+
+    @abstractmethod
+    def get_custom_data(self, ctx: commands.Context, key: str) -> str:
         pass

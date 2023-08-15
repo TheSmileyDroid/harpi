@@ -86,15 +86,21 @@ class Music(commands.Cog):
         if _queue is None:
             return await Message(ctx, "Não há nada na fila").send()
         embed = discord.Embed(title="Fila de músicas")
+        embed.add_field(
+            name="Looping",
+            value="Looping ativado"
+            if guild_data.is_looping(ctx)
+            else "Looping desativado",
+            inline=False,
+        )
         for index, data in enumerate(_queue):
             embed.add_field(
-                name=f"{index + 1} - {data.get_title()}",
+                name=f"{index} - {data.get_title()}",
                 value=f"**{data.get_url()}**",
             )
+
         embed.set_footer(
-            text="Looping ativado"
-            if guild_data.is_looping(ctx)
-            else "Looping desativado"
+            text="Harpi Bot",
         )
         await EmbeddedMessage(ctx, embed=embed).send()
 
@@ -109,6 +115,12 @@ class Music(commands.Cog):
         await MusicPlayer(
             guild_data, ctx, await voice_client(ctx), MessageSender(ctx)
         ).set_loop(loop=not guild_data.is_looping(ctx))
+
+    @commands.command()
+    async def set_loop(self, ctx: commands.Context, loop: bool):
+        await MusicPlayer(
+            guild_data, ctx, await voice_client(ctx), MessageSender(ctx)
+        ).set_loop(loop=loop)
 
     @commands.command()
     async def shuffle(self, ctx: commands.Context):

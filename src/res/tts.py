@@ -74,7 +74,3 @@ class TTS(commands.Cog):
             await say(ctx, response)
         except AlreadyPlaying:
             await ctx.send(response)
-
-
-async def setup(bot):
-    await bot.add_cog(TTS(bot))

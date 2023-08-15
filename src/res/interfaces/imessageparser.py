@@ -1,7 +1,7 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 
 
-class IMessageParser(metaclass=ABCMeta):
+class IMessageParser(ABC):
     @abstractmethod
     async def send(self, content: str) -> None:
         pass

@@ -1,9 +1,9 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 
 import discord
 
 
-class IMusicData(metaclass=ABCMeta):
+class IMusicData(ABC):
     @classmethod
     @abstractmethod
     def from_url(cls, url: str) -> None:

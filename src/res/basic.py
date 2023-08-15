@@ -10,6 +10,7 @@ class Basic(commands.Cog):
     async def echo(self, ctx: commands.Context, *, args: str):
         await ctx.send(args)
 
-
-async def setup(bot):
-    await bot.add_cog(Basic(bot))
+    @commands.command()
+    async def shutdown(self, ctx: commands.Context):
+        await ctx.send("Desligando...")
+        await ctx.bot.close()

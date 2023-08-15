@@ -1,10 +1,10 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from typing import Iterator
 
 from .imusicdata import IMusicData
 
 
-class IMusicQueue(metaclass=ABCMeta):
+class IMusicQueue(ABC):
     @abstractmethod
     def add(self, song: IMusicData) -> None:
         pass

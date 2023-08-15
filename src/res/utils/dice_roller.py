@@ -1,13 +1,7 @@
 import random
 import re
-from abc import ABC, abstractmethod
 from typing import List
-
-
-class DiceRoller(ABC):
-    @abstractmethod
-    def roll(self, number_of_dice: int, number_of_sides: int) -> list[int]:
-        pass
+from ..interfaces.idiceroller import DiceRoller
 
 
 class RandomDiceRoller(DiceRoller):
@@ -90,9 +84,7 @@ class DiceHandler:
             elif "d" in part:
                 # Parse the dice roll
                 count, sides = part.split("d")
-                partial_result = (
-                    self.dice_roller.roll(int(count), int(sides)) * op
-                )
+                partial_result = self.dice_roller.roll(int(count), int(sides)) * op
                 partial += f"{count}d{sides} ["
                 for i, value in enumerate(partial_result):
                     partial += (

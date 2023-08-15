@@ -42,6 +42,11 @@ class EmbeddedMessage(Message):
                     description=self.embed.description,
                     color=self.embed.color or Color.blue(),
                 )
+                if self.embed.footer:
+                    new_embed.set_footer(
+                        text=self.embed.footer.text,
+                        icon_url=self.embed.footer.icon_url,
+                    )
                 for field in chunk:
                     new_embed.add_field(
                         name=field.name, value=field.value, inline=field.inline

@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 
 
 from .imusicdata import IMusicData
@@ -6,7 +6,7 @@ from .imusicdata import IMusicData
 from .imusicqueue import IMusicQueue
 
 
-class IMusicPlayer(metaclass=ABCMeta):
+class IMusicPlayer(ABC):
     @abstractmethod
     async def play(self, text: str):
         pass
