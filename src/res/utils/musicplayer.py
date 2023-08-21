@@ -52,6 +52,7 @@ class MusicPlayer(IMusicPlayer):
         if skip or not self.guild_data.is_looping(self.ctx):
             queue: IMusicQueue = self.guild_data.queue(self.ctx)
             queue.remove_current()
+            self.guild_data.set_skip_flag(self.ctx, False)
 
         await self.start()
 
@@ -64,9 +65,7 @@ class MusicPlayer(IMusicPlayer):
 
         if self.voice_client.is_playing():
             if self.output:
-                musics_str = "\n".join(
-                    [f"**{music.get_title()}**" for music in data]
-                )
+                musics_str = "\n".join([f"**{music.get_title()}**" for music in data])
                 await self.output.send(f"Adicionado à fila:\n{musics_str}")
             return
 
@@ -75,9 +74,7 @@ class MusicPlayer(IMusicPlayer):
         if self.output:
             await self.output.send(f"Tocando agora: **{data[0].get_title()}**")
 
-            musics_str = "\n".join(
-                [f"{music.get_title()}" for music in data[1:]]
-            )
+            musics_str = "\n".join([f"{music.get_title()}" for music in data[1:]])
             if musics_str:
                 await self.output.send(
                     f"Playlist adicionada à fila:\n{musics_str}",
@@ -111,9 +108,7 @@ class MusicPlayer(IMusicPlayer):
     async def set_loop(self, loop: bool):
         self.guild_data.set_looping(self.ctx, loop)
         if self.output:
-            await self.output.send(
-                f"Loop {'ativado' if loop else 'desativado'}"
-            )
+            await self.output.send(f"Loop {'ativado' if loop else 'desativado'}")
 
     async def get_volume(self) -> float:
         return self.guild_data.volume(self.ctx)

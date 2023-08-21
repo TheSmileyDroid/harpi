@@ -11,9 +11,7 @@ logging.basicConfig(
     filename="discord.log",
 )
 
-handler = logging.FileHandler(
-    filename="discord.log", mode="w", encoding="utf-8"
-)
+handler = logging.FileHandler(filename="discord.log", mode="w", encoding="utf-8")
 
 
 class Harpi(commands.Bot):
