@@ -115,11 +115,10 @@ class MusicPlayer(IMusicPlayer):
 
     async def set_volume(self, volume: float):
         self.guild_data.set_volume(self.ctx, volume)
-        source: Optional[discord.AudioSource] = self.voice_client.source
-        if source and isinstance(source, discord.PCMVolumeTransformer):
-            source.volume = volume / 100
-            if self.output:
-                await self.output.send(f"Volume alterado para {volume}%")
+        source = self.voice_client.source
+        source.volume = volume / 100
+        if self.output:
+            await self.output.send(f"Volume alterado para {volume}%")
 
     async def queue(self) -> IMusicQueue:
         return self.guild_data.queue(self.ctx)
