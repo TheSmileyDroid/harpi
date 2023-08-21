@@ -47,8 +47,6 @@ class MusicPlayer(IMusicPlayer):
         )
         if isinstance(source, discord.FFmpegPCMAudio):
             source.volume = self.guild_data.volume(self.ctx) / 100
-        if self.output:
-            await self.output.send(f"Tocando agora: **{music.get_title()}**")
 
     async def go_next(self, skip: bool = False):
         if self.guild_data.skip_flag(self.ctx) and not skip:
