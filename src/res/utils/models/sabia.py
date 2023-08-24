@@ -18,7 +18,7 @@ def complete(
     messages: TMessages,
     temperature: float = 0.7,
     top_p: float = 0.95,
-    repetition_penalty: float = 1.2,
+    repetition_penalty: float = 2.0,
 ) -> str:
     request_data = {
         "messages": messages,
