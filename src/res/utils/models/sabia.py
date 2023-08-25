@@ -3,7 +3,6 @@ import requests
 
 from threading import Semaphore
 
-# Coloque aqui a sua chave de API (ex: "10035481...").
 my_key = "107292054666352856189$0f7323502b44841407accd18f7474445bdf4638695455a120e1dee5cb9e1b8ef"
 
 auth_header = {"authorization": f"Key {my_key}"}
@@ -34,12 +33,17 @@ def complete(
 
     semaphore.acquire()
     response = requests.post(url=url, json=request_data, headers=auth_header)
+
+    while True:
+        response = requests.post(url=url, json=request_data, headers=auth_header)
+        if response.status_code == 429:
+            time.sleep(5)
+        else:
+            break
+
     semaphore.release()
-
-    if response.status_code == 429:
-        raise Exception("(rate limited, tente novamente em breve)")
-
-    elif response.ok:
+    
+    if response.ok:
         data = response.json()
         print(data["answer"])
         return data["answer"]
