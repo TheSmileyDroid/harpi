@@ -3,7 +3,7 @@ from .basic import Basic
 from .dice import Dice
 from .tts import TTS
 from .chat import Chat
-from .lol import LoL
+from .lol import Lol
 
 async def setup(bot):
     """Make the bot load the cogs.
@@ -16,4 +16,4 @@ async def setup(bot):
     await bot.add_cog(Dice(bot))
     await bot.add_cog(TTS(bot))
     await bot.add_cog(Chat(bot))
-    await bot.add_cog(LoL(bot))
+    await bot.add_cog(Lol(bot))
