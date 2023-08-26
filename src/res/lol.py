@@ -42,10 +42,10 @@ class Lol(commands.Cog):
         build = api.random_champion_build()
 
         await ctx.send(f'{build["champion"]["name"]} - {build["champion"]["title"]}' + \
-            f'\n{build["item1"]["name"]}' + \
-            f'\n{build["item2"]["name"]}' + \
-            f'\n{build["item3"]["name"]}' + \
-            f'\n{build["item4"]["name"]}' + \
-            f'\n{build["item5"]["name"]}' + \
-            f'\n{build["item6"]["name"]}')
+            f'\n{build["itens"][0]["name"]}' + \
+            f'\n{build["itens"][1]["name"]}' + \
+            f'\n{build["itens"][2]["name"]}' + \
+            f'\n{build["itens"][3]["name"]}' + \
+            f'\n{build["itens"][4]["name"]}' + \
+            f'\n{build["itens"][5]["name"]}')
 
