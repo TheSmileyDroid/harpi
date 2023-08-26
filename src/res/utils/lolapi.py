@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import requests
-
+import random
 
 class ILolApi(ABC):
     @abstractmethod
