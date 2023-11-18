@@ -8,7 +8,7 @@ from maritalk import MariTalk
 class AIChat:
     def __init__(self: "AIChat") -> None:
         self.temp = 0.8
-        self.top_p = 0.8
+        self.top_p = 0.4
         self.system = "Data atual: " + time.strftime("%d/%m/%Y") + "\n"
         f = open("src/res/utils/chat_mem.txt", "r")
         for line in f:
@@ -54,15 +54,15 @@ class AIChat:
         self, prompt: str, ctx: Optional[commands.Context] = None
     ) -> str:
         if ctx is not None:
-            self.chat_mem += ctx.author.name + ": " + prompt + "\n" + "Harpi: "
+            self.chat_mem += ctx.author.name + ": " + prompt + "\n\n" + "Harpi: "
 
         else:
-            self.chat_mem += "smileydroid" + ": " + prompt + "\n" + "Harpi:"
+            self.chat_mem += "smileydroid" + ": " + prompt + "\n\n" + "Harpi:"
 
         answer = self.model.generate(
             self.chat_mem,
             chat_mode=False,
-            stopping_tokens=["\n"],
+            stopping_tokens=["\n\n"],
             temperature=self.temp,
             top_p=self.top_p,
         )
@@ -72,7 +72,7 @@ class AIChat:
         if answer is None:
             raise ValueError("Could not generate text")
 
-        self.chat_mem += answer + "\n"
+        self.chat_mem += answer.replace("\n", "") + "\n\n"
 
         if len(self.chat_mem) > 4000:
             aux = self.chat_mem.removeprefix(self.system).split("\n")
