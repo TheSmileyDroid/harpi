@@ -50,26 +50,18 @@ class AIChat:
     async def get_response(
         self, prompt: str, ctx: Optional[commands.Context] = None
     ) -> str:
+        self.chat_mem += "MENSAGEM\n"
+
         if ctx is not None:
-            self.chat_mem += ctx.author.name + ":" + prompt.strip() + "\n\n"
+            self.chat_mem += ctx.author.name + ": " + prompt.strip() + "\n"
 
         else:
-            self.chat_mem += "smileydroid" + ":" + prompt.strip() + "\n\n"
+            self.chat_mem += "smileydroid" + ": " + prompt.strip() + "\n"
 
-        answer = self.model.generate(
-            self.chat_mem,
-            chat_mode=True,
-            stopping_tokens=["\n\n"],
-            temperature=self.temp,
-            top_p=self.top_p,
-        )
+        answer = self.complete()
 
-        logger.info(answer)
-        if answer is None:
-            raise ValueError("Could not generate text")
-        logger.info(len(answer))
-
-        self.chat_mem += answer.removesuffix("\n").removesuffix("\n") + "\n\n"
+        while answer == "":
+            answer = self.complete()
 
         if len(self.chat_mem) > 4000:
             aux = self.chat_mem.removeprefix(self.system).split("\n")
@@ -81,8 +73,35 @@ class AIChat:
                     limit = i - 1
                     break
             self.chat_mem = self.system + "\n".join(aux[limit:])
+        return answer.strip()
 
-        return answer.removesuffix("\n").removesuffix("\n")
+    def complete(self):
+        answer = self.model.generate(
+            self.chat_mem,
+            chat_mode=False,
+            stopping_tokens=["MENSAGEM"],
+            temperature=self.temp,
+            top_p=self.top_p,
+        )
+
+        if not isinstance(answer, str):
+            raise ValueError("Could not generate text")
+
+        print(
+            "Pensamentos do harpi:"
+            + str([line for line in answer.split("\n") if "Harpi:" not in line])
+        )
+
+        logger.info(answer)
+        logger.info(len(answer))
+
+        lines = answer.split("\n")[:-1]
+        answer = ""
+        for line in lines:
+            self.chat_mem += line + "\n"
+            if line.startswith("Harpi:"):
+                answer += line.strip()
+        return answer
 
     def get_mem(self):
         return self.chat_mem
