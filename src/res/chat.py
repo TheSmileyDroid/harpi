@@ -14,7 +14,7 @@ class ChatCog(commands.Cog):
             response = await chat.chat(ctx, args)
             if response == "":
                 response = "Não sei o que responder!"
-            await Message(ctx, content=response).send()
+            await ctx.send(response)
 
     @commands.command()
     async def clearchat(self, ctx: commands.Context):
