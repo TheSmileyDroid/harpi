@@ -1,4 +1,5 @@
 from typing import Optional
+from venv import logger
 from discord.ext import commands
 import time
 from maritalk import MariTalk
@@ -65,6 +66,8 @@ class AIChat:
             temperature=self.temp,
             top_p=self.top_p,
         )
+
+        logger.info(answer)
 
         if answer is None:
             raise ValueError("Could not generate text")
