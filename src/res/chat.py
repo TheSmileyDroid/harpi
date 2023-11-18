@@ -51,6 +51,13 @@ class ChatCog(commands.Cog):
         top_p = chat.get_top_p()
         await ctx.send(f"Top_p atual: {top_p}!")
 
+    @commands.command()
+    async def getmem(self, ctx: commands.Context):
+        """Obtenha a memória do chat."""
+        chat: AIChat = guild_data.chat(ctx)
+        mem = chat.chat_mem
+        await ctx.send(f"Memória atual: {mem}!")
+
 
 async def setup(bot):
     await bot.add_cog(ChatCog(bot))

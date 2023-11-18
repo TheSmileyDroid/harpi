@@ -89,5 +89,11 @@ class AIChat:
 
         return answer.removesuffix("\n").removesuffix("\n")
 
+    def get_mem(self):
+        return self.chat_mem
+
+    def set_mem(self, mem):
+        self.chat_mem = mem
+
     def clear(self):
         self.reset()
