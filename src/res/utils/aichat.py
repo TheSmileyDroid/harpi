@@ -51,10 +51,10 @@ class AIChat:
         self, prompt: str, ctx: Optional[commands.Context] = None
     ) -> str:
         if ctx is not None:
-            self.chat_mem += ctx.author.name + ":" + prompt.strip() + "\n\n" + "Harpi: "
+            self.chat_mem += ctx.author.name + ":" + prompt.strip() + "\n\n" + "Harpi:"
 
         else:
-            self.chat_mem += "smileydroid" + ":" + prompt + "\n\n" + "Harpi:"
+            self.chat_mem += "smileydroid" + ":" + prompt.strip() + "\n\n" + "Harpi:"
 
         answer = self.model.generate(
             self.chat_mem,
