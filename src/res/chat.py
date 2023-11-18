@@ -12,7 +12,7 @@ class ChatCog(commands.Cog):
         async with ctx.typing():
             chat: AIChat = guild_data.chat(ctx)
             response = await chat.chat(ctx, args)
-            if response is None:
+            if response == "":
                 response = "Não sei o que responder!"
             await Message(ctx, content=response).send()
 
