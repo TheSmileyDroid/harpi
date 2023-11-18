@@ -1,8 +1,10 @@
+import logging
 from typing import Optional
-from venv import logger
 from discord.ext import commands
 import time
 from maritalk import MariTalk
+
+logger = logging.getLogger(__name__)
 
 
 class AIChat:
@@ -68,11 +70,11 @@ class AIChat:
         )
 
         logger.info(answer)
-
         if answer is None:
             raise ValueError("Could not generate text")
+        logger.info(len(answer))
 
-        self.chat_mem += answer.replace("\n", "") + "\n\n"
+        self.chat_mem += answer.removesuffix("\n").removesuffix("\n") + "\n\n"
 
         if len(self.chat_mem) > 4000:
             aux = self.chat_mem.removeprefix(self.system).split("\n")
@@ -85,7 +87,7 @@ class AIChat:
                     break
             self.chat_mem = self.system + "\n".join(aux[limit:])
 
-        return answer
+        return answer.removesuffix("\n").removesuffix("\n")
 
     def clear(self):
         self.reset()
