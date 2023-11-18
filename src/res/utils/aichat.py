@@ -53,15 +53,15 @@ class AIChat:
         self, prompt: str, ctx: Optional[commands.Context] = None
     ) -> str:
         if ctx is not None:
-            self.chat_mem += ctx.author.name + ": " + prompt + "\n" + "Harpi: "
+            self.chat_mem += ctx.author.name + ": " + prompt + "\n\n" + "Harpi: "
 
         else:
-            self.chat_mem += "smileydroid" + ": " + prompt + "\n" + "Harpi:"
+            self.chat_mem += "smileydroid" + ": " + prompt + "\n\n" + "Harpi:"
 
         answer = self.model.generate(
             self.chat_mem,
             chat_mode=False,
-            stopping_tokens=["\n"],
+            stopping_tokens=["\n\n"],
             temperature=self.temp,
             top_p=self.top_p,
         )
@@ -69,10 +69,10 @@ class AIChat:
         if answer is None:
             raise ValueError("Could not generate text")
 
-        self.chat_mem += answer + "\n"
+        self.chat_mem += answer + "\n\n"
 
         if len(self.chat_mem) > 4000:
-            aux = self.chat_mem.removeprefix(self.system).split("\n")
+            aux = self.chat_mem.removeprefix(self.system).split("\n\n")
             size = 0
             limit = -1
             for i in range(len(aux), 0, -1):
@@ -80,7 +80,7 @@ class AIChat:
                 if size > 4000:
                     limit = i - 1
                     break
-            self.chat_mem = self.system + "\n".join(aux[limit:])
+            self.chat_mem = self.system + "\n\n".join(aux[limit:])
 
         return answer
 
