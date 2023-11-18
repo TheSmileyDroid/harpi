@@ -58,18 +58,15 @@ class AIChat:
         else:
             self.chat_mem += "smileydroid" + ": " + prompt + "\n" + "Harpi:"
 
-        answer: str = (
-            self.model.generate(
-                self.chat_mem,
-                chat_mode=False,
-                stopping_tokens=["\n"],
-                temperature=self.temp,
-                top_p=self.top_p,
-            )
-            or ""
+        answer = self.model.generate(
+            self.chat_mem,
+            chat_mode=False,
+            stopping_tokens=["\n"],
+            temperature=self.temp,
+            top_p=self.top_p,
         )
 
-        if answer == "":
+        if answer is None:
             raise ValueError("Could not generate text")
 
         self.chat_mem += answer + "\n"
