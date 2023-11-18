@@ -2,7 +2,6 @@ from discord.ext import commands
 
 from .utils.aichat import AIChat
 from .utils.guild import guild_data
-from .utils.send import Message
 
 
 class ChatCog(commands.Cog):
