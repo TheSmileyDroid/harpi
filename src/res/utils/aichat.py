@@ -31,11 +31,6 @@ class AIChat:
         f.close()
         self.chat_mem: str = self.system
 
-    async def chat(self, ctx: Optional[commands.Context], prompt: str) -> str:
-        res: str = await self.get_response(prompt, ctx)
-
-        return res
-
     def set_temp(self, temp: float):
         if temp < 0.1 or temp > 0.9:
             raise ValueError("Temperature must be between 0.1 and 0.9")
@@ -56,10 +51,10 @@ class AIChat:
         self, prompt: str, ctx: Optional[commands.Context] = None
     ) -> str:
         if ctx is not None:
-            self.chat_mem += ctx.author.name + ": " + prompt + "\n\n" + "Harpi: "
+            self.chat_mem += ctx.author.name + ":" + prompt.strip() + "\n\n" + "Harpi: "
 
         else:
-            self.chat_mem += "smileydroid" + ": " + prompt + "\n\n" + "Harpi:"
+            self.chat_mem += "smileydroid" + ":" + prompt + "\n\n" + "Harpi:"
 
         answer = self.model.generate(
             self.chat_mem,

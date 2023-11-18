@@ -11,7 +11,7 @@ class ChatCog(commands.Cog):
         """Converse com o bot."""
         async with ctx.typing():
             chat: AIChat = guild_data.chat(ctx)
-            response = await chat.chat(ctx, args)
+            response = await chat.get_response(args, ctx)
             if response == "":
                 response = "Não sei o que responder!"
             await ctx.send(response)
