@@ -71,6 +71,17 @@ class AIChat:
 
         self.chat_mem += answer + "\n"
 
+        if len(self.chat_mem) > 4000:
+            aux = self.chat_mem.removeprefix(self.system).split("\n")
+            size = 0
+            limit = -1
+            for i in range(len(aux), 0, -1):
+                size += len(aux[i - 1])
+                if size > 4000:
+                    limit = i - 1
+                    break
+            self.chat_mem = self.system + "\n".join(aux[limit:])
+
         return answer
 
     def clear(self):
