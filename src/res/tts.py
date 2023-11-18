@@ -13,9 +13,7 @@ from .utils.ytmusicdata import FFmpegPCMAudio
 
 def guild(ctx: Context) -> discord.Guild:
     if ctx.guild is None:
-        raise commands.NoPrivateMessage(
-            "Este comando não pode ser usado em MP"
-        )
+        raise commands.NoPrivateMessage("Este comando não pode ser usado em MP")
     return ctx.guild
 
 
@@ -59,7 +57,7 @@ async def say(ctx: commands.Context, text: str) -> None:
     voice.play(FFmpegPCMAudio(fp.read(), pipe=True))
 
 
-class TTS(commands.Cog):
+class TTSCog(commands.Cog):
     @commands.command(name="f")
     async def tts(self, ctx, *, text: str):
         await say(ctx, text)

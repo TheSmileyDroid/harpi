@@ -5,7 +5,7 @@ from .utils.guild import guild_data
 from .utils.send import Message
 
 
-class Chat(commands.Cog):
+class ChatCog(commands.Cog):
     @commands.command()
     async def chat(self, ctx: commands.Context, *, args: str):
         """Converse com o bot."""
@@ -51,4 +51,4 @@ class Chat(commands.Cog):
 
 
 async def setup(bot):
-    await bot.add_cog(Chat(bot))
+    await bot.add_cog(ChatCog(bot))

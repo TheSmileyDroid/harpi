@@ -4,6 +4,10 @@ import os
 import discord
 from discord.ext import commands
 
+from src.res.utils.guild import guild_ids
+
+import src.res  # noqa: F401
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s:%(levelname)s:%(name)s: %(message)s",
@@ -16,6 +20,12 @@ handler = logging.FileHandler(filename="discord.log", mode="w", encoding="utf-8"
 
 class Harpi(commands.Bot):
     prefix = "-"
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     async def setup_hook(self) -> None:
         await self.load_extension("src.res")
@@ -23,11 +33,13 @@ class Harpi(commands.Bot):
 
     async def on_ready(self):
         logging.log(logging.INFO, f"Logado como {self.user}!")
-        global guild_ids, bot
-        from src.res.utils.guild import guild_ids
+        global bot
 
         bot = self
 
+        await self.log_guilds()
+
+    async def log_guilds(self):
         logging.log(logging.INFO, "Guilds:")
         async for guild in self.fetch_guilds():
             if guild.id not in guild_ids.keys():
@@ -44,16 +56,24 @@ class Harpi(commands.Bot):
             await ctx.send(f"Erro desconhecido: {error}")
 
 
-def main(bot: Harpi) -> None:
+def run_bot(bot: Harpi) -> None:
     token: str = str(os.getenv("DISCORD_ID"))
-    bot.run(token, log_handler=handler, log_level=logging.INFO)
+    handler = logging.FileHandler(filename="discord.log", mode="w", encoding="utf-8")
+    terminalLogger = logging.StreamHandler()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s:%(levelname)s:%(name)s: %(message)s",
+        style="%",
+        handlers=[handler, terminalLogger],
+    )
+    bot.run(token, log_level=logging.INFO, root_logger=True)
 
 
-def harpi() -> Harpi:
+def create_bot() -> Harpi:
     intents = discord.Intents.all()
-    client = Harpi(command_prefix=Harpi.prefix, intents=intents)
-    return client
+    bot = Harpi(command_prefix=Harpi.prefix, intents=intents)
+    return bot
 
 
 if __name__ == "__main__":
-    main(bot=harpi())
+    run_bot(bot=create_bot())

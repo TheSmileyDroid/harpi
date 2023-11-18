@@ -38,14 +38,14 @@ class MusicPlayer(IMusicPlayer):
                 return
 
         music: IMusicData = queue.get_current()
-        source = await music.get_source()
+        source: discord.PCMVolumeTransformer = await music.get_source()  # type: ignore
         self.voice_client.play(
             source,
             after=lambda e: asyncio.run_coroutine_threadsafe(
                 self.go_next(), self.ctx.bot.loop
             ),
         )
-        if isinstance(source, discord.FFmpegPCMAudio):
+        if hasattr(source, "volume"):
             source.volume = self.guild_data.volume(self.ctx) / 100
 
     async def go_next(self, skip: bool = False):

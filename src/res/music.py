@@ -49,7 +49,7 @@ class MessageSender(IMessageParser):
         await Message(self.ctx, content).send()
 
 
-class Music(commands.Cog):
+class MusicCog(commands.Cog):
     @commands.command()
     async def play(self, ctx: commands.Context, *, args: str):
         await MusicPlayer(
@@ -160,4 +160,4 @@ class Music(commands.Cog):
 
 
 async def setup(bot):
-    await bot.add_cog(Music(bot))
+    await bot.add_cog(MusicCog(bot))

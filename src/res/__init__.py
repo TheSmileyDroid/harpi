@@ -1,19 +1,21 @@
-from .music import Music
-from .basic import Basic
-from .dice import Dice
-from .tts import TTS
-from .chat import Chat
-from .lol import Lol
+from harpi import Harpi
+from .music import MusicCog
+from .basic import BasicCog
+from .dice import DiceCog
+from .tts import TTSCog
+from .chat import ChatCog
+from .lol import LolCog
 
-async def setup(bot):
+
+async def setup(bot: Harpi) -> None:
     """Make the bot load the cogs.
 
     Args:
         bot (commands.Bot): The bot instance.
     """
-    await bot.add_cog(Music(bot))
-    await bot.add_cog(Basic(bot))
-    await bot.add_cog(Dice(bot))
-    await bot.add_cog(TTS(bot))
-    await bot.add_cog(Chat(bot))
-    await bot.add_cog(Lol(bot))
+    await bot.add_cog(MusicCog(bot))
+    await bot.add_cog(BasicCog(bot))
+    await bot.add_cog(DiceCog(bot))
+    await bot.add_cog(TTSCog(bot))
+    await bot.add_cog(ChatCog(bot))
+    await bot.add_cog(LolCog(bot))

@@ -6,7 +6,7 @@ from .utils.dice_roller import DiceHandler, RandomDiceRoller
 from .utils.send import EmbeddedMessage
 
 
-class Dice(commands.Cog):
+class DiceCog(commands.Cog):
     @commands.command(name="d", aliases=["dado", "rolar", "roll", "r"])
     async def roll(self, ctx: Context, *, args: str) -> None:
         """Comando para rolar dados
@@ -17,7 +17,5 @@ class Dice(commands.Cog):
         """
         dice_handler = DiceHandler(RandomDiceRoller())
         result = dice_handler.froll(args)
-        embed: Embed = Embed(color=0x00FF00).add_field(
-            name="Resultado", value=result
-        )
+        embed: Embed = Embed(color=0x00FF00).add_field(name="Resultado", value=result)
         await EmbeddedMessage(ctx, embed).send()

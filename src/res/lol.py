@@ -2,7 +2,7 @@ from src.res.utils.lolapi import LolApi
 from discord.ext import commands
 
 
-class Lol(commands.Cog):
+class LolCog(commands.Cog):
     @commands.command()
     async def champion(self, ctx, champion_name):
         api = LolApi()
@@ -41,11 +41,12 @@ class Lol(commands.Cog):
 
         build = api.random_champion_build()
 
-        await ctx.send(f'{build["champion"]["name"]} - {build["champion"]["title"]}' + \
-            f'\n{build["items"][0]["name"]}' + \
-            f'\n{build["items"][1]["name"]}' + \
-            f'\n{build["items"][2]["name"]}' + \
-            f'\n{build["items"][3]["name"]}' + \
-            f'\n{build["items"][4]["name"]}' + \
-            f'\n{build["items"][5]["name"]}')
-
+        await ctx.send(
+            f'{build["champion"]["name"]} - {build["champion"]["title"]}'
+            + f'\n{build["items"][0]["name"]}'
+            + f'\n{build["items"][1]["name"]}'
+            + f'\n{build["items"][2]["name"]}'
+            + f'\n{build["items"][3]["name"]}'
+            + f'\n{build["items"][4]["name"]}'
+            + f'\n{build["items"][5]["name"]}'
+        )
