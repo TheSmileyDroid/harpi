@@ -13,7 +13,7 @@ class AIChat:
         for line in f:
             self.system += line
         f.close()
-        self.chat_mem = self.system
+        self.chat_mem: str = self.system
         self.reset()
         self.model = MariTalk(
             key="107292054666352856189$76fe16ed7a38e5625753ce3f80a0f1c612af23454474db10d613b7c8a824b05a"
@@ -26,7 +26,7 @@ class AIChat:
         for line in f:
             self.system += line
         f.close()
-        self.chat_mem = self.system
+        self.chat_mem: str = self.system
 
     async def chat(self, ctx: Optional[commands.Context], prompt: str) -> str:
         res: str = await self.get_response(prompt, ctx)
@@ -58,15 +58,18 @@ class AIChat:
         else:
             self.chat_mem += "smileydroid" + ": " + prompt + "\n" + "Harpi:"
 
-        answer = self.model.generate(
-            self.chat_mem,
-            chat_mode=False,
-            stopping_tokens=["\n"],
-            temperature=self.temp,
-            top_p=self.top_p,
+        answer: str = (
+            self.model.generate(
+                self.chat_mem,
+                chat_mode=False,
+                stopping_tokens=["\n"],
+                temperature=self.temp,
+                top_p=self.top_p,
+            )
+            or ""
         )
 
-        if answer is None:
+        if answer == "":
             raise ValueError("Could not generate text")
 
         self.chat_mem += answer + "\n"
