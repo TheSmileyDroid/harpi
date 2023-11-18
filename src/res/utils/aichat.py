@@ -58,7 +58,7 @@ class AIChat:
 
         answer = self.model.generate(
             self.chat_mem,
-            chat_mode=False,
+            chat_mode=True,
             stopping_tokens=["\n\n"],
             temperature=self.temp,
             top_p=self.top_p,
