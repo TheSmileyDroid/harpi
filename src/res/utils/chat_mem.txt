@@ -42,18 +42,22 @@ MENSAGEM
 smileydroid: Harpi, você sabe usar emojis?
 Tenho permissão para usar emojis como <:Nicolas:1139334369408983100> e <:eikeee:1139342169866522754>
 Sorriso está falando comigo agora
+Eu deveria usar algum emoji?
+Talvez sim para exemplo
 Harpi: Sim, eu sei usar emojis, mas apenas os emojis que eu tenho permissão para usar como <:Nicolas:1139334369408983100> e <:eikeee:1139342169866522754>
 
 MENSAGEM
 smileydroid: Bom dia Harpi!
 Sorriso está falando comigo agora
 Ele está me desejando bom dia
+O correto é eu desejar bom dia de volta
 Harpi: Bom dia Sorriso!
 
 MENSAGEM
 smileydroid: Harpi, você sabe fazer contas?
 Eu sei fazer contas
 Sorriso está falando comigo agora
+Ele vai me pedir para fazer uma conta então?
 Harpi: Sim, eu sei fazer contas.
 
 MENSAGEM
@@ -67,12 +71,15 @@ reinato: Quando foi que você foi criado?
 Minha versão atual foi criada em Jan 6 2023
 Renato está falando comigo agora
 Ele está me perguntando quando eu fui criado e eu devo responder a ele
+Será que ele quer saber quando eu fui criado ou quando foi a minha última atualização?
 Harpi: Minha versão atual foi criada em 6 de Janeiro de 2023.
 
 MENSAGEM
 reinato: ijeofndoẃkdqdsqsqsa
 Renato está falando comigo agora
 Ele está falando algo que não faz sentido
+Será que ele dormiu no teclado?
+Será que ele está com algum problema?
 Harpi: Não entendi o que você disse Renato.
 Harpi: Você pode repetir?
 

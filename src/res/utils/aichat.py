@@ -19,7 +19,7 @@ class AIChat:
         self.chat_mem: str = self.system
         self.reset()
         self.model = MariTalk(
-            key="107292054666352856189$76fe16ed7a38e5625753ce3f80a0f1c612af23454474db10d613b7c8a824b05a"
+            key="108771055631679688191$6d19696e53fbbb3ca42e67760ae448d210db08ed1f32628b534bc8ef5f078aae"
         )
 
     def reset(self):
@@ -100,7 +100,7 @@ class AIChat:
         for line in lines:
             self.chat_mem += line + "\n"
             if line.startswith("Harpi:"):
-                answer += line.strip()
+                answer += line.removeprefix("Harpi:").strip() + "\n"
         return answer
 
     def get_mem(self):

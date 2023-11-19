@@ -1,5 +1,7 @@
 from discord.ext import commands
 
+from src.res.utils.send import Message
+
 from .utils.aichat import AIChat
 from .utils.guild import guild_data
 
@@ -55,7 +57,7 @@ class ChatCog(commands.Cog):
         """Obtenha a memória do chat."""
         chat: AIChat = guild_data.chat(ctx)
         mem = chat.chat_mem
-        await ctx.send(f"Memória atual: {mem}!")
+        await Message(ctx, f"Memória atual: {mem}!").send()
 
 
 async def setup(bot):
