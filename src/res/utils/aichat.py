@@ -97,10 +97,15 @@ class AIChat:
 
         lines = answer.split("\n")
         answer = ""
+        started_answering = False
         for line in lines:
             self.chat_mem += line + "\n"
-            if line.startswith("Harpi:"):
-                answer += line.removeprefix("Harpi:").strip() + "\n"
+            if not started_answering:
+                if line.startswith("Harpi:"):
+                    started_answering = True
+                    answer += line.removeprefix("Harpi:").strip() + "\n"
+            else:
+                answer += line.strip() + "\n"
         return answer
 
     def get_mem(self):
