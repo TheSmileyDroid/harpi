@@ -95,7 +95,7 @@ class AIChat:
         logger.info(answer)
         logger.info(len(answer))
 
-        lines = answer.split("\n")[:-1]
+        lines = answer.split("\n")
         answer = ""
         for line in lines:
             self.chat_mem += line + "\n"
