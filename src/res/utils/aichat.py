@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 class AIChat:
     def __init__(self: "AIChat") -> None:
-        self.temp = 0.8
-        self.top_p = 0.4
+        self.temp = 0.4
+        self.top_p = 0.6
         self.system = "Data atual: " + time.strftime("%d/%m/%Y") + "\n"
         f = open("src/res/utils/chat_mem.txt", "r")
         for line in f:
