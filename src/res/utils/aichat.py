@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class AIChat:
     def __init__(self: "AIChat") -> None:
-        self.temp = 0.4
+        self.temp = 0.5
         self.top_p = 0.6
         self.system = "Data atual: " + time.strftime("%d/%m/%Y") + "\n"
         f = open("src/res/utils/chat_mem.txt", "r")
@@ -82,6 +82,7 @@ class AIChat:
             stopping_tokens=["MENSAGEM"],
             temperature=self.temp,
             top_p=self.top_p,
+            max_tokens=2500,
         )
 
         if not isinstance(answer, str):
@@ -95,7 +96,7 @@ class AIChat:
         logger.info(answer)
         logger.info(len(answer))
 
-        lines = answer.split("\n")
+        lines = answer.removesuffix("MENSAGEM").removesuffix("\n").split("\n")
         answer = ""
         started_answering = False
         for line in lines:
