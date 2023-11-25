@@ -1,0 +1,36 @@
+@import url("https://fonts.googleapis.com/css2?family=Fira+Sans&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fira+Code&display=swap");
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+body {
+  background: #3b4465;
+  font-size: 16 px;
+  line-height: 1.42857143;
+}
+
+.harp-viewer {
+  background: #fbe76c;
+  border: #6a3a6c 6px solid;
+  color: #ed7b2c;
+  text-align: left;
+  font-family: "Fira Code", sans-serif;
+  border-radius: 20px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  margin: 0 auto;
+  max-width: 800px;
+  padding: 20px;
+  width: 100%;
+}
+
+.logo {
+  display: block;
+  margin: 0 auto;
+  height: 8rem;
+}

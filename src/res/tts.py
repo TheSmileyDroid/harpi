@@ -65,7 +65,7 @@ class TTSCog(commands.Cog):
     @commands.command(name="fc", aliases=["fchat"])
     async def fchat(self, ctx, *, text: str):
         chat: AIChat = guild_data.chat(ctx)
-        response = await chat.chat(ctx, text)
+        response = await chat.get_response(text, ctx)
         if response.startswith("Harpi:"):
             response = response[6:]
         try:

@@ -1,4 +1,4 @@
-from harpi import Harpi
+from src.bot.iharpi import IHarpi
 from .music import MusicCog
 from .basic import BasicCog
 from .dice import DiceCog
@@ -7,7 +7,7 @@ from .chat import ChatCog
 from .lol import LolCog
 
 
-async def setup(bot: Harpi) -> None:
+async def setup(bot: IHarpi) -> None:
     """Make the bot load the cogs.
 
     Args:
