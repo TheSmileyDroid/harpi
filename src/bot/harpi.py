@@ -36,7 +36,11 @@ class Harpi(IHarpi):
             logging.log(logging.INFO, f" - {guild.name}")
 
     async def on_command_error(self, ctx, error):
-        if isinstance(error, commands.CommandNotFound):
+        if isinstance(error, commands.PrivateMessageOnly):
+            await ctx.send("Este comando só pode ser usado em DMs.")
+        elif isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send("Faltam argumentos.")
+        elif isinstance(error, commands.CommandNotFound):
             await ctx.send("Comando não encontrado.")
         elif isinstance(error, commands.CommandError):
             await ctx.send(f"Erro ao executar o comando: {error}")

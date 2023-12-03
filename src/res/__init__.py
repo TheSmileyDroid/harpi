@@ -5,6 +5,7 @@ from .dice import DiceCog
 from .tts import TTSCog
 from .chat import ChatCog
 from .lol import LolCog
+from .amigo import AmigoCog
 
 
 async def setup(bot: IHarpi) -> None:
@@ -19,3 +20,4 @@ async def setup(bot: IHarpi) -> None:
     await bot.add_cog(TTSCog(bot))
     await bot.add_cog(ChatCog(bot))
     await bot.add_cog(LolCog(bot))
+    await bot.add_cog(AmigoCog(bot))
