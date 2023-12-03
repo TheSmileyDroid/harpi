@@ -35,7 +35,7 @@ class AmigoCog(commands.Cog):
         random.shuffle(shuffled_list)
         user = ctx.author.name
         index = shuffled_list.index(user)
-        await ctx.send(f"Amigo: {amigos[shuffled_list[index+1]]}")
+        await ctx.send(f"Amigo: {amigos[shuffled_list[(index+1)%len(shuffled_list)]]}")
 
     @commands.command()
     @commands.check(check_if_is_member)
