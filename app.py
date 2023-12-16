@@ -7,7 +7,7 @@ import src.res  # noqa: F401
 
 terminalLogger = logging.StreamHandler()
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(name)s: %(message)s",
     style="%",
     filename="discord.log",
@@ -17,7 +17,7 @@ logging.getLogger().addHandler(terminalLogger)
 
 def run_bot(bot: IHarpi) -> None:
     token: str = str(os.getenv("DISCORD_ID"))
-    bot.run(token, log_level=logging.FATAL)
+    bot.run(token, log_level=logging.INFO, root_logger=True)
 
 
 def create_bot() -> Harpi:

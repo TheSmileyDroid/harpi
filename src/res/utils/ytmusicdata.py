@@ -1,3 +1,4 @@
+import logging
 import subprocess
 from typing import Any, Dict, Optional
 from discord.opus import Encoder
@@ -35,6 +36,8 @@ ffmpeg_options: Dict[str, Any] = {
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
+logger = logging.getLogger(__name__)
+
 
 class YoutubeDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.3):
@@ -62,9 +65,7 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
             raise BadLink(musicdata.get_url())
         if "entries" in data:
             data = data["entries"][0]
-        filename = (
-            data["url"] if "url" in data else ytdl.prepare_filename(data)
-        )
+        filename = data["url"] if "url" in data else ytdl.prepare_filename(data)
         return cls(
             discord.FFmpegPCMAudio(filename, **ffmpeg_options),
             data=data,
@@ -95,15 +96,12 @@ class YTMusicData(IMusicData):
 
     @classmethod
     def from_url(cls, url: str) -> list["YTMusicData"]:
-        print(url)
+        logger.info(f"Searching for {url}")
         result = search(url)
         if result is None:
             raise BadLink(url)
         if "entries" in result:
-            return [
-                cls(video["title"], video["url"])
-                for video in result["entries"]
-            ]
+            return [cls(video["title"], video["url"]) for video in result["entries"]]
         video = result
         if "original_url" in video.keys():
             return [cls(video["title"], video["original_url"])]
@@ -140,9 +138,7 @@ class FFmpegPCMAudio(discord.AudioSource):
             args.extend(shlex.split(before_options))
         args.append("-i")
         args.append("-" if pipe else source)
-        args.extend(
-            ("-f", "s16le", "-ar", "48000", "-ac", "2", "-loglevel", "warning")
-        )
+        args.extend(("-f", "s16le", "-ar", "48000", "-ac", "2", "-loglevel", "warning"))
         if isinstance(options, str):
             args.extend(shlex.split(options))
         args.append("pipe:1")
@@ -154,13 +150,9 @@ class FFmpegPCMAudio(discord.AudioSource):
                 stdout=subprocess.PIPE,
                 stderr=stderr,
             )
-            self._stdout = io.BytesIO(
-                self._process.communicate(input=stdin)[0]
-            )
+            self._stdout = io.BytesIO(self._process.communicate(input=stdin)[0])
         except FileNotFoundError:
-            raise discord.ClientException(
-                executable + " was not found."
-            ) from None
+            raise discord.ClientException(executable + " was not found.") from None
         except subprocess.SubprocessError as exc:
             raise discord.ClientException(
                 "Popen failed: {0.__class__.__name__}: {0}".format(exc)

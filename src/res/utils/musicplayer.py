@@ -15,6 +15,9 @@ from ..interfaces.imusicplayer import IMusicPlayer
 from .ytmusicdata import YTMusicData
 
 
+logger = logging.getLogger(__name__)
+
+
 class MusicPlayer(IMusicPlayer):
     def __init__(
         self,
@@ -39,16 +42,19 @@ class MusicPlayer(IMusicPlayer):
 
         music: IMusicData = queue.get_current()
         source: discord.PCMVolumeTransformer = await music.get_source()  # type: ignore
+
         self.voice_client.play(
             source,
             after=lambda e: asyncio.run_coroutine_threadsafe(
                 self.go_next(), self.ctx.bot.loop
             ),
         )
+
         try:
-            source.volume = self.guild_data.volume(self.ctx) / 100
+            source.volume = self.guild_data.volume(self.ctx)
+            logger.info(f"Volume set to {source.volume}")
         except AttributeError:
-            logging.warning("Failed to set volume.")
+            logger.warning("Failed to set volume.")
 
     async def go_next(self, skip: bool = False):
         if self.guild_data.skip_flag(self.ctx) and not skip:
