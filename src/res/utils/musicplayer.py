@@ -1,5 +1,5 @@
 import asyncio
-from time import sleep
+import logging
 from typing import Optional
 from discord import VoiceClient
 import discord
@@ -33,7 +33,7 @@ class MusicPlayer(IMusicPlayer):
         if queue.get_length() == 0:
             return
         if self.voice_client.is_playing():
-            sleep(0.5)
+            await asyncio.sleep(0.5)
             if self.voice_client.is_playing():
                 return
 
@@ -45,8 +45,10 @@ class MusicPlayer(IMusicPlayer):
                 self.go_next(), self.ctx.bot.loop
             ),
         )
-        if hasattr(source, "volume"):
+        try:
             source.volume = self.guild_data.volume(self.ctx) / 100
+        except AttributeError:
+            logging.warning("Failed to set volume.")
 
     async def go_next(self, skip: bool = False):
         if self.guild_data.skip_flag(self.ctx) and not skip:
