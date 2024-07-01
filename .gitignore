@@ -130,3 +130,5 @@ dmypy.json
 
 .audios/
 monkeytype.sqlite3
+
+discord.log

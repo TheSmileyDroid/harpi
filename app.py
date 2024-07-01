@@ -1,9 +1,11 @@
+import asyncio
 import logging
-import os
 import discord
-from src.bot.harpi import Harpi
-from src.bot.iharpi import IHarpi
-import src.res  # noqa: F401
+import credentials
+import discord.ext.commands as cd
+from src.res import TTSCog
+from src.res import MusicCog
+from src.res import BasicCog
 
 terminalLogger = logging.StreamHandler()
 logging.basicConfig(
@@ -15,16 +17,17 @@ logging.basicConfig(
 logging.getLogger().addHandler(terminalLogger)
 
 
-def run_bot(bot: IHarpi) -> None:
-    token: str = str(os.getenv("DISCORD_ID"))
-    bot.run(token, log_level=logging.INFO, root_logger=True)
-
-
-def create_bot() -> Harpi:
+async def main():
     intents = discord.Intents.all()
-    bot = Harpi(command_prefix=Harpi.prefix, intents=intents)
-    return bot
+
+    client = cd.Bot(command_prefix="-", intents=intents)
+
+    await client.add_cog(TTSCog())
+    await client.add_cog(MusicCog())
+    await client.add_cog(BasicCog())
+
+    await client.start(credentials.DISCORD_TOKEN)
 
 
 if __name__ == "__main__":
-    run_bot(bot=create_bot())
+    asyncio.run(main())

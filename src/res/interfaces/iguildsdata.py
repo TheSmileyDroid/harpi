@@ -1,15 +1,10 @@
 from abc import ABC, abstractmethod
 from discord.ext import commands
 
-from ..utils.aichat import AIChat
 from .imusicqueue import IMusicQueue
 
 
 class IGuildsData(ABC):
-    @abstractmethod
-    def chat(self, ctx: commands.Context) -> AIChat:
-        pass
-
     @abstractmethod
     def queue(self, ctx: commands.Context) -> IMusicQueue:
         pass
@@ -43,9 +38,7 @@ class IGuildsData(ABC):
         pass
 
     @abstractmethod
-    def add_custom_data(
-        self, ctx: commands.Context, key: str, value: str
-    ) -> None:
+    def add_custom_data(self, ctx: commands.Context, key: str, value: str) -> None:
         pass
 
     @abstractmethod

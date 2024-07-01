@@ -6,8 +6,6 @@ from discord.ext import commands
 from discord.ext.commands.context import Context
 from gtts import gTTS
 
-from .utils.aichat import AIChat
-from .utils.guild import guild_data
 from .utils.ytmusicdata import FFmpegPCMAudio
 
 
@@ -58,17 +56,6 @@ async def say(ctx: commands.Context, text: str) -> None:
 
 
 class TTSCog(commands.Cog):
-    @commands.command(name="f")
+    @commands.hybrid_command(name="f")
     async def tts(self, ctx, *, text: str):
         await say(ctx, text)
-
-    @commands.command(name="fc", aliases=["fchat"])
-    async def fchat(self, ctx, *, text: str):
-        chat: AIChat = guild_data.chat(ctx)
-        response = await chat.get_response(text, ctx)
-        if response.startswith("Harpi:"):
-            response = response[6:]
-        try:
-            await say(ctx, response)
-        except AlreadyPlaying:
-            await ctx.send(response)
