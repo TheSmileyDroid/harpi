@@ -1,4 +1,4 @@
-from discord import Embed
+from discord import Embed, Message
 import discord
 from discord.ext import commands
 import discord.ext.commands
@@ -6,13 +6,94 @@ from discord.ext.commands.context import Context
 
 import discord.ext
 
-from .utils.dice_roller import DiceHandler, RandomDiceRoller
 from .utils.send import EmbeddedMessage
+import re
+from dataclasses import dataclass
+from typing import List, Tuple
+import random
+
+
+@dataclass
+class DiceComponent:
+    count: int
+    sides: int
+    modifier: int = 0
+
+    def roll(self):
+        rolls = [random.randint(1, self.sides) for _ in range(self.count)]
+        return rolls, sum(rolls) + self.modifier
+
+    def __str__(self):
+        if self.sides == 1:
+            return str(self.modifier)
+        return f"{self.count}d{self.sides}" + (
+            f"+{self.modifier}" if self.modifier else ""
+        )
+
+
+class DiceParser:
+    def __init__(self, dice_string: str):
+        self.dice_string = dice_string
+        self.components: List[Tuple[str, DiceComponent]] = []
+        if self.is_valid_dice_string():
+            self._parse()
+        else:
+            raise ValueError("Invalid dice string")
+
+    def is_valid_dice_string(self):
+        # This regex pattern matches the entire string
+        pattern = r"^([+-]?(\d*d\d+|\d+))+$"
+        return re.match(pattern, self.dice_string) is not None
+
+    def _parse(self):
+        pattern = r"([+-]?)(\d*d?\d+)"
+        matches = re.findall(pattern, self.dice_string)
+
+        for sign, value in matches:
+            if "d" in value:
+                count, sides = map(lambda x: int(x) if x else 1, value.split("d"))
+                self.components.append((sign, DiceComponent(count, sides)))
+            else:
+                self.components.append((sign, DiceComponent(1, 1, int(value))))
+
+    def roll(self):
+        total = 0
+        results: list[str] = []
+        for sign, component in self.components:
+            rolls, result = component.roll()
+            if sign == "-":
+                total -= result
+                results.append(f"[{self._format_rolls(rolls, component.sides)}]")
+            else:
+                total += result
+                results.append(f"[{self._format_rolls(rolls, component.sides)}]")
+        return total, results
+
+    def _format_rolls(self, rolls, sides):
+        return ", ".join(
+            f"**{roll}**" if roll == sides else str(roll) for roll in rolls
+        )
 
 
 class DiceCog(commands.Cog):
     def __init__(self, bot: discord.ext.commands.Bot):
         self.bot = bot
+
+    @commands.Cog.listener()
+    async def on_message(self, message: Message):
+        if message.author == self.bot.user:
+            return
+
+        parser = DiceParser(message.content)
+        if not parser.is_valid_dice_string():
+            return
+        total, results = parser.roll()
+        text = ""
+        for component, result in zip(parser.components, results):
+            text += f"{component[0]}{component[1]}{result}"
+        text += " = " + str(total)
+        embed: Embed = Embed(color=0x00DD33).add_field(name="", value=text)
+        await message.reply(embed=embed)
 
     @commands.command(name="d", aliases=["dado", "rolar", "roll", "r"])
     async def roll(self, ctx: Context, *, args: str) -> None:
@@ -22,7 +103,22 @@ class DiceCog(commands.Cog):
             ctx (Context)
             args (str): String com a quantidade e o tipo de dado a ser rolado (ex: 2d6 ou 1d20+5)
         """
-        dice_handler = DiceHandler(RandomDiceRoller())
-        result = dice_handler.froll(args)
-        embed: Embed = Embed(color=0x00FF00).add_field(name="Resultado", value=result)
+        parser = DiceParser(args)
+        total, results = parser.roll()
+        text = ""
+        for component, result in zip(parser.components, results):
+            text += f"{component[0]}{component[1]}{result}"
+        text += str(total)
+        embed: Embed = Embed(color=0x00DD33).add_field(name="", value=text)
         await EmbeddedMessage(ctx, embed).send()
+
+
+if __name__ == "__main__":
+    parser = DiceParser("2d20+1d8")
+    total, results = parser.roll()
+
+    print(f"Dice string: {parser.dice_string}")
+    print("\nRoll breakdown: ", results)
+    for component, result in zip(parser.components, results):
+        print(f"{component[1]}{result}")
+    print(f"\nTotal result: {total}")
