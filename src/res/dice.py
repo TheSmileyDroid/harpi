@@ -54,7 +54,7 @@ class DiceParser:
                 count, sides = map(lambda x: int(x) if x else 1, value.split("d"))
                 self.components.append((sign, DiceComponent(count, sides)))
             else:
-                self.components.append((sign, DiceComponent(1, 1, int(value))))
+                self.components.append((sign, DiceComponent(0, 0, int(value))))
 
     def roll(self):
         total = 0
@@ -63,10 +63,12 @@ class DiceParser:
             rolls, result = component.roll()
             if sign == "-":
                 total -= result
-                results.append(f"[{self._format_rolls(rolls, component.sides)}]")
             else:
                 total += result
+            if component.sides != 0:
                 results.append(f"[{self._format_rolls(rolls, component.sides)}]")
+            else:
+                results.append("")
         return total, results
 
     def _format_rolls(self, rolls, sides):
@@ -108,7 +110,7 @@ class DiceCog(commands.Cog):
         text = ""
         for component, result in zip(parser.components, results):
             text += f"{component[0]}{component[1]}{result}"
-        text += str(total)
+        text += " = " + str(total)
         embed: Embed = Embed(color=0x00DD33).add_field(name="", value=text)
         await EmbeddedMessage(ctx, embed).send()
 
