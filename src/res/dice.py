@@ -24,7 +24,7 @@ class DiceComponent:
         return rolls, sum(rolls) + self.modifier
 
     def __str__(self):
-        if self.sides == 1:
+        if self.sides == 0:
             return str(self.modifier)
         return f"{self.count}d{self.sides}" + (
             f"+{self.modifier}" if self.modifier else ""
@@ -35,28 +35,32 @@ class DiceParser:
     def __init__(self, dice_string: str):
         self.dice_string = dice_string
         self.components: List[Tuple[str, DiceComponent]] = []
-        if self.is_valid_dice_string():
-            self._parse()
-        else:
-            raise ValueError("Invalid dice string")
 
     def is_valid_dice_string(self):
         # This regex pattern matches the entire string
-        pattern = r"^([+-]?(\d*d\d+|\d+))+$"
-        return re.match(pattern, self.dice_string) is not None
+        pattern = r"^([+-]?(\d*d\d*|\d+))+$"
+        return re.match(pattern, self.dice_string.replace(" ", "")) is not None
 
     def _parse(self):
-        pattern = r"([+-]?)(\d*d?\d+)"
-        matches = re.findall(pattern, self.dice_string)
+        pattern = r"([+-]?)(\d*d?\d*)"
+        matches = re.findall(pattern, self.dice_string.replace(" ", ""))
 
         for sign, value in matches:
+            if len(value) == 0:
+                continue
             if "d" in value:
                 count, sides = map(lambda x: int(x) if x else 1, value.split("d"))
+                if sides == 1:
+                    sides = 20
                 self.components.append((sign, DiceComponent(count, sides)))
             else:
                 self.components.append((sign, DiceComponent(0, 0, int(value))))
 
     def roll(self):
+        if self.is_valid_dice_string():
+            self._parse()
+        else:
+            raise ValueError("Invalid dice string")
         total = 0
         results: list[str] = []
         for sign, component in self.components:
