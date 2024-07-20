@@ -24,7 +24,7 @@ class DiceComponent:
         return rolls, sum(rolls) + self.modifier
 
     def __str__(self):
-        if self.sides == 1:
+        if self.sides == 0:
             return str(self.modifier)
         return f"{self.count}d{self.sides}" + (
             f"+{self.modifier}" if self.modifier else ""
@@ -35,17 +35,20 @@ class DiceParser:
     def __init__(self, dice_string: str):
         self.dice_string = dice_string
         self.components: List[Tuple[str, DiceComponent]] = []
-        if self.is_valid_dice_string():
-            self._parse()
-        else:
-            raise ValueError("Invalid dice string")
+        self.num_rolls: int = 1
 
     def is_valid_dice_string(self):
-        # This regex pattern matches the entire string
-        pattern = r"^([+-]?(\d*d\d+|\d+))+$"
+        # Updated regex pattern to support the #d notation
+        pattern = r"^(\d+#)?([+-]?(\d*d\d+|\d+))+$"
         return re.match(pattern, self.dice_string) is not None
 
     def _parse(self):
+        # Check for and extract the number of rolls
+        num_rolls_match = re.match(r"(\d+)#", self.dice_string)
+        if num_rolls_match:
+            self.num_rolls = int(num_rolls_match.group(1))
+            self.dice_string = self.dice_string[num_rolls_match.end() :]
+
         pattern = r"([+-]?)(\d*d?\d+)"
         matches = re.findall(pattern, self.dice_string)
 
@@ -54,20 +57,30 @@ class DiceParser:
                 count, sides = map(lambda x: int(x) if x else 1, value.split("d"))
                 self.components.append((sign, DiceComponent(count, sides)))
             else:
-                self.components.append((sign, DiceComponent(1, 1, int(value))))
+                self.components.append((sign, DiceComponent(0, 0, int(value))))
 
     def roll(self):
-        total = 0
-        results: list[str] = []
-        for sign, component in self.components:
-            rolls, result = component.roll()
-            if sign == "-":
-                total -= result
-                results.append(f"[{self._format_rolls(rolls, component.sides)}]")
-            else:
-                total += result
-                results.append(f"[{self._format_rolls(rolls, component.sides)}]")
-        return total, results
+        if self.is_valid_dice_string():
+            self._parse()
+        else:
+            raise ValueError("Invalid dice string")
+
+        all_results = []
+        for _ in range(self.num_rolls):
+            total = 0
+            results: list[str] = []
+            for sign, component in self.components:
+                rolls, result = component.roll()
+                if sign == "-":
+                    total -= result
+                else:
+                    total += result
+                if component.sides != 0:
+                    results.append(f"[{self._format_rolls(rolls, component.sides)}]")
+                else:
+                    results.append("")
+            all_results.append((total, results))
+        return all_results
 
     def _format_rolls(self, rolls, sides):
         return ", ".join(
