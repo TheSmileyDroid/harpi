@@ -12,6 +12,10 @@ from requests import get
 
 from ..interfaces.imusicdata import IMusicData
 
+
+from functools import lru_cache
+
+
 youtube_dl.utils.bug_reports_message = lambda: ""
 
 ytdl_format_options = {
@@ -49,30 +53,21 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
         self.url = data.get("url")
 
     @classmethod
-    async def from_music_data(
-        cls,
-        musicdata: IMusicData,
-        *,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
-        volume=0.3,
-    ):
-        _loop: asyncio.AbstractEventLoop = loop or asyncio.get_event_loop()
-        data: Any | dict[str, Any] = await _loop.run_in_executor(
-            None,
-            lambda: ytdl.extract_info(musicdata.get_url(), download=False),
-        )
+    def from_music_data(cls, musicdata: IMusicData, *, volume=0.3):
+        data = ytdl.extract_info(musicdata.get_url(), download=False)
         if data is None:
             raise BadLink(musicdata.get_url())
         if "entries" in data:
             data = data["entries"][0]
         filename = data["url"] if "url" in data else ytdl.prepare_filename(data)
         return cls(
-            discord.FFmpegPCMAudio(filename, **ffmpeg_options),
+            FastStartFFmpegPCMAudio(filename, **ffmpeg_options),
             data=data,
             volume=volume,
         )
 
 
+@lru_cache(maxsize=100)
 def search(arg):
     with ytdl:
         try:
@@ -93,9 +88,10 @@ class YTMusicData(IMusicData):
     def __init__(self, title: str, url: str):
         self._title: str = title
         self._url: str = url
+        self._source: Optional[YoutubeDLSource] = None
 
     @classmethod
-    def from_url(cls, url: str) -> list["YTMusicData"]:
+    def from_url(cls, url: str) -> list["YTMusicData"]:  # type: ignore
         logger.info(f"Searching for {url}")
         result = search(url)
         if result is None:
@@ -117,8 +113,16 @@ class YTMusicData(IMusicData):
     def get_artist(self) -> str:
         return "Unknown"
 
+    async def prefetch_source(self):
+        if self._source is None:
+            loop = asyncio.get_event_loop()
+            self._source = await loop.run_in_executor(
+                None, YoutubeDLSource.from_music_data, self
+            )
+
     async def get_source(self) -> YoutubeDLSource:
-        return await YoutubeDLSource.from_music_data(self)  # type: ignore
+        await self.prefetch_source()
+        return self._source  # type: ignore
 
 
 class FFmpegPCMAudio(discord.AudioSource):
@@ -173,3 +177,29 @@ class FFmpegPCMAudio(discord.AudioSource):
             proc.communicate()
 
         self._process = None
+
+
+class FastStartFFmpegPCMAudio(discord.FFmpegPCMAudio):
+    def __init__(
+        self,
+        source,
+        *,
+        executable="ffmpeg",
+        pipe=False,
+        stderr=None,
+        before_options=None,
+        options=None,
+    ):
+        if isinstance(before_options, str):
+            before_options = f"{before_options} -analyzeduration 0 -probesize 32"
+        else:
+            before_options = "-analyzeduration 0 -probesize 32"
+
+        super().__init__(
+            source,
+            executable=executable,
+            pipe=pipe,
+            stderr=stderr,
+            before_options=before_options,
+            options=options,
+        )

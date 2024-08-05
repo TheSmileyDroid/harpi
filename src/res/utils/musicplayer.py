@@ -15,6 +15,9 @@ from ..interfaces.imusicplayer import IMusicPlayer
 from .ytmusicdata import YTMusicData
 
 
+from concurrent.futures import ThreadPoolExecutor
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,18 +33,18 @@ class MusicPlayer(IMusicPlayer):
         self.ctx: commands.Context = ctx
         self.voice_client: VoiceClient = voice_client
         self.output: Optional[IMessageParser] = output
+        self.thread_pool = ThreadPoolExecutor(max_workers=4)
+        self.prefetch_queue = asyncio.Queue()
 
     async def start(self):
         queue: IMusicQueue = self.guild_data.queue(self.ctx)
         if queue.get_length() == 0:
             return
         if self.voice_client.is_playing():
-            await asyncio.sleep(0.5)
-            if self.voice_client.is_playing():
-                return
+            return
 
         music: IMusicData = queue.get_current()
-        source: discord.PCMVolumeTransformer = await music.get_source()  # type: ignore
+        source = await music.get_source()
 
         self.voice_client.play(
             source,
@@ -51,8 +54,8 @@ class MusicPlayer(IMusicPlayer):
         )
 
         try:
-            source.volume = self.guild_data.volume(self.ctx)
-            logger.info(f"Volume set to {source.volume}")
+            source.volume = self.guild_data.volume(self.ctx)  # type: ignore
+            logger.info(f"Volume set to {source.volume}")  # type: ignore
         except AttributeError:
             logger.warning("Failed to set volume.")
 
@@ -67,28 +70,29 @@ class MusicPlayer(IMusicPlayer):
         await self.start()
 
     async def play(self, text: str):
-        data: list[YTMusicData] = YTMusicData.from_url(text)
+        future = self.thread_pool.submit(YTMusicData.from_url, text)
+        data: list[YTMusicData] = await asyncio.wrap_future(future)
+
         queue = self.guild_data.queue(self.ctx)
 
         for music in data:
             queue.add(music)
+            await self.prefetch_queue.put(music)
 
-        if self.voice_client.is_playing():
-            if self.output:
-                musics_str = "\n".join([f"**{music.get_title()}**" for music in data])
-                await self.output.send(f"Adicionado à fila:\n{musics_str}")
-            return
+        if not self.voice_client.is_playing():
+            asyncio.create_task(self.prefetch_audio())
+            await self.start()
+            if self.output and data:
+                await self.output.send(f"Tocando agora: **{data[0].get_title()}**")
+        elif self.output:
+            musics_str = "\n".join([f"**{music.get_title()}**" for music in data])
+            await self.output.send(f"Adicionado à fila:\n{musics_str}")
 
-        await self.start()
-
-        if self.output:
-            await self.output.send(f"Tocando agora: **{data[0].get_title()}**")
-
-            musics_str = "\n".join([f"{music.get_title()}" for music in data[1:]])
-            if musics_str:
-                await self.output.send(
-                    f"Playlist adicionada à fila:\n{musics_str}",
-                )
+    async def prefetch_audio(self):
+        while True:
+            music = await self.prefetch_queue.get()
+            await music.prefetch_source()
+            self.prefetch_queue.task_done()
 
     async def stop(self):
         queue = self.guild_data.queue(self.ctx)
