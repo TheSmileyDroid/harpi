@@ -86,7 +86,7 @@ class MusicCog(Cog):
 
     @hybrid_command("loop")
     @describe(mode="Loop mode")
-    async def loop(self, ctx: Context, mode: str):
+    async def loop(self, ctx: Context, mode: Optional[str]):
         if not ctx.guild:
             raise CommandError("Você precisa estar em um canal para usar esse comando")
         if (
