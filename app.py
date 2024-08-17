@@ -4,9 +4,10 @@ import os
 import discord
 import discord.ext.commands as cd
 from src.res import TTSCog
-from src.res import MusicCog
 from src.res import BasicCog
 from src.res.dice import DiceCog
+
+from src.res.music import MusicCog
 
 
 terminalLogger = logging.StreamHandler()
@@ -34,7 +35,7 @@ async def main():
     client = cd.Bot(command_prefix="-", intents=intents)
 
     await client.add_cog(TTSCog())
-    await client.add_cog(MusicCog())
+    await client.add_cog(MusicCog(client))
     await client.add_cog(BasicCog())
     await client.add_cog(DiceCog(client))
 

@@ -56,6 +56,10 @@ async def say(ctx: commands.Context, text: str) -> None:
 
 
 class TTSCog(commands.Cog):
-    @commands.hybrid_command(name="f")
-    async def tts(self, ctx, *, text: str):
+    @commands.hybrid_command(name="f", description="Fala um texto")
+    @discord.app_commands.describe(
+        text="Texto a ser falado",
+    )
+    async def tts(self, ctx: Context, *, text: str):
         await say(ctx, text)
+        await ctx.send("OK", ephemeral=True, delete_after=5)

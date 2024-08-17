@@ -1,5 +1,6 @@
 import logging
 import subprocess
+import time
 from typing import Any, Dict, Optional
 from discord.opus import Encoder
 import io
@@ -7,16 +8,10 @@ import shlex
 import asyncio
 from src.res.errors.bad_link import BadLink
 import discord
-import yt_dlp as youtube_dl
-from requests import get
-
-from ..interfaces.imusicdata import IMusicData
+import yt_dlp
 
 
-from functools import lru_cache
-
-
-youtube_dl.utils.bug_reports_message = lambda: ""
+yt_dlp.utils.bug_reports_message = lambda: ""
 
 ytdl_format_options = {
     "format": "bestaudio/best",
@@ -38,7 +33,7 @@ ffmpeg_options: Dict[str, Any] = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
 }
 
-ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +48,11 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
         self.url = data.get("url")
 
     @classmethod
-    def from_music_data(cls, musicdata: IMusicData, *, volume=0.3):
-        data = ytdl.extract_info(musicdata.get_url(), download=False)
+    async def from_music_data(cls, musicdata: "YTMusicData", *, volume=0.3):
+        loop = asyncio.get_event_loop()
+        data = await loop.run_in_executor(
+            None, lambda: ytdl.extract_info(musicdata.get_url(), download=False)
+        )
         if data is None:
             raise BadLink(musicdata.get_url())
         if "entries" in data:
@@ -67,33 +65,33 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
         )
 
 
-@lru_cache(maxsize=100)
-def search(arg):
-    with ytdl:
-        try:
-            get(arg)
-        except Exception:
-            video = ytdl.extract_info(f"ytsearch:{arg}", download=False)
-            if video is None:
-                raise Exception("Não foi possível encontrar nenhum vídeo.")
-            if "entries" in video:
-                video = video["entries"][0]
-        else:
-            video = ytdl.extract_info(arg, download=False)
+async def search(arg):
+    _start_time = time.time()
+    if not arg.startswith("https://") and not arg.startswith("http://"):
+        arg = f"ytsearch:{arg}"
+    loop = asyncio.get_event_loop()
+    video = await loop.run_in_executor(
+        None, lambda: ytdl.extract_info(arg, download=False, process=False)
+    )
 
+    if video is None:
+        raise Exception("Não foi possível encontrar nenhum vídeo.")
+    if "entries" in video:
+        video = video["entries"][0]
+    logger.info(f"Searched for {arg} in {time.time() - _start_time} seconds.")
     return video
 
 
-class YTMusicData(IMusicData):
+class YTMusicData:
     def __init__(self, title: str, url: str):
         self._title: str = title
         self._url: str = url
         self._source: Optional[YoutubeDLSource] = None
 
     @classmethod
-    def from_url(cls, url: str) -> list["YTMusicData"]:  # type: ignore
+    async def from_url(cls, url: str) -> list["YTMusicData"]:
         logger.info(f"Searching for {url}")
-        result = search(url)
+        result = await search(url)
         if result is None:
             raise BadLink(url)
         if "entries" in result:
@@ -112,17 +110,6 @@ class YTMusicData(IMusicData):
 
     def get_artist(self) -> str:
         return "Unknown"
-
-    async def prefetch_source(self):
-        if self._source is None:
-            loop = asyncio.get_event_loop()
-            self._source = await loop.run_in_executor(
-                None, YoutubeDLSource.from_music_data, self
-            )
-
-    async def get_source(self) -> YoutubeDLSource:
-        await self.prefetch_source()
-        return self._source  # type: ignore
 
 
 class FFmpegPCMAudio(discord.AudioSource):
