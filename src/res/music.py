@@ -1,9 +1,9 @@
+from asyncio import sleep
 from asyncio.queues import Queue
 import enum
-from random import choice
 from typing import Optional
 from discord import Member
-from discord.app_commands import choices, describe
+from discord.app_commands import describe
 from discord.ext.commands import Bot, Cog, CommandError, Context, hybrid_command
 from discord.ext.commands.bot import asyncio
 from discord.voice_client import VoiceClient
@@ -40,7 +40,7 @@ class MusicCog(Cog):
         if ctx.voice_client is not None and isinstance(ctx.voice_client, VoiceClient):
             voiceChannel = ctx.author.voice.channel
             await ctx.voice_client.move_to(voiceChannel)
-            return ctx.voice_client
+            return ctx.voice_client  # type: ignore
         return await ctx.author.voice.channel.connect()
 
     @hybrid_command("play")
@@ -66,6 +66,7 @@ class MusicCog(Cog):
             raise CommandError("Você precisa estar em um canal para usar esse comando")
         voice = await self.join(ctx)
         self.musicQueue[ctx.guild.id] = []
+        self.currentMusic[ctx.guild.id] = None
         voice.stop()
 
     @hybrid_command("skip")
@@ -141,8 +142,14 @@ class MusicCog(Cog):
         ):
             raise CommandError("Você não está em um canal de voz")
         musicDataList = self.musicQueue.get(ctx.guild.id, [])
+        currentMusicStr = (
+            f"**{currentMusic.get_title()}**"
+            if (currentMusic := self.currentMusic.get(ctx.guild.id))
+            else "Nenhuma música sendo tocada"
+        )
+        list = "\n ".join(map(lambda m: f"**{m.get_title()}**", musicDataList))
         await ctx.send(
-            f"Fila atual ({len(musicDataList)}): {', '.join(map(lambda m: str(m), musicDataList))}"
+            f"{currentMusicStr}\nFila atual ({len(musicDataList)}): \n{list}"
         )
 
     def _after_stop(self, ctx: Context, err: Exception | None):
@@ -160,6 +167,7 @@ class MusicCog(Cog):
                 continue
             if len(self.musicQueue.get(ctx.guild.id, [])) > 0:
                 voice = await self.join(ctx)
+                await sleep(0.5)
                 if voice.is_playing():
                     continue
                 loopMode = self.loopMap.get(ctx.guild.id, LoopMode.OFF)
@@ -175,8 +183,9 @@ class MusicCog(Cog):
                     currentQueue := self.musicQueue.get(ctx.guild.id)
                 ):
                     musicData = currentQueue.pop(0)
+                    if currentMusic := self.currentMusic.get(ctx.guild.id):
+                        currentQueue.append(currentMusic)
                     self.currentMusic[ctx.guild.id] = musicData
-                    currentQueue.append(musicData)
                     voice.play(
                         await YoutubeDLSource.from_music_data(musicData),
                         after=lambda err: self._after_stop(ctx, err),
