@@ -1,3 +1,4 @@
+import itertools
 import logging
 import subprocess
 import time
@@ -77,7 +78,8 @@ async def search(arg):
     if video is None:
         raise Exception("Não foi possível encontrar nenhum vídeo.")
     if "entries" in video:
-        video = video["entries"][0]
+        videoEntries: list[dict[str, Any]] = list(video["entries"])
+        video = videoEntries[0]
     logger.info(f"Searched for {arg} in {time.time() - _start_time} seconds.")
     return video
 

@@ -2,7 +2,9 @@ from asyncio import sleep
 from asyncio.queues import Queue
 import enum
 from typing import Optional
+import typing
 from discord import Member
+import discord
 from discord.app_commands import describe
 from discord.ext.commands import Bot, Cog, CommandError, Context, hybrid_command
 from discord.ext.commands.bot import asyncio
@@ -46,6 +48,7 @@ class MusicCog(Cog):
     @hybrid_command("play")
     @describe(link="Link da música a ser tocada")
     async def play(self, ctx: Context, *, link: str):
+        await ctx.typing()
         if ctx.guild:
             musicDataList = await YTMusicData.from_url(link)
             queue = self.musicQueue.get(ctx.guild.id) or []
@@ -62,31 +65,54 @@ class MusicCog(Cog):
 
     @hybrid_command("stop")
     async def stop(self, ctx: Context):
+        await ctx.typing()
         if not ctx.guild:
             raise CommandError("Você precisa estar em um canal para usar esse comando")
         voice = await self.join(ctx)
         self.musicQueue[ctx.guild.id] = []
         self.currentMusic[ctx.guild.id] = None
         voice.stop()
+        await ctx.send("Música parada")
 
     @hybrid_command("skip")
     async def skip(self, ctx: Context):
+        await ctx.typing()
+        if not ctx.guild:
+            raise CommandError("Você precisa estar em um canal para usar esse comando")
         voice = await self.join(ctx)
+        if self.loopMap.get(ctx.guild.id, LoopMode.OFF) is LoopMode.QUEUE:
+            if currentMusic := self.currentMusic.get(ctx.guild.id):
+                self.musicQueue.get(ctx.guild.id, []).append(currentMusic)
+        self.currentMusic[ctx.guild.id] = None
+        await ctx.send("Música pulada")
+        musicQueue = self.musicQueue.get(ctx.guild.id, [])
+        print(musicQueue)
+        if len(musicQueue) > 0 and (nextMusic := musicQueue[0]):
+            await ctx.send(
+                f"Tocando a próxima música da fila: **{nextMusic.get_title()}**"
+            )
+        else:
+            await ctx.send("Fila vazia")
         voice.stop()
 
     @hybrid_command("pause")
     async def pause(self, ctx: Context):
+        await ctx.typing()
         voice = await self.join(ctx)
         voice.pause()
+        await ctx.send("Pausado")
 
     @hybrid_command("resume")
     async def resume(self, ctx: Context):
+        await ctx.typing()
         voice = await self.join(ctx)
         voice.resume()
+        await ctx.send("Resumido")
 
     @hybrid_command("loop")
     @describe(mode="Loop mode")
     async def loop(self, ctx: Context, mode: Optional[str]):
+        await ctx.typing()
         if not ctx.guild:
             raise CommandError("Você precisa estar em um canal para usar esse comando")
         if (
@@ -133,6 +159,7 @@ class MusicCog(Cog):
 
     @hybrid_command("list")
     async def list(self, ctx: Context):
+        await ctx.typing()
         if not ctx.guild:
             raise CommandError("Você precisa estar em um canal para usar esse comando")
         if (
@@ -197,5 +224,7 @@ class MusicCog(Cog):
                     await YoutubeDLSource.from_music_data(musicData),
                     after=lambda err: self._after_stop(ctx, err),
                 )
-
+            else:
+                self.currentMusic[ctx.guild.id] = None
+                print("No music data in queue")
             pass
