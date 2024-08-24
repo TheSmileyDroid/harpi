@@ -83,8 +83,7 @@ class MusicCog(Cog):
         if self.loopMap.get(ctx.guild.id, LoopMode.OFF) is LoopMode.QUEUE:
             if currentMusic := self.currentMusic.get(ctx.guild.id):
                 self.musicQueue.get(ctx.guild.id, []).append(currentMusic)
-        else:
-            self.currentMusic[ctx.guild.id] = None
+        self.currentMusic[ctx.guild.id] = None
         await ctx.send("Música pulada")
         musicQueue = self.musicQueue.get(ctx.guild.id, [])
         print(musicQueue)
