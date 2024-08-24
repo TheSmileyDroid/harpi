@@ -83,7 +83,8 @@ class MusicCog(Cog):
         if self.loopMap.get(ctx.guild.id, LoopMode.OFF) is LoopMode.QUEUE:
             if currentMusic := self.currentMusic.get(ctx.guild.id):
                 self.musicQueue.get(ctx.guild.id, []).append(currentMusic)
-        self.currentMusic[ctx.guild.id] = None
+        else:
+            self.currentMusic[ctx.guild.id] = None
         await ctx.send("Música pulada")
         musicQueue = self.musicQueue.get(ctx.guild.id, [])
         print(musicQueue)
@@ -192,39 +193,41 @@ class MusicCog(Cog):
             ctx = await self.playChannel.get()
             if not ctx.guild:
                 continue
-            if len(self.musicQueue.get(ctx.guild.id, [])) > 0:
-                voice = await self.join(ctx)
-                await sleep(0.5)
-                if voice.is_playing():
-                    continue
-                loopMode = self.loopMap.get(ctx.guild.id, LoopMode.OFF)
-                if loopMode is LoopMode.TRACK and (
-                    currentMusic := self.currentMusic.get(ctx.guild.id)
-                ):
-                    voice.play(
-                        await YoutubeDLSource.from_music_data(currentMusic),
-                        after=lambda err: self._after_stop(ctx, err),
-                    )
-                    continue
-                if loopMode is LoopMode.QUEUE and (
-                    currentQueue := self.musicQueue.get(ctx.guild.id)
-                ):
-                    musicData = currentQueue.pop(0)
-                    if currentMusic := self.currentMusic.get(ctx.guild.id):
-                        currentQueue.append(currentMusic)
-                    self.currentMusic[ctx.guild.id] = musicData
-                    voice.play(
-                        await YoutubeDLSource.from_music_data(musicData),
-                        after=lambda err: self._after_stop(ctx, err),
-                    )
-                    continue
-                musicData = self.musicQueue.get(ctx.guild.id, []).pop(0)
-                self.currentMusic[ctx.guild.id] = musicData
+
+            guild_id = ctx.guild.id
+            voice = await self.join(ctx)
+            await sleep(0.5)
+
+            if voice.is_playing():
+                continue
+
+            loopMode = self.loopMap.get(guild_id, LoopMode.OFF)
+            currentMusic = self.currentMusic.get(guild_id)
+            queue = self.musicQueue.get(guild_id, [])
+
+            if loopMode is LoopMode.TRACK and currentMusic:
+                music_to_play = currentMusic
+            elif loopMode is LoopMode.QUEUE:
+                if queue and len(queue) > 0:
+                    music_to_play = queue.pop(0)
+                    if currentMusic:
+                        queue.append(currentMusic)
+                elif currentMusic:
+                    music_to_play = currentMusic
+                    queue.append(currentMusic)
+                else:
+                    music_to_play = None
+            elif queue and len(queue) > 0:
+                music_to_play = queue.pop(0)
+            else:
+                music_to_play = None
+
+            if music_to_play:
+                self.currentMusic[guild_id] = music_to_play
                 voice.play(
-                    await YoutubeDLSource.from_music_data(musicData),
+                    await YoutubeDLSource.from_music_data(music_to_play),
                     after=lambda err: self._after_stop(ctx, err),
                 )
             else:
-                self.currentMusic[ctx.guild.id] = None
-                print("No music data in queue")
-            pass
+                self.currentMusic[guild_id] = None
+                print("No music data in queue or current music")
