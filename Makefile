@@ -6,4 +6,7 @@ init:
 start:
 	python app.py
 
-.PHONY: init
+test:
+	pytest tests
+
+.PHONY: init start test

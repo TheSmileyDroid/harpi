@@ -1,16 +1,15 @@
+import enum
 from asyncio import sleep
 from asyncio.queues import Queue
-import enum
 from typing import Optional
-import typing
+
 from discord import Member
-import discord
 from discord.app_commands import describe
 from discord.ext.commands import Bot, Cog, CommandError, Context, hybrid_command
 from discord.ext.commands.bot import asyncio
 from discord.voice_client import VoiceClient
 
-from src.res.utils.ytmusicdata import YTMusicData, YoutubeDLSource
+from src.res.utils.ytmusicdata import YoutubeDLSource, YTMusicData
 
 
 class LoopMode(enum.Enum):

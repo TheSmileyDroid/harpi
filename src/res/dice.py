@@ -1,16 +1,14 @@
-from discord import Embed, Message
-import discord
-from discord.ext import commands
-import discord.ext.commands
-from discord.ext.commands.context import Context
-
-import discord.ext
-
-from .utils.send import EmbeddedMessage
+import random
 import re
 from dataclasses import dataclass
 from typing import List, Tuple
-import random
+
+import discord
+import discord.ext
+import discord.ext.commands
+from discord import Embed, Message
+from discord.ext import commands
+from discord.ext.commands.context import Context
 
 
 @dataclass
@@ -116,7 +114,7 @@ class DiceCog(commands.Cog):
             text += f"{component[0]}{component[1]}{result}"
         text += " = " + str(total)
         embed: Embed = Embed(color=0x00DD33).add_field(name="", value=text)
-        await EmbeddedMessage(ctx, embed).send()
+        await ctx.send(embed=embed)
 
 
 if __name__ == "__main__":

@@ -1,14 +1,13 @@
 import asyncio
 import logging
 import os
+
 import discord
 import discord.ext.commands as cd
-from src.res import TTSCog
-from src.res import BasicCog
+
+from src.res import BasicCog, TTSCog
 from src.res.dice import DiceCog
-
 from src.res.music import MusicCog
-
 
 terminalLogger = logging.StreamHandler()
 logging.basicConfig(
