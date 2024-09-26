@@ -1,4 +1,4 @@
-from src.res import dice
+from src.cogs import dice
 
 
 def test_parse_dice():

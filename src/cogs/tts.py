@@ -6,7 +6,7 @@ from discord.ext import commands
 from discord.ext.commands.context import Context
 from gtts import gTTS
 
-from .utils.ytmusicdata import FFmpegPCMAudio
+from src.musicdata.ytmusicdata import FFmpegPCMAudio
 
 
 def guild(ctx: Context) -> discord.Guild:

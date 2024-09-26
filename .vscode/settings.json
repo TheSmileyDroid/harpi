@@ -1,3 +1,5 @@
 {
-    "python.languageServer": "None"
+  "python.languageServer": "Pylance",
+  "python.analysis.typeCheckingMode": "off",
+  "basedpyright.disableLanguageServices": true
 }

@@ -1,3 +1,14 @@
+
+[tool.basedpyright]
+typeCheckingMode = "all"
+reportMissingTypeStubs = false
+reportMissingTypeArgument = false
+reportUnknownLambdaType = false
+reportUnknownMemberType = false
+reportUnknownParameterType = false
+reportUnknownArgumentType = false
+reportUnusedCallResult = false
+reportUnknownVariableType = false
 exclude = [
     ".bzr",
     ".direnv",
@@ -20,8 +31,33 @@ exclude = [
     "dist",
     "node_modules",
     "venv",
-    "/usr/lib/",
+    "env",
 ]
 
-[tool.basedpyright]
-typeCheckingMode = "standard"
+[tool.ruff]
+line-length = 79
+select = ["E", "F", "W"]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "env",
+]
