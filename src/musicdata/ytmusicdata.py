@@ -142,7 +142,10 @@ class YTMusicData:
 
         """
         self._title: str = video.get("title", "Unknown")
-        self._url: str = video.get("url", "Unknown")
+        self._url: str = video.get(
+            "url",
+            video.get("original_url", "Unknown"),
+        )
         self._video: dict[str, Any] = video
         self._source: YoutubeDLSource | None = None
 
