@@ -73,7 +73,7 @@ class MusicCog(Cog):
     async def play(self, ctx: Context, *, link: str) -> None:
         """Toca uma música.
 
-        Args:
+        Arguments:
             ctx (Context): Contexto do comando.
             link (str): Link da música a ser tocada.
 

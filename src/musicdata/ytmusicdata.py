@@ -161,7 +161,7 @@ class YTMusicData:
         result = await search(url)
         if "entries" in result:
             logger.info(
-                f"Found {result["entries"]} results.",
+                f"Found {result['entries']} results.",
             )
             return [cls(video) for video in result["entries"]]
         video = result
