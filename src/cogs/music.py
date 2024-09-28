@@ -275,7 +275,7 @@ class MusicCog(Cog):
                     queue,
                 )
 
-                if music_to_play and not self.current_music[guild_id]:
+                if music_to_play and self.current_music[guild_id] is None:
                     self.current_music[guild_id] = music_to_play
                     voice.play(
                         await YoutubeDLSource.from_music_data(music_to_play),
