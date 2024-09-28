@@ -269,13 +269,19 @@ class MusicCog(Cog):
                 current_music = self.current_music.get(guild_id)
                 queue = self.music_queue.get(guild_id, [])
 
+                if self.current_music[guild_id]:
+                    title = self.current_music[guild_id].get_title()
+                    await ctx.send(
+                        f"Música em andamento: {title}",
+                    )
+
                 music_to_play = self.select_music_to_play(
                     loop_mode,
                     current_music,
                     queue,
                 )
 
-                if music_to_play and self.current_music[guild_id] is None:
+                if music_to_play:
                     self.current_music[guild_id] = music_to_play
                     voice.play(
                         await YoutubeDLSource.from_music_data(music_to_play),
