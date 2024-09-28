@@ -249,6 +249,7 @@ class MusicCog(Cog):
             err (Exception | None): Erro ocorrido ao tocar a música.
 
         """
+        self.current_music[ctx.guild.id] = None
         loop = asyncio.new_event_loop()
         if err:
             loop.run_until_complete(
@@ -274,7 +275,7 @@ class MusicCog(Cog):
                     queue,
                 )
 
-                if music_to_play:
+                if music_to_play and not self.current_music[guild_id]:
                     self.current_music[guild_id] = music_to_play
                     voice.play(
                         await YoutubeDLSource.from_music_data(music_to_play),
@@ -283,8 +284,6 @@ class MusicCog(Cog):
                             ctx=ctx,
                         ),
                     )
-                else:
-                    self.current_music[guild_id] = None
 
         except ClientException as e:
             await ctx.send(f"Erro ao tocar a música: {e}")
