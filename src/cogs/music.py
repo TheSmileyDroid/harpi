@@ -9,7 +9,7 @@ from asyncio.queues import Queue
 from functools import partial
 from typing import NoReturn
 
-from discord import Member
+from discord import ClientException, Member
 from discord.app_commands import describe
 from discord.ext.commands import Cog, CommandError, Context, hybrid_command
 from discord.voice_client import VoiceClient
@@ -33,13 +33,13 @@ class MusicCog(Cog):
         super().__init__()
 
         self.music_queue: dict[int, list[YTMusicData]] = {}
-        self.loopMap: dict[int, LoopMode] = {}
-        self.playChannel: Queue[Context] = Queue()
+        self.loop_map: dict[int, LoopMode] = {}
+        self.play_channel: Queue[Context] = Queue()
         self.current_music: dict[int, YTMusicData | None] = {}
-        tasks = []
+        self.tasks = []
         for _i in range(3):
             task = asyncio.create_task(self.play_loop())
-            tasks.append(task)
+            self.tasks.append(task)
 
     @staticmethod
     async def join(ctx: Context) -> VoiceClient:
@@ -87,7 +87,7 @@ class MusicCog(Cog):
             for music_data in music_data_list:
                 queue.append(music_data)
             self.music_queue[ctx.guild.id] = queue
-            await self.playChannel.put(ctx)
+            await self.play_channel.put(ctx)
             musics = ", ".join(m.get_title() for m in music_data_list)
             await ctx.send(f"Adicionando à fila: {musics}")
         else:
@@ -129,7 +129,7 @@ class MusicCog(Cog):
             raise CommandError
         voice = await self.join(ctx)
         is_queue_loop = (
-            self.loopMap.get(ctx.guild.id, LoopMode.OFF) is LoopMode.QUEUE
+            self.loop_map.get(ctx.guild.id, LoopMode.OFF) is LoopMode.QUEUE
         )
         if is_queue_loop and (
             current_music := self.current_music.get(ctx.guild.id)
@@ -190,19 +190,21 @@ class MusicCog(Cog):
         if not ctx.guild:
             raise CommandError
         if mode in {"off", "false", "0", "no", "n"}:
-            self.loopMap[ctx.guild.id] = LoopMode.OFF
+            self.loop_map[ctx.guild.id] = LoopMode.OFF
             await ctx.send("Loop mode: OFF")
         elif mode in {"track", "true", "1", "yes", "y", "musica"}:
-            self.loopMap[ctx.guild.id] = LoopMode.TRACK
+            self.loop_map[ctx.guild.id] = LoopMode.TRACK
             await ctx.send("Loop mode: TRACK")
         elif mode in {"queue", "q", "fila", "f", "lista", "l"}:
-            self.loopMap[ctx.guild.id] = LoopMode.QUEUE
+            self.loop_map[ctx.guild.id] = LoopMode.QUEUE
             await ctx.send("Loop mode: QUEUE")
-        elif self.loopMap.get(ctx.guild.id, LoopMode.OFF) is not LoopMode.OFF:
-            self.loopMap[ctx.guild.id] = LoopMode.OFF
+        elif (
+            self.loop_map.get(ctx.guild.id, LoopMode.OFF) is not LoopMode.OFF
+        ):
+            self.loop_map[ctx.guild.id] = LoopMode.OFF
             await ctx.send("Loop mode: OFF")
         else:
-            self.loopMap[ctx.guild.id] = LoopMode.TRACK
+            self.loop_map[ctx.guild.id] = LoopMode.TRACK
             await ctx.send("Loop mode: TRACK")
 
     @hybrid_command("list")
@@ -252,44 +254,78 @@ class MusicCog(Cog):
             loop.run_until_complete(
                 ctx.send(f"Um Erro ocorreu ao tocar a música: {err}"),
             )
-        loop.run_until_complete(self.playChannel.put(ctx))
+        loop.run_until_complete(self.play_channel.put(ctx))
 
     async def play_loop(self) -> NoReturn:
         """Play loop."""
-        while True:
-            ctx = await self.playChannel.get()
-            guild_id = ctx.guild.id
-            voice = await self.join(ctx)
-            await sleep(0.5)
-            loop_mode = self.loopMap.get(guild_id, LoopMode.OFF)
-            current_music = self.current_music.get(guild_id)
-            queue = self.music_queue.get(guild_id, [])
+        try:
+            while True:
+                ctx = await self.play_channel.get()
+                guild_id = ctx.guild.id
+                voice = await self.join(ctx)
+                await sleep(0.5)
+                loop_mode = self.loop_map.get(guild_id, LoopMode.OFF)
+                current_music = self.current_music.get(guild_id)
+                queue = self.music_queue.get(guild_id, [])
 
-            if loop_mode is LoopMode.TRACK and current_music:
-                music_to_play = current_music
-            elif loop_mode is LoopMode.QUEUE:
-                if queue and len(queue) > 0:
-                    music_to_play = queue.pop(0)
-                    if current_music:
-                        queue.append(current_music)
-                elif current_music:
-                    music_to_play = current_music
-                    queue.append(current_music)
+                music_to_play = self.select_music_to_play(
+                    loop_mode,
+                    current_music,
+                    queue,
+                )
+
+                if music_to_play:
+                    self.current_music[guild_id] = music_to_play
+                    voice.play(
+                        await YoutubeDLSource.from_music_data(music_to_play),
+                        after=partial(
+                            lambda err, ctx: self._after_stop(ctx, err),
+                            ctx=ctx,
+                        ),
+                    )
                 else:
-                    music_to_play = None
-            elif queue and len(queue) > 0:
+                    self.current_music[guild_id] = None
+
+        except ClientException as e:
+            await ctx.send(f"Erro ao tocar a música: {e}")
+            task = asyncio.create_task(self.play_loop())
+            self.tasks.append(task)
+        except TypeError as e:
+            await ctx.send(f"Problema ao tocar a música: {e}")
+            task = asyncio.create_task(self.play_loop())
+            self.tasks.append(task)
+
+    @staticmethod
+    def select_music_to_play(
+        loop_mode: LoopMode,
+        current_music: YTMusicData | None,
+        queue: list[YTMusicData],
+    ) -> YTMusicData | None:
+        """Select music to play.
+
+        Args:
+            loop_mode (LoopMode): Mode of loop.
+            current_music (YTMusicData | None): Current music.
+            queue (list[YTMusicData]): Queue of music.
+
+        Returns:
+            YTMusicData | None: Music to play.
+
+        """
+        if loop_mode is LoopMode.TRACK and current_music:
+            music_to_play = current_music
+        elif loop_mode is LoopMode.QUEUE:
+            if queue and len(queue) > 0:
                 music_to_play = queue.pop(0)
+                if current_music:
+                    queue.append(current_music)
+            elif current_music:
+                music_to_play = current_music
+                queue.append(current_music)
             else:
                 music_to_play = None
-
-            if music_to_play:
-                self.current_music[guild_id] = music_to_play
-                voice.play(
-                    await YoutubeDLSource.from_music_data(music_to_play),
-                    after=partial(
-                        lambda err, ctx: self._after_stop(ctx, err),
-                        ctx=ctx,
-                    ),
-                )
-            else:
-                self.current_music[guild_id] = None
+        elif queue and len(queue) > 0:
+            music_to_play = queue.pop(0)
+        else:
+            music_to_play = None
+        return music_to_play
