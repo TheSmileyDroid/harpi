@@ -274,6 +274,7 @@ class MusicCog(Cog):
                     await ctx.send(
                         f"Música em andamento: {title}",
                     )
+                    continue
 
                 music_to_play = self.select_music_to_play(
                     loop_mode,
