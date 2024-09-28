@@ -269,7 +269,7 @@ class MusicCog(Cog):
                 current_music = self.current_music.get(guild_id)
                 queue = self.music_queue.get(guild_id, [])
 
-                if self.current_music[guild_id]:
+                if current_music is not None:
                     title = self.current_music[guild_id].get_title()
                     await ctx.send(
                         f"Música em andamento: {title}",
