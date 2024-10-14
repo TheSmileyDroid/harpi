@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import enum
+import time
 from asyncio import sleep
 from asyncio.queues import Queue
 from functools import partial
@@ -24,6 +25,7 @@ class LoopMode(enum.Enum):
     TRACK = 1
     QUEUE = 2
 
+idx_count = 0
 
 class MusicCog(Cog):
     """Cog responsável por tocar músicas."""
@@ -207,8 +209,8 @@ class MusicCog(Cog):
             self.loop_map[ctx.guild.id] = LoopMode.TRACK
             await ctx.send("Loop mode: TRACK")
 
-    @hybrid_command("list")
-    async def list(self, ctx: Context) -> None:
+    @hybrid_command("list", aliases=['queue', 'q'])
+    async def list_musics(self, ctx: Context) -> None:
         """List the current music queue.
 
         Args:
@@ -249,7 +251,6 @@ class MusicCog(Cog):
             err (Exception | None): Erro ocorrido ao tocar a música.
 
         """
-        self.current_music[ctx.guild.id] = None
         loop = asyncio.new_event_loop()
         if err:
             loop.run_until_complete(
@@ -257,23 +258,23 @@ class MusicCog(Cog):
             )
         loop.run_until_complete(self.play_channel.put(ctx))
 
-    async def play_loop(self) -> NoReturn:
+    async def play_loop(self) -> None:
         """Play loop."""
+        global idx_count
+        idx = ++idx_count
+        ctx = None
+
         try:
             while True:
                 ctx = await self.play_channel.get()
                 guild_id = ctx.guild.id
                 voice = await self.join(ctx)
-                await sleep(0.5)
+                await sleep(0.05)
                 loop_mode = self.loop_map.get(guild_id, LoopMode.OFF)
                 current_music = self.current_music.get(guild_id)
                 queue = self.music_queue.get(guild_id, [])
 
-                if current_music is not None:
-                    title = self.current_music[guild_id].get_title()
-                    await ctx.send(
-                        f"Música em andamento: {title}",
-                    )
+                if voice.is_playing():
                     continue
 
                 music_to_play = self.select_music_to_play(
@@ -282,22 +283,23 @@ class MusicCog(Cog):
                     queue,
                 )
 
+                self.current_music[guild_id] = music_to_play
+
                 if music_to_play:
-                    self.current_music[guild_id] = music_to_play
                     voice.play(
                         await YoutubeDLSource.from_music_data(music_to_play),
                         after=partial(
-                            lambda err, ctx: self._after_stop(ctx, err),
-                            ctx=ctx,
+                            lambda err, ctx_temp: self._after_stop(ctx_temp, err),
+                            ctx_temp=ctx,
                         ),
                     )
 
         except ClientException as e:
-            await ctx.send(f"Erro ao tocar a música: {e}")
+            await ctx.send(f"Erro ao tocar a música no worker {idx}: {e}")
             task = asyncio.create_task(self.play_loop())
             self.tasks.append(task)
         except TypeError as e:
-            await ctx.send(f"Problema ao tocar a música: {e}")
+            await ctx.send(f"Problema ao tocar a música no worker {idx}: {e}")
             task = asyncio.create_task(self.play_loop())
             self.tasks.append(task)
 
@@ -327,7 +329,6 @@ class MusicCog(Cog):
                     queue.append(current_music)
             elif current_music:
                 music_to_play = current_music
-                queue.append(current_music)
             else:
                 music_to_play = None
         elif queue and len(queue) > 0:

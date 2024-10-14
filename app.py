@@ -14,6 +14,7 @@ from src.cogs.music import MusicCog
 from src.cogs.tts import TTSCog
 
 terminal_logger = logging.StreamHandler()
+# noinspection SpellCheckingInspection
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(name)s: %(message)s",

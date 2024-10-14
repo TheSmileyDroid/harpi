@@ -22,16 +22,19 @@ yt_dlp.utils.bug_reports_message = lambda: ""
 ytdl_format_options = {
     "format": "bestaudio/best",
     "outtmpl": "%(extractor)s-%(id)s-%(title)s.%(ext)s",
+    "downloader": "aria2c",
     "restrictfilenames": True,
     "noplaylist": False,
     "extract_flat": True,
     "nocheckcertificate": True,
-    "ignoreerrors": True,
-    "logtostderr": False,
-    "quiet": True,
-    "no_warnings": True,
-    "default_search": "auto",
+    "ignoreerrors": False,
+    "logtostderr": True,
+    "quiet": False,
+    "no_warnings": False,
+    "default_search": "auto_warning",
     "source_address": "0.0.0.0",  # noqa: S104
+    "concurrent-fragments": 8,
+    'flat-playlist': True,
 }
 
 ffmpeg_options: dict[str, Any] = {
@@ -114,14 +117,7 @@ async def search(arg: str) -> dict[str, Any]:
 
     """
     _start_time = time.time()
-    if not arg.startswith("https://") and not arg.startswith("http://"):
-        arg = f"ytsearch:{arg}"
-    loop = asyncio.get_event_loop()
-    video = await loop.run_in_executor(
-        None,
-        lambda: ytdl.extract_info(arg, download=False, process=False),
-    )
-
+    video = ytdl.extract_info(arg, download=False, process=False)
     if video is None:
         raise NothingFoundError(arg)
     logger.info(
