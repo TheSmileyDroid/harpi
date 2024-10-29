@@ -71,24 +71,17 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
         musicdata: YTMusicData,
         volume: float = 0.3,
     ) -> YoutubeDLSource:
-        """Create a YoutubeDLSource instance from a YTMusicData instance.
+        """Create a YoutubeDLSource instance from a YTMusicData.
 
-        Parameters
-        ----------
-        musicdata : YTMusicData
-            The YTMusicData instance
-        volume : float, optional
-            Volume of the audio, by default 0.3
+        Args:
+            musicdata (YTMusicData): Music data to use.
+            volume (float, optional): Volume to be set. Defaults to 0.3.
 
-        Returns
-        -------
-        YoutubeDLSource
-            The YoutubeDLSource instance
+        Raises:
+            BadLink: If the link is invalid.
 
-        Raises
-        ------
-        BadLink
-            When the link is invalid
+        Returns:
+            YoutubeDLSource: The created YoutubeDLSource instance.
 
         """
         loop = asyncio.get_event_loop()
@@ -110,7 +103,7 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
         )
 
 
-def search(arg: str) -> dict[str, Any]:
+async def search(arg: str) -> dict[str, Any]:
     """Pesquisa no Youtube e retorna a informação da música.
 
     Args:
