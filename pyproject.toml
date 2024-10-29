@@ -1,38 +1,6 @@
-
-[tool.basedpyright]
-typeCheckingMode = "all"
-reportMissingTypeStubs = false
-reportMissingTypeArgument = false
-reportUnknownLambdaType = false
-reportUnknownMemberType = false
-reportUnknownParameterType = false
-reportUnknownArgumentType = false
-reportUnusedCallResult = false
-reportUnknownVariableType = false
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
-    "env",
-]
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 20
 
 [tool.ruff]
 line-length = 79
@@ -61,3 +29,7 @@ exclude = [
     "venv",
     "env",
 ]
+
+[tool.pytest]
+addopts = "--doctest-modules --doctest-report ndiff"
+doctest_optionflags = "NORMALIZE_WHITESPACE ELLIPSIS"

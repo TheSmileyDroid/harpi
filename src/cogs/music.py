@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import enum
-import time
 from asyncio import sleep
 from asyncio.queues import Queue
 from functools import partial
-from typing import NoReturn
 
 from discord import ClientException, Member
 from discord.app_commands import describe
@@ -25,7 +23,6 @@ class LoopMode(enum.Enum):
     TRACK = 1
     QUEUE = 2
 
-idx_count = 0
 
 class MusicCog(Cog):
     """Cog responsável por tocar músicas."""
@@ -42,6 +39,7 @@ class MusicCog(Cog):
         for _i in range(3):
             task = asyncio.create_task(self.play_loop())
             self.tasks.append(task)
+        self.idx_count = 0
 
     @staticmethod
     async def join(ctx: Context) -> VoiceClient:
@@ -209,7 +207,7 @@ class MusicCog(Cog):
             self.loop_map[ctx.guild.id] = LoopMode.TRACK
             await ctx.send("Loop mode: TRACK")
 
-    @hybrid_command("list", aliases=['queue', 'q'])
+    @hybrid_command("list", aliases=["queue", "q"])
     async def list_musics(self, ctx: Context) -> None:
         """List the current music queue.
 
@@ -260,8 +258,8 @@ class MusicCog(Cog):
 
     async def play_loop(self) -> None:
         """Play loop."""
-        global idx_count
-        idx = ++idx_count
+        self.idx_count += 1
+        idx = self.idx_count
         ctx = None
 
         try:
@@ -289,7 +287,10 @@ class MusicCog(Cog):
                     voice.play(
                         await YoutubeDLSource.from_music_data(music_to_play),
                         after=partial(
-                            lambda err, ctx_temp: self._after_stop(ctx_temp, err),
+                            lambda err, ctx_temp: self._after_stop(
+                                ctx_temp,
+                                err,
+                            ),
                             ctx_temp=ctx,
                         ),
                     )

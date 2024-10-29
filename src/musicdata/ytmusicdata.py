@@ -34,7 +34,7 @@ ytdl_format_options = {
     "default_search": "auto_warning",
     "source_address": "0.0.0.0",  # noqa: S104
     "concurrent-fragments": 8,
-    'flat-playlist': True,
+    "flat-playlist": True,
 }
 
 ffmpeg_options: dict[str, Any] = {
@@ -71,17 +71,24 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
         musicdata: YTMusicData,
         volume: float = 0.3,
     ) -> YoutubeDLSource:
-        """Create a YoutubeDLSource instance from a YTMusicData.
+        """Create a YoutubeDLSource instance from a YTMusicData instance.
 
-        Args:
-            musicdata (YTMusicData): Music data to use.
-            volume (float, optional): Volume to be set. Defaults to 0.3.
+        Parameters
+        ----------
+        musicdata : YTMusicData
+            The YTMusicData instance
+        volume : float, optional
+            Volume of the audio, by default 0.3
 
-        Raises:
-            BadLink: If the link is invalid.
+        Returns
+        -------
+        YoutubeDLSource
+            The YoutubeDLSource instance
 
-        Returns:
-            YoutubeDLSource: The created YoutubeDLSource instance.
+        Raises
+        ------
+        BadLink
+            When the link is invalid
 
         """
         loop = asyncio.get_event_loop()
@@ -103,7 +110,7 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
         )
 
 
-async def search(arg: str) -> dict[str, Any]:
+def search(arg: str) -> dict[str, Any]:
     """Pesquisa no Youtube e retorna a informação da música.
 
     Args:

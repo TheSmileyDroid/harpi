@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """O executável do bot."""
 
 import asyncio
