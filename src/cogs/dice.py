@@ -89,12 +89,13 @@ class DiceParser:
         """
         self.dice_string = dice_string
         self.component_register: list[list[tuple[str, DiceComponent]]] = []
-        if not self.is_valid_dice_string():
+        if not self.is_valid_dice_string(self.dice_string):
             msg = "Invalid dice string"
             raise ValueError(msg)
         self._parse()
 
-    def is_valid_dice_string(self) -> bool:
+    @staticmethod
+    def is_valid_dice_string(dice_string: str) -> bool:
         """Check if it is a valid dice string.
 
         Returns:
@@ -113,7 +114,7 @@ class DiceParser:
 
         """
         pattern = r"^([+-]?[#]?(\d*d\d*|\d+))+$"
-        return re.match(pattern, self.dice_string.replace(" ", "")) is not None
+        return re.match(pattern, dice_string.replace(" ", "")) is not None
 
     def _parse(self) -> None:
         """Parse the dice string and store the results in the `self.results` list.
@@ -255,9 +256,9 @@ class DiceCog(commands.Cog):
         if message.author == self.bot.user:
             return
 
-        parser = DiceParser(message.content)
-        if not parser.is_valid_dice_string():
+        if not DiceParser.is_valid_dice_string(message.content):
             return
+        parser = DiceParser(message.content)
         embed = self.generate_embed(parser)
         await message.reply(embed=embed)
 
