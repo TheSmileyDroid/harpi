@@ -24,6 +24,9 @@ class LoopMode(enum.Enum):
     QUEUE = 2
 
 
+idx_count = 0
+
+
 class MusicCog(Cog):
     """Cog responsável por tocar músicas."""
 
@@ -39,7 +42,6 @@ class MusicCog(Cog):
         for _i in range(3):
             task = asyncio.create_task(self.play_loop())
             self.tasks.append(task)
-        self.idx_count = 0
 
     @staticmethod
     async def join(ctx: Context) -> VoiceClient:
@@ -198,9 +200,7 @@ class MusicCog(Cog):
         elif mode in {"queue", "q", "fila", "f", "lista", "l"}:
             self.loop_map[ctx.guild.id] = LoopMode.QUEUE
             await ctx.send("Loop mode: QUEUE")
-        elif (
-            self.loop_map.get(ctx.guild.id, LoopMode.OFF) is not LoopMode.OFF
-        ):
+        elif self.loop_map.get(ctx.guild.id, LoopMode.OFF) is not LoopMode.OFF:
             self.loop_map[ctx.guild.id] = LoopMode.OFF
             await ctx.send("Loop mode: OFF")
         else:
@@ -258,8 +258,8 @@ class MusicCog(Cog):
 
     async def play_loop(self) -> None:
         """Play loop."""
-        self.idx_count += 1
-        idx = self.idx_count
+        global idx_count
+        idx = ++idx_count
         ctx = None
 
         try:
@@ -288,8 +288,7 @@ class MusicCog(Cog):
                         await YoutubeDLSource.from_music_data(music_to_play),
                         after=partial(
                             lambda err, ctx_temp: self._after_stop(
-                                ctx_temp,
-                                err,
+                                ctx_temp, err
                             ),
                             ctx_temp=ctx,
                         ),
