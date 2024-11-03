@@ -1,8 +1,8 @@
-from src.cogs import dice
+from src.HarpiLib.dice import dice_parser
 
 
 def test_parse_dice():
-    parser = dice.DiceParser("1d20+3d6-2d4+5-2d5")
+    parser = dice_parser.DiceParser("1d20+3d6-2d4+5-2d5")
 
     text = ""
 

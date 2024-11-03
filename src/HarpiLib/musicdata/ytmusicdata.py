@@ -103,7 +103,7 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
         )
 
 
-async def search(arg: str) -> dict[str, Any]:
+def search(arg: str) -> dict[str, Any]:
     """Pesquisa no Youtube e retorna a informação da música.
 
     Args:
@@ -157,7 +157,7 @@ class YTMusicData:
 
         """
         logger.info(f"Searching for {url}")
-        result = await search(url)
+        result = search(url)
         if "entries" in result:
             logger.info(
                 f"Found {result['entries']} results.",
@@ -219,19 +219,25 @@ class FFmpegPCMAudio(discord.AudioSource):
         """Cria uma instância de FFmpegPCMAudio.
 
         Args:
-            source (io.BufferedIOBase): A file-like object that reads byte data representing raw PCM.
-            executable (str, optional): The executable to use. Defaults to "ffmpeg".
-            pipe (bool, optional): Whether to pipe the audio. Defaults to False.
-            stderr (io.TextIOWrapper | None, optional): The stderr to use. Defaults to None.
-            before_options (str | None, optional): The before options to use. Defaults to None.
-            options (str | None, optional): The options to use. Defaults to None.
+            source (io.BufferedIOBase): A file-like object that reads
+            byte data representing raw PCM.
+            executable (str, optional): The executable to use.
+            Defaults to "ffmpeg".
+            pipe (bool, optional): Whether to pipe the audio.
+            Defaults to False.
+            stderr (io.TextIOWrapper | None, optional): The stderr to use.
+            Defaults to None.
+            before_options (str | None, optional): The before options to use.
+            Defaults to None.
+            options (str | None, optional): The options to use.
+            Defaults to None.
 
         Raises:
             discord.ClientException: _description_
 
-        """  # noqa: E501
+        """
         stdin = None if not pipe else source
-        args = [executable]
+        args: list[str] = [executable]
         if isinstance(before_options, str):
             args.extend(shlex.split(before_options))
         args.extend(("-i", "-" if pipe else source))

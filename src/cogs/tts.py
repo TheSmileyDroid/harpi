@@ -1,17 +1,19 @@
 from io import BytesIO
-from os import makedirs
+from pathlib import Path
 
 import discord
 from discord.ext import commands
 from discord.ext.commands.context import Context
 from gtts import gTTS
 
-from src.musicdata.ytmusicdata import FFmpegPCMAudio
+from src.HarpiLib.musicdata.ytmusicdata import FFmpegPCMAudio
 
 
 def guild(ctx: Context) -> discord.Guild:
     if ctx.guild is None:
-        raise commands.NoPrivateMessage("Este comando não pode ser usado em MP")
+        raise commands.NoPrivateMessage(
+            "Este comando não pode ser usado em MP",
+        )
     return ctx.guild
 
 
@@ -39,7 +41,7 @@ async def voice_client(ctx: commands.Context) -> discord.VoiceClient:
 
 
 class AlreadyPlaying(commands.CommandError):
-    pass
+    """Musica em andamento."""
 
 
 async def say(ctx: commands.Context, text: str) -> None:
@@ -49,17 +51,24 @@ async def say(ctx: commands.Context, text: str) -> None:
     fp = BytesIO()
     tts = gTTS(text=text, lang="pt", tld="com.br")
     tts.write_to_fp(fp)
-    makedirs(".audios", exist_ok=True)
+    Path.mkdir(".audios", exist_ok=True, parents=True)
     tts.save(f".audios/{guild(ctx).id}.mp3")
     fp.seek(0)
     voice.play(FFmpegPCMAudio(fp.read(), pipe=True))
 
 
 class TTSCog(commands.Cog):
+    """TTS Cog."""
+
     @commands.hybrid_command(name="f", description="Fala um texto")
     @discord.app_commands.describe(
         text="Texto a ser falado",
     )
-    async def tts(self, ctx: Context, *, text: str):
+    async def tts(self, ctx: Context, *, text: str) -> None:
+        """Text-To-Speech.
+
+        Permite falar (Usando TTS do Google Translate)
+        em um canal de voz.
+        """
         await say(ctx, text)
         await ctx.send("OK", ephemeral=True, delete_after=5)

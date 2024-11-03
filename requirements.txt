@@ -4,3 +4,6 @@ gTTS
 cryptography
 pytest
 safebag
+fastapi
+fastapi-cors
+uvicorn

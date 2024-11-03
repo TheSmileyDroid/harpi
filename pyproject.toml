@@ -4,7 +4,8 @@ docstring-code-line-length = 20
 
 [tool.ruff]
 line-length = 79
-select = ["E", "F", "W"]
+select = ["ALL"]
+ignore = ["PLR", "TRY", "EM", "CPY001", "G"]
 exclude = [
     ".bzr",
     ".direnv",

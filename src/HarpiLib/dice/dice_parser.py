@@ -1,52 +1,10 @@
-"""Dice system for Harpi."""
+"""Docstring for src.HarpiLib.dice.dice_parser."""
 
 from __future__ import annotations
 
-import random
 import re
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-import discord
-import discord.ext
-import discord.ext.commands
-from discord import Embed, Message
-from discord.ext import commands
-
-if TYPE_CHECKING:
-    from discord.ext.commands.context import Context
-
-
-@dataclass
-class DiceComponent:
-    """Represents a dice component. With the info count, sides and modifier."""
-
-    count: int
-    sides: int
-    modifier: int = 0
-
-    def roll(self) -> tuple[list[int], int]:
-        """Roll the dice and get the results.
-
-        Returns:
-            tuple[list[int], int]: A list with the rolls and the result.
-
-        """
-        rolls = [random.randint(1, self.sides) for _ in range(self.count)]  # noqa: S311
-        return rolls, sum(rolls) + self.modifier
-
-    def __str__(self) -> str:
-        """Get a string representation of the dice roll.
-
-        Returns:
-            str: A string representation of the dice roll.
-
-        """
-        if self.sides == 0:
-            return str(self.modifier)
-        return f"{self.count}d{self.sides}" + (
-            f"+{self.modifier}" if self.modifier else ""
-        )
+from src.HarpiLib.dice.dice_component import DiceComponent
 
 
 class DiceParser:
@@ -101,15 +59,15 @@ class DiceParser:
         Returns:
             bool: True if it is a valid dice string, False otherwise.
 
-        >>> parser = DiceParser(
+        Examples:
+        --------
+        >>> DiceParser.is_valid_dice_string(
         ...     "2d6"
         ... )
-        >>> parser.is_valid_dice_string()
         True
-        >>> parser = DiceParser(
+        >>> DiceParser.is_valid_dice_string(
         ...     "2#d"
         ... )
-        >>> parser.is_valid_dice_string()
         True
 
         """
@@ -236,76 +194,6 @@ class DiceParser:
         return ", ".join(
             f"**{roll}**" if roll == sides else str(roll) for roll in rolls
         )
-
-
-class DiceCog(commands.Cog):
-    """Cog for handling dice."""
-
-    def __init__(self, bot: discord.ext.commands.Bot) -> None:
-        """Initialize the cog.
-
-        Args:
-            bot (discord.ext.commands.Bot): The bot.
-
-        """
-        self.bot = bot
-
-    @commands.Cog.listener()
-    async def on_message(self, message: Message) -> None:
-        """Listen for messages and roll the dice."""
-        if message.author == self.bot.user:
-            return
-
-        if not DiceParser.is_valid_dice_string(message.content):
-            return
-        parser = DiceParser(message.content)
-        embed = self.generate_embed(parser)
-        await message.reply(embed=embed)
-
-    @commands.command(name="d", aliases=["dado", "rolar", "roll", "r"])
-    async def roll(self, ctx: Context, *, args: str) -> None:  # noqa: D417
-        """Comando para rolar dados.
-
-        Args:
-            ctx (Context)
-            args (str): String com a quantidade e o tipo de dado a ser rolado
-            (ex: 2d6 ou 1d20+5)
-
-
-        """
-        parser = DiceParser(args)
-        embed = self.generate_embed(parser)
-        await ctx.reply(embed=embed)
-
-    @staticmethod
-    def generate_embed(parser: DiceParser) -> Embed:
-        """Generate an embed with the rolled dice.
-
-        Parameters
-        ----------
-        parser : DiceParser
-            The parser with the dice roll.
-
-        Returns
-        -------
-        Embed
-            _description_
-
-        """
-        rows = parser.roll()
-        text = ""
-        for i, row in enumerate(rows):
-            total, results = row
-            for component, result in zip(
-                parser.component_register[i],
-                results,
-            ):
-                text += f"{component[0]}{component[1]}{result}"
-            text += " = " + str(total)
-            if i != len(rows) - 1:
-                text += "\n"
-        embed: Embed = Embed(color=0x00DD33).add_field(name="", value=text)
-        return embed
 
 
 if __name__ == "__main__":

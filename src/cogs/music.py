@@ -13,7 +13,7 @@ from discord.app_commands import describe
 from discord.ext.commands import Cog, CommandError, Context, hybrid_command
 from discord.voice_client import VoiceClient
 
-from src.musicdata.ytmusicdata import YoutubeDLSource, YTMusicData
+from src.HarpiLib.musicdata.ytmusicdata import YoutubeDLSource, YTMusicData
 
 
 class LoopMode(enum.Enum):
@@ -288,7 +288,8 @@ class MusicCog(Cog):
                         await YoutubeDLSource.from_music_data(music_to_play),
                         after=partial(
                             lambda err, ctx_temp: self._after_stop(
-                                ctx_temp, err
+                                ctx_temp,
+                                err,
                             ),
                             ctx_temp=ctx,
                         ),
