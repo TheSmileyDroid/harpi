@@ -23,6 +23,7 @@ class Guild(BaseModel):
     id: int
     name: str
     description: str | None
+    approximate_member_count: int
 
 
 @router.get("")

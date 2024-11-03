@@ -1,11 +1,14 @@
 import { Button } from "@headlessui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getStatus } from "../api/api";
+import apiClient from "../api/ApiClient";
 
 function Status() {
   const queryClient = useQueryClient();
 
-  const query = useQuery({ queryKey: ["status"], queryFn: getStatus });
+  const query = useQuery({
+    queryKey: ["status"],
+    queryFn: async () => (await apiClient.api.botStatusApiStatusGet()).data,
+  });
 
   return (
     <div className="inline-flex bg-gradient-to-b bg-slate-400 rounded-2xl h-fit m-1 overflow-clip">

@@ -7,3 +7,4 @@ safebag
 fastapi
 fastapi-cors
 uvicorn
+strawberry-graphql[fastapi]

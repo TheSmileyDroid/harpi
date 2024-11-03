@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from typing import Literal
 
 import discord
 import discord.ext
@@ -14,6 +15,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 import src
 import src.routers
@@ -105,13 +107,19 @@ app.add_middleware(
 api_router = APIRouter(prefix="/api", tags=["api"])
 
 
+class IStatus(BaseModel):
+    """Estado atual do Bot."""
+
+    status: Literal["online", "offline"]
+
+
 @api_router.get("/status")
-async def bot_status() -> dict[str, str]:
+async def bot_status() -> IStatus:
     """Check the bot's status via a FastAPI endpoint.
 
     Returns
     -------
-    dict[str, str]
+    IStatus
         Status.
 
     """
