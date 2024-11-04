@@ -20,7 +20,6 @@ from pydantic import BaseModel
 import src
 import src.routers
 import src.routers.guild
-import src.routers.music
 from src.cogs.basic import BasicCog
 from src.cogs.dice_cog import DiceCog
 from src.cogs.music import MusicCog
@@ -127,7 +126,6 @@ async def bot_status() -> IStatus:
     return {"status": "online" if bot.is_ready() else "offline"}
 
 
-api_router.include_router(src.routers.music.router)
 api_router.include_router(src.routers.guild.router)
 
 app.include_router(api_router)

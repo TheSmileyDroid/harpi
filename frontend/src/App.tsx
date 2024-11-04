@@ -11,7 +11,7 @@ function App() {
     <>
       <QueryClientProvider client={queryClient}>
         <div className="h-screen w-screen">
-          <div className="flex justify-left content-center gap-4 top-0 left-0 w-full p-2">
+          <div className="flex flex-wrap justify-left content-center gap-4 top-0 left-0 w-full p-2">
             <a href="/" target="_blank">
               <img
                 src={smileyBotLogo}

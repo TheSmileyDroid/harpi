@@ -17,7 +17,15 @@ router = APIRouter(
 )
 
 
-class Guild(BaseModel):
+class IMusic(BaseModel):
+    """Music data model."""
+
+    title: str
+    url: str
+    thumbnail: str | None
+
+
+class IGuild(BaseModel):
     """Guild model."""
 
     id: int
@@ -27,12 +35,12 @@ class Guild(BaseModel):
 
 
 @router.get("")
-async def get(request: Request) -> list[Guild]:
+async def get(request: Request) -> list[IGuild]:
     """Retorna uma lista de guildas disponíveis.
 
     Returns
     -------
-    list[Guild]
+    list[IGuild]
         As guildas.
 
     """

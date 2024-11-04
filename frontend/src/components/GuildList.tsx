@@ -11,10 +11,12 @@ function GuildList({ className = "" }: { className?: string }) {
     <div className={clsx(className)}>
       <ul>
         {query.data?.map((guild) => (
-          <li key={guild.id} className="card shadow-md">
-            {guild.name}
+          <li key={guild.id} className="card shadow-md flex flex-col">
+            <h3 className="font-bold">{guild.name}</h3>
             {guild.description && ` - ${guild.description}`}
-            <span className="m-3">{guild.approximate_member_count}</span>
+            <span className="m-3">
+              Membros: {guild.approximate_member_count}
+            </span>
           </li>
         ))}
       </ul>
