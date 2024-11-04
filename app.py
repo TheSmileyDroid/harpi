@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from pathlib import Path
 from typing import Literal
 
 import discord
@@ -129,6 +130,9 @@ async def bot_status() -> IStatus:
 api_router.include_router(src.routers.guild.router)
 
 app.include_router(api_router)
+
+if not Path.exists("frontend/build"):
+    Path.mkdir("frontend/build", parents=True)
 
 app.mount(
     "/",
