@@ -131,8 +131,8 @@ api_router.include_router(src.routers.guild.router)
 
 app.include_router(api_router)
 
-if not Path.exists("frontend/build"):
-    Path.mkdir("frontend/build", parents=True)
+if not (Path.cwd() / "frontend" / "build").exists():
+    Path.mkdir((Path.cwd() / "frontend" / "build"), parents=True)
 
 app.mount(
     "/",
