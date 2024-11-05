@@ -131,11 +131,11 @@ api_router.include_router(src.routers.guild.router)
 
 app.include_router(api_router)
 
-if not (Path.cwd() / "frontend" / "build").exists():
-    Path.mkdir((Path.cwd() / "frontend" / "build"), parents=True)
+if not (Path.cwd() / "frontend" / "dist").exists():
+    Path.mkdir((Path.cwd() / "frontend" / "dist"), parents=True)
 
 app.mount(
     "/",
-    StaticFiles(directory="frontend/build", html=True),
+    StaticFiles(directory="frontend/dist", html=True),
     name="static",
 )
