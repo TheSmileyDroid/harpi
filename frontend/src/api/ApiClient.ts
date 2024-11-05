@@ -1,7 +1,7 @@
 import { Api } from "./Api";
 
 const apiClient = new Api({
-  baseURL: import.meta.env.DEV ? "http://localhost:8000" : undefined,
+  baseURL: import.meta.env.PROD ? undefined : "http://localhost:8000",
   withCredentials: true,
 });
 
