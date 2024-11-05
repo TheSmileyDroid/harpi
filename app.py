@@ -94,14 +94,16 @@ async def lifespan(app: FastAPI):  # noqa: ANN201, D103
 
 app = FastAPI(lifespan=lifespan)
 
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:8000",
+]
+if os.getenv("DOMAIN"):
+    origins.append(os.getenv("DOMAIN"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:8000",
-        "*.ngrok-free.app",
-        "https://accurate-entirely-ostrich.ngrok-free.app",
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
