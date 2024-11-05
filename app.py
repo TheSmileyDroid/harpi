@@ -100,7 +100,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:8000",
         "*.ngrok-free.app",
-        "https://*.ngrok-free.app",
+        "https://accurate-entirely-ostrich.ngrok-free.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
