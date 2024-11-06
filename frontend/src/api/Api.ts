@@ -9,11 +9,17 @@
  * ---------------------------------------------------------------
  */
 
+/** HTTPValidationError */
+export interface HTTPValidationError {
+  /** Detail */
+  detail?: ValidationError[];
+}
+
 /**
- * Guild
+ * IGuild
  * Guild model.
  */
-export interface Guild {
+export interface IGuild {
   /** Id */
   id: number;
   /** Name */
@@ -25,12 +31,35 @@ export interface Guild {
 }
 
 /**
+ * IMusic
+ * Music data model.
+ */
+export interface IMusic {
+  /** Title */
+  title: string;
+  /** Url */
+  url: string;
+  /** Thumbnail */
+  thumbnail: string | null;
+}
+
+/**
  * IStatus
  * Estado atual do Bot.
  */
 export interface IStatus {
   /** Status */
   status: "online" | "offline";
+}
+
+/** ValidationError */
+export interface ValidationError {
+  /** Location */
+  loc: (string | number)[];
+  /** Message */
+  msg: string;
+  /** Error Type */
+  type: string;
 }
 
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, HeadersDefaults, ResponseType } from "axios";
@@ -190,7 +219,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       }),
 
     /**
-     * @description Retorna uma lista de guildas disponíveis. Returns ------- list[Guild] As guildas.
+     * @description Retorna uma lista de guildas disponíveis. Returns ------- list[IGuild] As guildas.
      *
      * @tags api, guild
      * @name GetApiGuildsGet
@@ -198,8 +227,40 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
      * @request GET:/api/guilds
      */
     getApiGuildsGet: (params: RequestParams = {}) =>
-      this.request<Guild[], void>({
+      this.request<IGuild[], void>({
         path: `/api/guilds`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Retorna uma guilda a partir de um ID. Parameters ---------- request : Request _description_ idx : int ID da Guilda. Returns ------- IGuild _description_
+     *
+     * @tags api, guild
+     * @name GetGuildApiGuildsIdxGet
+     * @summary Get Guild
+     * @request GET:/api/guilds/{idx}
+     */
+    getGuildApiGuildsIdxGet: (idx: number, params: RequestParams = {}) =>
+      this.request<IGuild, void | HTTPValidationError>({
+        path: `/api/guilds/${idx}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Retorna a lista de músicas de uma Guilda (Incluindo a música atual). Parameters ---------- request : Request _description_ idx : int Guild ID. Returns ------- list[IMusic] _description_
+     *
+     * @tags api, guild
+     * @name GetMusicListApiGuildsIdxMusicListGet
+     * @summary Get Music List
+     * @request GET:/api/guilds/{idx}/music/list
+     */
+    getMusicListApiGuildsIdxMusicListGet: (idx: number, params: RequestParams = {}) =>
+      this.request<IMusic[], void | HTTPValidationError>({
+        path: `/api/guilds/${idx}/music/list`,
         method: "GET",
         format: "json",
         ...params,

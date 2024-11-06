@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./App.css";
 import smileyBotLogo from "./assets/smileybot.png";
 import GuildList from "./components/GuildList";
+import MusicList from "./components/MusicList";
 import Status from "./components/Status";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ function App() {
           </div>
           <main className="flex h-full w-full">
             <GuildList />
+            <MusicList />
           </main>
         </div>
       </QueryClientProvider>
