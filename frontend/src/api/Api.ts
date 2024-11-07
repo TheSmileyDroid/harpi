@@ -21,7 +21,7 @@ export interface HTTPValidationError {
  */
 export interface IGuild {
   /** Id */
-  id: number;
+  id: string;
   /** Name */
   name: string;
   /** Description */
@@ -44,12 +44,33 @@ export interface IMusic {
 }
 
 /**
+ * IMusicState
+ * Model for sending all the Music state of a guild.
+ */
+export interface IMusicState {
+  /** Queue */
+  queue: IMusic[];
+  /** Enum que representa o modo de loop. */
+  loop_mode: LoopMode;
+}
+
+/**
  * IStatus
  * Estado atual do Bot.
  */
 export interface IStatus {
   /** Status */
   status: "online" | "offline";
+}
+
+/**
+ * LoopMode
+ * Enum que representa o modo de loop.
+ */
+export enum LoopMode {
+  Value0 = 0,
+  Value1 = 1,
+  Value2 = 2,
 }
 
 /** ValidationError */
@@ -235,33 +256,95 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       }),
 
     /**
-     * @description Retorna uma guilda a partir de um ID. Parameters ---------- request : Request _description_ idx : int ID da Guilda. Returns ------- IGuild _description_
+     * @description Retorna uma guilda a partir de um ID. Parameters ---------- request : Request _description_ idx : str ID da Guilda. Returns ------- IGuild _description_
      *
      * @tags api, guild
-     * @name GetGuildApiGuildsIdxGet
+     * @name GetGuildApiGuildsGet
      * @summary Get Guild
-     * @request GET:/api/guilds/{idx}
+     * @request GET:/api/guilds/
      */
-    getGuildApiGuildsIdxGet: (idx: number, params: RequestParams = {}) =>
+    getGuildApiGuildsGet: (
+      query: {
+        /** Idx */
+        idx: string;
+      },
+      params: RequestParams = {},
+    ) =>
       this.request<IGuild, void | HTTPValidationError>({
-        path: `/api/guilds/${idx}`,
+        path: `/api/guilds/`,
         method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),
 
     /**
-     * @description Retorna a lista de músicas de uma Guilda (Incluindo a música atual). Parameters ---------- request : Request _description_ idx : int Guild ID. Returns ------- list[IMusic] _description_
+     * @description Retorna a lista de músicas de uma Guilda (Incluindo a música atual). Parameters ---------- request : Request _description_ idx : str Guild ID. Returns ------- list[IMusic] _description_
      *
      * @tags api, guild
-     * @name GetMusicListApiGuildsIdxMusicListGet
+     * @name GetMusicListApiGuildsMusicListGet
      * @summary Get Music List
-     * @request GET:/api/guilds/{idx}/music/list
+     * @request GET:/api/guilds/music/list
      */
-    getMusicListApiGuildsIdxMusicListGet: (idx: number, params: RequestParams = {}) =>
+    getMusicListApiGuildsMusicListGet: (
+      query: {
+        /** Idx */
+        idx: string;
+      },
+      params: RequestParams = {},
+    ) =>
       this.request<IMusic[], void | HTTPValidationError>({
-        path: `/api/guilds/${idx}/music/list`,
+        path: `/api/guilds/music/list`,
         method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Get the current music state for a guild. Returns ------- IMusicState Complete music state.
+     *
+     * @tags api, guild
+     * @name GetMusicStateApiGuildsStateGet
+     * @summary Get Music State
+     * @request GET:/api/guilds/state
+     */
+    getMusicStateApiGuildsStateGet: (
+      query: {
+        /** Idx */
+        idx: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<IMusicState, void | HTTPValidationError>({
+        path: `/api/guilds/state`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Add a song to the queue.
+     *
+     * @tags api, guild
+     * @name AddToQueueApiGuildsQueuePost
+     * @summary Add To Queue
+     * @request POST:/api/guilds/queue
+     */
+    addToQueueApiGuildsQueuePost: (
+      query: {
+        /** Idx */
+        idx: string;
+        /** Url */
+        url: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<IMusicState, void | HTTPValidationError>({
+        path: `/api/guilds/queue`,
+        method: "POST",
+        query: query,
         format: "json",
         ...params,
       }),

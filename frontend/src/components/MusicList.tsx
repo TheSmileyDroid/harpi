@@ -10,9 +10,9 @@ function MusicList() {
     queryKey: ["musics", "guild", activeGuild?.id],
     queryFn: async () =>
       (
-        await apiClient.api.getMusicListApiGuildsIdxMusicListGet(
-          activeGuild?.id || -1
-        )
+        await apiClient.api.getMusicStateApiGuildsStateGet({
+          idx: activeGuild?.id || "-1",
+        })
       ).data,
   });
 
@@ -26,7 +26,8 @@ function MusicList() {
 
   return (
     <div>
-      {musicList.data?.map((music) => {
+      <h3>Tocando agora: {musicList.data?.queue[0]?.title}</h3>
+      {musicList.data?.queue.map((music) => {
         return <div>{music.title}</div>;
       })}
     </div>

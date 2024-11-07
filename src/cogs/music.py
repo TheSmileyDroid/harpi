@@ -38,13 +38,14 @@ class MusicCog(Cog):
         self.loop_map: dict[int, LoopMode] = {}
         self.play_channel: Queue[Context] = Queue()
         self.current_music: dict[int, YTMusicData | None] = {}
+        self.default_ctx: dict[int, Context] = {}
         self.tasks = []
         for _i in range(3):
             task = asyncio.create_task(self.play_loop())
             self.tasks.append(task)
 
-    @staticmethod
-    async def join(ctx: Context) -> VoiceClient:
+    @hybrid_command("join")
+    async def join(self, ctx: Context) -> VoiceClient:
         """Entra no canal de voz do usuário.
 
         Args:
@@ -57,6 +58,7 @@ class MusicCog(Cog):
              CommandError: Se o usuário não estiver em um canal de voz.
 
         """
+        self.default_ctx[ctx.guild.id] = ctx
         if (
             not isinstance(ctx.author, Member)
             or not ctx.author.voice
@@ -82,6 +84,30 @@ class MusicCog(Cog):
             link (str): Link da música a ser tocada.
 
         """
+        self.default_ctx[ctx.guild.id] = ctx
+        await self.add_music(link, ctx)
+
+    async def add_music(
+        self,
+        link: str,
+        ctx: Context = None,
+        idx: int = -1,
+    ) -> None:
+        """Add music to the queue.
+
+        Parameters
+        ----------
+        link : str
+            Music link.
+        ctx : Context, optional
+            Context of the command, by default None
+        idx : int, optional
+            Index of the music to be added, by default -1
+
+        """
+        if ctx is None:
+            ctx = self.default_ctx.get(idx, None)
+
         await ctx.typing()
         if ctx.guild:
             music_data_list = await YTMusicData.from_url(link)

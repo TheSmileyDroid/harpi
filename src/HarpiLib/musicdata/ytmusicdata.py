@@ -175,7 +175,27 @@ class YTMusicData:
         """
         return self._title
 
+    @property
+    def title(self) -> str:
+        """Retorna o título da música.
+
+        Returns:
+            str: The title of the music.
+
+        """
+        return self._title
+
     def get_url(self) -> str:
+        """Retorna a URL da música.
+
+        Returns:
+            str: The URL of the music.
+
+        """
+        return self._url
+
+    @property
+    def url(self) -> str:
         """Retorna a URL da música.
 
         Returns:
@@ -193,7 +213,27 @@ class YTMusicData:
         """
         return self._video.get("artist", "Unknown")
 
+    @property
+    def artist(self) -> str:
+        """Retorna o artista da música.
+
+        Returns:
+            str: The artist of the music.
+
+        """
+        return self._video.get("artist", "Unknown")
+
     def get_thumbnail(self) -> str:
+        """Retorna a URL da imagem de capa da música.
+
+        Returns:
+            str: The URL of the thumbnail.
+
+        """
+        return self._video.get("thumbnail", "Unknown")
+
+    @property
+    def thumbnail(self) -> str:
         """Retorna a URL da imagem de capa da música.
 
         Returns:
