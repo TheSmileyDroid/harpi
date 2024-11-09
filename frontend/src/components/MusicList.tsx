@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
+import { LoaderCircle } from "lucide-react";
 import apiClient from "../api/ApiClient";
 import { store } from "../store";
+import MusicCard from "./MusicCard";
 
 function MusicList() {
   const activeGuild = useStore(store, (state) => state.guild);
@@ -14,19 +16,26 @@ function MusicList() {
           idx: activeGuild?.id || "-1",
         })
       ).data,
+    enabled: !!activeGuild,
   });
 
   if (musicList.isFetching || musicList.isLoading) {
-    return <span>Carregando...</span>;
+    return <LoaderCircle className="animate-spin" />;
   }
 
   if (musicList.isError) {
-    return <div>Erro ao recuperar lista de músicas</div>;
+    return (
+      <div className="text-danger">Erro ao recuperar lista de músicas</div>
+    );
   }
 
   return (
     <div>
-      <h3>Tocando agora: {musicList.data?.queue[0]?.title}</h3>
+      <div className="">
+        {musicList.data?.queue[0] && (
+          <MusicCard music={musicList.data?.queue[0]} className="h-40 w-full" />
+        )}
+      </div>
       {musicList.data?.queue.map((music) => {
         return <div>{music.title}</div>;
       })}

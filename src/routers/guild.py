@@ -129,7 +129,7 @@ async def get_music_state(request: Request, idx: str) -> IMusicState:
     music_cog: MusicCog = bot.get_cog("MusicCog")
 
     active_track = music_cog.current_music.get(guild_id, None)
-    music_queue = music_cog.music_queue.get(guild_id, [])
+    music_queue = music_cog.music_queue.get(guild_id, []).copy()
     result_queue = []
     if active_track:
         music_queue.insert(0, active_track)
