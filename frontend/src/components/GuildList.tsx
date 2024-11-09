@@ -1,9 +1,9 @@
-import { Button } from "@headlessui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import clsx from "clsx";
 import apiClient from "../api/ApiClient";
 import { setGuild, store } from "../store";
+import { Button } from "./ui/button";
 function GuildList({ className = "" }: { className?: string }) {
   const activeGuild = useStore(store, (state) => state.guild);
   const queryClient = useQueryClient();
@@ -22,10 +22,12 @@ function GuildList({ className = "" }: { className?: string }) {
               onClick={() => {
                 setGuild(guild);
               }}
+              variant={"outline"}
+              size={"lg"}
               className={clsx(
-                "card shadow-md flex flex-col w-full transition-all duration-300",
+                "card shadow-md h-fit flex flex-col w-full transition-all duration-300",
                 {
-                  "bg-indigo-600": guild.id == activeGuild?.id,
+                  "bg-primary": guild.id == activeGuild?.id,
                 }
               )}
             >

@@ -4,7 +4,12 @@ include .env
 export $(shell sed 's/=.*//' .env)
 
 start:
-	uvicorn app:app --reload
+	uvicorn app:app
+
+dev:
+	uvicorn app:app --reload &
+	cd frontend; \
+	$(JS_RUNNER) run dev;
 
 types:
 	python export.py

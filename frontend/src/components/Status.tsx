@@ -1,7 +1,7 @@
-import { Button } from "@headlessui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { RefreshCcw } from "lucide-react";
 import apiClient from "../api/ApiClient";
-
+import { Button } from "./ui/button";
 function Status() {
   const queryClient = useQueryClient();
 
@@ -11,24 +11,27 @@ function Status() {
   });
 
   return (
-    <div className="inline-flex bg-gradient-to-b bg-slate-400 rounded-2xl h-fit m-1 overflow-clip">
-      <span className="p-3">Status</span>
+    <div className="flex bg-gradient-to-t from-neutral-200 to-neutral-300 rounded-2xl h-fit m-1 overflow-clip">
+      <span className="p-3 content-center">Status</span>
       <span
-        className={`${query.isPending && "bg-blue-700"} ${
-          query.isError && "bg-red-700"
-        } ${query.isSuccess && "bg-green-700"} h-full w-full p-3`}
+        className={`flex ${query.isPending && "bg-accent"} ${
+          query.isError && "bg-error"
+        } ${query.isSuccess && "bg-success"} p-3 content-center`}
       >
-        {query.isPending && "..."}
-        {query.isSuccess && query.data?.status}
-        {query.isError && query.error.message}
+        <span className="content-center m-1">
+          {query.isPending && "..."}
+          {query.isSuccess && query.data?.status}
+          {query.isError && query.error.message}
+        </span>
         {!query.isPending && (
           <Button
-            className={"h-fit w-fit bg-transparent m-0 p-0 px-3"}
             onClick={() => {
-              queryClient.invalidateQueries({ queryKey: ["status"] });
+              queryClient.invalidateQueries();
             }}
+            variant={"ghost"}
+            size={"icon"}
           >
-            Recarregar
+            <RefreshCcw />
           </Button>
         )}
       </span>
