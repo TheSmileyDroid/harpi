@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PanelLeftOpen, PanelRightOpen, SunMoon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { BASE_URL } from "./api/ApiClient";
 import "./App.css";
 import smileyBotLogo from "./assets/smileybot.png";
 import GuildList from "./components/GuildList";
@@ -27,6 +28,24 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    const webSocket = new WebSocket("ws://" + BASE_URL + "/ws");
+    webSocket.onopen = () => {
+      console.log("WebSocket connected");
+    };
+    webSocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      const queryKey = [...data.entity, data.id].filter(Boolean);
+
+      queryClient.invalidateQueries({ queryKey });
+    };
+
+    return () => {
+      webSocket.close();
+    };
+  }, []);
 
   return (
     <>

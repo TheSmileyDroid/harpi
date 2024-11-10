@@ -18,6 +18,10 @@ export default function MusiCard({
   const [duration, setDuration] = useState(3 * 60);
 
   useEffect(() => {
+    setDuration(3 * 60);
+  }, []);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       if (playing) {
         setProgress((prev) => prev + 1);
@@ -48,7 +52,7 @@ export default function MusiCard({
                 {music.title}
               </h2>
               <p className="text-sm text-foreground truncate">
-                {music.artist || "Artista desconhecido"}
+                {"Artista desconhecido"}
               </p>
             </div>
             <div className="space-y-1 w-full">

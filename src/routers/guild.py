@@ -27,6 +27,7 @@ class IMusic(BaseModel):
     title: str
     url: str
     thumbnail: str | None
+    duration: int
 
 
 class IGuild(BaseModel):
@@ -45,6 +46,7 @@ class IMusicState(BaseModel):
 
     queue: list[IMusic]
     loop_mode: LoopMode
+    progress: int
 
 
 @router.get("")
@@ -139,6 +141,7 @@ async def get_music_state(request: Request, idx: str) -> IMusicState:
                 title=music.title,
                 url=music.url,
                 thumbnail=music.thumbnail,
+                duration=music.duration,
             ),
         )
     return IMusicState(

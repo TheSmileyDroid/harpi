@@ -242,6 +242,18 @@ class YTMusicData:
         """
         return self._video.get("thumbnail", "Unknown")
 
+    def __getattribute__(self, name):  # -> Any:  # noqa: ANN001, ANN204
+        """Get an attribute from the video dictionary.
+
+        Args:
+            name: The name of the attribute.
+
+        Returns:
+            Any: The attribute value.
+
+        """
+        return self._video.get(name, None)
+
 
 class FFmpegPCMAudio(discord.AudioSource):
     """Classe responsável por fazer o download de músicas do Youtube."""

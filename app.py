@@ -12,7 +12,13 @@ import discord
 import discord.ext
 import discord.ext.commands
 import discord.ext.commands as cd
-from fastapi import APIRouter, FastAPI
+from fastapi import (
+    APIRouter,
+    FastAPI,
+    WebSocket,
+    WebSocketDisconnect,
+    WebSocketException,
+)
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -25,6 +31,7 @@ from src.cogs.basic import BasicCog
 from src.cogs.dice_cog import DiceCog
 from src.cogs.music import MusicCog
 from src.cogs.tts import TTSCog
+from src.websocket import manager as websocketmanager
 
 terminal_logger = logging.StreamHandler()
 # noinspection SpellCheckingInspection
@@ -85,7 +92,7 @@ async def main() -> cd.Bot:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # noqa: ANN201, D103
+async def lifespan(app: FastAPI):  # noqa: ANN201
     client = await main()
     app.state.bot = client
     yield
@@ -144,3 +151,24 @@ app.mount(
     StaticFiles(directory="frontend/dist", html=True),
     name="static",
 )
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket) -> None:
+    """Handle the WebSocket connection for a client.
+
+    This function manages the lifecycle of a WebSocket connection. It connects
+    the client to the WebSocket manager, continuously listens for incoming
+    messages, and ensures proper disconnection in case of an error or when the
+    connection is closed.
+
+    Args:
+        websocket (WebSocket): The WebSocket connection instance.
+
+    """
+    await websocketmanager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except (WebSocketDisconnect, WebSocketException):
+        websocketmanager.disconnect(websocket)

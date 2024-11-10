@@ -27,7 +27,8 @@ function GuildList({ className = "" }: { className?: string }) {
               className={clsx(
                 "card shadow-md h-fit flex flex-col w-full transition-all duration-300",
                 {
-                  "bg-primary": guild.id == activeGuild?.id,
+                  "bg-primary text-white hover:bg-primary/15":
+                    guild.id == activeGuild?.id,
                 }
               )}
             >

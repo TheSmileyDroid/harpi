@@ -5,4 +5,8 @@ const apiClient = new Api({
   withCredentials: true,
 });
 
+export const BASE_URL = import.meta.env.PROD
+  ? window.location.host
+  : "localhost:8000";
+
 export default apiClient;

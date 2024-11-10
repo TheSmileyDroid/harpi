@@ -14,6 +14,7 @@ from discord.ext.commands import Cog, CommandError, Context, hybrid_command
 from discord.voice_client import VoiceClient
 
 from src.HarpiLib.musicdata.ytmusicdata import YoutubeDLSource, YTMusicData
+from src.websocket import manager
 
 
 class LoopMode(enum.Enum):
@@ -87,6 +88,13 @@ class MusicCog(Cog):
         self.default_ctx[ctx.guild.id] = ctx
         await self.add_music(link, ctx)
 
+    async def notify_queue_update(self) -> None:
+        """Notify frontend clients that queue has changed."""
+
+        await manager.broadcast({
+            "entity": ["musics"],
+        })
+
     async def add_music(
         self,
         link: str,
@@ -120,6 +128,7 @@ class MusicCog(Cog):
             await ctx.send(f"Adicionando à fila: {musics}")
         else:
             await ctx.send("Você não está numa guilda")
+        await self.notify_queue_update()
 
     @hybrid_command("stop")
     async def stop(self, ctx: Context) -> None:
@@ -140,6 +149,7 @@ class MusicCog(Cog):
         self.current_music[ctx.guild.id] = None
         voice.stop()
         await ctx.send("Música parada")
+        await self.notify_queue_update()
 
     @hybrid_command("skip")
     async def skip(self, ctx: Context) -> None:
@@ -174,6 +184,7 @@ class MusicCog(Cog):
         else:
             await ctx.send("Fila vazia")
         voice.stop()
+        await self.notify_queue_update()
 
     @hybrid_command("pause")
     async def pause(self, ctx: Context) -> None:
@@ -187,6 +198,7 @@ class MusicCog(Cog):
         voice = await self.join(ctx)
         voice.pause()
         await ctx.send("Pausado")
+        await self.notify_queue_update()
 
     @hybrid_command("resume")
     async def resume(self, ctx: Context) -> None:
@@ -200,6 +212,7 @@ class MusicCog(Cog):
         voice = await self.join(ctx)
         voice.resume()
         await ctx.send("Resumido")
+        await self.notify_queue_update()
 
     @hybrid_command("loop")
     @describe(mode="Loop mode")
@@ -232,6 +245,7 @@ class MusicCog(Cog):
         else:
             self.loop_map[ctx.guild.id] = LoopMode.TRACK
             await ctx.send("Loop mode: TRACK")
+        await self.notify_queue_update()
 
     @hybrid_command("list", aliases=["queue", "q"])
     async def list_musics(self, ctx: Context) -> None:
@@ -266,6 +280,7 @@ class MusicCog(Cog):
         await ctx.send(
             f"{current_music_str}\nFila atual ({len(music_data_list)}): \n{list_str}",  # noqa: E501
         )
+        await self.notify_queue_update()
 
     def _after_stop(self, ctx: Context, err: Exception | None) -> None:
         """After stop callback.
@@ -284,8 +299,8 @@ class MusicCog(Cog):
 
     async def play_loop(self) -> None:
         """Play loop."""
-        global idx_count
-        idx = ++idx_count
+        global idx_count  # noqa: PLW0602
+        idx = ++idx_count  # noqa: B002
         ctx = None
 
         try:
@@ -320,6 +335,8 @@ class MusicCog(Cog):
                             ctx_temp=ctx,
                         ),
                     )
+
+                await self.notify_queue_update()
 
         except ClientException as e:
             await ctx.send(f"Erro ao tocar a música no worker {idx}: {e}")
