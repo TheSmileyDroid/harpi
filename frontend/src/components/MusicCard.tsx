@@ -32,8 +32,8 @@ export default function MusiCard({
   }
 
   return (
-    <Card className={clsx("", className)}>
-      <CardContent className="p-0">
+    <Card className={clsx("bg-background", className)}>
+      <CardContent className="p-0 w-full ">
         <div className="flex items-center px-6">
           <div className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0">
             <img
@@ -47,8 +47,8 @@ export default function MusiCard({
               <h2 className="text-lg sm:text-xl font-bold truncate">
                 {music.title}
               </h2>
-              <p className="text-sm text-muted-foreground truncate">
-                {music.artist || "Unknown Artist"}
+              <p className="text-sm text-foreground truncate">
+                {music.artist || "Artista desconhecido"}
               </p>
             </div>
             <div className="space-y-1 w-full">
@@ -59,7 +59,7 @@ export default function MusiCard({
                 className="w-full"
                 onValueChange={([newValue]) => setProgress(newValue)}
               />
-              <div className="flex justify-between text-xs text-muted-foreground">
+              <div className="flex justify-between text-xs text-foreground">
                 <span>
                   {Math.floor(progress / 60)}:
                   {String(progress % 60).padStart(2, "0")}

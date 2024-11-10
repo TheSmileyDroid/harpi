@@ -30,15 +30,21 @@ function MusicList() {
   }
 
   return (
-    <div>
-      <div className="">
+    <div className="w-full p-3">
+      <div className="p-3">
         {musicList.data?.queue[0] && (
-          <MusicCard music={musicList.data?.queue[0]} className="h-40 w-full" />
+          <MusicCard music={musicList.data?.queue[0]} />
         )}
       </div>
-      {musicList.data?.queue.map((music) => {
-        return <div>{music.title}</div>;
-      })}
+      <ul className="w-full">
+        {musicList.data?.queue.map((music, index) => {
+          return (
+            <li className="border shadow-md m-3 rounded-xl p-3">
+              <span className="italic">{index}</span> - {music.title}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
