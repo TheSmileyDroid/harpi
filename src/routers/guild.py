@@ -27,7 +27,7 @@ class IMusic(BaseModel):
     title: str
     url: str
     thumbnail: str | None
-    duration: int
+    duration: float
 
 
 class IGuild(BaseModel):
@@ -46,7 +46,7 @@ class IMusicState(BaseModel):
 
     queue: list[IMusic]
     loop_mode: LoopMode
-    progress: int
+    progress: float
 
 
 @router.get("")
@@ -144,9 +144,15 @@ async def get_music_state(request: Request, idx: str) -> IMusicState:
                 duration=music.duration,
             ),
         )
+    progress = 0
+    for _voice_client in bot.voice_clients:
+        if _voice_client.guild.id == guild_id:
+            progress = _voice_client.source.progress
+            break
     return IMusicState(
         queue=result_queue,
         loop_mode=music_cog.loop_map.get(guild_id, LoopMode.OFF),
+        progress=progress,
     )
 
 

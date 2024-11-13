@@ -9,17 +9,16 @@ import { useEffect, useState } from "react";
 export default function MusiCard({
   music,
   className,
+  progress,
+  duration,
 }: {
   music: IMusic;
   className?: string;
+  progress: number;
+  duration: number;
 }) {
   const [playing, setPlaying] = useState(true);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(3 * 60);
-
-  useEffect(() => {
-    setDuration(3 * 60);
-  }, []);
+  const [_progress, setProgress] = useState(progress);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -34,6 +33,9 @@ export default function MusiCard({
   function togglePlayPause() {
     setPlaying((prev) => !prev);
   }
+
+  console.log("Duration", duration);
+  console.log("Progress", progress);
 
   return (
     <Card className={clsx("bg-background", className)}>
@@ -57,7 +59,7 @@ export default function MusiCard({
             </div>
             <div className="space-y-1 w-full">
               <Slider
-                value={[progress]}
+                value={[_progress]}
                 max={duration}
                 step={1}
                 className="w-full"
@@ -65,8 +67,8 @@ export default function MusiCard({
               />
               <div className="flex justify-between text-xs text-foreground">
                 <span>
-                  {Math.floor(progress / 60)}:
-                  {String(progress % 60).padStart(2, "0")}
+                  {Math.floor(_progress / 60)}:
+                  {String(_progress % 60).padStart(2, "0")}
                 </span>
                 <span>
                   {Math.floor(duration / 60)}:

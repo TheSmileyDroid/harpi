@@ -33,7 +33,11 @@ function MusicList() {
     <div className="w-full p-3">
       <div className="p-3">
         {musicList.data?.queue[0] && (
-          <MusicCard music={musicList.data?.queue[0]} />
+          <MusicCard
+            music={musicList.data?.queue[0]}
+            duration={musicList.data?.queue[0].duration}
+            progress={parseInt(musicList.data?.progress.toFixed(0))}
+          />
         )}
       </div>
       <ul className="w-full">

@@ -47,6 +47,22 @@ ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
 logger = logging.getLogger(__name__)
 
 
+class AudioSourceTracked(discord.AudioSource):
+    def __init__(self, source: discord.AudioSource) -> None:
+        self._source = source
+        self.count_20ms = 0
+
+    def read(self) -> bytes:
+        data = self._source.read()
+        if data:
+            self.count_20ms += 1
+        return data
+
+    @property
+    def progress(self) -> float:
+        return self.count_20ms * 0.02  # count_20ms * 20ms
+
+
 class YoutubeDLSource(discord.PCMVolumeTransformer):
     """Classe responsável por fazer o download de músicas do Youtube."""
 
@@ -242,17 +258,15 @@ class YTMusicData:
         """
         return self._video.get("thumbnail", "Unknown")
 
-    def __getattribute__(self, name):  # -> Any:  # noqa: ANN001, ANN204
-        """Get an attribute from the video dictionary.
-
-        Args:
-            name: The name of the attribute.
+    @property
+    def duration(self) -> int:
+        """Retorna a duração da música.
 
         Returns:
-            Any: The attribute value.
+            int: The duration of the music.
 
         """
-        return self._video.get(name, None)
+        return self._video.get("duration", 0)
 
 
 class FFmpegPCMAudio(discord.AudioSource):

@@ -41,6 +41,8 @@ export interface IMusic {
   url: string;
   /** Thumbnail */
   thumbnail: string | null;
+  /** Duration */
+  duration: number;
 }
 
 /**
@@ -52,6 +54,8 @@ export interface IMusicState {
   queue: IMusic[];
   /** Enum que representa o modo de loop. */
   loop_mode: LoopMode;
+  /** Progress */
+  progress: number;
 }
 
 /**

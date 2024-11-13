@@ -13,7 +13,11 @@ from discord.app_commands import describe
 from discord.ext.commands import Cog, CommandError, Context, hybrid_command
 from discord.voice_client import VoiceClient
 
-from src.HarpiLib.musicdata.ytmusicdata import YoutubeDLSource, YTMusicData
+from src.HarpiLib.musicdata.ytmusicdata import (
+    AudioSourceTracked,
+    YoutubeDLSource,
+    YTMusicData,
+)
 from src.websocket import manager
 
 
@@ -326,7 +330,11 @@ class MusicCog(Cog):
 
                 if music_to_play:
                     voice.play(
-                        await YoutubeDLSource.from_music_data(music_to_play),
+                        AudioSourceTracked(
+                            await YoutubeDLSource.from_music_data(
+                                music_to_play,
+                            ),
+                        ),
                         after=partial(
                             lambda err, ctx_temp: self._after_stop(
                                 ctx_temp,
