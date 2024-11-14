@@ -13,7 +13,7 @@ export default {
       accent: "var(--accent)",
       success: "var(--success)",
       warning: "var(--warning)",
-      danger: "var(--danger)",
+      error: "var(--error)",
       neutral: {
         50: "var(--neutral-50)",
         100: "var(--neutral-100)",
@@ -25,6 +25,7 @@ export default {
         700: "var(--neutral-700)",
         800: "var(--neutral-800)",
         900: "var(--neutral-900)",
+        950: "var(--neutral-950)",
       },
       red: colors.red,
       blue: colors.blue,

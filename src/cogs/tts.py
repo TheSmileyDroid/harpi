@@ -6,7 +6,10 @@ from discord.ext import commands
 from discord.ext.commands.context import Context
 from gtts import gTTS
 
-from src.HarpiLib.musicdata.ytmusicdata import FFmpegPCMAudio
+from src.HarpiLib.musicdata.ytmusicdata import (
+    AudioSourceTracked,
+    FFmpegPCMAudio,
+)
 
 
 def guild(ctx: Context) -> discord.Guild:
@@ -51,10 +54,12 @@ async def say(ctx: commands.Context, text: str) -> None:
     fp = BytesIO()
     tts = gTTS(text=text, lang="pt", tld="com.br")
     tts.write_to_fp(fp)
-    Path.mkdir(".audios", exist_ok=True, parents=True)
+    Path.mkdir(Path(".audios"), exist_ok=True, parents=True)
     tts.save(f".audios/{guild(ctx).id}.mp3")
     fp.seek(0)
-    voice.play(FFmpegPCMAudio(fp.read(), pipe=True))
+    voice.play(
+        AudioSourceTracked(FFmpegPCMAudio(fp.read(), pipe=True)),
+    )
 
 
 class TTSCog(commands.Cog):

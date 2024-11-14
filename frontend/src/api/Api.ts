@@ -28,6 +28,8 @@ export interface IGuild {
   description: string | null;
   /** Approximate Member Count */
   approximate_member_count: number;
+  /** Icon */
+  icon: string | null;
 }
 
 /**
@@ -43,6 +45,14 @@ export interface IMusic {
   thumbnail: string | null;
   /** Duration */
   duration: number;
+  /** Artists */
+  artists: string[] | null;
+  /** Album */
+  album: string | null;
+  /** Categories */
+  categories: string[];
+  /** Release Year */
+  release_year: number | null;
 }
 
 /**
@@ -274,7 +284,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       },
       params: RequestParams = {},
     ) =>
-      this.request<IGuild, void | HTTPValidationError>({
+      this.request<IGuild | null, void | HTTPValidationError>({
         path: `/api/guilds/`,
         method: "GET",
         query: query,
@@ -345,7 +355,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       },
       params: RequestParams = {},
     ) =>
-      this.request<IMusicState, void | HTTPValidationError>({
+      this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/queue`,
         method: "POST",
         query: query,

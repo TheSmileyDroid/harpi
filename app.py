@@ -96,7 +96,7 @@ async def lifespan(app: FastAPI):  # noqa: ANN201
     client = await main()
     app.state.bot = client
     yield
-    client.close()
+    client.close()  # type: ignore  # noqa: PGH003
 
 
 app = FastAPI(lifespan=lifespan)
@@ -106,7 +106,7 @@ origins = [
     "http://127.0.0.1:8000",
 ]
 if os.getenv("DOMAIN"):
-    origins.append(os.getenv("DOMAIN"))
+    origins.append(os.getenv("DOMAIN") or "")
 
 app.add_middleware(
     CORSMiddleware,
@@ -136,7 +136,9 @@ async def bot_status() -> IStatus:
 
     """
     bot: discord.ext.commands.Bot | None = app.state.bot
-    return {"status": "online" if bot.is_ready() else "offline"}
+    return IStatus.model_validate({
+        "status": "online" if bot and bot.is_ready() else "offline",
+    })
 
 
 api_router.include_router(src.routers.guild.router)
@@ -145,12 +147,6 @@ app.include_router(api_router)
 
 if not (Path.cwd() / "frontend" / "dist").exists():
     Path.mkdir((Path.cwd() / "frontend" / "dist"), parents=True)
-
-app.mount(
-    "/",
-    StaticFiles(directory="frontend/dist", html=True),
-    name="static",
-)
 
 
 @app.websocket("/ws")
@@ -172,3 +168,10 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             await websocket.receive_text()
     except (WebSocketDisconnect, WebSocketException):
         websocketmanager.disconnect(websocket)
+
+
+app.mount(
+    "/",
+    StaticFiles(directory="frontend/dist", html=True),
+    name="static",
+)

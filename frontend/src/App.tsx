@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { BASE_URL } from "./api/ApiClient";
 import "./App.css";
 import smileyBotLogo from "./assets/smileybot.png";
+import GuildControl from "./components/GuildControl";
 import GuildList from "./components/GuildList";
-import MusicList from "./components/MusicList";
 import Status from "./components/Status";
 import { Button } from "./components/ui/button";
 import {
@@ -38,6 +38,8 @@ function App() {
       const data = JSON.parse(event.data);
 
       const queryKey = [...data.entity, data.id].filter(Boolean);
+
+      console.log("Invalidating query", queryKey);
 
       queryClient.invalidateQueries({ queryKey });
     };
@@ -89,8 +91,7 @@ function App() {
                 />
               </CollapsibleContent>
             </Collapsible>
-
-            <MusicList />
+            <GuildControl />
           </main>
         </div>
       </QueryClientProvider>

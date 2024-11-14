@@ -34,9 +34,6 @@ export default function MusiCard({
     setPlaying((prev) => !prev);
   }
 
-  console.log("Duration", duration);
-  console.log("Progress", progress);
-
   return (
     <Card className={clsx("bg-background", className)}>
       <CardContent className="p-0 w-full ">
@@ -51,10 +48,10 @@ export default function MusiCard({
           <div className="flex flex-col flex-grow p-4 space-y-2">
             <div>
               <h2 className="text-lg sm:text-xl font-bold truncate">
-                {music.title}
+                {music.title} - {music.album}
               </h2>
               <p className="text-sm text-foreground truncate">
-                {"Artista desconhecido"}
+                {music.artists?.join(", ") || "Artista desconhecido"}
               </p>
             </div>
             <div className="space-y-1 w-full">

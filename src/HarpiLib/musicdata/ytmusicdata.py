@@ -8,7 +8,7 @@ import logging
 import shlex
 import subprocess  # noqa: S404
 import time
-from typing import Any
+from typing import IO, Any, cast
 
 import discord
 import yt_dlp
@@ -113,7 +113,10 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
             data["url"] if "url" in data else ytdl.prepare_filename(data)
         )
         return cls(
-            FastStartFFmpegPCMAudio(filename, **ffmpeg_options),
+            FastStartFFmpegPCMAudio(
+                cast(io.BufferedIOBase, filename),
+                **ffmpeg_options,
+            ),
             data=data,
             volume=volume,
         )
@@ -190,6 +193,9 @@ class YTMusicData:
 
         """
         return self._title
+
+    def get_metadata(self, key: str):  # noqa: ANN201
+        return self._video.get(key, None)
 
     @property
     def title(self) -> str:
@@ -306,7 +312,7 @@ class FFmpegPCMAudio(discord.AudioSource):
         args: list[str] = [executable]
         if isinstance(before_options, str):
             args.extend(shlex.split(before_options))
-        args.extend(("-i", "-" if pipe else source))
+        args.extend(("-i", cast(str, "-" if pipe else source)))
         args.extend((
             "-f",
             "s16le",
@@ -329,7 +335,7 @@ class FFmpegPCMAudio(discord.AudioSource):
                 stderr=stderr,
             )
             self._stdout = io.BytesIO(
-                self._process.communicate(input=stdin)[0],
+                self._process.communicate(input=cast(bytes, stdin))[0],
             )
         except FileNotFoundError:
             raise discord.ClientException(
@@ -400,7 +406,7 @@ class FastStartFFmpegPCMAudio(discord.FFmpegPCMAudio):
             source,
             executable=executable,
             pipe=pipe,
-            stderr=stderr,
+            stderr=cast(IO[bytes], stderr),
             before_options=before_options,
             options=options,
         )

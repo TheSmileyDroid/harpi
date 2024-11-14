@@ -102,7 +102,7 @@ class MusicCog(Cog):
     async def add_music(
         self,
         link: str,
-        ctx: Context = None,
+        ctx: Context | None = None,
         idx: int = -1,
     ) -> None:
         """Add music to the queue.
@@ -116,9 +116,16 @@ class MusicCog(Cog):
         idx : int, optional
             Index of the music to be added, by default -1
 
+        Raises
+        ------
+        CommandError
+            If the context is not found
+
         """
         if ctx is None:
             ctx = self.default_ctx.get(idx, None)
+        if ctx is None:
+            raise CommandError("Contexto não encontrado")
 
         await ctx.typing()
         if ctx.guild:
@@ -130,9 +137,9 @@ class MusicCog(Cog):
             await self.play_channel.put(ctx)
             musics = ", ".join(m.get_title() for m in music_data_list)
             await ctx.send(f"Adicionando à fila: {musics}")
+            await self.notify_queue_update()
         else:
             await ctx.send("Você não está numa guilda")
-        await self.notify_queue_update()
 
     @hybrid_command("stop")
     async def stop(self, ctx: Context) -> None:
@@ -318,6 +325,7 @@ class MusicCog(Cog):
                 queue = self.music_queue.get(guild_id, [])
 
                 if voice.is_playing():
+                    await self.notify_queue_update()
                     continue
 
                 music_to_play = self.select_music_to_play(
@@ -343,7 +351,7 @@ class MusicCog(Cog):
                             ctx_temp=ctx,
                         ),
                     )
-
+                await sleep(0.05)
                 await self.notify_queue_update()
 
         except ClientException as e:
