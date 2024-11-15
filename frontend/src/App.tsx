@@ -30,7 +30,13 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    const webSocket = new WebSocket("ws://" + BASE_URL + "/ws");
+    const webSocket = new WebSocket(
+      "ws" +
+        (location.protocol === "https:" ? "s" : "") +
+        "://" +
+        BASE_URL +
+        "/ws"
+    );
     webSocket.onopen = () => {
       console.log("WebSocket connected");
     };

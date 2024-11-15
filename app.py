@@ -21,7 +21,6 @@ from fastapi import (
 )
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -104,7 +103,11 @@ app = FastAPI(lifespan=lifespan)
 
 origins = [
     "http://localhost:5173",
+    "https://localhost:5173",
     "http://127.0.0.1:8000",
+    "https://127.0.0.1:8000",
+    "https://localhost:8000",
+    "http://localhost:8000",
 ]
 if os.getenv("DOMAIN"):
     origins.append(os.getenv("DOMAIN") or "")
@@ -116,8 +119,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.add_middleware(HTTPSRedirectMiddleware)
 
 
 api_router = APIRouter(prefix="/api", tags=["api"])
