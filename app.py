@@ -21,6 +21,7 @@ from fastapi import (
 )
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -115,6 +116,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(HTTPSRedirectMiddleware)
+
 
 api_router = APIRouter(prefix="/api", tags=["api"])
 
