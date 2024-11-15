@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import clsx from "clsx";
 import apiClient from "../api/ApiClient";
@@ -6,7 +6,6 @@ import { setGuild, store } from "../store";
 import { Button } from "./ui/button";
 function GuildList({ className = "" }: { className?: string }) {
   const activeGuild = useStore(store, (state) => state.guild);
-  const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ["guilds"],
