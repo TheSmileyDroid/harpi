@@ -1,8 +1,15 @@
+from __future__ import annotations
+
+from typing import TypeVar, cast
+
+T = TypeVar("T")
+
+
 def get_nested_attr(
     obj: object,
     attr_chain: str,
-    default: object = None,
-) -> object:
+    default: T,
+) -> T:
     """Acessa atributos aninhados de forma segura.
 
     Args:
@@ -17,9 +24,9 @@ def get_nested_attr(
     """
     try:
         for attr in attr_chain.split("."):
-            obj = getattr(obj, attr)
+            obj = cast(T, getattr(obj, attr))
             if obj is None:
                 return default
-        return obj
+        return cast(T, obj)
     except AttributeError:
         return default

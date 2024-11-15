@@ -2,26 +2,28 @@
 
 from __future__ import annotations
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
-import discord.ext.commands
-from discord import VoiceClient
 from discord.ext.commands import CommandError
 from fastapi import APIRouter, HTTPException, Request
 
-from src.cogs.music import LoopMode, MusicCog
+from src.cogs.music import MusicCog
 from src.models.guild import (
-    AudioSourceTrackedProtocol,
     IGuild,
     IMusic,
     IMusicState,
 )
+
+if TYPE_CHECKING:
+    import discord.ext.commands
 
 router = APIRouter(
     prefix="/guilds",
     tags=["guild"],
     responses={404: {"description": "Not found"}},
 )
+
+_guilds_cache: list[IGuild] = []
 
 
 @router.get("")
@@ -36,7 +38,12 @@ async def get(request: Request) -> list[IGuild]:
     """
     bot: discord.ext.commands.Bot = request.app.state.bot
 
-    return [IGuild.from_discord_guild(guild) for guild in bot.guilds]
+    if not _guilds_cache:
+        _guilds_cache.extend([
+            IGuild.from_discord_guild(guild)
+            async for guild in bot.fetch_guilds()
+        ])
+    return _guilds_cache
 
 
 @router.get("/")
@@ -106,30 +113,10 @@ async def get_music_state(request: Request, idx: str) -> IMusicState:
     bot: discord.ext.commands.Bot = request.app.state.bot
     music_cog: MusicCog = cast(MusicCog, bot.get_cog("MusicCog"))
 
-    active_track = music_cog.current_music.get(guild_id, None)
-    music_queue = music_cog.music_queue.get(guild_id, []).copy()
-    result_queue = []
-    if active_track:
-        music_queue.insert(0, active_track)
-    for music in music_queue:
-        result_queue.append(  # noqa: PERF401
-            IMusic.from_musicdata(
-                music,
-            ),
-        )
-    progress = 0
-    for _voice_client in bot.voice_clients:
-        voice_client = cast(VoiceClient, _voice_client)
-        if voice_client.guild.id == guild_id:
-            if not voice_client.source:
-                continue
-            source = cast(AudioSourceTrackedProtocol, voice_client.source)
-            progress = source.progress
-            break
-    return IMusicState(
-        queue=result_queue,
-        loop_mode=music_cog.loop_map.get(guild_id, LoopMode.OFF),
-        progress=progress,
+    return IMusicState.from_music_cog(
+        music_cog,
+        bot,
+        guild_id,
     )
 
 
@@ -169,3 +156,43 @@ async def add_to_queue(
             status_code=400,
             detail=detail,
         ) from e
+
+
+@router.post("/skip")
+async def skip_music(request: Request, idx: str) -> None:
+    """Skip the current music."""
+    bot: discord.ext.commands.Bot = request.app.state.bot
+    music_cog: MusicCog = cast(MusicCog, bot.get_cog("MusicCog"))
+    guild_id = int(idx)
+
+    await music_cog.skip_guild(guild_id)
+
+
+@router.post("/pause")
+async def pause_music(request: Request, idx: str) -> None:
+    """Pause the current music."""
+    bot: discord.ext.commands.Bot = request.app.state.bot
+    music_cog: MusicCog = cast(MusicCog, bot.get_cog("MusicCog"))
+    guild_id = int(idx)
+
+    await music_cog.pause_guild(guild_id)
+
+
+@router.post("/resume")
+async def resume_music(request: Request, idx: str) -> None:
+    """Resume the current music."""
+    bot: discord.ext.commands.Bot = request.app.state.bot
+    music_cog: MusicCog = cast(MusicCog, bot.get_cog("MusicCog"))
+    guild_id = int(idx)
+
+    await music_cog.resume_guild(guild_id)
+
+
+@router.post("/stop")
+async def stop_music(request: Request, idx: str) -> None:
+    """Stop the current music."""
+    bot: discord.ext.commands.Bot = request.app.state.bot
+    music_cog: MusicCog = cast(MusicCog, bot.get_cog("MusicCog"))
+    guild_id = int(idx)
+
+    await music_cog.stop_guild(guild_id)

@@ -2,7 +2,7 @@ import type { ServerError } from "@/api/ServerError";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { LoaderCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import apiClient from "../api/ApiClient";
 import { store } from "../store";
 import MusicCard from "./MusicCard";
@@ -11,9 +11,11 @@ import { Input } from "./ui/input";
 
 function MusicList() {
   const [url, setUrl] = useState("");
+  const [voiceChannel, setVoiceChannel] = useState("");
+
   const activeGuild = useStore(store, (state) => state.guild);
 
-  const musicList = useQuery({
+  const guildMusicState = useQuery({
     queryKey: ["musics", "guild", activeGuild?.id],
     queryFn: async () =>
       (
@@ -24,6 +26,15 @@ function MusicList() {
     enabled: !!activeGuild,
     refetchInterval: 5000,
   });
+
+  useEffect(() => {
+    if (guildMusicState.data?.current_voice_channel) {
+      setVoiceChannel(guildMusicState.data.current_voice_channel.name);
+    }
+  }, [
+    guildMusicState.data?.current_voice_channel,
+    guildMusicState.data?.current_voice_channel?.name,
+  ]);
 
   const addMusic = useMutation({
     mutationKey: ["musics", "add"],
@@ -36,15 +47,15 @@ function MusicList() {
       ).data,
     onMutate: async () => {
       setUrl("");
-      await musicList.refetch();
+      await guildMusicState.refetch();
     },
   });
 
-  if (musicList.isPending) {
+  if (guildMusicState.isPending) {
     return <LoaderCircle className="animate-spin" />;
   }
 
-  if (musicList.isError) {
+  if (guildMusicState.isError) {
     return (
       <div className="text-danger">Erro ao recuperar lista de músicas</div>
     );
@@ -54,10 +65,20 @@ function MusicList() {
     <div className="w-full p-3">
       <div className="p-3 space-y-2">
         <div>
+          {voiceChannel.length > 0 ? (
+            voiceChannel
+          ) : (
+            <span className="text-error">
+              Harpi não está em nenhum canal de voz
+            </span>
+          )}
+        </div>
+        <div>
           <div className="flex w-full max-w-sm items-center space-x-2">
             <Input
               type="url"
               placeholder="Url"
+              value={url}
               onChange={(e) => setUrl(e.target.value)}
             />
             <Button type="submit" onClick={() => addMusic.mutate(url)}>
@@ -70,16 +91,17 @@ function MusicList() {
             </div>
           )}
         </div>
-        {musicList.data?.queue[0] && (
+        {guildMusicState.data?.queue[0] && (
           <MusicCard
-            music={musicList.data?.queue[0]}
-            duration={musicList.data?.queue[0].duration}
-            progress={parseInt(musicList.data?.progress.toFixed(0))}
+            music={guildMusicState.data?.queue[0]}
+            duration={guildMusicState.data?.queue[0].duration}
+            progress={parseInt(guildMusicState.data?.progress.toFixed(0))}
+            playing={!guildMusicState.data?.paused}
           />
         )}
       </div>
       <ul className="w-full">
-        {musicList.data?.queue.map((music, index) => {
+        {guildMusicState.data?.queue.map((music, index) => {
           return (
             <li className="border shadow-md m-3 rounded-xl p-3" key={index}>
               <span className="italic">{index}</span> - {music.title} -{" "}

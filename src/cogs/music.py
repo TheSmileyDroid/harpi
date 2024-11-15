@@ -7,7 +7,11 @@ import enum
 from asyncio import sleep
 from asyncio.queues import Queue
 from functools import partial
+from typing import cast
 
+import discord
+import discord.ext
+import discord.ext.commands
 from discord import ClientException, Member
 from discord.app_commands import describe
 from discord.ext.commands import Cog, CommandError, Context, hybrid_command
@@ -18,6 +22,7 @@ from src.HarpiLib.musicdata.ytmusicdata import (
     YoutubeDLSource,
     YTMusicData,
 )
+from src.HarpiLib.nested import get_nested_attr
 from src.websocket import manager
 
 
@@ -35,7 +40,7 @@ idx_count = 0
 class MusicCog(Cog):
     """Cog responsável por tocar músicas."""
 
-    def __init__(self) -> None:
+    def __init__(self, bot: discord.ext.commands.bot.Bot) -> None:
         """Inicializa o cog."""
         super().__init__()
 
@@ -45,6 +50,7 @@ class MusicCog(Cog):
         self.current_music: dict[int, YTMusicData | None] = {}
         self.default_ctx: dict[int, Context] = {}
         self.tasks = []
+        self.bot = bot
         for _i in range(3):
             task = asyncio.create_task(self.play_loop())
             self.tasks.append(task)
@@ -63,13 +69,13 @@ class MusicCog(Cog):
              CommandError: Se o usuário não estiver em um canal de voz.
 
         """
-        self.default_ctx[ctx.guild.id] = ctx
+        self.default_ctx[get_nested_attr(ctx.guild, "id", -1)] = ctx
         if (
             not isinstance(ctx.author, Member)
             or not ctx.author.voice
             or not ctx.author.voice.channel
         ):
-            raise CommandError
+            raise CommandError("Contexto não encontrado")
         if ctx.voice_client is not None and isinstance(
             ctx.voice_client,
             VoiceClient,
@@ -89,7 +95,7 @@ class MusicCog(Cog):
             link (str): Link da música a ser tocada.
 
         """
-        self.default_ctx[ctx.guild.id] = ctx
+        self.default_ctx[get_nested_attr(ctx.guild, "id", -1)] = ctx
         await self.add_music(link, ctx)
 
     async def notify_queue_update(self) -> None:
@@ -154,12 +160,17 @@ class MusicCog(Cog):
         """
         await ctx.typing()
         if not ctx.guild:
-            raise CommandError
-        voice = await self.join(ctx)
-        self.music_queue[ctx.guild.id] = []
-        self.current_music[ctx.guild.id] = None
-        voice.stop()
+            raise CommandError("Contexto não encontrado")
+        guild_id = ctx.guild.id
+        await self.stop_guild(guild_id)
         await ctx.send("Música parada")
+
+    async def stop_guild(self, guild_id: int) -> None:
+        self.music_queue[guild_id] = []
+        self.current_music[guild_id] = None
+        voice = self.get_voice_client(guild_id)
+        if voice:
+            voice.stop()
         await self.notify_queue_update()
 
     @hybrid_command("skip")
@@ -176,54 +187,59 @@ class MusicCog(Cog):
         await ctx.typing()
         if not ctx.guild:
             raise CommandError
-        voice = await self.join(ctx)
+        guild_id = ctx.guild.id
+        await self.skip_guild(guild_id)
+        await ctx.send("Música pulada")
+
+    async def skip_guild(self, guild_id: int) -> None:
         is_queue_loop = (
-            self.loop_map.get(ctx.guild.id, LoopMode.OFF) is LoopMode.QUEUE
+            self.loop_map.get(guild_id, LoopMode.OFF) is LoopMode.QUEUE
         )
         if is_queue_loop and (
-            current_music := self.current_music.get(ctx.guild.id)
+            current_music := self.current_music.get(guild_id)
         ):
-            self.music_queue.get(ctx.guild.id, []).append(current_music)
-        self.current_music[ctx.guild.id] = None
-        await ctx.send("Música pulada")
-        music_queue = self.music_queue.get(ctx.guild.id, [])
-        if len(music_queue) > 0 and (next_music := music_queue[0]):
-            title = next_music.get_title()
-            await ctx.send(
-                f"Tocando a próxima música da fila: **{title}**",
-            )
-        else:
-            await ctx.send("Fila vazia")
-        voice.stop()
+            self.music_queue.get(guild_id, []).append(current_music)
+        self.current_music[guild_id] = None
+        voice = self.get_voice_client(guild_id)
+        if voice:
+            voice.stop()
         await self.notify_queue_update()
 
     @hybrid_command("pause")
     async def pause(self, ctx: Context) -> None:
-        """Pause the current music.
-
-        Args:
-            ctx (Context): Contexto do comando.
-
-        """
+        """Pausa a música atual."""
         await ctx.typing()
-        voice = await self.join(ctx)
-        voice.pause()
-        await ctx.send("Pausado")
+        if not ctx.guild:
+            return
+        guild_id = ctx.guild.id
+        await self.pause_guild(guild_id)
+        await ctx.send("Música pausada")
         await self.notify_queue_update()
+
+    async def pause_guild(self, guild_id: int) -> None:
+        voice = self.get_voice_client(guild_id)
+        if voice:
+            voice.pause()
+        else:
+            raise CommandError("Não foi possível pausar a música")
 
     @hybrid_command("resume")
     async def resume(self, ctx: Context) -> None:
-        """Resume the current music.
-
-        Args:
-            ctx (Context): Contexto do comando.
-
-        """
+        """Retoma a música atual."""
         await ctx.typing()
-        voice = await self.join(ctx)
-        voice.resume()
-        await ctx.send("Resumido")
+        if not ctx.guild:
+            return
+        guild_id = ctx.guild.id
+        await self.resume_guild(guild_id)
+        await ctx.send("Música retomada")
         await self.notify_queue_update()
+
+    async def resume_guild(self, guild_id: int) -> None:
+        voice = self.get_voice_client(guild_id)
+        if voice:
+            voice.resume()
+        else:
+            raise CommandError("Não foi possível retomar a música")
 
     @hybrid_command("loop")
     @describe(mode="Loop mode")
@@ -317,7 +333,7 @@ class MusicCog(Cog):
         try:
             while True:
                 ctx = await self.play_channel.get()
-                guild_id = ctx.guild.id
+                guild_id = get_nested_attr(ctx.guild, "id", -1)
                 voice = await self.join(ctx)
                 await sleep(0.05)
                 loop_mode = self.loop_map.get(guild_id, LoopMode.OFF)
@@ -355,11 +371,16 @@ class MusicCog(Cog):
                 await self.notify_queue_update()
 
         except ClientException as e:
-            await ctx.send(f"Erro ao tocar a música no worker {idx}: {e}")
+            if ctx:
+                await ctx.send(f"Erro ao tocar a música no worker {idx}: {e}")
+
             task = asyncio.create_task(self.play_loop())
             self.tasks.append(task)
         except TypeError as e:
-            await ctx.send(f"Problema ao tocar a música no worker {idx}: {e}")
+            if ctx:
+                await ctx.send(
+                    f"Problema ao tocar a música no worker {idx}: {e}",
+                )
             task = asyncio.create_task(self.play_loop())
             self.tasks.append(task)
 
@@ -396,3 +417,21 @@ class MusicCog(Cog):
         else:
             music_to_play = None
         return music_to_play
+
+    def get_voice_client(self, guild_id: int) -> VoiceClient | None:
+        """Get voice client.
+
+        Args:
+            guild_id (int): Guild ID.
+
+        Returns:
+            VoiceClient | None: Voice client.
+
+        """
+
+        bot = self.bot
+        if bot:
+            guild = bot.get_guild(guild_id)
+            if guild:
+                return cast(VoiceClient, guild.voice_client)
+        return None

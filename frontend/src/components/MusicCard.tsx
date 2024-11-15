@@ -1,9 +1,12 @@
-import type { IMusic } from "@/api/Api";
+import { type IMusic } from "@/api/Api";
+import apiClient from "@/api/ApiClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
+import { store } from "@/store";
+import { useStore } from "@tanstack/react-store";
 import clsx from "clsx";
-import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
+import { Pause, Play, SkipForward, Square } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function MusiCard({
@@ -11,14 +14,16 @@ export default function MusiCard({
   className,
   progress,
   duration,
+  playing,
 }: {
   music: IMusic;
   className?: string;
   progress: number;
   duration: number;
+  playing: boolean;
 }) {
-  const [playing, setPlaying] = useState(true);
   const [_progress, setProgress] = useState(progress);
+  const activeGuild = useStore(store, (state) => state.guild);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -30,8 +35,20 @@ export default function MusiCard({
     return () => clearInterval(interval);
   }, [playing]);
 
-  function togglePlayPause() {
-    setPlaying((prev) => !prev);
+  useEffect(() => {
+    setProgress(progress);
+  }, [progress]);
+
+  async function handleTogglePlay() {
+    if (playing) {
+      await apiClient.api.pauseMusicApiGuildsPausePost({
+        idx: activeGuild?.id || "-1",
+      });
+    } else {
+      await apiClient.api.resumeMusicApiGuildsResumePost({
+        idx: activeGuild?.id || "-1",
+      });
+    }
   }
 
   return (
@@ -74,17 +91,33 @@ export default function MusiCard({
               </div>
             </div>
             <div className="flex justify-center space-x-2">
-              <Button variant="outline" size="icon">
-                <SkipBack className="h-4 w-4" />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() =>
+                  apiClient.api.stopMusicApiGuildsStopPost({
+                    idx: activeGuild?.id || "-1",
+                  })
+                }
+              >
+                <Square className="h-4 w-4" />
               </Button>
-              <Button size="icon" onClick={togglePlayPause}>
+              <Button size="icon" onClick={handleTogglePlay}>
                 {playing ? (
                   <Pause className="h-4 w-4" />
                 ) : (
                   <Play className="h-4 w-4" />
                 )}
               </Button>
-              <Button variant="outline" size="icon">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  apiClient.api.skipMusicApiGuildsSkipPost({
+                    idx: activeGuild?.id || "-1",
+                  });
+                }}
+              >
                 <SkipForward className="h-4 w-4" />
               </Button>
             </div>

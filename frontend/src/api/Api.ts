@@ -30,6 +30,10 @@ export interface IGuild {
   approximate_member_count: number;
   /** Icon */
   icon: string | null;
+  /** Voice Channels */
+  voice_channels: IVoiceChannel[] | null;
+  /** Text Channels */
+  text_channels: ITextChannel[] | null;
 }
 
 /**
@@ -66,6 +70,17 @@ export interface IMusicState {
   loop_mode: LoopMode;
   /** Progress */
   progress: number;
+  current_voice_channel: IVoiceChannel | null;
+  /**
+   * Paused
+   * @default false
+   */
+  paused?: boolean;
+  /**
+   * Playing
+   * @default false
+   */
+  playing?: boolean;
 }
 
 /**
@@ -75,6 +90,30 @@ export interface IMusicState {
 export interface IStatus {
   /** Status */
   status: "online" | "offline";
+}
+
+/**
+ * ITextChannel
+ * Text channel model.
+ */
+export interface ITextChannel {
+  /** Id */
+  id: string;
+  /** Name */
+  name: string;
+}
+
+/**
+ * IVoiceChannel
+ * Voice channel model.
+ */
+export interface IVoiceChannel {
+  /** Id */
+  id: string;
+  /** Name */
+  name: string;
+  /** Members */
+  members: string[];
 }
 
 /**
@@ -339,7 +378,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       }),
 
     /**
-     * @description Add a song to the queue.
+     * @description Add a song to the queue. Raises ------ HTTPException If the URL is empty.
      *
      * @tags api, guild
      * @name AddToQueueApiGuildsQueuePost
@@ -357,6 +396,98 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/queue`,
+        method: "POST",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Skip the current music.
+     *
+     * @tags api, guild
+     * @name SkipMusicApiGuildsSkipPost
+     * @summary Skip Music
+     * @request POST:/api/guilds/skip
+     */
+    skipMusicApiGuildsSkipPost: (
+      query: {
+        /** Idx */
+        idx: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<null, void | HTTPValidationError>({
+        path: `/api/guilds/skip`,
+        method: "POST",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Pause the current music.
+     *
+     * @tags api, guild
+     * @name PauseMusicApiGuildsPausePost
+     * @summary Pause Music
+     * @request POST:/api/guilds/pause
+     */
+    pauseMusicApiGuildsPausePost: (
+      query: {
+        /** Idx */
+        idx: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<null, void | HTTPValidationError>({
+        path: `/api/guilds/pause`,
+        method: "POST",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Resume the current music.
+     *
+     * @tags api, guild
+     * @name ResumeMusicApiGuildsResumePost
+     * @summary Resume Music
+     * @request POST:/api/guilds/resume
+     */
+    resumeMusicApiGuildsResumePost: (
+      query: {
+        /** Idx */
+        idx: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<null, void | HTTPValidationError>({
+        path: `/api/guilds/resume`,
+        method: "POST",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Stop the current music.
+     *
+     * @tags api, guild
+     * @name StopMusicApiGuildsStopPost
+     * @summary Stop Music
+     * @request POST:/api/guilds/stop
+     */
+    stopMusicApiGuildsStopPost: (
+      query: {
+        /** Idx */
+        idx: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<null, void | HTTPValidationError>({
+        path: `/api/guilds/stop`,
         method: "POST",
         query: query,
         format: "json",

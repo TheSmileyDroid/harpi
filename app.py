@@ -78,7 +78,7 @@ async def main() -> cd.Bot:
     client = cd.Bot(command_prefix="-", intents=intents)
 
     await client.add_cog(TTSCog())
-    await client.add_cog(MusicCog())
+    await client.add_cog(MusicCog(client))
     await client.add_cog(BasicCog())
     await client.add_cog(DiceCog(client))
 
