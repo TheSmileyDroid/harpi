@@ -6,5 +6,6 @@ pytest
 safebag
 fastapi
 fastapi-cors
-uvicorn
+uvicorn[standard]
+websockets
 strawberry-graphql[fastapi]
