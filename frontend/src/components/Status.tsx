@@ -19,7 +19,7 @@ function Status() {
         } ${query.isSuccess && "bg-success"} p-3 content-center`}
       >
         <span className="content-center m-1">
-          {query.isPending && "..."}
+          {query.isPending || (query.isFetching && "...")}
           {query.isSuccess && query.data?.status}
           {query.isError && query.error.message}
         </span>

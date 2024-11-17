@@ -15,5 +15,5 @@ types:
 	python export.py
 	cd frontend; \
 	$(JS_RUNNER) run types;
-	
+
 .PHONY: start types
