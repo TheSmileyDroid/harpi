@@ -1,12 +1,20 @@
-import { type IMusic } from "@/api/Api";
+import { LoopMode, type IMusic } from "@/api/Api";
 import apiClient from "@/api/ApiClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { store } from "@/store";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import clsx from "clsx";
-import { Pause, Play, SkipForward, Square } from "lucide-react";
+import {
+  Pause,
+  Play,
+  Repeat,
+  Repeat1,
+  SkipForward,
+  Square,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function MusiCard({
@@ -15,15 +23,19 @@ export default function MusiCard({
   progress,
   duration,
   playing,
+  loopMode,
 }: {
   music: IMusic;
   className?: string;
   progress: number;
   duration: number;
   playing: boolean;
+  loopMode: LoopMode;
 }) {
   const [_progress, setProgress] = useState(progress);
   const activeGuild = useStore(store, (state) => state.guild);
+
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -38,6 +50,22 @@ export default function MusiCard({
   useEffect(() => {
     setProgress(progress);
   }, [progress]);
+
+  const toggleLoop = useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    },
+    onMutate: async () => {
+      return (
+        await apiClient.api.loopMusicApiGuildsLoopPost(
+          {
+            idx: activeGuild?.id || "-1",
+          },
+          { mode: (loopMode + 1) % 3 }
+        )
+      ).data;
+    },
+  });
 
   async function handleTogglePlay() {
     if (playing) {
@@ -119,6 +147,27 @@ export default function MusiCard({
                 }}
               >
                 <SkipForward className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={"outline"}
+                size={"icon"}
+                isLoading={toggleLoop.isPending}
+                className={clsx({
+                  "bg-accent":
+                    loopMode === LoopMode.Value2 ||
+                    loopMode === LoopMode.Value1,
+                })}
+                onClick={() => {
+                  toggleLoop.mutate();
+                }}
+              >
+                {loopMode === LoopMode.Value2 ? (
+                  <Repeat />
+                ) : loopMode === LoopMode.Value1 ? (
+                  <Repeat1 />
+                ) : (
+                  <Repeat />
+                )}
               </Button>
             </div>
           </div>

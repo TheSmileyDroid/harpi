@@ -37,6 +37,15 @@ export interface IGuild {
 }
 
 /**
+ * ILoopRequest
+ * Request to toggle loop
+ */
+export interface ILoopRequest {
+  /** Enum que representa o modo de loop. */
+  mode: LoopMode;
+}
+
+/**
  * IMusic
  * Music data model.
  */
@@ -490,6 +499,32 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         path: `/api/guilds/stop`,
         method: "POST",
         query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Alterna o modo de loop.
+     *
+     * @tags api, guild
+     * @name LoopMusicApiGuildsLoopPost
+     * @summary Loop Music
+     * @request POST:/api/guilds/loop
+     */
+    loopMusicApiGuildsLoopPost: (
+      query: {
+        /** Idx */
+        idx: string;
+      },
+      data: ILoopRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<null, void | HTTPValidationError>({
+        path: `/api/guilds/loop`,
+        method: "POST",
+        query: query,
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

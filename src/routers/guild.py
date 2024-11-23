@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING, cast
 
 from discord.ext.commands import CommandError
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 
-from src.cogs.music import MusicCog
+from src.cogs.music import LoopMode, MusicCog
 from src.models.guild import (
     IGuild,
     IMusic,
@@ -196,3 +197,23 @@ async def stop_music(request: Request, idx: str) -> None:
     guild_id = int(idx)
 
     await music_cog.stop_guild(guild_id)
+
+
+class ILoopRequest(BaseModel):
+    """Request to toggle loop"""
+
+    mode: LoopMode
+
+
+@router.post("/loop")
+async def loop_music(
+    request: Request, idx: str, loop_mode: ILoopRequest,
+) -> None:
+    """Alterna o modo de loop."""
+
+    bot: discord.ext.commands.Bot = request.app.state.bot
+    music_cog: MusicCog = cast(MusicCog, bot.get_cog("MusicCog"))
+
+    guild_id = int(idx)
+
+    music_cog.loop_map.update({guild_id: loop_mode.mode})

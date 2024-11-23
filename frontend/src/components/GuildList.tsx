@@ -4,6 +4,7 @@ import clsx from "clsx";
 import apiClient from "../api/ApiClient";
 import { setGuild, store } from "../store";
 import { Button } from "./ui/button";
+
 function GuildList({ className = "" }: { className?: string }) {
   const activeGuild = useStore(store, (state) => state.guild);
 
@@ -28,7 +29,7 @@ function GuildList({ className = "" }: { className?: string }) {
                 {
                   "bg-primary text-white hover:bg-primary/15":
                     guild.id == activeGuild?.id,
-                }
+                },
               )}
             >
               <h3 className="font-bold">{guild.name}</h3>
