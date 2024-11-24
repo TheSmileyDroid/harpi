@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     build-essential \
     unzip \
-    unzip \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Bun
