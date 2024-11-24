@@ -1,5 +1,5 @@
 import type { ServerError } from "@/api/ServerError";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -12,8 +12,6 @@ import { Input } from "./ui/input";
 function MusicList() {
   const [url, setUrl] = useState("");
   const [voiceChannel, setVoiceChannel] = useState("");
-
-  const queryClient = useQueryClient();
 
   const activeGuild = useStore(store, (state) => state.guild);
 
