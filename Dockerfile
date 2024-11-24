@@ -41,7 +41,7 @@ RUN bun run build
 WORKDIR /app
 
 # Expose port
-EXPOSE 8000
+EXPOSE ${PORT}
 
 # Command to run the application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "${PORT}"]
