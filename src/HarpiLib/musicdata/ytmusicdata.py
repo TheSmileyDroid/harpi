@@ -35,6 +35,7 @@ ytdl_format_options = {
     "source_address": "0.0.0.0",  # noqa: S104
     "concurrent-fragments": 8,
     "flat-playlist": True,
+    "cookiefile": "cookies.txt",
 }
 
 ffmpeg_options: dict[str, Any] = {
