@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PanelLeftOpen, PanelRightOpen, SunMoon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { BASE_URL } from "./api/ApiClient";
 import "./App.css";
 import smileyBotLogo from "./assets/smileybot.png";
 import GuildControl from "./components/GuildControl";
@@ -29,36 +28,10 @@ function App() {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
-  useEffect(() => {
-    const webSocket = new WebSocket(
-      "ws" +
-        (location.protocol === "https:" ? "s" : "") +
-        "://" +
-        BASE_URL +
-        "/ws"
-    );
-    webSocket.onopen = () => {
-      console.log("WebSocket connected");
-    };
-    webSocket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      const queryKey = [...data.entity, data.id].filter(Boolean);
-
-      console.log("Invalidating query", queryKey);
-
-      queryClient.invalidateQueries({ queryKey });
-    };
-
-    return () => {
-      webSocket.close();
-    };
-  }, []);
-
   return (
     <>
       <QueryClientProvider client={queryClient}>
-        <div className={"h-screen w-screen bg-background text-foreground"}>
+        <div className={"h-full w-full"}>
           <div className="flex flex-wrap justify-left content-center  gap-4 top-0 left-0 w-full p-2">
             <a href="/" target="_blank">
               <img
@@ -74,30 +47,32 @@ function App() {
             </Button>
           </div>
           <main className="flex h-full w-full">
-            <Collapsible
-              open={openGuilds}
-              onOpenChange={setOpenGuilds}
-              defaultOpen
-            >
-              <CollapsibleTrigger>
-                <div className="p-2">
-                  {openGuilds ? <PanelRightOpen /> : <PanelLeftOpen />}
-                </div>
-              </CollapsibleTrigger>
-              <CollapsibleContent forceMount>
-                <GuildList
-                  className={`
-                  transition-all transform duration-300
-                  ${
-                    openGuilds
-                      ? "opacity-100 translate-x-0 max-w-full"
-                      : "opacity-0 -translate-x-full pointer-events-none max-w-0 overflow-hidden"
-                  }
-                `}
-                />
-              </CollapsibleContent>
-            </Collapsible>
-            <GuildControl />
+            <div className="absolute">
+              <Collapsible
+                open={openGuilds}
+                onOpenChange={setOpenGuilds}
+                defaultOpen
+              >
+                <CollapsibleTrigger>
+                  <Button className="m-2" size={"icon"}>
+                    {openGuilds ? <PanelRightOpen /> : <PanelLeftOpen />}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent forceMount>
+                  <GuildList
+                    className={`
+                    transition-all transform duration-300 bg-background border rounded-r-2xl p-4 shadow-2xl
+                    ${
+                      openGuilds
+                        ? "opacity-100 translate-x-0 translate-y-0 max-w-full"
+                        : "opacity-0 -translate-x-full pointer-events-none max-w-0 overflow-hidden"
+                    }
+                  `}
+                  />
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+            <GuildControl className="ml-10" />
           </main>
         </div>
       </QueryClientProvider>

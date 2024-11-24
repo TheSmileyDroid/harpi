@@ -286,25 +286,9 @@ export class HttpClient<SecurityDataType = unknown> {
 export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
   api = {
     /**
-     * @description Check the bot's status via a FastAPI endpoint. Returns ------- IStatus Status.
-     *
-     * @tags api
-     * @name BotStatusApiStatusGet
-     * @summary Bot Status
-     * @request GET:/api/status
-     */
-    botStatusApiStatusGet: (params: RequestParams = {}) =>
-      this.request<IStatus, any>({
-        path: `/api/status`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-
-    /**
      * @description Retorna uma lista de guildas disponíveis. Returns ------- list[IGuild] As guildas.
      *
-     * @tags api, guild
+     * @tags guilds
      * @name GetApiGuildsGet
      * @summary Get
      * @request GET:/api/guilds
@@ -320,7 +304,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * @description Retorna uma guilda a partir de um ID. Parameters ---------- request : Request _description_ idx : str ID da Guilda. Returns ------- IGuild _description_
      *
-     * @tags api, guild
+     * @tags guilds
      * @name GetGuildApiGuildsGet
      * @summary Get Guild
      * @request GET:/api/guilds/
@@ -343,7 +327,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * @description Retorna a lista de músicas de uma Guilda (Incluindo a música atual). Parameters ---------- request : Request _description_ idx : str Guild ID. Returns ------- list[IMusic] _description_
      *
-     * @tags api, guild
+     * @tags guilds
      * @name GetMusicListApiGuildsMusicListGet
      * @summary Get Music List
      * @request GET:/api/guilds/music/list
@@ -366,7 +350,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * @description Get the current music state for a guild. Returns ------- IMusicState Complete music state.
      *
-     * @tags api, guild
+     * @tags guilds
      * @name GetMusicStateApiGuildsStateGet
      * @summary Get Music State
      * @request GET:/api/guilds/state
@@ -389,7 +373,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * @description Add a song to the queue. Raises ------ HTTPException If the URL is empty.
      *
-     * @tags api, guild
+     * @tags guilds
      * @name AddToQueueApiGuildsQueuePost
      * @summary Add To Queue
      * @request POST:/api/guilds/queue
@@ -414,7 +398,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * @description Skip the current music.
      *
-     * @tags api, guild
+     * @tags guilds
      * @name SkipMusicApiGuildsSkipPost
      * @summary Skip Music
      * @request POST:/api/guilds/skip
@@ -437,7 +421,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * @description Pause the current music.
      *
-     * @tags api, guild
+     * @tags guilds
      * @name PauseMusicApiGuildsPausePost
      * @summary Pause Music
      * @request POST:/api/guilds/pause
@@ -460,7 +444,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * @description Resume the current music.
      *
-     * @tags api, guild
+     * @tags guilds
      * @name ResumeMusicApiGuildsResumePost
      * @summary Resume Music
      * @request POST:/api/guilds/resume
@@ -483,7 +467,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * @description Stop the current music.
      *
-     * @tags api, guild
+     * @tags guilds
      * @name StopMusicApiGuildsStopPost
      * @summary Stop Music
      * @request POST:/api/guilds/stop
@@ -506,7 +490,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * @description Alterna o modo de loop.
      *
-     * @tags api, guild
+     * @tags guilds
      * @name LoopMusicApiGuildsLoopPost
      * @summary Loop Music
      * @request POST:/api/guilds/loop
@@ -525,6 +509,22 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         query: query,
         body: data,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Check the bot's status via a FastAPI endpoint. Returns ------- IStatus Status.
+     *
+     * @tags api
+     * @name BotStatusApiStatusGet
+     * @summary Bot Status
+     * @request GET:/api/status
+     */
+    botStatusApiStatusGet: (params: RequestParams = {}) =>
+      this.request<IStatus, any>({
+        path: `/api/status`,
+        method: "GET",
         format: "json",
         ...params,
       }),

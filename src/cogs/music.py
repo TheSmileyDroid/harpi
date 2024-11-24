@@ -51,9 +51,33 @@ class MusicCog(Cog):
         self.default_ctx: dict[int, Context] = {}
         self.tasks = []
         self.bot = bot
-        for _i in range(3):
+        for _ in range(3):
             task = asyncio.create_task(self.play_loop())
             self.tasks.append(task)
+
+    async def set_current_music(
+        self,
+        guild_id: int,
+        music: YTMusicData | None,
+    ) -> None:
+        self.current_music[guild_id] = music
+        await self.notify_queue_update()
+
+    async def set_loop_mode(self, guild_id: int, mode: LoopMode) -> None:
+        self.loop_map[guild_id] = mode
+        await self.notify_queue_update()
+
+    async def update_music_queue(
+        self,
+        guild_id: int,
+        queue: list[YTMusicData],
+    ) -> None:
+        self.music_queue[guild_id] = queue
+        await self.notify_queue_update()
+
+    async def update_loop_mode(self, guild_id: int, mode: LoopMode) -> None:
+        self.loop_map[guild_id] = mode
+        await self.notify_queue_update()
 
     @hybrid_command("join")
     async def join(self, ctx: Context) -> VoiceClient:
@@ -101,9 +125,11 @@ class MusicCog(Cog):
     async def notify_queue_update(self) -> None:
         """Notify frontend clients that queue has changed."""
 
-        await manager.broadcast({
-            "entity": ["musics"],
-        })
+        await manager.broadcast(
+            message={
+                "entity": ["musics"],
+            },
+        )
 
     async def add_music(
         self,
@@ -139,7 +165,7 @@ class MusicCog(Cog):
             queue = self.music_queue.get(ctx.guild.id) or []
             for music_data in music_data_list:
                 queue.append(music_data)
-            self.music_queue[ctx.guild.id] = queue
+            await self.update_music_queue(ctx.guild.id, queue)
             await self.play_channel.put(ctx)
             musics = ", ".join(m.get_title() for m in music_data_list)
             await ctx.send(f"Adicionando à fila: {musics}")
@@ -166,8 +192,8 @@ class MusicCog(Cog):
         await ctx.send("Música parada")
 
     async def stop_guild(self, guild_id: int) -> None:
-        self.music_queue[guild_id] = []
-        self.current_music[guild_id] = None
+        await self.update_music_queue(guild_id, [])
+        await self.set_current_music(guild_id, None)
         voice = self.get_voice_client(guild_id)
         if voice:
             voice.stop()
@@ -198,8 +224,10 @@ class MusicCog(Cog):
         if is_queue_loop and (
             current_music := self.current_music.get(guild_id)
         ):
-            self.music_queue.get(guild_id, []).append(current_music)
-        self.current_music[guild_id] = None
+            queue = self.music_queue.get(guild_id, [])
+            queue.append(current_music)
+            await self.update_music_queue(guild_id, queue)
+        await self.set_current_music(guild_id, None)
         voice = self.get_voice_client(guild_id)
         if voice:
             voice.stop()
@@ -258,19 +286,19 @@ class MusicCog(Cog):
         if not ctx.guild:
             raise CommandError
         if mode in {"off", "false", "0", "no", "n"}:
-            self.loop_map[ctx.guild.id] = LoopMode.OFF
+            await self.set_loop_mode(ctx.guild.id, LoopMode.OFF)
             await ctx.send("Loop mode: OFF")
         elif mode in {"track", "true", "1", "yes", "y", "musica"}:
-            self.loop_map[ctx.guild.id] = LoopMode.TRACK
+            await self.set_loop_mode(ctx.guild.id, LoopMode.TRACK)
             await ctx.send("Loop mode: TRACK")
         elif mode in {"queue", "q", "fila", "f", "lista", "l"}:
-            self.loop_map[ctx.guild.id] = LoopMode.QUEUE
+            await self.set_loop_mode(ctx.guild.id, LoopMode.QUEUE)
             await ctx.send("Loop mode: QUEUE")
         elif self.loop_map.get(ctx.guild.id, LoopMode.OFF) is not LoopMode.OFF:
-            self.loop_map[ctx.guild.id] = LoopMode.OFF
+            await self.set_loop_mode(ctx.guild.id, LoopMode.OFF)
             await ctx.send("Loop mode: OFF")
         else:
-            self.loop_map[ctx.guild.id] = LoopMode.TRACK
+            await self.set_loop_mode(ctx.guild.id, LoopMode.TRACK)
             await ctx.send("Loop mode: TRACK")
         await self.notify_queue_update()
 
@@ -351,6 +379,7 @@ class MusicCog(Cog):
                 )
 
                 self.current_music[guild_id] = music_to_play
+                await self.notify_queue_update()
 
                 if music_to_play:
                     voice.play(

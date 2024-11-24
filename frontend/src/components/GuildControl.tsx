@@ -1,12 +1,13 @@
 import { store } from "@/store";
 import { useStore } from "@tanstack/react-store";
+import clsx from "clsx";
 import MusicList from "./MusicList";
 
-function GuildControl() {
+function GuildControl({ className }: { className?: string }) {
   const activeGuild = useStore(store, (state) => state.guild);
 
   return (
-    <div className="w-full p-3">
+    <div className={clsx("w-full p-3", className)}>
       <div className="p-0">
         <div className="flex border shadow-md m-3 rounded-xl p-3 justify-center content-center gap-3">
           <span className="font-bold text-lg my-auto">Controle de guilda</span>

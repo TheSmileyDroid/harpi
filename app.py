@@ -146,7 +146,11 @@ async def bot_status() -> IStatus:
     })
 
 
-api_router.include_router(src.routers.guild.router)
+app.include_router(
+    src.routers.guild.router,
+    prefix="/api/guilds",
+    tags=["guilds"],
+)
 
 app.include_router(api_router)
 

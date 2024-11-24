@@ -153,7 +153,7 @@ export default function MusiCard({
                 size={"icon"}
                 isLoading={toggleLoop.isPending}
                 className={clsx({
-                  "bg-accent":
+                  "bg-accent hover:bg-accent/50":
                     loopMode === LoopMode.Value2 ||
                     loopMode === LoopMode.Value1,
                 })}

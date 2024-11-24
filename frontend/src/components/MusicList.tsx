@@ -26,7 +26,7 @@ function MusicList() {
         })
       ).data,
     enabled: !!activeGuild,
-    refetchInterval: 5000,
+    refetchInterval: 10000,
   });
 
   useEffect(() => {
@@ -83,7 +83,11 @@ function MusicList() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />
-            <Button type="submit" onClick={() => addMusic.mutate(url)}>
+            <Button
+              type="submit"
+              onClick={() => addMusic.mutate(url)}
+              isLoading={addMusic.isPending}
+            >
               Adicionar música
             </Button>
           </div>

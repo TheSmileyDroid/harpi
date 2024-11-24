@@ -14,13 +14,12 @@ from src.models.guild import (
     IMusic,
     IMusicState,
 )
+from src.websocket import manager
 
 if TYPE_CHECKING:
     import discord.ext.commands
 
 router = APIRouter(
-    prefix="/guilds",
-    tags=["guild"],
     responses={404: {"description": "Not found"}},
 )
 
@@ -167,6 +166,11 @@ async def skip_music(request: Request, idx: str) -> None:
     guild_id = int(idx)
 
     await music_cog.skip_guild(guild_id)
+    await manager.broadcast(
+        message={
+            "entity": ["musics"],
+        },
+    )
 
 
 @router.post("/pause")
@@ -177,6 +181,11 @@ async def pause_music(request: Request, idx: str) -> None:
     guild_id = int(idx)
 
     await music_cog.pause_guild(guild_id)
+    await manager.broadcast(
+        message={
+            "entity": ["musics"],
+        },
+    )
 
 
 @router.post("/resume")
@@ -187,6 +196,11 @@ async def resume_music(request: Request, idx: str) -> None:
     guild_id = int(idx)
 
     await music_cog.resume_guild(guild_id)
+    await manager.broadcast(
+        message={
+            "entity": ["musics"],
+        },
+    )
 
 
 @router.post("/stop")
@@ -197,6 +211,11 @@ async def stop_music(request: Request, idx: str) -> None:
     guild_id = int(idx)
 
     await music_cog.stop_guild(guild_id)
+    await manager.broadcast(
+        message={
+            "entity": ["musics"],
+        },
+    )
 
 
 class ILoopRequest(BaseModel):
@@ -207,7 +226,9 @@ class ILoopRequest(BaseModel):
 
 @router.post("/loop")
 async def loop_music(
-    request: Request, idx: str, loop_mode: ILoopRequest,
+    request: Request,
+    idx: str,
+    loop_mode: ILoopRequest,
 ) -> None:
     """Alterna o modo de loop."""
 
@@ -216,4 +237,4 @@ async def loop_music(
 
     guild_id = int(idx)
 
-    music_cog.loop_map.update({guild_id: loop_mode.mode})
+    await music_cog.update_loop_mode(guild_id, loop_mode.mode)
