@@ -109,6 +109,33 @@ class MusicCog(Cog):
             return ctx.voice_client
         return await ctx.author.voice.channel.connect()
 
+    async def connect_to_voice(self, guild_id: int, channel_id: int) -> None:
+        """Conecta ao canal de voz.
+
+        Parameters
+        ----------
+        guild_id : int
+            Identificador da guilda.
+        channel_id : int
+            Identificador do canal de voz.
+
+        Raises
+        ------
+        ValueError
+            Canal de voz não encontrado.
+        ValueError
+            Servidor não encontrado.
+        """
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            raise ValueError("Servidor não encontrado")
+
+        channel = guild.get_channel(channel_id)
+        if not channel or not isinstance(channel, discord.VoiceChannel):
+            raise ValueError("Canal de voz não encontrado")
+
+        await channel.connect()
+
     @hybrid_command("play")
     @describe(link="Link da música a ser tocada")
     async def play(self, ctx: Context, *, link: str) -> None:

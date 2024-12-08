@@ -13,7 +13,6 @@ from src.HarpiLib.nested import get_nested_attr
 
 if TYPE_CHECKING:
     import discord
-    from discord import VoiceClient
     from discord.ext.commands import Bot
 
     from src.HarpiLib.musicdata.ytmusicdata import YTMusicData
@@ -97,7 +96,9 @@ class IGuild(BaseModel):
     text_channels: list[ITextChannel] | None
 
     @classmethod
-    def from_discord_guild(cls, guild: discord.Guild) -> IGuild:
+    async def from_discord_guild(cls, guild: discord.Guild) -> IGuild:
+        channels = await guild.fetch_channels()
+
         return cls(
             id=str(guild.id),
             name=guild.name,
@@ -106,11 +107,13 @@ class IGuild(BaseModel):
             icon=getattr(guild.icon, "url", None),
             voice_channels=[
                 IVoiceChannel.from_discord_channel(channel)
-                for channel in guild.voice_channels
+                for channel in channels
+                if isinstance(channel, discord.VoiceChannel)
             ],
             text_channels=[
                 ITextChannel.from_discord_channel(channel)
-                for channel in guild.text_channels
+                for channel in channels
+                if isinstance(channel, discord.TextChannel)
             ],
         )
 
@@ -145,18 +148,16 @@ class IMusicState(BaseModel):
                 ),
             )
         progress = 0
-        voice_client: VoiceClient | None = get_nested_attr(
-            bot.get_guild(guild_id),
-            "voice_client",
-            None,
-        )
+        voice_client = None
+
         if (
-            voice_client
-            and voice_client.source
-            and hasattr(voice_client.source, "progress")
+            (guild := bot.get_guild(guild_id))
+            and (voice_client := cast(discord.VoiceClient, guild.voice_client))
+            and (source := voice_client.source)  # type: ignore Unknown attribute
         ):
-            source = cast(AudioSourceTrackedProtocol, voice_client.source)
+            source = cast(AudioSourceTrackedProtocol, source)
             progress = source.progress
+
         current_voice_channel = get_nested_attr(
             bot.get_guild(guild_id),
             "voice_client.channel",

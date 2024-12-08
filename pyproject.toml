@@ -1,3 +1,8 @@
+[project]
+name = "harpi"
+version = "0.1.0"
+authors = [{ name = "TheSmileyDroid", email = "ghsilha@gmail.com" }]
+
 [tool.ruff.format]
 docstring-code-format = true
 docstring-code-line-length = 20
@@ -5,7 +10,7 @@ docstring-code-line-length = 20
 [tool.ruff]
 line-length = 79
 select = ["ALL"]
-ignore = ["PLR", "TRY", "EM", "CPY001", "G", "UP007", "D"]
+ignore = ["PLR", "TRY", "EM", "CPY001", "G", "UP007", "D", "S101"]
 exclude = [
     ".bzr",
     ".direnv",

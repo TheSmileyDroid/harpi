@@ -1,6 +1,7 @@
 import type { ServerError } from "@/api/ServerError";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
+import clsx from "clsx";
 import { LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import apiClient from "../api/ApiClient";
@@ -9,7 +10,7 @@ import MusicCard from "./MusicCard";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
-function MusicList() {
+function MusicList({className}: {className?: string}) {
   const [url, setUrl] = useState("");
   const [voiceChannel, setVoiceChannel] = useState("");
 
@@ -62,7 +63,7 @@ function MusicList() {
   }
 
   return (
-    <div className="w-full p-3">
+    <div className={clsx("w-full p-3", className)}>
       <div className="p-3 space-y-2">
         <div>
           {voiceChannel.length > 0 ? (

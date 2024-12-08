@@ -2,6 +2,7 @@ import { store } from "@/store";
 import { useStore } from "@tanstack/react-store";
 import clsx from "clsx";
 import MusicList from "./MusicList";
+import VoiceChannels from "./VoiceChannels";
 
 function GuildControl({ className }: { className?: string }) {
   const activeGuild = useStore(store, (state) => state.guild);
@@ -22,7 +23,10 @@ function GuildControl({ className }: { className?: string }) {
           )}
         </div>
       </div>
-      {activeGuild?.id && <MusicList />}
+      {activeGuild?.id && <div className="flex">
+        <MusicList className="flex-grow" />
+        <VoiceChannels className="flex-shrink"/>
+      </div>}
     </div>
   );
 }

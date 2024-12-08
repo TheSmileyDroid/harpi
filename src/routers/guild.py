@@ -40,7 +40,7 @@ async def get(request: Request) -> list[IGuild]:
 
     if not _guilds_cache:
         _guilds_cache.extend([
-            IGuild.from_discord_guild(guild)
+            await IGuild.from_discord_guild(guild)
             async for guild in bot.fetch_guilds()
         ])
     return _guilds_cache
@@ -67,7 +67,11 @@ async def get_guild(request: Request, idx: str) -> IGuild | None:
     guild_id = int(idx)
 
     discord_guild = bot.get_guild(guild_id)
-    return IGuild.from_discord_guild(discord_guild) if discord_guild else None
+    return (
+        await IGuild.from_discord_guild(discord_guild)
+        if discord_guild
+        else None
+    )
 
 
 @router.get("/music/list")
@@ -238,3 +242,20 @@ async def loop_music(
     guild_id = int(idx)
 
     await music_cog.update_loop_mode(guild_id, loop_mode.mode)
+
+
+@router.post("/voice/connect")
+async def connect_to_voice(
+    request: Request,
+    idx: str,
+    channel_id: str | int,
+) -> None:
+    """Connect to a voice channel."""
+
+    bot: discord.ext.commands.Bot = request.app.state.bot
+    music_cog: MusicCog = cast(MusicCog, bot.get_cog("MusicCog"))
+
+    guild_id = int(idx)
+    channel_id = int(channel_id)
+
+    await music_cog.connect_to_voice(guild_id, channel_id)

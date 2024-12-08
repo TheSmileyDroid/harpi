@@ -58,7 +58,7 @@ async def say(ctx: commands.Context, text: str) -> None:
     tts.save(f".audios/{guild(ctx).id}.mp3")
     fp.seek(0)
     voice.play(
-        AudioSourceTracked(FFmpegPCMAudio(fp.read(), pipe=True)),
+        AudioSourceTracked(FFmpegPCMAudio(fp.read(), pipe=True)),  # type: ignore reportArgumentType
     )
 
 

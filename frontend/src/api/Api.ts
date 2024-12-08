@@ -514,6 +514,31 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       }),
 
     /**
+     * @description Connect to a voice channel.
+     *
+     * @tags guilds
+     * @name ConnectToVoiceApiGuildsVoiceConnectPost
+     * @summary Connect To Voice
+     * @request POST:/api/guilds/voice/connect
+     */
+    connectToVoiceApiGuildsVoiceConnectPost: (
+      query: {
+        /** Idx */
+        idx: string;
+        /** Channel Id */
+        channel_id: string | number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<null, void | HTTPValidationError>({
+        path: `/api/guilds/voice/connect`,
+        method: "POST",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Check the bot's status via a FastAPI endpoint. Returns ------- IStatus Status.
      *
      * @tags api
