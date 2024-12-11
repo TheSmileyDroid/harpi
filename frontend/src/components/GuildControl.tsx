@@ -8,25 +8,29 @@ function GuildControl({ className }: { className?: string }) {
   const activeGuild = useStore(store, (state) => state.guild);
 
   return (
-    <div className={clsx("w-full p-3", className)}>
-      <div className="p-0">
-        <div className="flex border shadow-md m-3 rounded-xl p-3 justify-center content-center gap-3">
-          <span className="font-bold text-lg my-auto">Controle de guilda</span>
+    <div className={clsx("w-full", className)}>
+      <div className="p-0 w-5/6 mx-auto">
+        <div className="flex flex-wrap text-sm border shadow-md m-3 rounded-xl p-3 justify-center content-center gap-3">
+          <span className="font-bold my-auto">Controle de guilda</span>
           {activeGuild?.name ? (
             <div className="border rounded-xl p-3 border-dashed">
-              <span className="italic">Guilda ativa:</span> {activeGuild?.name}
+              <span className="italic ">Guilda ativa:</span> {activeGuild?.name}
             </div>
           ) : (
             <div className="border rounded-xl p-3 border-dashed border-error">
-              <span className="italic">Nenhuma guilda ativa</span>
+              <span className="italic text-error font-bold">
+                Nenhuma guilda ativa
+              </span>
             </div>
           )}
         </div>
       </div>
-      {activeGuild?.id && <div className="flex">
-        <MusicList className="flex-grow" />
-        <VoiceChannels className="flex-shrink"/>
-      </div>}
+      {activeGuild?.id && (
+        <div className="flex flex-wrap w-5/6 mx-auto">
+          <MusicList className="flex-grow" />
+          <VoiceChannels className="flex-shrink" />
+        </div>
+      )}
     </div>
   );
 }

@@ -53,11 +53,11 @@ function Status() {
 
   return (
     <div className="flex bg-gradient-to-t from-neutral-200 to-neutral-300 rounded-2xl h-fit m-1 overflow-clip">
-      <span className="p-3 content-center">Status</span>
+      <span className="hidden md:block p-1 px-2 content-center">Status</span>
       <span
-        className={`flex ${query.isPending && "bg-accent"} ${
+        className={`flex ${query.isFetching && "bg-accent"} ${
           query.isError && "bg-error"
-        } ${query.isSuccess && "bg-success"} p-3 content-center`}
+        } ${query.isSuccess && "bg-success"} p-1 content-center`}
       >
         <span className="content-center m-1">
           {query.isPending || (query.isFetching && "...")}

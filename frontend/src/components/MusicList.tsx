@@ -10,7 +10,7 @@ import MusicCard from "./MusicCard";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
-function MusicList({className}: {className?: string}) {
+function MusicList({ className }: { className?: string }) {
   const [url, setUrl] = useState("");
   const [voiceChannel, setVoiceChannel] = useState("");
 
@@ -63,19 +63,19 @@ function MusicList({className}: {className?: string}) {
   }
 
   return (
-    <div className={clsx("w-full p-3", className)}>
-      <div className="p-3 space-y-2">
+    <div className={clsx("w-3/6 p-3 mx-auto", className)}>
+      <div className="p-3 space-y-2 w-full mx-auto">
         <div>
           {voiceChannel.length > 0 ? (
             voiceChannel
           ) : (
-            <span className="text-error">
+            <span className="text-error text-wrap">
               Harpi não está em nenhum canal de voz
             </span>
           )}
         </div>
         <div>
-          <div className="flex w-full max-w-sm items-center space-x-2">
+          <div className="flex w-full max-w-sm items-center space-x-2 mx-auto">
             <Input
               type="url"
               placeholder="Url"
@@ -91,7 +91,7 @@ function MusicList({className}: {className?: string}) {
             </Button>
           </div>
           {addMusic.error && (
-            <div className="bg-error text-background p-1 m-1 rounded-lg w-fit text-nowrap">
+            <div className="bg-error text-background p-1 m-1 rounded-lg w-fit text-wrap">
               {(addMusic.error as ServerError).response?.data?.detail}
             </div>
           )}

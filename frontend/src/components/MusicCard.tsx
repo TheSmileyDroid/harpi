@@ -81,8 +81,8 @@ export default function MusiCard({
 
   return (
     <Card className={clsx("bg-background", className)}>
-      <CardContent className="p-0 w-full ">
-        <div className="flex items-center px-6">
+      <CardContent className="p-0 w-full">
+        <div className="flex flex-wrap items-center p-6">
           <div className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0">
             <img
               src={music.thumbnail || "/placeholder.svg?height=128&width=128"}
@@ -90,7 +90,7 @@ export default function MusiCard({
               className="object-cover h-full w-full rounded-2xl"
             />
           </div>
-          <div className="flex flex-col flex-grow p-4 space-y-2">
+          <div className="flex flex-col flex-grow p-4 space-y-2 w-4/6 mx-auto">
             <div>
               <h2 className="text-lg sm:text-xl font-bold truncate">
                 {music.title} - {music.album}
@@ -99,7 +99,7 @@ export default function MusiCard({
                 {music.artists?.join(", ") || "Artista desconhecido"}
               </p>
             </div>
-            <div className="space-y-1 w-full">
+            <div className="space-y-1 w-5/6">
               <Slider
                 value={[_progress]}
                 max={duration}

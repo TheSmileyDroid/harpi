@@ -46,7 +46,7 @@ class MusicCog(Cog):
 
         self.music_queue: dict[int, list[YTMusicData]] = {}
         self.loop_map: dict[int, LoopMode] = {}
-        self.play_channel: Queue[Context] = Queue()
+        self.play_channel: Queue[int] = Queue()
         self.current_music: dict[int, YTMusicData | None] = {}
         self.default_ctx: dict[int, Context] = {}
         self.tasks = []
@@ -106,6 +106,7 @@ class MusicCog(Cog):
         ):
             voice_channel = ctx.author.voice.channel
             await ctx.voice_client.move_to(voice_channel)
+
             return ctx.voice_client
         return await ctx.author.voice.channel.connect()
 
@@ -134,7 +135,13 @@ class MusicCog(Cog):
         if not channel or not isinstance(channel, discord.VoiceChannel):
             raise ValueError("Canal de voz não encontrado")
 
+        voice: VoiceClient = cast(VoiceClient, guild.voice_client)
+        if voice:
+            await voice.disconnect()
+
         await channel.connect()
+
+        await self.notify_queue_update()
 
     @hybrid_command("play")
     @describe(link="Link da música a ser tocada")
@@ -146,6 +153,15 @@ class MusicCog(Cog):
             link (str): Link da música a ser tocada.
 
         """
+        if (
+            ctx.guild
+            and (voice := cast(Member, ctx.author).voice)
+            and voice.channel
+        ):
+            await self.connect_to_voice(
+                ctx.guild.id,
+                voice.channel.id,
+            )
         self.default_ctx[get_nested_attr(ctx.guild, "id", -1)] = ctx
         await self.add_music(link, ctx)
 
@@ -157,6 +173,24 @@ class MusicCog(Cog):
                 "entity": ["musics"],
             },
         )
+
+    async def add_music_to_queue(
+        self,
+        guild_id: int,
+        musics: list[YTMusicData],
+    ) -> None:
+        """Add music to the queue.
+
+        Args:
+            guild_id (int): Guild ID.
+            music (YTMusicData): Music to be added.
+
+        """
+        queue = self.music_queue.get(guild_id) or []
+        for music in musics:
+            queue.append(music)
+        await self.update_music_queue(guild_id, queue)
+        await self.notify_queue_update()
 
     async def add_music(
         self,
@@ -189,11 +223,9 @@ class MusicCog(Cog):
         await ctx.typing()
         if ctx.guild:
             music_data_list = await YTMusicData.from_url(link)
-            queue = self.music_queue.get(ctx.guild.id) or []
-            for music_data in music_data_list:
-                queue.append(music_data)
-            await self.update_music_queue(ctx.guild.id, queue)
-            await self.play_channel.put(ctx)
+            await self.add_music_to_queue(ctx.guild.id, music_data_list)
+
+            await self.play_channel.put(ctx.guild.id)
             musics = ", ".join(m.get_title() for m in music_data_list)
             await ctx.send(f"Adicionando à fila: {musics}")
             await self.notify_queue_update()
@@ -364,32 +396,31 @@ class MusicCog(Cog):
         )
         await self.notify_queue_update()
 
-    def _after_stop(self, ctx: Context, err: Exception | None) -> None:
+    def _after_stop(self, guild_id: int, err: Exception | None) -> None:
         """After stop callback.
 
         Args:
-            ctx (Context): Contexto do comando.
+            guild_id (int): Guild ID.
             err (Exception | None): Erro ocorrido ao tocar a música.
 
         """
         loop = asyncio.new_event_loop()
         if err:
-            loop.run_until_complete(
-                ctx.send(f"Um Erro ocorreu ao tocar a música: {err}"),
-            )
-        loop.run_until_complete(self.play_channel.put(ctx))
+            raise CommandError(f"Problema ao tocar a música: {err}")
+        loop.run_until_complete(self.play_channel.put(guild_id))
 
     async def play_loop(self) -> None:
         """Play loop."""
         global idx_count  # noqa: PLW0602
         idx = ++idx_count  # noqa: B002
-        ctx = None
+        guild_id = None
 
         try:
             while True:
-                ctx = await self.play_channel.get()
-                guild_id = get_nested_attr(ctx.guild, "id", -1)
-                voice = await self.join(ctx)
+                guild_id = await self.play_channel.get()
+                voice = self.get_voice_client(guild_id)
+                if not voice:
+                    raise ValueError("Voice client not found")
                 await sleep(0.05)
                 loop_mode = self.loop_map.get(guild_id, LoopMode.OFF)
                 current_music = self.current_music.get(guild_id)
@@ -420,25 +451,26 @@ class MusicCog(Cog):
                                 ctx_temp,
                                 err,
                             ),
-                            ctx_temp=ctx,
+                            ctx_temp=guild_id,
                         ),
                     )
                 await sleep(0.05)
                 await self.notify_queue_update()
 
         except ClientException as e:
-            if ctx:
-                await ctx.send(f"Erro ao tocar a música no worker {idx}: {e}")
-
             task = asyncio.create_task(self.play_loop())
             self.tasks.append(task)
-        except TypeError as e:
-            if ctx:
-                await ctx.send(
+            if guild_id:
+                raise CommandError(
                     f"Problema ao tocar a música no worker {idx}: {e}",
                 )
+        except TypeError as e:
             task = asyncio.create_task(self.play_loop())
             self.tasks.append(task)
+            if guild_id:
+                raise CommandError(
+                    f"Problema ao tocar a música no worker {idx}: {e}",
+                )
 
     @staticmethod
     def select_music_to_play(

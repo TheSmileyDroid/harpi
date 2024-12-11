@@ -29,10 +29,10 @@ function GuildList({ className = "" }: { className?: string }) {
                 {
                   "bg-primary text-white hover:bg-primary/15":
                     guild.id == activeGuild?.id,
-                },
+                }
               )}
             >
-              <h3 className="font-bold">{guild.name}</h3>
+              <h3 className="font-bold text-wrap">{guild.name}</h3>
               {guild.description && ` - ${guild.description}`}
               <span className="m-1">
                 Membros: {guild.approximate_member_count}

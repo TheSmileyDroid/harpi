@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from src.cogs.music import LoopMode, MusicCog
+from src.HarpiLib.musicdata.ytmusicdata import YTMusicData
 from src.models.guild import (
     IGuild,
     IMusic,
@@ -148,7 +149,11 @@ async def add_to_queue(
         )
 
     try:
-        await music_cog.add_music(url, idx=guild_id)
+        await music_cog.add_music_to_queue(
+            guild_id,
+            await YTMusicData.from_url(url),
+        )
+        await music_cog.play_channel.put(guild_id)
     except CommandError as e:
         detail = str(e)
         if "Contexto não encontrado" in detail:
