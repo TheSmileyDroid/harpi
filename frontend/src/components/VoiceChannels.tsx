@@ -7,6 +7,7 @@ import { Button } from "./ui/button";
 
 function VoiceChannels({ className }: { className?: string }) {
   const activeGuild = useStore(store, (state) => state.guild);
+  const musicState = useStore(store, (state) => state.musicState);
 
   const enterVoiceChannel = useMutation({
     mutationKey: ["voice_channels", "enter"],
@@ -25,17 +26,29 @@ function VoiceChannels({ className }: { className?: string }) {
             key={channel.id}
             className="flex border shadow-md m-3 rounded-xl p-3 justify-around content-center gap-3"
           >
-            <span className="my-auto">{channel.name}</span>
+            <span className="w-full my-auto">
+              {channel.name}
+              {channel.id == musicState?.current_voice_channel?.id && (
+                <>
+                  <span className="text-primary mx-2">(Conectado)</span>
+                </>
+              )}
+            </span>
             <Button
               onClick={() => {
                 enterVoiceChannel.mutate(channel.id);
               }}
               variant={"outline"}
               size={"lg"}
-              className={clsx("my-auto")}
+              className={clsx("my-auto", {
+                "bg-primary text-white hover:bg-primary/15":
+                  channel.id == musicState?.current_voice_channel?.id,
+              })}
               isLoading={enterVoiceChannel.isPending}
             >
-              Entrar
+              {channel.id == musicState?.current_voice_channel?.id
+                ? "Reconectar"
+                : "Conectar"}
             </Button>
           </div>
         ))}

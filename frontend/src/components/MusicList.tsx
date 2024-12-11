@@ -5,7 +5,7 @@ import clsx from "clsx";
 import { LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import apiClient from "../api/ApiClient";
-import { store } from "../store";
+import { setMusicState, store } from "../store";
 import MusicCard from "./MusicCard";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -27,6 +27,10 @@ function MusicList({ className }: { className?: string }) {
     enabled: !!activeGuild,
     refetchInterval: 10000,
   });
+
+  useEffect(() => {
+    setMusicState(guildMusicState.data);
+  }, [guildMusicState.data]);
 
   useEffect(() => {
     if (guildMusicState.data?.current_voice_channel) {
