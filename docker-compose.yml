@@ -9,6 +9,7 @@ services:
       - "8000:8000"
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     volumes:
       - .:/app
     restart: unless-stopped

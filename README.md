@@ -5,3 +5,11 @@
  - Dice Roller
  - TTS using external voice
  - (WIP) Voice Recording
+
+## Running
+
+### Development
+
+```bash
+docker compose -f docker-compose.dev.yml up
+```

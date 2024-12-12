@@ -27,6 +27,7 @@ from pydantic import BaseModel
 import src
 import src.routers
 import src.routers.guild
+from src.cogs.ai import AiCog
 from src.cogs.basic import BasicCog
 from src.cogs.dice_cog import DiceCog
 from src.cogs.music import MusicCog
@@ -81,6 +82,7 @@ async def main() -> cd.Bot:
     await client.add_cog(MusicCog(client))
     await client.add_cog(BasicCog())
     await client.add_cog(DiceCog(client))
+    await client.add_cog(AiCog(client))
 
     task = asyncio.create_task(client.start(get_token()))
 
