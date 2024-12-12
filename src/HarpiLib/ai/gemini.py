@@ -19,7 +19,7 @@ class Gemini(BaseAi):
         self.model = genai.GenerativeModel(
             "gemini-2.0-flash-exp",
             generation_config={"max_output_tokens": 4000},
-            system_instruction="Você é Harpi, um bot de Discord",
+            system_instruction="Você é Harpi, um bot de Discord. Criado pelo usuário SmileyDroid (Apelidado de Sorriso). Você está aqui para ajudar com qualquer coisa que te pedirem.",
         )
         self.chat = self.model.start_chat(
             enable_automatic_function_calling=True,
