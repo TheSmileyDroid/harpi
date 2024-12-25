@@ -1,11 +1,12 @@
 """Ai COG."""
 
-from typing import Callable, cast
+from typing import cast
 
 from discord.ext import commands
 
 from src.cogs.music import MusicCog
 from src.HarpiLib.ai.gemini import Gemini
+from src.HarpiLib.ai.tools import AiTools
 from src.HarpiLib.say import say
 
 
@@ -17,27 +18,7 @@ class AiCog(commands.Cog):
         self.music_cog: MusicCog = cast(MusicCog, bot.get_cog("MusicCog"))
         self.ai = Gemini()
         self.ai.reset_chat()
-
-    def get_music_list(self, guild_id: int) -> Callable[[], str]:
-        def get_music_list() -> str:
-            """Get music list.
-
-            Returns
-            -------
-            str
-                Music list.
-            """
-            current = self.music_cog.current_music.get(guild_id, None)
-            musics = self.music_cog.music_queue.get(guild_id, [])
-            return "\n".join(
-                ([f"{0}: {current.title}"] if current else [])
-                + [
-                    f"{idx + 1}: {music.title}"
-                    for idx, music in enumerate(musics)
-                ],
-            )
-
-        return get_music_list
+        self.ai_tools = AiTools(bot)
 
     @commands.command(aliases=["c", ""])
     async def chat(self, ctx: commands.Context, *, message: str) -> None:
@@ -48,9 +29,7 @@ class AiCog(commands.Cog):
 
         response = self.ai.get_response(
             message,
-            [
-                self.get_music_list(guild.id),
-            ],
+            self.ai_tools.get_tools(guild.id),
         )
         slices = [
             response[i : i + 2000] for i in range(0, len(response), 2000)
@@ -67,9 +46,7 @@ class AiCog(commands.Cog):
 
         response = self.ai.get_response(
             message,
-            [
-                self.get_music_list(guild.id),
-            ],
+            self.ai_tools.get_tools(guild.id),
         )
         if len(response) < 1000:
             await say(ctx, response)

@@ -58,7 +58,7 @@ class Gemini(BaseAi):
 
         response = self.chat.send_message(
             message,
-            tools=[current_time] + (tools or []),
+            tools=(tools or []),
         )
 
         for part in response.parts:
@@ -68,20 +68,6 @@ class Gemini(BaseAi):
                 )
                 logging.getLogger("Gemini").info(f"{fn.name}({args})")
         return response.text
-
-
-def current_time() -> str:
-    """Get current time in string format.
-
-    Returns
-    -------
-    str
-        Current time in string format.
-    """
-    current = datetime.datetime.now(
-        tz=datetime.timezone(datetime.timedelta(hours=-3)),
-    )
-    return current.strftime("%d/%m/%Y %H:%M:%S")
 
 
 if __name__ == "__main__":

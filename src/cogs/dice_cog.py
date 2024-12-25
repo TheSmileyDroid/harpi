@@ -33,7 +33,7 @@ class DiceCog(Cog):
         await message.reply(embed=embed)
 
     @command(name="d", aliases=["dado", "rolar", "roll", "r"])
-    async def roll(self, ctx: Context, *, args: str) -> None:  # noqa: D417
+    async def roll(self, ctx: Context, *, args: str) -> None:
         """Comando para rolar dados.
 
         Args:
