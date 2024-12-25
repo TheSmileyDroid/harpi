@@ -1,15 +1,25 @@
 from __future__ import annotations
 
 import datetime
-from collections.abc import Coroutine
-from typing import Any, Callable, cast
+from concurrent.futures import thread
+from typing import TYPE_CHECKING, Any, cast
 
+import discord
+import discord.ext
+import discord.ext.commands
 import wikipediaapi
 from discord import TextChannel
-from discord.ext import commands
+from google.generativeai import types
 
 from src.cogs.music import MusicCog
 from src.HarpiLib.dice.dice_parser import DiceParser
+from src.HarpiLib.musicdata.ytmusicdata import YTMusicData
+
+if TYPE_CHECKING:
+    from discord.ext import commands
+
+
+_pool = thread.ThreadPoolExecutor(4, "ai_tools_")
 
 
 def current_time() -> str:
@@ -32,186 +42,313 @@ wikipedia_client = wikipediaapi.Wikipedia(
 )
 
 
-def get_wikipedia_summary(args: str) -> str:
-    """Get Wikipedia summary based on the search term (Sua fonte mais
-    útil de informações).
-
-    Parameters
-    ----------
-    args : str
-        Wikipedia search term.
-
-    Returns
-    -------
-    str
-        Wikipedia summary.
-    """
-
-    page = wikipedia_client.page(args)
-    if not page.exists():
-        return "Não encontrei nada."
-    return page.summary
-
-
-def get_full_wikipedia_page(args: str) -> str:
-    """Get full Wikipedia page based on the search term.
-
-    Parameters
-    ----------
-    args : str
-        Wikipedia search term.
-
-    Returns
-    -------
-    str
-        Wikipedia page.
-    """
-
-    page = wikipedia_client.page(args)
-    if not page.exists():
-        return "Não encontrei nada."
-    return page.text
-
-
 class AiTools:
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.music_cog: MusicCog = cast(MusicCog, bot.get_cog("MusicCog"))
 
-    def get_music_list(self, guild_id: int) -> Callable[[], str]:
-        def get_music_list() -> str:
-            """Get music list.
-
-            Returns
-            -------
-            str
-                Music list.
-            """
-            current = self.music_cog.current_music.get(guild_id, None)
-            musics = self.music_cog.music_queue.get(guild_id, [])
-            return "\n".join(
-                ([f"{0}: {current.title}"] if current else [])
-                + [
-                    f"{idx + 1}: {music.title}"
-                    for idx, music in enumerate(musics)
-                ],
-            )
-
-        return get_music_list
-
-    def roll_dice(self) -> Callable[[str], str]:
-        def roll_dice(args: str) -> str:
-            """Roll dices based on the input string.
-
-            Parameters
-            ----------
-            args : str
-                The dice string (ex: 2d6 or 1d20+5 or 3#d20+5 for rolling
-                for the best).
-
-            Returns
-            -------
-            str
-                The rolled dices.
-            """
-            parser = DiceParser(args)
-            rows = parser.roll()
-            text = ""
-            for i, row in enumerate(rows):
-                total, results = row
-                for component, result in zip(
-                    parser.component_register[i],
-                    results,
-                ):
-                    text += f"{component[0]}{component[1]}{result}"
-                text += " = " + str(total)
-                if i != len(rows) - 1:
-                    text += "\n"
-
-            return text
-
-        return roll_dice
-
-    def get_guild_members(self, guild_id: int) -> Callable[[], str]:
-        def get_guild_members() -> str:
-            """Get guild members.
-
-            Returns
-            -------
-            str
-                Guild members.
-            """
-            guild = self.bot.get_guild(guild_id)
-            if guild:
-                return "\n".join([
-                    f"- {member.nick} ({member.name})"
-                    for member in guild.members
-                ])
-            return "Não encontrei nada."
-
-        return get_guild_members
-
-    def get_last_messages(
+    async def get_wikipedia_summary(
         self,
-        channel_id: int,
-    ) -> Callable[[], Coroutine[Any, Any, str]]:
-        """Obtém as últimas mensagens do canal.
+        ctx: commands.Context,
+        args: str,
+    ) -> str:
+        """Get Wikipedia summary based on the search term (Sua fonte mais
+        útil de informações).
+
+        Parameters
+        ----------
+        args : str
+            Wikipedia search term.
 
         Returns
         -------
-        Callable[[], str]
-            Função que retorna as últimas mensagens.
+        str
+            Wikipedia summary.
         """
 
-        async def get_last_messages() -> str:
-            """Lê as últimas mensagens do canal.
+        await ctx.send(
+            "*Procurando na wikipedia*",
+            silent=True,
+            delete_after=5.0,
+        )
+        page = wikipedia_client.page(args)
+        if not page.exists():
+            return "<Nenhum resultado encontrado>"
+        return page.summary
 
-            Returns
-            -------
-            str
-                Last messages.
-            """
-
-            async def fetch_messages() -> str:
-                channel = self.bot.get_channel(channel_id)
-                if channel and isinstance(channel, TextChannel):
-                    messages = [
-                        message async for message in channel.history(limit=15)
-                    ]
-                    return "\n".join([
-                        f"- {message.author.name}: {message.content}"
-                        for message in messages
-                    ])
-                return "Não encontrei nada."
-
-            return await fetch_messages()
-
-        return get_last_messages
-
-    async def get_tools(
+    async def get_full_wikipedia_page(
         self,
-        guild_id: int,
-        channel_id: int,
-    ) -> list[Callable[..., str]]:
-        messages = await (self.get_last_messages(channel_id))()
+        ctx: commands.Context,
+        args: str,
+    ) -> str:
+        """Get full Wikipedia page based on the search term.
 
-        def get_message_history() -> str:
-            """Obtém as últimas mensagens do canal.
+        Parameters
+        ----------
+        args : str
+            Wikipedia search term.
 
-            Returns
-            -------
-            str
-                Last messages.
-            """
+        Returns
+        -------
+        str
+            Wikipedia page.
+        """
+        await ctx.send(
+            "*Procurando na wikipedia*",
+            silent=True,
+            delete_after=5.0,
+        )
+        page = wikipedia_client.page(args)
+        if not page.exists():
+            return "<Nenhum resultado encontrado>"
+        return page.text
 
-            return messages
+    async def get_music_list(
+        self,
+        ctx: commands.Context,
+    ) -> str:
+        """Get music list that is playing now.
 
-        return [
-            self.get_music_list(guild_id),
-            self.roll_dice(),
-            current_time,
-            get_wikipedia_summary,
-            get_full_wikipedia_page,
-            self.get_guild_members(guild_id),
-            get_message_history,
-        ]
+        Returns
+        -------
+        str
+            Music list.
+        """
+        await ctx.send(
+            "*Lendo lista de músicas*",
+            silent=True,
+            delete_after=5.0,
+        )
+        guild_id = ctx.channel.guild.id if ctx.channel.guild else 0
+        current = self.music_cog.current_music.get(guild_id, None)
+        musics = self.music_cog.music_queue.get(guild_id, [])
+        return "\n".join(
+            ([f"0: {current.title}"] if current else [])
+            + [
+                f"{idx + 1}: {music.title}" for idx, music in enumerate(musics)
+            ],
+        )
+
+    async def play_music(
+        self,
+        ctx: commands.Context,
+        args: str,
+    ) -> str:
+        """Play music based on the search term.
+
+        Parameters
+        ----------
+        args : str
+            Music search term.
+
+        Returns
+        -------
+        str
+            Music search term.
+        """
+        await ctx.send(
+            "*Procurando música*",
+            silent=True,
+            delete_after=5.0,
+        )
+        guild_id = ctx.channel.guild.id if ctx.channel.guild else 0
+        music_data = await YTMusicData.from_url(args)
+        voice_client = ctx.guild.voice_client if ctx.guild else None
+        if not voice_client:
+            await self.music_cog.connect_to_voice(
+                guild_id,
+                ctx.author.voice.channel,  # type: ignore Discord member
+            )
+
+        await self.music_cog.add_music_to_queue(
+            guild_id,
+            music_data,
+        )
+        await self.music_cog.play_channel.put(guild_id)
+        return f'"{music_data[0].title}" adicionado à fila. ({args})'
+
+    async def roll_dice(
+        self,
+        ctx: commands.Context,
+        args: str,
+    ) -> str:
+        """Roll dices based on the input string.
+
+        Parameters
+        ----------
+        args : str
+            The dice string (ex: 2d6 or 1d20+5 or 3#d20+5 for rolling
+            for the best).
+
+        Returns
+        -------
+        str
+            The rolled dices.
+        """
+        await ctx.send(
+            "*Rolando dados*",
+            silent=True,
+            delete_after=5.0,
+        )
+        parser = DiceParser(args)
+        rows = parser.roll()
+        text = ""
+        for i, row in enumerate(rows):
+            total, results = row
+            for component, result in zip(
+                parser.component_register[i],
+                results,
+            ):
+                text += f"{component[0]}{component[1]}{result}"
+            text += " = " + str(total)
+            if i != len(rows) - 1:
+                text += "\n"
+
+        return text
+
+    async def get_guild_members(
+        self,
+        ctx: commands.Context,
+    ) -> str:
+        """Get guild members.
+
+        Returns
+        -------
+        str
+            Guild members.
+        """
+        guild_id = ctx.channel.guild.id if ctx.channel.guild else 0
+        guild = self.bot.get_guild(guild_id)
+        if guild:
+            return "\n".join([
+                f"- {member.nick} ({member.name})" for member in guild.members
+            ])
+        return "<Nenhum resultado encontrado>"
+
+    async def get_last_messages(
+        self,
+        ctx: discord.ext.commands.Context,
+    ) -> str:
+        """Obtém as últimas mensagens do canal.
+        Mais útil para obter contexto da conversa.
+
+        Returns
+        -------
+        str
+            Last messages.
+        """
+        await ctx.send(
+            "*Lendo mensagens antigas*",
+            silent=True,
+            delete_after=5.0,
+        )
+        channel_id = ctx.channel.id
+        channel = self.bot.get_channel(channel_id)
+        if channel and isinstance(channel, TextChannel):
+            messages = [message async for message in channel.history(limit=15)]
+            return "\n".join([
+                f"- {message.author.name}: {message.content}"
+                for message in messages
+            ])
+
+        return "<Nenhum resultado encontrado>"
+
+    async def call_function(
+        self,
+        ctx: discord.ext.commands.Context,
+        name: str,
+        args: Any,  # noqa: ANN401
+    ) -> Any:  # noqa: ANN401
+        """Call a function by name.
+
+        Parameters
+        ----------
+        name : str
+            Function name.
+        args : Any
+            Function arguments.
+
+        Returns
+        -------
+        Any
+            Function return.
+        """
+        return await getattr(self, name)(ctx, **dict(args))
+
+    def get_tools(
+        self,
+    ) -> types.Tool:
+        return types.Tool(
+            function_declarations=[
+                {
+                    "name": "get_music_list",
+                    "description": "Get music list that is playing now.",
+                },
+                {
+                    "name": "play_music",
+                    "description": "Play music based on the search term.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "string",
+                                "description": "Music search term.",
+                            },
+                        },
+                        "required": ["args"],
+                    },
+                },
+                {
+                    "name": "roll_dice",
+                    "description": "Roll dices based on the input string.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "string",
+                                "description": (
+                                    "The dice string (ex: 2d6, 1d20+5, or 3#d20+5)."
+                                ),
+                            },
+                        },
+                        "required": ["args"],
+                    },
+                },
+                {
+                    "name": "get_wikipedia_summary",
+                    "description": "Get Wikipedia summary based on the search term.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "string",
+                                "description": "Wikipedia search term.",
+                            },
+                        },
+                        "required": ["args"],
+                    },
+                },
+                {
+                    "name": "get_full_wikipedia_page",
+                    "description": "Get full Wikipedia page based on the search term.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "string",
+                                "description": "Wikipedia search term.",
+                            },
+                        },
+                        "required": ["args"],
+                    },
+                },
+                {
+                    "name": "get_guild_members",
+                    "description": "Get guild members.",
+                },
+                {
+                    "name": "get_last_messages",
+                    "description": "Get last messages.",
+                },
+            ],
+        )

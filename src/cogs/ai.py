@@ -28,15 +28,21 @@ class AiCog(commands.Cog):
         if not guild:
             return
 
-        response = self.ai_map.get(guild.id, self.base_ai()).get_response(
-            message,
-            await self.ai_tools.get_tools(guild.id, ctx.channel.id),
-        )
+        async with ctx.typing():
+            response = await self.ai_map.get(
+                guild.id,
+                self.base_ai(),
+            ).get_response(
+                message,
+                ctx,
+                self.ai_tools,
+            )
         slices = [
             response[i : i + 2000] for i in range(0, len(response), 2000)
         ]
         for slice_ in slices:
-            await ctx.send(slice_)
+            if slice_:
+                await ctx.send(slice_)
 
     @commands.command(aliases=[])
     async def fc(self, ctx: commands.Context, *, message: str) -> None:
@@ -44,11 +50,11 @@ class AiCog(commands.Cog):
         guild = ctx.guild
         if not guild:
             return
-
-        response = self.ai_map.get(guild.id, self.base_ai()).get_response(
-            message,
-            await self.ai_tools.get_tools(guild.id, ctx.channel.id),
-        )
+        async with ctx.typing():
+            response = await self.ai_map.get(
+                guild.id,
+                self.base_ai(),
+            ).get_response(message, ctx, self.ai_tools)
         if len(response) < 1000:
             await say(ctx, response)
 

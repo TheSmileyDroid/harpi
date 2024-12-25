@@ -13,6 +13,7 @@ from typing import IO, Any, cast
 import discord
 import yt_dlp
 from discord.opus import Encoder
+from requests import get
 
 from src.errors.bad_link import BadLink
 from src.errors.nothingfound import NothingFoundError
@@ -40,7 +41,7 @@ ytdl_format_options = {
 
 ffmpeg_options: dict[str, Any] = {
     "options": "-vn",
-    "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",  # noqa: E501
+    "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
 }
 
 ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
@@ -137,7 +138,17 @@ def search(arg: str) -> dict[str, Any]:
 
     """
     _start_time = time.time()
-    video = ytdl.extract_info(arg, download=False, process=False)
+
+    try:
+        get(arg, timeout=5)
+    except Exception:  # noqa: BLE001
+        video = ytdl.extract_info(
+            f"ytsearch:{arg}",
+            download=False,
+            process=False,
+        )
+    else:
+        video = ytdl.extract_info(arg, download=False, process=False)
     if video is None:
         raise NothingFoundError(arg)
     logger.info(
@@ -395,7 +406,7 @@ class FastStartFFmpegPCMAudio(discord.FFmpegPCMAudio):
             before_options (str | None, optional): The before options to use. Defaults to None.
             options (str | None, optional): The options to use. Defaults to None.
 
-        """  # noqa: E501
+        """
         if isinstance(before_options, str):
             before_options = (
                 f"{before_options} -analyzeduration 0 -probesize 32"

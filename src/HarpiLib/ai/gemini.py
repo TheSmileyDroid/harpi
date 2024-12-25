@@ -5,16 +5,25 @@ from __future__ import annotations
 import datetime
 import logging
 import os
-from typing import Callable
+from typing import TYPE_CHECKING
 
+import discord
+import discord.ext
 import google.generativeai as genai
+from google.generativeai.types.generation_types import GenerateContentResponse
+from google.protobuf.struct_pb2 import Struct
 
 from src.HarpiLib.ai.base import BaseAi
+
+if TYPE_CHECKING:
+    import discord.ext.commands
+
+    from src.HarpiLib.ai.tools import AiTools
 
 logger = logging.getLogger("Gemini")
 
 logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class Gemini(BaseAi):
@@ -33,29 +42,35 @@ class Gemini(BaseAi):
                 "pesquise na internet antes de responder!"
                 "Sempre use suas funções, elas são realmente uteis "
                 "e podem te ajudar muito."
-                "Sempre use a função de ver o histórico para saber o contexto da conversa."  # noqa: E501
+                "Sempre use a função de ver o histórico para saber o contexto da conversa."
             ),
         )
-        self.chat = self.model.start_chat(
-            enable_automatic_function_calling=True,
-        )
+        self.chat = self.model.start_chat()
         self.chat_starting_time = datetime.datetime.now(
             tz=datetime.timezone(datetime.timedelta(hours=-3)),
         )
 
     def reset_chat(self) -> None:
         """Reset chat session."""
-        self.chat = self.model.start_chat(
-            enable_automatic_function_calling=True,
-        )
+        self.chat = self.model.start_chat()
         self.chat_starting_time = datetime.datetime.now(
             tz=datetime.timezone(datetime.timedelta(hours=-3)),
         )
 
-    def get_response(
+    @staticmethod
+    def _has_function_call(
+        response: GenerateContentResponse,
+    ) -> bool:
+        for part in response.candidates[0].content.parts:
+            if part.function_call:
+                return True
+        return False
+
+    async def get_response(
         self,
         message: str,
-        tools: list[Callable] | None = None,
+        ctx: discord.ext.commands.Context,
+        tools: AiTools,
     ) -> str:
         """Get response from Gemini AI.
 
@@ -71,22 +86,42 @@ class Gemini(BaseAi):
 
         """
 
-        response = self.chat.send_message(
-            message,
-            tools=(tools or []),
+        response: GenerateContentResponse = self.chat.send_message(
+            f"{ctx.author.display_name}({ctx.author.name}): {message}",
+            tools=(tools.get_tools() or []),
         )
 
-        for part in response.parts:
-            if fn := part.function_call:
-                args = ", ".join(
-                    f"{key}={val}" for key, val in fn.args.items()
-                )
-                print(f"Calling {fn.name}({args})")  # noqa: T201
-                logger.info(f"Calling {fn.name}({args})")
+        logger.info(response.candidates[0].content.parts)
+
+        while self._has_function_call(response):
+            for part in response.candidates[0].content.parts:
+                if fn := part.function_call:
+                    try:
+                        result = await tools.call_function(
+                            ctx,
+                            fn.name,
+                            fn.args.items(),
+                        )
+                    except Exception as e:  # noqa: BLE001
+                        logger.error(e)
+                        result = str(e)
+                    s = Struct()
+                    s.update({"result": result})
+                    function_response = genai.protos.Part(
+                        function_response=genai.protos.FunctionResponse(
+                            name=fn.name,
+                            response=s,
+                        ),
+                    )
+                    response = self.chat.send_message(function_response)
+                else:
+                    if part.text and len(part.text) > 0:
+                        if part.text == "\n":
+                            await ctx.send("*Em silêncio*", silent=True)
+                        else:
+                            await ctx.send(part.text)
         return response.text
 
 
 if __name__ == "__main__":
     ai = Gemini()
-    print(ai.get_response("Hello!"))  # noqa: T201
-    print(ai.get_response("Which time is now? "))  # noqa: T201
