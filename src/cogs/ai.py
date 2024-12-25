@@ -16,9 +16,10 @@ class AiCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         super().__init__()
         self.music_cog: MusicCog = cast(MusicCog, bot.get_cog("MusicCog"))
-        self.ai = Gemini()
-        self.ai.reset_chat()
+        self.ai_map: dict[int, Gemini] = {}
         self.ai_tools = AiTools(bot)
+
+        self.base_ai = Gemini
 
     @commands.command(aliases=["c", ""])
     async def chat(self, ctx: commands.Context, *, message: str) -> None:
@@ -27,9 +28,9 @@ class AiCog(commands.Cog):
         if not guild:
             return
 
-        response = self.ai.get_response(
+        response = self.ai_map.get(guild.id, self.base_ai()).get_response(
             message,
-            self.ai_tools.get_tools(guild.id),
+            await self.ai_tools.get_tools(guild.id, ctx.channel.id),
         )
         slices = [
             response[i : i + 2000] for i in range(0, len(response), 2000)
@@ -44,9 +45,9 @@ class AiCog(commands.Cog):
         if not guild:
             return
 
-        response = self.ai.get_response(
+        response = self.ai_map.get(guild.id, self.base_ai()).get_response(
             message,
-            self.ai_tools.get_tools(guild.id),
+            await self.ai_tools.get_tools(guild.id, ctx.channel.id),
         )
         if len(response) < 1000:
             await say(ctx, response)
@@ -60,5 +61,7 @@ class AiCog(commands.Cog):
     @commands.command()
     async def reset_chat(self, ctx: commands.Context) -> None:
         """Reset chat session."""
-        self.ai.reset_chat()
-        await ctx.send("Chat resetado.")
+        guild = ctx.guild
+        if guild:
+            self.ai_map.get(guild.id, self.base_ai()).reset_chat()
+            await ctx.send("Chat resetado.")

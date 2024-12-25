@@ -10,3 +10,4 @@ uvicorn[standard]
 websockets
 strawberry-graphql[fastapi]
 google-generativeai
+wikipedia-api
