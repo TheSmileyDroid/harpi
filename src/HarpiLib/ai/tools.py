@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import datetime
-from concurrent.futures import thread
 from typing import TYPE_CHECKING, Any, cast
 
 import discord
 import discord.ext
 import discord.ext.commands
 import wikipediaapi
-from discord import TextChannel
+from discord import Message, TextChannel
 from google.generativeai import types
 
 from src.cogs.music import MusicCog
@@ -17,9 +16,6 @@ from src.HarpiLib.musicdata.ytmusicdata import YTMusicData
 
 if TYPE_CHECKING:
     from discord.ext import commands
-
-
-_pool = thread.ThreadPoolExecutor(4, "ai_tools_")
 
 
 def current_time() -> str:
@@ -245,9 +241,11 @@ class AiTools:
         channel_id = ctx.channel.id
         channel = self.bot.get_channel(channel_id)
         if channel and isinstance(channel, TextChannel):
-            messages = [message async for message in channel.history(limit=15)]
+            messages: list[Message] = [
+                message async for message in channel.history(limit=30)
+            ]
             return "\n".join([
-                f"- {message.author.name}: {message.content}"
+                f"[{message.created_at} - {message.author.display_name} ({message.author.name})] : {message.content}"
                 for message in messages
             ])
 
@@ -348,7 +346,10 @@ class AiTools:
                 },
                 {
                     "name": "get_last_messages",
-                    "description": "Get last messages.",
+                    "description": (
+                        "Get the last 30 messages of the current channel."
+                        " It is useful to know exactaly whats is happening if you are not sure."
+                    ),
                 },
             ],
         )

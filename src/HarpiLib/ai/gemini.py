@@ -5,18 +5,26 @@ from __future__ import annotations
 import datetime
 import logging
 import os
+import pathlib
 from typing import TYPE_CHECKING
 
 import discord
 import discord.ext
+import discord.ext.commands
 import google.generativeai as genai
-from google.generativeai.types.generation_types import GenerateContentResponse
+import PIL
+import PIL.Image
 from google.protobuf.struct_pb2 import Struct
 
 from src.HarpiLib.ai.base import BaseAi
 
 if TYPE_CHECKING:
-    import discord.ext.commands
+    from google.generativeai.types.content_types import (
+        ContentsType,
+    )
+    from google.generativeai.types.generation_types import (
+        GenerateContentResponse,
+    )
 
     from src.HarpiLib.ai.tools import AiTools
 
@@ -38,11 +46,13 @@ class Gemini(BaseAi):
                 "Criado pelo usuário SmileyDroid (Apelidado de Sorriso). "
                 "Você está aqui para ajudar com qualquer coisa que te pedirem."
                 "Seja gentil e animado. Extrapole bastante e divirta-se!"
-                "Evite dar informações falsas, "
-                "pesquise na internet antes de responder!"
+                "Evite dar informações falsas, pesquise quando for simples de fazer uma query da wikipedia."
+                "Quando for solicitado, você pode chutar alguma resposta próxima."
                 "Sempre use suas funções, elas são realmente uteis "
                 "e podem te ajudar muito."
-                "Sempre use a função de ver o histórico para saber o contexto da conversa."
+                "Tente não formular respostas muito longas, "
+                "apenas o suficiente para responder a pergunta."
+                "Atenção a forma de chamr funções!"
             ),
         )
         self.chat = self.model.start_chat()
@@ -86,40 +96,75 @@ class Gemini(BaseAi):
 
         """
 
+        images = ctx.message.attachments
+
+        history = [history async for history in ctx.history(limit=5)]
+
+        content: ContentsType = [
+            f"[{old_message.created_at} - {old_message.author.display_name}({old_message.author.name})]: {old_message.content}"
+            for old_message in history
+        ] + [
+            f"[{ctx.message.created_at} - {ctx.author.display_name}({ctx.author.name})][{[image.filename for image in images]}]: {message}",
+        ]
+
+        if reference := ctx.message.reference:
+            resolved = reference.resolved
+            if isinstance(resolved, discord.Message):
+                content.append(
+                    f"> [{resolved.created_at} - {resolved.author.display_name}({resolved.author.name})][{[image.filename for image in resolved.attachments]}]: {resolved.content}",
+                )
+                images.extend(resolved.attachments)
+
+        for image in images:
+            pathlib.Path("temp").mkdir(exist_ok=True)
+            await image.save(
+                pathlib.Path("temp") / pathlib.Path(image.filename),
+            )
+            file = PIL.Image.open(
+                pathlib.Path("temp") / pathlib.Path(image.filename),
+            )
+            content.append(file)  # type: ignore Image
+
         response: GenerateContentResponse = self.chat.send_message(
-            f"{ctx.author.display_name}({ctx.author.name}): {message}",
+            content,
             tools=(tools.get_tools() or []),
         )
 
         logger.info(response.candidates[0].content.parts)
 
-        while self._has_function_call(response):
-            for part in response.candidates[0].content.parts:
-                if fn := part.function_call:
-                    try:
-                        result = await tools.call_function(
-                            ctx,
-                            fn.name,
-                            fn.args.items(),
+        try:
+            while self._has_function_call(response):
+                for part in response.candidates[0].content.parts:
+                    if fn := part.function_call:
+                        try:
+                            result = await tools.call_function(
+                                ctx,
+                                fn.name,
+                                fn.args.items(),
+                            )
+                        except Exception as e:  # noqa: BLE001
+                            logger.error(e)
+                            result = str(e)
+                        s = Struct()
+                        s.update({"result": result})
+                        function_response = genai.protos.Part(
+                            function_response=genai.protos.FunctionResponse(
+                                name=fn.name,
+                                response=s,
+                            ),
                         )
-                    except Exception as e:  # noqa: BLE001
-                        logger.error(e)
-                        result = str(e)
-                    s = Struct()
-                    s.update({"result": result})
-                    function_response = genai.protos.Part(
-                        function_response=genai.protos.FunctionResponse(
-                            name=fn.name,
-                            response=s,
-                        ),
-                    )
-                    response = self.chat.send_message(function_response)
-                else:
-                    if part.text and len(part.text) > 0:
-                        if part.text == "\n":
-                            await ctx.send("*Em silêncio*", silent=True)
-                        else:
-                            await ctx.send(part.text)
+                        response = self.chat.send_message(function_response)
+                    else:
+                        if part.text and len(part.text) > 0:
+                            if part.text == "\n":
+                                await ctx.send("*Em silêncio*", silent=True)
+                            else:
+                                await ctx.send(part.text)
+        except Exception as e:  # noqa: BLE001
+            logger.error(e)
+            response = self.chat.send_message(
+                f'[Erro: "{e}"]',
+            )
         return response.text
 
 
