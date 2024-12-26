@@ -10,7 +10,7 @@ docstring-code-line-length = 20
 [tool.ruff]
 line-length = 79
 select = ["ALL"]
-ignore = ["PLR", "TRY", "EM", "CPY001", "G", "UP007", "D", "S101", "E501"]
+ignore = ["PLR", "TRY", "EM", "CPY001", "G", "UP007", "D", "S101", "E501", "DTZ005"]
 exclude = [
     ".bzr",
     ".direnv",
