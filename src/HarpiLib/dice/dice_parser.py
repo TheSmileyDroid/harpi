@@ -69,9 +69,13 @@ class DiceParser:
         ...     "2#d"
         ... )
         True
+        >>> DiceParser.is_valid_dice_string("2d6*2")
+        True
+        >>> DiceParser.is_valid_dice_string("2d6/2")
+        True
 
         """
-        pattern = r"^([+-]?[#]?(\d*d\d*|\d+))+$"
+        pattern = r"^([+-]?[#]?(\d*d\d*|\d+)([*/][+-]?(\d*d\d*|\d+))*)+$"
         return re.match(pattern, dice_string.replace(" ", "")) is not None
 
     def _parse(self) -> None:
@@ -97,7 +101,7 @@ class DiceParser:
 
         for i in range(count_of_rows):
             components.append([])
-            pattern = r"([+-]?)(\d*d?\d*)"
+            pattern = r"([+-]?[*/]?)(\d*d?\d*)"
             matches = re.findall(
                 pattern,
                 _dice_tring,
@@ -163,19 +167,35 @@ class DiceParser:
 
         for components in self.component_register:
             total = 0
+            current_op = "+"
             results: list[str] = []
+            
             for sign, component in components:
                 rolls, result = component.roll()
-                if sign == "-":
+                
+                if sign.endswith("*"):
+                    total *= result
+                    current_op = "*"
+                elif sign.endswith("/"):
+                    total = total // result if total else result
+                    current_op = "/"
+                elif sign == "-":
                     total -= result
+                    current_op = "-"
                 else:
-                    total += result
+                    if current_op in ["*", "/"]:
+                        total = result
+                    else:
+                        total += result
+                    current_op = "+"
+                
                 if component.sides != 0:
                     results.append(
                         f"[{self._format_rolls(rolls, component.sides)}]",
                     )
                 else:
                     results.append("")
+            
             row_results.append((total, results))
         return row_results
 
