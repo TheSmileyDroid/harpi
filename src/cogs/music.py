@@ -135,7 +135,7 @@ class MusicCog(Cog):
         if not channel or not isinstance(channel, discord.VoiceChannel):
             raise ValueError("Canal de voz não encontrado")
 
-        voice: VoiceClient = cast(VoiceClient, guild.voice_client)
+        voice: VoiceClient = cast("VoiceClient", guild.voice_client)
         if voice:
             await voice.disconnect()
 
@@ -155,7 +155,7 @@ class MusicCog(Cog):
         """
         if (
             ctx.guild
-            and (voice := cast(Member, ctx.author).voice)
+            and (voice := cast("Member", ctx.author).voice)
             and voice.channel
         ):
             await self.connect_to_voice(
@@ -392,7 +392,7 @@ class MusicCog(Cog):
             (f"**{m.get_title()}**" for m in music_data_list),
         )
         await ctx.send(
-            f"{current_music_str}\nFila atual ({len(music_data_list)}): \n{list_str}",  # noqa: E501
+            f"{current_music_str}\nFila atual ({len(music_data_list)}): \n{list_str}",
         )
         await self.notify_queue_update()
 
@@ -521,5 +521,5 @@ class MusicCog(Cog):
         if bot:
             guild = bot.get_guild(guild_id)
             if guild:
-                return cast(VoiceClient, guild.voice_client)
+                return cast("VoiceClient", guild.voice_client)
         return None

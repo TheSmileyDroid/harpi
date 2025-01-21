@@ -1,7 +1,7 @@
 """RPG Dice Cog module."""
 
 import discord.ext.commands
-from discord import Embed, Message
+from discord import Message
 from discord.ext.commands import Cog, command
 from discord.ext.commands.context import Context
 
@@ -29,8 +29,8 @@ class DiceCog(Cog):
         if not DiceParser.is_valid_dice_string(message.content):
             return
         parser = DiceParser(message.content)
-        embed = self.generate_embed(parser)
-        await message.reply(embed=embed)
+        response = self.generate_response(parser)
+        await message.reply(response)
 
     @command(name="d", aliases=["dado", "rolar", "roll", "r"])
     async def roll(self, ctx: Context, *, args: str) -> None:
@@ -44,12 +44,12 @@ class DiceCog(Cog):
 
         """
         parser = DiceParser(args)
-        embed = self.generate_embed(parser)
-        await ctx.reply(embed=embed)
+        response = self.generate_response(parser)
+        await ctx.reply(response)
 
     @staticmethod
-    def generate_embed(parser: DiceParser) -> Embed:
-        """Generate an embed with the rolled dice.
+    def generate_response(parser: DiceParser) -> str:
+        """Generate a text response with the rolled dice.
 
         Parameters
         ----------
@@ -58,21 +58,26 @@ class DiceCog(Cog):
 
         Returns
         -------
-        Embed
-            _description_
-
+        str
+            Formatted string with roll results
         """
         rows = parser.roll()
-        text = ""
+        text = "\n"
         for i, row in enumerate(rows):
             total, results = row
+            roll_text = ""
+
             for component, result in zip(
                 parser.component_register[i],
                 results,
             ):
-                text += f"{component[0]}{component[1]}{result}"
-            text += " = " + str(total)
+                if isinstance(result, (int, float)):
+                    roll_text = f"[{result}] {component[0]}{component[1]}"
+                else:
+                    roll_text += f"{component[0]}{component[1]}{result}"
+
+            text += f"` {total} ` ⟵ {roll_text}"
             if i != len(rows) - 1:
                 text += "\n"
-        embed: Embed = Embed(color=0x00DD33).add_field(name="", value=text)
-        return embed
+        text += "\n"
+        return text
