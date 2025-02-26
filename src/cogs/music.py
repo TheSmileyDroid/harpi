@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import enum
+import logging
 from asyncio import sleep
 from asyncio.queues import Queue
 from functools import partial
@@ -24,6 +25,8 @@ from src.HarpiLib.musicdata.ytmusicdata import (
 )
 from src.HarpiLib.nested import get_nested_attr
 from src.websocket import manager
+
+logger = logging.getLogger(__name__)
 
 
 class LoopMode(enum.Enum):
@@ -440,20 +443,27 @@ class MusicCog(Cog):
                 await self.notify_queue_update()
 
                 if music_to_play:
-                    voice.play(
-                        AudioSourceTracked(
-                            await YoutubeDLSource.from_music_data(
-                                music_to_play,
+                    try:
+                        # Criar a fonte de áudio
+                        audio_source = await YoutubeDLSource.from_music_data(
+                            music_to_play,
+                        )
+                        # Envolve-la com o AudioSourceTracked
+                        tracked_source = AudioSourceTracked(audio_source)
+                        # Reproduzir o áudio
+                        voice.play(
+                            tracked_source,
+                            after=partial(
+                                lambda err, ctx_temp: self._after_stop(
+                                    ctx_temp,
+                                    err,
+                                ),
+                                ctx_temp=guild_id,
                             ),
-                        ),
-                        after=partial(
-                            lambda err, ctx_temp: self._after_stop(
-                                ctx_temp,
-                                err,
-                            ),
-                            ctx_temp=guild_id,
-                        ),
-                    )
+                        )
+                    except Exception as e:
+                        logger.error(f"Erro ao reproduzir música: {e}")
+                        await self.play_channel.put(guild_id)
                 await sleep(0.05)
                 await self.notify_queue_update()
 

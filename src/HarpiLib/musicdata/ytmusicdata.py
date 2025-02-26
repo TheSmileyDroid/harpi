@@ -18,22 +18,22 @@ from requests import get
 from src.errors.bad_link import BadLink
 from src.errors.nothingfound import NothingFoundError
 
-yt_dlp.utils.bug_reports_message = lambda: ""
+logger = logging.getLogger(__name__)
+
+
+yt_dlp.utils.bug_reports_message = lambda: logger.warning(
+    "Please report this issue",
+)
 
 ytdl_format_options = {
-    "format": "bestaudio/best",
-    "outtmpl": "%(extractor)s-%(id)s-%(title)s.%(ext)s",
-    "downloader": "aria2c",
+    "format": "140",
+    "outtmpl": ".audios/%(extractor)s-%(id)s-%(title)s.%(ext)s",
     "restrictfilenames": True,
     "noplaylist": False,
     "extract_flat": True,
-    "nocheckcertificate": True,
-    "ignoreerrors": False,
-    "logtostderr": True,
-    "quiet": False,
+    "verbose": True,
     "no_warnings": False,
     "default_search": "auto_warning",
-    "source_address": "0.0.0.0",  # noqa: S104
     "concurrent-fragments": 8,
     "flat-playlist": True,
     "cookiefile": "cookies.txt",
@@ -45,8 +45,6 @@ ffmpeg_options: dict[str, Any] = {
 }
 
 ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
-
-logger = logging.getLogger(__name__)
 
 
 class AudioSourceTracked(discord.AudioSource):
@@ -105,19 +103,16 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
         loop = asyncio.get_event_loop()
         data = await loop.run_in_executor(
             None,
-            lambda: ytdl.extract_info(musicdata.get_url(), download=False),
+            lambda: ytdl.extract_info(musicdata.get_url(), download=True),
         )
         if data is None:
             raise BadLink(musicdata.get_url())
         if "entries" in data:
             data = data["entries"][0]
-        filename = (
-            data["url"] if "url" in data else ytdl.prepare_filename(data)
-        )
+
         return cls(
-            FastStartFFmpegPCMAudio(
-                cast(io.BufferedIOBase, filename),
-                **ffmpeg_options,
+            FFmpegPCMAudio(
+                source=data.get("requested_downloads")[0].get("filepath"),
             ),
             data=data,
             volume=volume,
@@ -144,11 +139,11 @@ def search(arg: str) -> dict[str, Any]:
     except Exception:  # noqa: BLE001
         video = ytdl.extract_info(
             f"ytsearch:{arg}",
-            download=False,
+            download=True,
             process=False,
         )
     else:
-        video = ytdl.extract_info(arg, download=False, process=False)
+        video = ytdl.extract_info(arg, download=True, process=False)
     if video is None:
         raise NothingFoundError(arg)
     logger.info(
@@ -324,7 +319,7 @@ class FFmpegPCMAudio(discord.AudioSource):
         args: list[str] = [executable]
         if isinstance(before_options, str):
             args.extend(shlex.split(before_options))
-        args.extend(("-i", cast(str, "-" if pipe else source)))
+        args.extend(("-i", cast("str", "-" if pipe else source)))
         args.extend((
             "-f",
             "s16le",
@@ -347,7 +342,7 @@ class FFmpegPCMAudio(discord.AudioSource):
                 stderr=stderr,
             )
             self._stdout = io.BytesIO(
-                self._process.communicate(input=cast(bytes, stdin))[0],
+                self._process.communicate(input=cast("bytes", stdin))[0],
             )
         except FileNotFoundError:
             raise discord.ClientException(
@@ -396,29 +391,19 @@ class FastStartFFmpegPCMAudio(discord.FFmpegPCMAudio):
         before_options: str | None = None,
         options: str | None = None,
     ) -> None:
-        """Create a FFmpegPCMAudio instance.
-
-        Args:
-            source (io.BufferedIOBase): The source of the audio.
-            executable (str, optional): The executable to use. Defaults to "ffmpeg".
-            pipe (bool, optional): Whether to pipe the audio. Defaults to False.
-            stderr (io.TextIOWrapper | None, optional): The stderr to use. Defaults to None.
-            before_options (str | None, optional): The before options to use. Defaults to None.
-            options (str | None, optional): The options to use. Defaults to None.
-
-        """
+        """Create a FFmpegPCMAudio instance."""
         if isinstance(before_options, str):
             before_options = (
-                f"{before_options} -analyzeduration 0 -probesize 32"
+                f"{before_options} -analyzeduration 1000000 -probesize 1000000"
             )
         else:
-            before_options = "-analyzeduration 0 -probesize 32"
+            before_options = "-analyzeduration 1000000 -probesize 1000000"
 
         super().__init__(
             source,
             executable=executable,
             pipe=pipe,
-            stderr=cast(IO[bytes], stderr),
+            stderr=cast("IO[bytes]", stderr),
             before_options=before_options,
             options=options,
         )

@@ -33,6 +33,9 @@ from src.cogs.dice_cog import DiceCog
 from src.cogs.music import MusicCog
 from src.cogs.tts import TTSCog
 from src.websocket import manager as websocketmanager
+from dotenv import load_dotenv
+
+load_dotenv()
 
 terminal_logger = logging.StreamHandler()
 # noinspection SpellCheckingInspection

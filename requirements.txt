@@ -12,3 +12,4 @@ strawberry-graphql[fastapi]
 google-generativeai
 wikipedia-api
 pillow
+python-dotenv
