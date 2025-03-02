@@ -12,6 +12,7 @@ import discord
 import discord.ext
 import discord.ext.commands
 import discord.ext.commands as cd
+from dotenv import load_dotenv
 from fastapi import (
     APIRouter,
     FastAPI,
@@ -33,7 +34,6 @@ from src.cogs.dice_cog import DiceCog
 from src.cogs.music import MusicCog
 from src.cogs.tts import TTSCog
 from src.websocket import manager as websocketmanager
-from dotenv import load_dotenv
 
 load_dotenv()
 

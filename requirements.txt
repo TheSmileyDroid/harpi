@@ -13,3 +13,6 @@ google-generativeai
 wikipedia-api
 pillow
 python-dotenv
+mcstatus
+psutil
+pytz
