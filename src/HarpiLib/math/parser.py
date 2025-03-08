@@ -169,7 +169,9 @@ class DiceParser:
 
         # For separate roll handling (like the example with 2#d6+2)
         if separate_rolls:
-            roll_text = f"1d{sides}"
+            roll_text = (
+                f"{count}#d{sides}"  # Preserve the # notation in the result
+            )
 
         return RollResult(total, [(rolls, roll_text)], str(total))
 
@@ -187,47 +189,114 @@ class DiceParser:
 
         # For handling multiple separate dice rolls (#)
         if "#" in original_expression:
-            dice_match = re.search(r"(\d+)#d(\d+)", original_expression)
-            if dice_match:
-                count = int(dice_match.group(1))
-                sides = int(dice_match.group(2))
+            dice_matches = re.findall(r"(\d+)#d(\d+)", original_expression)
+
+            # Process each #d pattern
+            for count_str, sides_str in dice_matches:
+                count = int(count_str)
+                sides = int(sides_str)
 
                 # Replace the #d syntax with regular dice for evaluation
-                modified_expr = original_expression.replace(
-                    f"{count}#d{sides}", f"1d{sides}"
+                modified_expr = re.sub(
+                    f"{count}#d{sides}",
+                    f"1d{sides}",
+                    original_expression,
+                    count=1,
                 )
 
                 # Perform multiple separate rolls
                 for i in range(count):
-                    roll_result = self.parse(modified_expr)
-                    roll_details = ""
+                    single_roll_result = self.parse(modified_expr)
 
-                    for rolls, notation in roll_result.rolls:
-                        roll_value = rolls[
-                            0
-                        ]  # Only one die per roll in this case
-                        # Bold formatting for max rolls
-                        if roll_value == sides:
-                            roll_str = f"[**{roll_value}**]"
-                        else:
-                            roll_str = f"[{roll_value}]"
-                        roll_details += f"{roll_str} {notation}"
+                    # Extract the dice roll result
+                    for rolls, notation in single_roll_result.rolls:
+                        if (
+                            "d" + sides_str in notation
+                        ):  # Find the specific dice we're interested in
+                            roll_value = rolls[
+                                0
+                            ]  # Only one die per roll in this case
 
-                    # Add the rest of the expression
-                    full_details = f"{roll_details} {modified_expr.replace('1d' + str(sides), '')}"
-                    output_lines.append(
-                        f"` {roll_result.value} ` ⟵ {full_details.strip()}"
+                            # Bold formatting for max rolls
+                            if roll_value == sides:
+                                roll_str = f"[**{roll_value}**]"
+                            else:
+                                roll_str = f"[{roll_value}]"
+
+                            # Get the rest of the expression by removing the dice part
+                            rest_of_expr = modified_expr.replace(
+                                f"1d{sides}", ""
+                            ).strip()
+
+                            # Format the output based on whether there's additional math
+                            if rest_of_expr:
+                                output_lines.append(
+                                    f"` {single_roll_result.value} ` ⟵ {roll_str} 1d{sides} {rest_of_expr}"
+                                )
+                            else:
+                                output_lines.append(
+                                    f"` {single_roll_result.value} ` ⟵ {roll_str} 1d{sides}"
+                                )
+                            break
+
+                # Add total line if multiple rolls
+                if count > 1:
+                    total_value = sum(
+                        self.parse(modified_expr).value for _ in range(count)
                     )
-        else:
-            # Regular single evaluation
-            roll_details = ""
-            for rolls, notation in result.rolls:
-                roll_str = f"[{', '.join(str(r) for r in rolls)}]"
-                roll_details += f"{roll_str} {notation} "
+                    output_lines.append(f" Total: {total_value}")
 
-            output_lines.append(
-                f"` {result.value} ` ⟵ {roll_details}{original_expression}"
+        else:
+            # Regular single evaluation with proper formatting
+            if not result.rolls:
+                # For pure math expressions without dice
+                output_lines.append(
+                    f"` {result.value} ` ⟵ {original_expression}"
+                )
+                return "\n".join(output_lines)
+
+            # Map dice notations to their formatted results
+            dice_map = {}
+            for rolls, notation in result.rolls:
+                # Format rolls with bold for max values
+                formatted_roll_values = []
+                sides = int(notation.split("d")[1]) if "d" in notation else 0
+
+                for roll in rolls:
+                    if roll == sides:
+                        formatted_roll_values.append(f"**{roll}**")
+                    else:
+                        formatted_roll_values.append(str(roll))
+
+                roll_str = f"[{', '.join(formatted_roll_values)}] {notation}"
+                dice_map[notation] = roll_str
+
+            # Format the expression by replacing dice notations with their results
+            formatted_expr = original_expression
+
+            # Sort dice notations by length (descending) to avoid partial replacements
+            dice_notations = sorted(dice_map.keys(), key=len, reverse=True)
+
+            # Replace each dice notation with its formatted result
+            for dice in dice_notations:
+                # Only replace complete dice notations (not partial matches)
+                pattern = re.compile(r"\b" + re.escape(dice) + r"\b")
+                formatted_expr = pattern.sub(dice_map[dice], formatted_expr)
+
+            # Replace math operators with spaces around them for better readability
+            for op in self.operators.keys():
+                if op in formatted_expr:
+                    formatted_expr = formatted_expr.replace(op, f" {op} ")
+
+            # Clean up extra spaces
+            formatted_expr = re.sub(r"\s+", " ", formatted_expr).strip()
+
+            # For expressions with parentheses, maintain them
+            formatted_expr = formatted_expr.replace("( ", "(").replace(
+                " )", ")"
             )
+
+            output_lines.append(f"` {result.value} ` ⟵ {formatted_expr}")
 
         return "\n".join(output_lines)
 
@@ -243,5 +312,7 @@ if __name__ == "__main__":
     # Additional examples
     print(parser.roll("3d6 + 4"))
     print(parser.roll("(1d20 + 5) * 2"))
-    print(parser.roll("2d4 + 3d6 - 1"))
+    print(parser.roll("2d4 + 3d6 - 1 + 4 * 0"))
     print(parser.roll("1d100 // 10"))
+    print(parser.roll("5 + 3 * 2"))  # Pure math test
+    print(parser.roll("(7-2) ^ 2"))  # Testing exponentiation
