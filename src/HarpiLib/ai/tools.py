@@ -11,7 +11,6 @@ from discord import Message, TextChannel
 from google.generativeai import types
 
 from src.cogs.music import MusicCog
-from src.HarpiLib.dice.dice_parser import DiceParser
 from src.HarpiLib.musicdata.ytmusicdata import YTMusicData
 
 if TYPE_CHECKING:
