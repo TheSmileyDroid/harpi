@@ -36,7 +36,11 @@ class DiceParser:
 
     def is_valid_dice_string(self, expression):
         """Check if the string is a valid dice expression"""
-        return bool(self.dice_pattern.match(expression))
+        try:
+            self.parse(expression)
+            return True
+        except Exception:
+            return False
 
     def _evaluate_expression(self, tokens):
         """Evaluate the expression using recursive descent parsing"""
