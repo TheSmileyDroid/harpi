@@ -31,7 +31,9 @@ class DiceCog(Cog):
         response = parser.roll(message.content)
         await message.reply(response)
 
-    @command(name="d", aliases=["dado", "rolar", "roll", "r"])
+    @command(
+        name="d", aliases=["dado", "rolar", "roll", "r", "math", "calc", "m"]
+    )
     async def roll(self, ctx: Context, *, args: str) -> None:
         """Comando para rolar dados.
 
