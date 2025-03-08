@@ -239,13 +239,12 @@ class DiceParser:
                                 )
                             break
 
-                # Add total line if multiple rolls
+                # Add greater value if multiple rolls
                 if count > 1:
-                    total_value = sum(
+                    max_value = max(
                         self.parse(modified_expr).value for _ in range(count)
                     )
-                    output_lines.append(f" Total: {total_value}")
-
+                    output_lines.append(f"Max: {max_value}")
         else:
             # Regular single evaluation with proper formatting
             if not result.rolls:
