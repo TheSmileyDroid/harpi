@@ -56,8 +56,6 @@ async def ask(question: str) -> Answer:
 
     history = await agent.run()
 
-    print("History:", history)
-
     result = history.final_result()
 
     if result:
