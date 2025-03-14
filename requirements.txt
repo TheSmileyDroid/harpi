@@ -16,3 +16,5 @@ python-dotenv
 mcstatus
 psutil
 pytz
+browser-use
+langchain-google-genai

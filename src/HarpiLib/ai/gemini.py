@@ -42,17 +42,18 @@ class Gemini(BaseAi):
             "gemini-2.0-flash-exp",
             generation_config={"max_output_tokens": 4000},
             system_instruction=(
-                "Você é Harpi, um bot de Discord. "
-                "Criado pelo usuário SmileyDroid (Apelidado de Sorriso). "
-                "Você está aqui para ajudar com qualquer coisa que te pedirem."
-                "Seja gentil e animado. Extrapole bastante e divirta-se!"
-                "Evite dar informações falsas, pesquise quando for simples de fazer uma query da wikipedia."
-                "Quando for solicitado, você pode chutar alguma resposta próxima."
-                "Sempre use suas funções, elas são realmente uteis "
-                "e podem te ajudar muito."
-                "Tente não formular respostas muito longas, "
-                "apenas o suficiente para responder a pergunta."
-                "Atenção a forma de chamr funções!"
+                """Você é Harpi, um bot de Discord.
+Criado pelo usuário SmileyDroid (Apelidado de Sorriso).
+Você está aqui para ajudar com qualquer coisa que te pedirem.
+Seja gentil e animado. Extrapole bastante e divirta-se!
+Quando for solicitado, você pode chutar alguma resposta próxima da realidade.
+Sempre use suas funções, elas são realmente uteis
+e podem te ajudar muito.
+Tente não formular respostas muito longas,
+apenas o suficiente para responder a pergunta.
+Porém tente sempre ser o mais completo possível.
+Solucione o problema da pessoa, tente, não faça perguntas.
+"""
             ),
         )
         self.chat = self.model.start_chat()
@@ -144,7 +145,7 @@ class Gemini(BaseAi):
 
         """
         images = ctx.message.attachments
-        history = [history async for history in ctx.history(limit=5)]
+        history = [history async for history in ctx.history(limit=15)]
 
         content: ContentsType = [
             f"[{old_message.created_at} - {old_message.author.display_name}({old_message.author.name})]: {old_message.content}"

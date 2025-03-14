@@ -11,6 +11,8 @@ from discord import Message, TextChannel
 from google.generativeai import types
 
 from src.cogs.music import MusicCog
+from src.HarpiLib.ai.browser import ask
+from src.HarpiLib.math.parser import DiceParser
 from src.HarpiLib.musicdata.ytmusicdata import YTMusicData
 
 if TYPE_CHECKING:
@@ -185,19 +187,8 @@ class AiTools:
             silent=True,
             delete_after=5.0,
         )
-        parser = DiceParser(args)
-        rows = parser.roll()
-        text = ""
-        for i, row in enumerate(rows):
-            total, results = row
-            for component, result in zip(
-                parser.component_register[i],
-                results,
-            ):
-                text += f"{component[0]}{component[1]}{result}"
-            text += " = " + str(total)
-            if i != len(rows) - 1:
-                text += "\n"
+        parser = DiceParser()
+        text = parser.roll(args)
 
         return text
 
@@ -241,7 +232,7 @@ class AiTools:
         channel = self.bot.get_channel(channel_id)
         if channel and isinstance(channel, TextChannel):
             messages: list[Message] = [
-                message async for message in channel.history(limit=30)
+                message async for message in channel.history(limit=40)
             ]
             return "\n".join([
                 f"[{message.created_at} - {message.author.display_name} ({message.author.name})] : {message.content}"
@@ -249,6 +240,46 @@ class AiTools:
             ])
 
         return "<Nenhum resultado encontrado>"
+
+    async def ask_browser(self, ctx: commands.Context, args) -> str:
+        """A função ask é responsável por fazer uma pergunta ao agente Navegador.
+        O agente Navegador é um agente que pode navegar na web livremente e responder perguntas.
+        Ele consegue acessar informações em tempo real e gerar respostas com base nessas informações.
+
+        Parameters
+        ----------
+        question : str
+            A pergunta que você deseja fazer ao agente Navegador.
+            O agente Navegador irá gerar uma resposta com base nessa pergunta.
+
+        Returns
+        -------
+        str
+            A resposta gerada pelo agente Navegador.
+            Se o agente Navegador não conseguir encontrar uma resposta, ele retornará uma mensagem padrão.
+        """
+
+        print(f"Pergunta: {args}")
+        async with ctx.typing():
+            await ctx.send(
+                "*Procurando na web*",
+                silent=True,
+                delete_after=5.0,
+            )
+            result = await ask(question=args)
+            await ctx.send(
+                "*Resposta encontrada*",
+                silent=True,
+                delete_after=5.0,
+            )
+            if result.gif:
+                await ctx.send(
+                    file=discord.File(result.gif),
+                )
+
+        print(f"Resposta: {result.answer}")
+
+        return result.answer
 
     async def call_function(
         self,
@@ -278,6 +309,20 @@ class AiTools:
         return types.Tool(
             function_declarations=[
                 {
+                    "name": "ask_browser",
+                    "description": "A função ask é responsável por fazer uma pergunta ao agente Navegador. O agente Navegador é um agente que pode navegar na web livremente e responder perguntas. Ele consegue acessar informações em tempo real e gerar respostas com base nessas informações.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "string",
+                                "description": "A pergunta que você deseja fazer ao agente Navegador. O agente Navegador irá gerar uma resposta com base nessa pergunta. Passe o máximo de informação possível para ajuda-lo a encontrar a resposta.",
+                            },
+                        },
+                        "required": ["args"],
+                    },
+                },
+                {
                     "name": "get_music_list",
                     "description": "Get music list that is playing now.",
                 },
@@ -306,34 +351,6 @@ class AiTools:
                                 "description": (
                                     "The dice string (ex: 2d6, 1d20+5, or 3#d20+5)."
                                 ),
-                            },
-                        },
-                        "required": ["args"],
-                    },
-                },
-                {
-                    "name": "get_wikipedia_summary",
-                    "description": "Get Wikipedia summary based on the search term.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "args": {
-                                "type": "string",
-                                "description": "Wikipedia search term.",
-                            },
-                        },
-                        "required": ["args"],
-                    },
-                },
-                {
-                    "name": "get_full_wikipedia_page",
-                    "description": "Get full Wikipedia page based on the search term.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "args": {
-                                "type": "string",
-                                "description": "Wikipedia search term.",
                             },
                         },
                         "required": ["args"],
