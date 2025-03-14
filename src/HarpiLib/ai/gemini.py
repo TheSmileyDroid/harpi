@@ -101,7 +101,7 @@ Solucione o problema da pessoa, tente, não faça perguntas.
                                 fn.args.items(),
                             )
                         except Exception as e:  # noqa: BLE001
-                            logger.error(e)
+                            logger.error("Error calling function: %s", e)
                             result = str(e)
                         s = Struct()
                         s.update({"result": result})
