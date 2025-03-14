@@ -58,7 +58,7 @@ async def ask(question: str) -> Answer:
     agent = Agent(
         task=question + "\n\nPrefer access sites over google.",
         llm=llm,
-        use_vision=True,
+        use_vision=False,
         browser=browser,
         generate_gif=gif_path,
     )
