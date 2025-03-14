@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import os
 import pathlib
 
@@ -17,7 +16,6 @@ deletion_tasks: list[asyncio.Task] = []
 
 class Answer(BaseModel):
     answer: str
-    gif: str
 
 
 async def _delete_file(file: str):
@@ -49,37 +47,26 @@ async def ask(question: str) -> Answer:
         api_key=SecretStr(os.getenv("GEMINI_API_KEY") or ""),
     )
 
-    pathlib.Path("./.temp").mkdir(exist_ok=True)
-
-    gif_path = (
-        "./.temp/" + str(int(datetime.datetime.now().timestamp())) + ".gif"
-    )
-
     agent = Agent(
         task=question + "\n\nPrefer access sites over google.",
         llm=llm,
         use_vision=True,
         browser=browser,
-        generate_gif=gif_path,
     )
 
     history = await agent.run()
 
+    print("History:", history)
+
     result = history.final_result()
 
-    deletion_tasks.append(asyncio.create_task(_delete_file(gif_path)))
-
     if result:
-        await browser.close()
         return Answer(
             answer=result,
-            gif=gif_path,
         )
     else:
-        await browser.close()
         return Answer(
             answer="Desculpe, não consegui encontrar uma resposta para sua pergunta.",
-            gif="",
         )
 
 

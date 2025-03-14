@@ -272,15 +272,6 @@ class AiTools:
                 silent=True,
                 delete_after=5.0,
             )
-            if result.gif:
-                try:
-                    await ctx.send(
-                        file=discord.File(result.gif),
-                    )
-                except Exception:  # noqa: BLE001
-                    await ctx.send(
-                        "Não consegui enviar o gif...",
-                    )
 
         print(f"Resposta: {result.answer}")
 
