@@ -7,7 +7,7 @@ import discord
 import discord.ext
 import discord.ext.commands
 import wikipediaapi
-from discord import Member, Message, TextChannel
+from discord import Message, TextChannel
 from google.generativeai import types
 
 from src.cogs.music import MusicCog
@@ -332,36 +332,6 @@ class AiTools:
         except Exception as e:
             return f"Não foi possível pular a música: {str(e)}"
 
-    async def join_voice_channel(
-        self,
-        ctx: commands.Context,
-    ) -> str:
-        """Conecta o bot ao canal de voz do usuário que enviou a mensagem.
-
-        Returns
-        -------
-        str
-            Mensagem de confirmação da conexão.
-        """
-        await ctx.send(
-            "*Conectando ao canal de voz*",
-            silent=True,
-            delete_after=5.0,
-        )
-
-        voice_member = cast(Member, ctx.author)
-        if not voice_member.voice or not voice_member.voice.channel:
-            return "O usuário não está em nenhum canal de voz."
-
-        guild_id = ctx.guild.id if ctx.guild else 0
-        channel_id = voice_member.voice.channel.id
-
-        try:
-            await self.music_cog.connect_to_voice(guild_id, channel_id)
-            return f"Conectado com sucesso ao canal de voz: {voice_member.voice.channel.name}"
-        except Exception as e:
-            return f"Não foi possível conectar ao canal de voz: {str(e)}"
-
     async def call_function(
         self,
         ctx: discord.ext.commands.Context,
@@ -420,10 +390,6 @@ class AiTools:
                         },
                         "required": ["args"],
                     },
-                },
-                {
-                    "name": "join_voice_channel",
-                    "description": "Conecta o bot ao canal de voz do usuário que enviou a mensagem. Use esta função quando o usuário pedir para o bot entrar no canal de voz ou quando for necessário antes de tocar música.",
                 },
                 {
                     "name": "disconnect_from_voice",
