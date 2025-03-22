@@ -48,6 +48,7 @@ class BasicCog(commands.Cog):
             uptime,
         )
         space = psutil.disk_usage("/")
+        external_disk = psutil.disk_usage("/home/opc/external")
 
         embed = Embed(
             title="Status do Harpi",
@@ -60,6 +61,10 @@ class BasicCog(commands.Cog):
         embed.add_field(
             name="Espaço em Disco",
             value=f"{space.percent}% ({space.used / 1024**3:.2f} GB usados de {space.total / 1024**3:.2f} GB)",
+        )
+        embed.add_field(
+            name="Disco Externo",
+            value=f"{external_disk.percent}% ({external_disk.used / 1024**3:.2f} GB usados de {external_disk.total / 1024**3:.2f} GB)",
         )
 
         await ctx.send(embed=embed)
