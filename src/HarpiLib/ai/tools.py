@@ -259,6 +259,8 @@ class AiTools:
             Se o agente Navegador não conseguir encontrar uma resposta, ele retornará uma mensagem padrão.
         """
 
+        history = ctx.history(limit=3)
+
         print(f"Pergunta: {args}")
         async with ctx.typing():
             await ctx.send(
@@ -266,7 +268,9 @@ class AiTools:
                 silent=True,
                 delete_after=5.0,
             )
-            result = await ask(question=args)
+            result = await ask(
+                question=f"<<<Histórico de conversa: {history}>>>\n\n Pedido: {args}"
+            )
             await ctx.send(
                 "*Resposta encontrada*",
                 silent=True,
@@ -276,6 +280,57 @@ class AiTools:
         print(f"Resposta: {result.answer}")
 
         return result.answer
+
+    async def disconnect_from_voice(
+        self,
+        ctx: commands.Context,
+    ) -> str:
+        """Desconecta o bot do canal de voz atual.
+
+        Returns
+        -------
+        str
+            Mensagem de confirmação da desconexão.
+        """
+        await ctx.send(
+            "*Desconectando do canal de voz*",
+            silent=True,
+            delete_after=5.0,
+        )
+
+        guild_id = ctx.channel.guild.id if ctx.channel.guild else 0
+
+        try:
+            # Usando o método do MusicCog para desconectar
+            await self.music_cog.disconnect_guild(guild_id)
+            return "Desconectado do canal de voz com sucesso."
+        except Exception as e:
+            return f"Não foi possível desconectar: {str(e)}"
+
+    async def skip_music(
+        self,
+        ctx: commands.Context,
+    ) -> str:
+        """Pula a música atual que está sendo reproduzida.
+
+        Returns
+        -------
+        str
+            Mensagem de confirmação de que a música foi pulada.
+        """
+        await ctx.send(
+            "*Pulando música*",
+            silent=True,
+            delete_after=5.0,
+        )
+
+        guild_id = ctx.channel.guild.id if ctx.channel.guild else 0
+
+        try:
+            await self.music_cog.skip_guild(guild_id)
+            return "Música pulada com sucesso."
+        except Exception as e:
+            return f"Não foi possível pular a música: {str(e)}"
 
     async def call_function(
         self,
@@ -335,6 +390,14 @@ class AiTools:
                         },
                         "required": ["args"],
                     },
+                },
+                {
+                    "name": "disconnect_from_voice",
+                    "description": "Desconecta o bot do canal de voz atual. Use esta função quando o usuário pedir para sair da chamada, desconectar do canal de voz ou parar de tocar música definitivamente.",
+                },
+                {
+                    "name": "skip_music",
+                    "description": "Pula a música atual que está sendo reproduzida. Use esta função quando o usuário pedir para pular, avançar ou passar para a próxima música.",
                 },
                 {
                     "name": "roll_dice",

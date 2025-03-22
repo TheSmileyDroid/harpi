@@ -48,7 +48,8 @@ async def ask(question: str) -> Answer:
     )
 
     agent = Agent(
-        task=question + "\n\nPrefer access sites over google.",
+        task=question
+        + "\n\nPrefira utilizar de informações de dentro de sites e não confie apenas no google",
         llm=llm,
         use_vision=True,
         browser=browser,

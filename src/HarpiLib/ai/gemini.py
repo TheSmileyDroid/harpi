@@ -5,15 +5,12 @@ from __future__ import annotations
 import datetime
 import logging
 import os
-import pathlib
 from typing import TYPE_CHECKING
 
 import discord
 import discord.ext
 import discord.ext.commands
 import google.generativeai as genai
-import PIL
-import PIL.Image
 from google.protobuf.struct_pb2 import Struct
 
 from src.HarpiLib.ai.base import BaseAi
@@ -53,6 +50,8 @@ Tente não formular respostas muito longas,
 apenas o suficiente para responder a pergunta.
 Porém tente sempre ser o mais completo possível.
 Solucione o problema da pessoa, tente, não faça perguntas.
+Não há a necessidade de explicar suas funções e ferramentas, quando for necessário
+utilizá-las apenas faça. E faça o máximo possível.
 """
             ),
         )
@@ -144,33 +143,21 @@ Solucione o problema da pessoa, tente, não faça perguntas.
             AI response.
 
         """
-        images = ctx.message.attachments
         history = [history async for history in ctx.history(limit=15)]
 
         content: ContentsType = [
-            f"[{old_message.created_at} - {old_message.author.display_name}({old_message.author.name})]: {old_message.content}"
+            f"<<<{old_message.created_at} - {old_message.author.display_name}({old_message.author.name})>>>: {old_message.content}"
             for old_message in history
         ] + [
-            f"[{ctx.message.created_at} - {ctx.author.display_name}({ctx.author.name})][{[image.filename for image in images]}]: {message}",
+            f"<<<{ctx.message.created_at} - {ctx.author.display_name}({ctx.author.name})>>>: {message}",
         ]
 
         if reference := ctx.message.reference:
             resolved = reference.resolved
             if isinstance(resolved, discord.Message):
                 content.append(
-                    f"> [{resolved.created_at} - {resolved.author.display_name}({resolved.author.name})][{[image.filename for image in resolved.attachments]}]: {resolved.content}",
+                    f"> <<<{resolved.created_at} - {resolved.author.display_name}({resolved.author.name})>>>: {resolved.content}",
                 )
-                images.extend(resolved.attachments)
-
-        for image in images:
-            pathlib.Path("temp").mkdir(exist_ok=True)
-            await image.save(
-                pathlib.Path("temp") / pathlib.Path(image.filename),
-            )
-            file = PIL.Image.open(
-                pathlib.Path("temp") / pathlib.Path(image.filename),
-            )
-            content.append(file)  # type: ignore Image
 
         response: GenerateContentResponse = self.chat.send_message(
             content,

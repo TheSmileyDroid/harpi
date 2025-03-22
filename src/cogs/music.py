@@ -331,6 +331,60 @@ class MusicCog(Cog):
         else:
             raise CommandError("Não foi possível retomar a música")
 
+    @hybrid_command("disconnect")
+    async def disconnect(self, ctx: Context) -> None:
+        """Desconecta o bot do canal de voz atual.
+
+        Args:
+            ctx (Context): Contexto do comando.
+
+        Raises:
+            CommandError: Se o bot não estiver em um canal de voz.
+        """
+        await ctx.typing()
+        if not ctx.guild:
+            raise CommandError("Você não está em uma guilda")
+
+        guild_id = ctx.guild.id
+
+        try:
+            await self.disconnect_guild(guild_id)
+            await ctx.send("Desconectado do canal de voz")
+        except CommandError as e:
+            await ctx.send(str(e))
+
+    async def disconnect_guild(self, guild_id: int) -> None:
+        """Desconecta o bot do canal de voz em uma guilda específica.
+
+        Parameters
+        ----------
+        guild_id : int
+            ID da guilda de onde desconectar
+
+        Raises
+        ------
+        CommandError
+            Se o bot não estiver conectado a um canal de voz nessa guilda
+        """
+        voice = self.get_voice_client(guild_id)
+
+        if not voice:
+            raise CommandError("Não estou conectado a nenhum canal de voz")
+
+        # Para a reprodução atual se houver
+        voice.stop()
+
+        # Limpa a fila de música
+        await self.update_music_queue(guild_id, [])
+
+        # Remove a música atual
+        await self.set_current_music(guild_id, None)
+
+        # Desconecta do canal de voz
+        await voice.disconnect(force=False)
+
+        await self.notify_queue_update()
+
     @hybrid_command("loop")
     @describe(mode="Loop mode")
     async def loop(self, ctx: Context, mode: str | None) -> None:

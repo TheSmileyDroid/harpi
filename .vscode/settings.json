@@ -10,5 +10,6 @@
   ],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
-  "search.useIgnoreFiles": true
+  "search.useIgnoreFiles": true,
+  "github.copilot.chat.codeGeneration.useInstructionFiles": true,
 }
