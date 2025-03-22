@@ -84,7 +84,7 @@ class BasicCog(commands.Cog):
             color=0x11CC99,
         )
         embed.add_field(name="Versão", value=status.version.name)
-        embed.add_field(name="Jogadores", value=status.players.online)
+        embed.add_field(name="Jogadores", value=str(status.players.online))
         embed.add_field(name="Uso de CPU", value=f"{cpu}%")
         embed.add_field(name="Uso de Memória", value=f"{memory:.2f} MB")
         players_sample = status.players.sample

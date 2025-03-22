@@ -2,6 +2,29 @@
 name = "harpi"
 version = "0.1.0"
 authors = [{ name = "TheSmileyDroid", email = "ghsilha@gmail.com" }]
+requires-python = ">=3.11"
+dependencies = [
+    "browser-use>=0.1.40",
+    "cryptography>=44.0.2",
+    "fastapi>=0.115.11",
+    "fastapi-cors>=0.0.6",
+    "google-generativeai>=0.8.4",
+    "gtts>=2.5.4",
+    "langchain-google-genai>=2.0.10",
+    "mcstatus>=11.1.1",
+    "pillow>=11.1.0",
+    "psutil>=7.0.0",
+    "py-cord[voice]>=2.6.1",
+    "pytest>=8.3.5",
+    "python-dotenv>=1.0.1",
+    "pytz>=2025.1",
+    "safebag>=0.2.0",
+    "strawberry-graphql[fastapi]>=0.262.5",
+    "uvicorn[standard]>=0.34.0",
+    "websockets>=15.0.1",
+    "wikipedia-api>=0.8.1",
+    "yt-dlp>=2025.3.21",
+]
 
 [tool.ruff.format]
 docstring-code-format = true

@@ -1,8 +1,7 @@
 """RPG Dice Cog module."""
 
-import discord.ext.commands
 from discord import Message
-from discord.ext.commands import Cog, command
+from discord.ext.commands import Bot, Cog, command
 from discord.ext.commands.context import Context
 
 from src.HarpiLib.math.parser import DiceParser
@@ -11,7 +10,7 @@ from src.HarpiLib.math.parser import DiceParser
 class DiceCog(Cog):
     """Cog for handling dice."""
 
-    def __init__(self, bot: discord.ext.commands.Bot) -> None:
+    def __init__(self, bot: Bot) -> None:
         """Initialize the cog.
 
         Args:

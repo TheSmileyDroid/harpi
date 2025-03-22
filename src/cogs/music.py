@@ -14,8 +14,7 @@ import discord
 import discord.ext
 import discord.ext.commands
 from discord import ClientException, Member
-from discord.app_commands import describe
-from discord.ext.commands import Cog, CommandError, Context, hybrid_command
+from discord.ext.commands import Cog, CommandError, Context, command
 from discord.voice_client import VoiceClient
 
 from src.HarpiLib.musicdata.ytmusicdata import (
@@ -82,7 +81,7 @@ class MusicCog(Cog):
         self.loop_map[guild_id] = mode
         await self.notify_queue_update()
 
-    @hybrid_command("join")
+    @command("join")
     async def join(self, ctx: Context) -> VoiceClient:
         """Entra no canal de voz do usuário.
 
@@ -146,8 +145,7 @@ class MusicCog(Cog):
 
         await self.notify_queue_update()
 
-    @hybrid_command("play")
-    @describe(link="Link da música a ser tocada")
+    @command("play")
     async def play(self, ctx: Context, *, link: str) -> None:
         """Toca uma música.
 
@@ -223,19 +221,19 @@ class MusicCog(Cog):
         if ctx is None:
             raise CommandError("Contexto não encontrado")
 
-        await ctx.typing()
-        if ctx.guild:
-            music_data_list = await YTMusicData.from_url(link)
-            await self.add_music_to_queue(ctx.guild.id, music_data_list)
+        with ctx.typing():
+            if ctx.guild:
+                music_data_list = await YTMusicData.from_url(link)
+                await self.add_music_to_queue(ctx.guild.id, music_data_list)
 
-            await self.play_channel.put(ctx.guild.id)
-            musics = ", ".join(m.get_title() for m in music_data_list)
-            await ctx.send(f"Adicionando à fila: {musics}")
-            await self.notify_queue_update()
-        else:
-            await ctx.send("Você não está numa guilda")
+                await self.play_channel.put(ctx.guild.id)
+                musics = ", ".join(m.get_title() for m in music_data_list)
+                await ctx.send(f"Adicionando à fila: {musics}")
+                await self.notify_queue_update()
+            else:
+                await ctx.send("Você não está numa guilda")
 
-    @hybrid_command("stop")
+    @command("stop")
     async def stop(self, ctx: Context) -> None:
         """Para a música atual.
 
@@ -246,12 +244,12 @@ class MusicCog(Cog):
             CommandError: Se o usuário não estiver em um canal de voz.
 
         """
-        await ctx.typing()
-        if not ctx.guild:
-            raise CommandError("Contexto não encontrado")
-        guild_id = ctx.guild.id
-        await self.stop_guild(guild_id)
-        await ctx.send("Música parada")
+        with ctx.typing():
+            if not ctx.guild:
+                raise CommandError("Contexto não encontrado")
+            guild_id = ctx.guild.id
+            await self.stop_guild(guild_id)
+            await ctx.send("Música parada")
 
     async def stop_guild(self, guild_id: int) -> None:
         await self.update_music_queue(guild_id, [])
@@ -261,7 +259,7 @@ class MusicCog(Cog):
             voice.stop()
         await self.notify_queue_update()
 
-    @hybrid_command("skip")
+    @command("skip")
     async def skip(self, ctx: Context) -> None:
         """Pula a música atual.
 
@@ -272,12 +270,12 @@ class MusicCog(Cog):
             CommandError: Se o usuário não estiver em um canal de voz.
 
         """
-        await ctx.typing()
-        if not ctx.guild:
-            raise CommandError
-        guild_id = ctx.guild.id
-        await self.skip_guild(guild_id)
-        await ctx.send("Música pulada")
+        with ctx.typing():
+            if not ctx.guild:
+                raise CommandError
+            guild_id = ctx.guild.id
+            await self.skip_guild(guild_id)
+            await ctx.send("Música pulada")
 
     async def skip_guild(self, guild_id: int) -> None:
         is_queue_loop = (
@@ -295,16 +293,16 @@ class MusicCog(Cog):
             voice.stop()
         await self.notify_queue_update()
 
-    @hybrid_command("pause")
+    @command("pause")
     async def pause(self, ctx: Context) -> None:
         """Pausa a música atual."""
-        await ctx.typing()
-        if not ctx.guild:
-            return
-        guild_id = ctx.guild.id
-        await self.pause_guild(guild_id)
-        await ctx.send("Música pausada")
-        await self.notify_queue_update()
+        with ctx.typing():
+            if not ctx.guild:
+                return
+            guild_id = ctx.guild.id
+            await self.pause_guild(guild_id)
+            await ctx.send("Música pausada")
+            await self.notify_queue_update()
 
     async def pause_guild(self, guild_id: int) -> None:
         voice = self.get_voice_client(guild_id)
@@ -313,16 +311,16 @@ class MusicCog(Cog):
         else:
             raise CommandError("Não foi possível pausar a música")
 
-    @hybrid_command("resume")
+    @command("resume")
     async def resume(self, ctx: Context) -> None:
         """Retoma a música atual."""
-        await ctx.typing()
-        if not ctx.guild:
-            return
-        guild_id = ctx.guild.id
-        await self.resume_guild(guild_id)
-        await ctx.send("Música retomada")
-        await self.notify_queue_update()
+        with ctx.typing():
+            if not ctx.guild:
+                return
+            guild_id = ctx.guild.id
+            await self.resume_guild(guild_id)
+            await ctx.send("Música retomada")
+            await self.notify_queue_update()
 
     async def resume_guild(self, guild_id: int) -> None:
         voice = self.get_voice_client(guild_id)
@@ -331,7 +329,7 @@ class MusicCog(Cog):
         else:
             raise CommandError("Não foi possível retomar a música")
 
-    @hybrid_command("disconnect")
+    @command("disconnect")
     async def disconnect(self, ctx: Context) -> None:
         """Desconecta o bot do canal de voz atual.
 
@@ -341,17 +339,17 @@ class MusicCog(Cog):
         Raises:
             CommandError: Se o bot não estiver em um canal de voz.
         """
-        await ctx.typing()
-        if not ctx.guild:
-            raise CommandError("Você não está em uma guilda")
+        with ctx.typing():
+            if not ctx.guild:
+                raise CommandError("Você não está em uma guilda")
 
-        guild_id = ctx.guild.id
+            guild_id = ctx.guild.id
 
-        try:
-            await self.disconnect_guild(guild_id)
-            await ctx.send("Desconectado do canal de voz")
-        except CommandError as e:
-            await ctx.send(str(e))
+            try:
+                await self.disconnect_guild(guild_id)
+                await ctx.send("Desconectado do canal de voz")
+            except CommandError as e:
+                await ctx.send(str(e))
 
     async def disconnect_guild(self, guild_id: int) -> None:
         """Desconecta o bot do canal de voz em uma guilda específica.
@@ -385,8 +383,7 @@ class MusicCog(Cog):
 
         await self.notify_queue_update()
 
-    @hybrid_command("loop")
-    @describe(mode="Loop mode")
+    @command("loop")
     async def loop(self, ctx: Context, mode: str | None) -> None:
         """Loop mode command [off, track, queue].
 
@@ -398,27 +395,30 @@ class MusicCog(Cog):
             CommandError: If the user is not in a voice channel.
 
         """
-        await ctx.typing()
-        if not ctx.guild:
-            raise CommandError
-        if mode in {"off", "false", "0", "no", "n"}:
-            await self.set_loop_mode(ctx.guild.id, LoopMode.OFF)
-            await ctx.send("Loop mode: OFF")
-        elif mode in {"track", "true", "1", "yes", "y", "musica"}:
-            await self.set_loop_mode(ctx.guild.id, LoopMode.TRACK)
-            await ctx.send("Loop mode: TRACK")
-        elif mode in {"queue", "q", "fila", "f", "lista", "l"}:
-            await self.set_loop_mode(ctx.guild.id, LoopMode.QUEUE)
-            await ctx.send("Loop mode: QUEUE")
-        elif self.loop_map.get(ctx.guild.id, LoopMode.OFF) is not LoopMode.OFF:
-            await self.set_loop_mode(ctx.guild.id, LoopMode.OFF)
-            await ctx.send("Loop mode: OFF")
-        else:
-            await self.set_loop_mode(ctx.guild.id, LoopMode.TRACK)
-            await ctx.send("Loop mode: TRACK")
-        await self.notify_queue_update()
+        with ctx.typing():
+            if not ctx.guild:
+                raise CommandError
+            if mode in {"off", "false", "0", "no", "n"}:
+                await self.set_loop_mode(ctx.guild.id, LoopMode.OFF)
+                await ctx.send("Loop mode: OFF")
+            elif mode in {"track", "true", "1", "yes", "y", "musica"}:
+                await self.set_loop_mode(ctx.guild.id, LoopMode.TRACK)
+                await ctx.send("Loop mode: TRACK")
+            elif mode in {"queue", "q", "fila", "f", "lista", "l"}:
+                await self.set_loop_mode(ctx.guild.id, LoopMode.QUEUE)
+                await ctx.send("Loop mode: QUEUE")
+            elif (
+                self.loop_map.get(ctx.guild.id, LoopMode.OFF)
+                is not LoopMode.OFF
+            ):
+                await self.set_loop_mode(ctx.guild.id, LoopMode.OFF)
+                await ctx.send("Loop mode: OFF")
+            else:
+                await self.set_loop_mode(ctx.guild.id, LoopMode.TRACK)
+                await ctx.send("Loop mode: TRACK")
+            await self.notify_queue_update()
 
-    @hybrid_command("list", aliases=["queue", "q"])
+    @command("list", aliases=["queue", "q"])
     async def list_musics(self, ctx: Context) -> None:
         """List the current music queue.
 
@@ -430,28 +430,28 @@ class MusicCog(Cog):
             CommandError: If the user is not in a guild.
 
         """
-        await ctx.typing()
-        if not ctx.guild:
-            raise CommandError
-        if (
-            not isinstance(ctx.author, Member)
-            or not ctx.author.voice
-            or not ctx.author.voice.channel
-        ):
-            raise CommandError
-        music_data_list = self.music_queue.get(ctx.guild.id, [])
-        current_music_str = (
-            f"**{current_music.get_title()}**"
-            if (current_music := self.current_music.get(ctx.guild.id))
-            else "Nenhuma música sendo tocada"
-        )
-        list_str = "\n ".join(
-            (f"**{m.get_title()}**" for m in music_data_list),
-        )
-        await ctx.send(
-            f"{current_music_str}\nFila atual ({len(music_data_list)}): \n{list_str}",
-        )
-        await self.notify_queue_update()
+        with ctx.typing():
+            if not ctx.guild:
+                raise CommandError
+            if (
+                not isinstance(ctx.author, Member)
+                or not ctx.author.voice
+                or not ctx.author.voice.channel
+            ):
+                raise CommandError
+            music_data_list = self.music_queue.get(ctx.guild.id, [])
+            current_music_str = (
+                f"**{current_music.get_title()}**"
+                if (current_music := self.current_music.get(ctx.guild.id))
+                else "Nenhuma música sendo tocada"
+            )
+            list_str = "\n ".join(
+                (f"**{m.get_title()}**" for m in music_data_list),
+            )
+            await ctx.send(
+                f"{current_music_str}\nFila atual ({len(music_data_list)}): \n{list_str}",
+            )
+            await self.notify_queue_update()
 
     def _after_stop(self, guild_id: int, err: Exception | None) -> None:
         """After stop callback.

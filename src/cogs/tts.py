@@ -1,4 +1,3 @@
-import discord
 from discord.ext import commands
 from discord.ext.commands.context import Context
 
@@ -8,9 +7,10 @@ from src.HarpiLib.say import say
 class TTSCog(commands.Cog):
     """TTS Cog."""
 
-    @commands.hybrid_command(name="f", description="Fala um texto")
-    @discord.app_commands.describe(
-        text="Texto a ser falado",
+    @commands.command(
+        name="tts",
+        aliases=["text-to-speech", "falar", "f"],
+        help="Fala o texto em um canal de voz.",
     )
     async def tts(self, ctx: Context, *, text: str) -> None:
         """Text-To-Speech.
@@ -19,4 +19,4 @@ class TTSCog(commands.Cog):
         em um canal de voz.
         """
         await say(ctx, text)
-        await ctx.send("OK", ephemeral=True, delete_after=5)
+        await ctx.send("OK", silent=True, delete_after=5)

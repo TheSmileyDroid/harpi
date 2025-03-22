@@ -32,6 +32,7 @@ from src.cogs.ai import AiCog
 from src.cogs.basic import BasicCog
 from src.cogs.dice_cog import DiceCog
 from src.cogs.music import MusicCog
+from src.cogs.receive_audio import ReceiveAudioCog
 from src.cogs.tts import TTSCog
 from src.websocket import manager as websocketmanager
 
@@ -81,11 +82,12 @@ async def main() -> cd.Bot:
 
     client = cd.Bot(command_prefix="-", intents=intents)
 
-    await client.add_cog(TTSCog())
-    await client.add_cog(MusicCog(client))
-    await client.add_cog(BasicCog())
-    await client.add_cog(DiceCog(client))
-    await client.add_cog(AiCog(client))
+    client.add_cog(TTSCog())
+    client.add_cog(MusicCog(client))
+    client.add_cog(BasicCog())
+    client.add_cog(DiceCog(client))
+    client.add_cog(AiCog(client))
+    client.add_cog(ReceiveAudioCog(client))
 
     task = asyncio.create_task(client.start(get_token()))
 
