@@ -24,3 +24,4 @@ class UserData(TypedDict):
 
 Implemente testes unitários com pytest. Configure hooks de pré-commit para linting e formatação.  Utilize dataclasses para dados estruturados. Prefira exceções explícitas sobre retornos de erro. Implemente logging consistente.
 Use os principio de Código Limpo: nomes significativos, funções curtas, evite duplicação, Comente apenas o necessário. Use injeção de dependência para facilitar testes e manutenção.
+Use asserts para verificar condições e tipos.

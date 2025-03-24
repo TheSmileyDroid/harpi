@@ -330,7 +330,6 @@ websockets==15.0.1
     # via
     #   harpi (pyproject.toml)
     #   uvicorn
-wavelink>=3.0.0
 wikipedia-api==0.8.1
     # via harpi (pyproject.toml)
 yarl==1.18.3
