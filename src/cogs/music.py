@@ -13,7 +13,7 @@ from typing import cast
 import discord
 import discord.ext
 import discord.ext.commands
-from discord import ClientException, Member
+from discord import ClientException, Guild, Member
 from discord.ext.commands import Cog, CommandError, Context, command
 from discord.voice_client import VoiceClient
 
@@ -154,13 +154,15 @@ class MusicCog(Cog):
             link (str): Link da música a ser tocada.
 
         """
+        guild: Guild = ctx.guild
         if (
-            ctx.guild
+            guild
             and (voice := cast("Member", ctx.author).voice)
             and voice.channel
+            and not guild.voice_client
         ):
             await self.connect_to_voice(
-                ctx.guild.id,
+                guild.id,
                 voice.channel.id,
             )
         self.default_ctx[get_nested_attr(ctx.guild, "id", -1)] = ctx

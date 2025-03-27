@@ -103,16 +103,18 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
         loop = asyncio.get_event_loop()
         data = await loop.run_in_executor(
             None,
-            lambda: ytdl.extract_info(musicdata.get_url(), download=True),
+            lambda: ytdl.extract_info(musicdata.get_url(), download=False),
         )
         if data is None:
             raise BadLink(musicdata.get_url())
         if "entries" in data:
             data = data["entries"][0]
 
+        # Use the URL directly for streaming instead of downloading the file
         return cls(
             FFmpegPCMAudio(
-                source=data.get("requested_downloads")[0].get("filepath"),
+                source=data["url"],
+                **ffmpeg_options,
             ),
             data=data,
             volume=volume,
