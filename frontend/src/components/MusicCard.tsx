@@ -12,11 +12,6 @@ import { Slider } from '@/components/ui/slider';
 import { store } from '@/store';
 
 /**
- * Imagem padrão para ser usada quando não há thumbnail disponível
- */
-const DEFAULT_MUSIC_IMAGE = '/smileybot_small.svg';
-
-/**
  * Componente responsável por exibir um card com a música atual e controles de reprodução.
  */
 export default function MusicCard({
