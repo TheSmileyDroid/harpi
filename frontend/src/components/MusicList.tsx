@@ -1,31 +1,31 @@
-import type { ServerError } from "@/api/ServerError";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useStore } from "@tanstack/react-store";
-import clsx from "clsx";
-import { LoaderCircle } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
-import apiClient from "../api/ApiClient";
-import { setMusicState, store } from "../store";
-import MusicCard from "./MusicCard";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useStore } from '@tanstack/react-store';
+import clsx from 'clsx';
+import { LoaderCircle } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import type { ServerError } from '@/api/ServerError';
+import apiClient from '../api/ApiClient';
+import { setMusicState, store } from '../store';
+import MusicCard from './MusicCard';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 
 /**
  * Componente que exibe a lista de músicas e controles para adicionar novas músicas.
  */
 function MusicList({ className }: { className?: string }) {
-  const [url, setUrl] = useState("");
-  const [voiceChannel, setVoiceChannel] = useState("");
+  const [url, setUrl] = useState('');
+  const [voiceChannel, setVoiceChannel] = useState('');
 
   const activeGuild = useStore(store, (state) => state.guild);
 
   const guildMusicState = useQuery({
-    queryKey: ["musics", "guild", activeGuild?.id],
+    queryKey: ['musics', 'guild', activeGuild?.id],
     queryFn: async () =>
       (
         await apiClient.api.getMusicStateApiGuildsStateGet({
-          idx: activeGuild?.id || "-1",
+          idx: activeGuild?.id || '-1',
         })
       ).data,
     enabled: !!activeGuild,
@@ -46,16 +46,16 @@ function MusicList({ className }: { className?: string }) {
   ]);
 
   const addMusic = useMutation({
-    mutationKey: ["musics", "add"],
+    mutationKey: ['musics', 'add'],
     mutationFn: async (url: string) =>
       (
         await apiClient.api.addToQueueApiGuildsQueuePost({
-          idx: activeGuild?.id || "-1",
+          idx: activeGuild?.id || '-1',
           url,
         })
       ).data,
     onMutate: async () => {
-      setUrl("");
+      setUrl('');
       await guildMusicState.refetch();
     },
   });
@@ -65,7 +65,7 @@ function MusicList({ className }: { className?: string }) {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex justify-center items-center h-40"
+        className="flex h-40 items-center justify-center"
       >
         <LoaderCircle className="animate-spin" />
       </motion.div>
@@ -85,14 +85,14 @@ function MusicList({ className }: { className?: string }) {
   }
 
   return (
-    <div className={clsx("w-3/6 p-3 mx-auto", className)}>
+    <div className={clsx('mx-auto w-3/6 p-3', className)}>
       <motion.div
-        className="p-3 space-y-2 w-full mx-auto"
+        className="mx-auto w-full space-y-2 p-3"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex justify-center items-center w-full ">
+        <div className="flex w-full items-center justify-center">
           {voiceChannel.length > 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
@@ -103,7 +103,7 @@ function MusicList({ className }: { className?: string }) {
             </motion.div>
           ) : (
             <motion.span
-              className="text-error text-wrap"
+              className="text-wrap text-error"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
@@ -117,7 +117,7 @@ function MusicList({ className }: { className?: string }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <div className="flex w-full max-w-[80%] space-x-2 mx-auto">
+          <div className="mx-auto flex w-full max-w-[80%] space-x-2">
             <Input
               type="url"
               placeholder="Url"
@@ -138,9 +138,9 @@ function MusicList({ className }: { className?: string }) {
           <AnimatePresence>
             {addMusic.error && (
               <motion.div
-                className="bg-error text-background p-1 m-1 w-fit text-wrap"
+                className="m-1 w-fit text-wrap bg-error p-1 text-background"
                 initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
+                animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
               >
                 {(addMusic.error as ServerError).response?.data?.detail}
@@ -159,7 +159,7 @@ function MusicList({ className }: { className?: string }) {
         )}
       </motion.div>
       <motion.ul
-        className="w-full h-56 overflow-y-auto border shadow-md p-3 mx-auto"
+        className="mx-auto h-56 w-full overflow-y-auto border p-3 shadow-md"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
@@ -168,16 +168,15 @@ function MusicList({ className }: { className?: string }) {
           {guildMusicState.data?.queue.map((music, index) => {
             return (
               <motion.li
-                className="border shadow-md m-3 p-3"
+                className="m-3 border p-3 shadow-md"
                 key={index}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ delay: index * 0.05 }}
-                whileHover={{ scale: 1.02, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
+                whileHover={{ scale: 1.02, boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
               >
-                <span className="italic">{index}</span> - {music.title} -{" "}
-                {music.album}
+                <span className="italic">{index}</span> - {music.title} - {music.album}
               </motion.li>
             );
           })}
