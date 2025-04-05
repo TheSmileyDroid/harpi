@@ -25,7 +25,9 @@ function About() {
           whileTap={{ scale: 0.95 }}
         >
           <span className="text-[var(--primary)]">TheSmileyDroid</span>
-        </motion.a>
+        </motion.a>{' '}
+        com o ideia inicial de ser um bot de música, mas com o tempo evoluiu para um bot completo
+        com recursos de IA, como processamento de linguagem natural e geração de texto.
       </p>
       <p className="mb-2">
         Este painel de controle permite gerenciar as funções do bot em seus servidores Discord.
