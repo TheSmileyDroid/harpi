@@ -9,15 +9,15 @@ function GuildControl({ className }: { className?: string }) {
 
   return (
     <div className={clsx("w-full", className)}>
-      <div className="p-0 w-5/6 mx-auto">
-        <div className="flex flex-wrap text-sm border shadow-md m-3 rounded-xl p-3 justify-center content-center gap-3">
+      <div className="p-0 w-full mx-auto">
+        <div className="flex flex-wrap text-sm border victorian-border shadow-md m-3 p-3 justify-center content-center gap-3">
           <span className="font-bold my-auto">Controle de guilda</span>
           {activeGuild?.name ? (
-            <div className="border rounded-xl p-3 border-dashed">
+            <div className="border p-3 border-dashed">
               <span className="italic ">Guilda ativa:</span> {activeGuild?.name}
             </div>
           ) : (
-            <div className="border rounded-xl p-3 border-dashed border-error">
+            <div className="border p-3 border-dashed border-error">
               <span className="italic text-error font-bold">
                 Nenhuma guilda ativa
               </span>
@@ -26,7 +26,7 @@ function GuildControl({ className }: { className?: string }) {
         </div>
       </div>
       {activeGuild?.id && (
-        <div className="flex flex-wrap w-5/6 mx-auto">
+        <div className="flex flex-wrap w-full mx-auto">
           <MusicList className="flex-grow" />
           <VoiceChannels className="flex-shrink" />
         </div>

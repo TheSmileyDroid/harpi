@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import clsx from "clsx";
 import { LoaderCircle } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import apiClient from "../api/ApiClient";
 import { setMusicState, store } from "../store";
@@ -10,6 +11,9 @@ import MusicCard from "./MusicCard";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
+/**
+ * Componente que exibe a lista de músicas e controles para adicionar novas músicas.
+ */
 function MusicList({ className }: { className?: string }) {
   const [url, setUrl] = useState("");
   const [voiceChannel, setVoiceChannel] = useState("");
@@ -57,49 +61,93 @@ function MusicList({ className }: { className?: string }) {
   });
 
   if (guildMusicState.isPending) {
-    return <LoaderCircle className="animate-spin" />;
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex justify-center items-center h-40"
+      >
+        <LoaderCircle className="animate-spin" />
+      </motion.div>
+    );
   }
 
   if (guildMusicState.isError) {
     return (
-      <div className="text-danger">Erro ao recuperar lista de músicas</div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-danger"
+      >
+        Erro ao recuperar lista de músicas
+      </motion.div>
     );
   }
 
   return (
     <div className={clsx("w-3/6 p-3 mx-auto", className)}>
-      <div className="p-3 space-y-2 w-full mx-auto">
-        <div>
+      <motion.div
+        className="p-3 space-y-2 w-full mx-auto"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="flex justify-center items-center w-full ">
           {voiceChannel.length > 0 ? (
-            voiceChannel
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              {voiceChannel}
+            </motion.div>
           ) : (
-            <span className="text-error text-wrap">
+            <motion.span
+              className="text-error text-wrap"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
               Harpi não está em nenhum canal de voz
-            </span>
+            </motion.span>
           )}
         </div>
-        <div>
-          <div className="flex w-full max-w-sm items-center space-x-2 mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="flex w-full max-w-[80%] space-x-2 mx-auto">
             <Input
               type="url"
               placeholder="Url"
+              className="w-full"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />
-            <Button
-              type="submit"
-              onClick={() => addMusic.mutate(url)}
-              isLoading={addMusic.isPending}
-            >
-              Adicionar música
-            </Button>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                type="submit"
+                onClick={() => addMusic.mutate(url)}
+                isLoading={addMusic.isPending}
+              >
+                Adicionar música
+              </Button>
+            </motion.div>
           </div>
-          {addMusic.error && (
-            <div className="bg-error text-background p-1 m-1 rounded-lg w-fit text-wrap">
-              {(addMusic.error as ServerError).response?.data?.detail}
-            </div>
-          )}
-        </div>
+          <AnimatePresence>
+            {addMusic.error && (
+              <motion.div
+                className="bg-error text-background p-1 m-1 w-fit text-wrap"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                {(addMusic.error as ServerError).response?.data?.detail}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
         {guildMusicState.data?.queue[0] && (
           <MusicCard
             music={guildMusicState.data?.queue[0]}
@@ -109,17 +157,32 @@ function MusicList({ className }: { className?: string }) {
             loopMode={guildMusicState.data?.loop_mode}
           />
         )}
-      </div>
-      <ul className="w-full">
-        {guildMusicState.data?.queue.map((music, index) => {
-          return (
-            <li className="border shadow-md m-3 rounded-xl p-3" key={index}>
-              <span className="italic">{index}</span> - {music.title} -{" "}
-              {music.album}
-            </li>
-          );
-        })}
-      </ul>
+      </motion.div>
+      <motion.ul
+        className="w-full h-56 overflow-y-auto border shadow-md p-3 mx-auto"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.4 }}
+      >
+        <AnimatePresence>
+          {guildMusicState.data?.queue.map((music, index) => {
+            return (
+              <motion.li
+                className="border shadow-md m-3 p-3"
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ scale: 1.02, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
+              >
+                <span className="italic">{index}</span> - {music.title} -{" "}
+                {music.album}
+              </motion.li>
+            );
+          })}
+        </AnimatePresence>
+      </motion.ul>
     </div>
   );
 }

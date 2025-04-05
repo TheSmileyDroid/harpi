@@ -28,6 +28,7 @@ from pydantic import BaseModel
 import src
 import src.routers
 import src.routers.guild
+import src.routers.system
 from src.cogs.ai import AiCog
 from src.cogs.basic import BasicCog
 from src.cogs.dice_cog import DiceCog
@@ -157,6 +158,12 @@ app.include_router(
     src.routers.guild.router,
     prefix="/api/guilds",
     tags=["guilds"],
+)
+
+app.include_router(
+    src.routers.system.router,
+    prefix="/api/system",
+    tags=["system"],
 )
 
 app.include_router(api_router)

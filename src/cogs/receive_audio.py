@@ -1,14 +1,17 @@
 """Módulo para gravar áudio dos canais de voz do Discord."""
 
 import asyncio
+import io
+import logging
+import os
+import tempfile
+from typing import Any, Optional
+
 import discord
 from discord.ext import commands
-from typing import Any, Optional
-import tempfile
-import os
-import logging
 
 logger = logging.getLogger(__name__)
+
 
 class ReceiveAudioCog(commands.Cog):
     """Cog responsável pela gravação de áudio dos canais de voz."""
@@ -40,8 +43,13 @@ class ReceiveAudioCog(commands.Cog):
     async def process_audio(self, audio_data: bytes) -> str:
         """Process audio data and return text."""
         # Save audio to temporary WAV file
-        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
-            wavfile.write(temp_wav.name, 16000, audio_data)
+        with tempfile.NamedTemporaryFile(
+            suffix=".wav", delete=False
+        ) as temp_wav:
+            temp_wav.write(audio_data)
+            temp_wav_path = temp_wav.name
+            logger.info(f"Temporary WAV file created at {temp_wav_path}")
+            temp_wav.close()
 
         # Convert WAV to text using a different approach (e.g., Whisper)
         # This is a placeholder - you'll need to implement the actual transcription logic
@@ -111,7 +119,10 @@ class ReceiveAudioCog(commands.Cog):
             await ctx.send("Não há gravação em andamento neste servidor.")
 
     async def once_done(
-        self, sink: discord.sinks.WaveSink, channel: discord.TextChannel, *args: Any
+        self,
+        sink: discord.sinks.WaveSink,
+        channel: discord.TextChannel,
+        *args: Any,
     ) -> None:
         """Callback chamado quando a gravação é finalizada.
 
@@ -120,7 +131,9 @@ class ReceiveAudioCog(commands.Cog):
             channel: Canal de texto onde a mensagem será enviada.
             args: Argumentos adicionais.
         """
-        assert isinstance(sink, discord.sinks.WaveSink), "O sink deve ser do tipo WaveSink"
+        assert isinstance(sink, discord.sinks.WaveSink), (
+            "O sink deve ser do tipo WaveSink"
+        )
         assert isinstance(channel, discord.TextChannel), (
             "O canal deve ser do tipo TextChannel"
         )
@@ -213,81 +226,3 @@ class ReceiveAudioCog(commands.Cog):
             await status_message.edit(
                 content=f"❌ Erro ao processar áudio: {e}"
             )
-
-
-if __name__ == "__main__":
-    """Testa a funcionalidade de transcrição com um arquivo de áudio existente."""
-    import argparse
-    import asyncio
-    import pathlib
-
-    # Configura o parser de argumentos para permitir testar com diferentes arquivos
-    parser = argparse.ArgumentParser(
-        description="Testa a transcrição de áudio"
-    )
-    parser.add_argument(
-        "--arquivo",
-        type=str,
-        default=".voice_recordings/439894995890208768.wav",
-        help="Caminho para o arquivo de áudio a ser transcrito",
-    )
-
-    args = parser.parse_args()
-
-    # Configura o logger para exibir mensagens durante o teste
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
-
-    # Define uma função para testar a transcrição
-    async def test_transcription(
-        audio_path: str,
-    ) -> None:
-        """Testa a transcrição de um arquivo de áudio.
-
-        Args:
-            audio_path: Caminho para o arquivo de áudio.
-        """
-        # Verifica se o arquivo existe
-        audio_file_path = pathlib.Path(audio_path)
-        if not audio_file_path.exists():
-            print(f"❌ Erro: O arquivo {audio_path} não existe.")
-            return
-
-        print(f"🎯 Testando transcrição do arquivo: {audio_path}")
-
-        try:
-            # Abre o arquivo como BytesIO para simular o processamento real
-            with open(audio_file_path, "rb") as f:
-                audio_data = io.BytesIO(f.read())
-
-            # Processa o áudio
-            text = await ReceiveAudioCog(None).process_audio(audio_data.read())
-
-            # Exibe a transcrição completa
-            print("\n📝 Transcrição completa:")
-            print(f'"{text}"')
-
-            # Se não houver transcrição, exibe uma mensagem
-            if not text:
-                print("❗ Nenhum texto foi reconhecido no áudio.")
-
-        except Exception as e:
-            print(f"❌ Erro durante a transcrição: {str(e)}")
-            import traceback
-
-            traceback.print_exc()
-
-    # Executa o teste
-    try:
-        asyncio.run(
-            test_transcription(args.arquivo)
-        )
-    except KeyboardInterrupt:
-        print("\n⚠️ Teste interrompido pelo usuário.")
-    except Exception as e:
-        print(f"❌ Erro inesperado: {str(e)}")
-        import traceback
-
-        traceback.print_exc()

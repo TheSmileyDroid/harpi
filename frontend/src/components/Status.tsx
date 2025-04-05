@@ -1,9 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCcw } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
 import apiClient, { BASE_URL } from "../api/ApiClient";
 import { Button } from "./ui/button";
 
+/**
+ * Componente responsável por exibir o status do bot.
+ */
 function Status() {
   const queryClient = useQueryClient();
 
@@ -52,30 +56,40 @@ function Status() {
   }, [queryClient]);
 
   return (
-    <div className="flex bg-gradient-to-t from-neutral-200 to-neutral-300 rounded-2xl h-fit m-1 overflow-clip">
+    <div className="flex text-black bg-gradient-to-t from-neutral-100 to-neutral-300 h-fit m-1 overflow-clip">
       <span className="hidden md:block p-1 px-2 content-center">Status</span>
-      <span
-        className={`flex ${query.isFetching && "bg-accent"} ${
-          query.isError && "bg-error"
-        } ${query.isSuccess && "bg-success"} p-1 content-center`}
-      >
-        <span className="content-center m-1">
-          {query.isPending || (query.isFetching && "...")}
-          {query.isSuccess && query.data?.status}
-          {query.isError && query.error.message}
-        </span>
-        {!query.isPending && (
-          <Button
-            onClick={() => {
-              queryClient.invalidateQueries();
-            }}
-            variant={"ghost"}
-            size={"icon"}
-          >
-            <RefreshCcw />
-          </Button>
-        )}
-      </span>
+      <AnimatePresence mode="wait">
+        <motion.span
+          key={query.isSuccess ? "success" : query.isError ? "error" : "loading"}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+          className={`flex ${query.isFetching && "bg-accent"} ${
+            query.isError && "bg-error"
+          } ${query.isSuccess && "bg-success"} p-1 content-center`}
+        >
+          <span className="content-center m-1">
+            {query.isPending || (query.isFetching && "...")}
+            {query.isSuccess && query.data?.status}
+            {query.isError && query.error.message}
+          </span>
+          {!query.isPending && (
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <Button
+                onClick={() => {
+                  queryClient.invalidateQueries();
+                }}
+                variant={"ghost"}
+                size={"icon"}
+                className="text-black border-black hover:text-black/80 hover:border-black/80"
+              >
+                <RefreshCcw />
+              </Button>
+            </motion.div>
+          )}
+        </motion.span>
+      </AnimatePresence>
     </div>
   );
 }
