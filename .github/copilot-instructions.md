@@ -53,21 +53,4 @@ function getUser(userId: number): Promise<User> {
 
 Gere a api de forma automática com OpenAPI, o comando está no package.json. Utilize o ESLint para linting e Prettier para formatação.
 
-Use default arguments instead of short circuiting or conditionals. Default arguments are often cleaner than short circuiting.
-
-**Bad:**
-
-```ts
-function loadPages(count?: number) {
-  const loadCount = count !== undefined ? count : 10;
-  // ...
-}
-```
-
-**Good:**
-
-```ts
-function loadPages(count: number = 10) {
-  // ...
-}
-```
+Prefira usar Tailwind CSS para estilização. Para animações, use o Framer Motion. Tente separar em componentes reutilizáveis. Novas rotas do frontend devem ser criadas em frontend/src/routes. Componentes devem ser criados em frontend/src/components.
