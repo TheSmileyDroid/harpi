@@ -1,13 +1,53 @@
+import type { Key } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { CircleOff, Cpu, Database, HardDrive, Server } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Api } from '@/api/Api';
+import apiClient, { BASE_URL } from '@/api/ApiClient';
 
-// Cria a API usando a baseURL correta
-const api = new Api({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
-});
+// Interfaces para tipagem dos dados
+interface Disk {
+  path: string;
+  percent: number;
+  used: number;
+  total: number;
+}
+
+interface SystemStatusData {
+  cpu_percent: number;
+  memory_percent: number;
+  memory_total: number;
+  memory_used: number;
+  uptime: string;
+  disks: Disk[];
+}
+
+interface MinecraftPlayer {
+  name: string;
+}
+
+interface MinecraftStatusData {
+  is_running: boolean;
+  version: string | null;
+  cpu_percent: number | null;
+  memory_mb: number | null;
+  online_players: number | null;
+  max_players: number | null;
+  players_list: MinecraftPlayer[] | null;
+}
+
+interface ProcessInfo {
+  pid: number | string;
+  name: string;
+  cpu_percent: number;
+  memory_percent: number;
+  command: string;
+}
+
+interface TopProcessesData {
+  processes: ProcessInfo[];
+  timestamp: string;
+}
 
 export const Route = createFileRoute('/system')({
   component: SystemPage,
@@ -18,8 +58,8 @@ function SystemPage() {
   const { data: systemStatus, isLoading: loadingStatus } = useQuery({
     queryKey: ['systemStatus'],
     queryFn: async () => {
-      const response = await api.api.getSystemStatusApiSystemStatusGet();
-      return response.data;
+      const response = await apiClient.api.getSystemStatusApiSystemStatusGet();
+      return response.data as SystemStatusData;
     },
     refetchInterval: 10000, // Atualiza a cada 10 segundos
   });
@@ -28,8 +68,8 @@ function SystemPage() {
   const { data: minecraftStatus, isLoading: loadingMinecraft } = useQuery({
     queryKey: ['minecraftStatus'],
     queryFn: async () => {
-      const response = await api.api.getMinecraftStatusApiSystemMinecraftGet();
-      return response.data;
+      const response = await apiClient.api.getMinecraftStatusApiSystemMinecraftGet();
+      return response.data as MinecraftStatusData;
     },
     refetchInterval: 15000, // Atualiza a cada 15 segundos
   });
@@ -38,8 +78,8 @@ function SystemPage() {
   const { data: topProcesses, isLoading: loadingProcesses } = useQuery({
     queryKey: ['topProcesses'],
     queryFn: async () => {
-      const response = await api.api.getTopProcessesApiSystemTopGet();
-      return response.data;
+      const response = await apiClient.api.getTopProcessesApiSystemTopGet();
+      return response.data as TopProcessesData;
     },
     refetchInterval: 5000, // Atualiza a cada 5 segundos
   });
@@ -120,7 +160,7 @@ function SystemPage() {
                 <HardDrive className="h-4 w-4" /> Discos
               </h3>
               <div className="mt-2 space-y-3">
-                {systemStatus.disks.map((disk, index) => (
+                {systemStatus.disks.map((disk: Disk, index: Key | null | undefined) => (
                   <div key={index}>
                     <div className="text-sm font-medium">{disk.path}</div>
                     <div className="flex items-center">
@@ -213,11 +253,13 @@ function SystemPage() {
                     <div className="mt-2">
                       <h4 className="text-sm font-medium">Jogadores Online:</h4>
                       <ul className="mt-1 space-y-1 text-sm">
-                        {minecraftStatus.players_list.map((player, index) => (
-                          <li key={index} className="border-l-2 border-green-400 pl-2">
-                            {player.name}
-                          </li>
-                        ))}
+                        {minecraftStatus.players_list.map(
+                          (player: MinecraftPlayer, index: Key | null | undefined) => (
+                            <li key={index} className="border-l-2 border-green-400 pl-2">
+                              {player.name}
+                            </li>
+                          )
+                        )}
                       </ul>
                     </div>
                   ) : (
@@ -275,39 +317,41 @@ function SystemPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {topProcesses.processes.map((process, index) => (
-                  <tr key={index}>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">
-                      {process.pid}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs">{process.name}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs">
-                      <div className="flex items-center">
-                        <div className="mr-2 h-1.5 w-16 rounded-full bg-gray-200 dark:bg-gray-700">
-                          <div
-                            className="h-1.5 rounded-full bg-blue-600"
-                            style={{ width: `${Math.min(process.cpu_percent * 5, 100)}%` }}
-                          ></div>
+                {topProcesses.processes.map(
+                  (process: ProcessInfo, index: Key | null | undefined) => (
+                    <tr key={index}>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">
+                        {process.pid}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs">{process.name}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs">
+                        <div className="flex items-center">
+                          <div className="mr-2 h-1.5 w-16 rounded-full bg-gray-200 dark:bg-gray-700">
+                            <div
+                              className="h-1.5 rounded-full bg-blue-600"
+                              style={{ width: `${Math.min(process.cpu_percent * 5, 100)}%` }}
+                            ></div>
+                          </div>
+                          <span>{process.cpu_percent.toFixed(1)}%</span>
                         </div>
-                        <span>{process.cpu_percent.toFixed(1)}%</span>
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs">
-                      <div className="flex items-center">
-                        <div className="mr-2 h-1.5 w-16 rounded-full bg-gray-200 dark:bg-gray-700">
-                          <div
-                            className="bg-purple-600 h-1.5 rounded-full"
-                            style={{ width: `${Math.min(process.memory_percent * 5, 100)}%` }}
-                          ></div>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs">
+                        <div className="flex items-center">
+                          <div className="mr-2 h-1.5 w-16 rounded-full bg-gray-200 dark:bg-gray-700">
+                            <div
+                              className="bg-purple-600 h-1.5 rounded-full"
+                              style={{ width: `${Math.min(process.memory_percent * 5, 100)}%` }}
+                            ></div>
+                          </div>
+                          <span>{process.memory_percent.toFixed(1)}%</span>
                         </div>
-                        <span>{process.memory_percent.toFixed(1)}%</span>
-                      </div>
-                    </td>
-                    <td className="max-w-xs truncate whitespace-nowrap px-3 py-2 text-xs text-gray-500">
-                      {process.command}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="max-w-xs truncate whitespace-nowrap px-3 py-2 text-xs text-gray-500">
+                        {process.command}
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
             <div className="mt-2 text-right text-xs text-gray-500">
@@ -332,7 +376,7 @@ function SystemPage() {
 
         <div className="flex justify-center">
           <img
-            src={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/system/top/image`}
+            src={`${BASE_URL}/api/system/top/image`}
             alt="Top Output"
             className="max-w-full rounded border border-gray-300 shadow-sm"
             onError={(e) => {
