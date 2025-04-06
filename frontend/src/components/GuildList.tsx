@@ -19,13 +19,15 @@ function GuildList({ className = '' }: { className?: string }) {
 
   return (
     <motion.div
-      className={clsx('guild-list', className)}
+      className={clsx('guild-list flex flex-col', className)}
       initial={{ opacity: 0, x: -50 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <h2 className="mb-6 text-center text-lg tracking-wider opacity-80">GUILDAS</h2>
-      <ul className="relative flex flex-col gap-2">
+      <h2 className="mb-4 text-center text-base tracking-wider opacity-80 sm:mb-6 sm:text-lg">
+        GUILDAS
+      </h2>
+      <ul className="flex w-full flex-col gap-2 p-4">
         {query.data?.map((guild, index) => (
           <motion.li
             key={guild.id}
@@ -47,20 +49,34 @@ function GuildList({ className = '' }: { className?: string }) {
                 variant={'outline'}
                 size={'lg'}
                 className={clsx(
-                  'victorian-border flex h-fit w-full flex-col text-xs shadow-[0_0_8px_rgba(0,0,0,0.2)] transition-all duration-300',
+                  'victorian-border flex h-fit w-full flex-col p-2 text-xs shadow-[0_0_8px_rgba(0,0,0,0.2)] transition-all duration-300 sm:p-3 md:text-sm',
                   {
                     'bg-[rgba(197,199,180,0.15)] text-[var(--primary)] hover:bg-[rgba(197,199,180,0.1)]':
                       guild.id == activeGuild?.id,
                   }
                 )}
               >
-                <h3 className="text-wrap font-bold">{guild.name}</h3>
-                {guild.description && <span className="opacity-70">{guild.description}</span>}
-                <span className="m-1 opacity-80">Membros: {guild.approximate_member_count}</span>
+                <h3 className="line-clamp-1 text-wrap font-bold">{guild.name}</h3>
+                {guild.description && (
+                  <span className="line-clamp-2 opacity-70">{guild.description}</span>
+                )}
+                <span className="m-1 text-xs opacity-80">
+                  Membros: {guild.approximate_member_count}
+                </span>
               </Button>
             </motion.div>
           </motion.li>
         ))}
+        {query.isLoading && (
+          <div className="flex justify-center p-4">
+            <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-t-2 border-[var(--primary)]"></div>
+          </div>
+        )}
+        {query.data?.length === 0 && (
+          <div className="flex justify-center p-4 text-center text-xs sm:text-sm">
+            <p>Nenhuma guilda encontrada.</p>
+          </div>
+        )}
       </ul>
     </motion.div>
   );

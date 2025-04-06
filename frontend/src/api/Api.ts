@@ -9,6 +9,32 @@
  * ---------------------------------------------------------------
  */
 
+import type {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+  HeadersDefaults,
+  ResponseType,
+} from 'axios';
+import axios from 'axios';
+
+/**
+ * DiskInfo
+ * Informações de um disco.
+ */
+export interface DiskInfo {
+  /** Path */
+  path: string;
+  /** Total */
+  total: number;
+  /** Used */
+  used: number;
+  /** Free */
+  free: number;
+  /** Percent */
+  percent: number;
+}
+
 /** HTTPValidationError */
 export interface HTTPValidationError {
   /** Detail */
@@ -98,7 +124,7 @@ export interface IMusicState {
  */
 export interface IStatus {
   /** Status */
-  status: "online" | "offline";
+  status: 'online' | 'offline';
 }
 
 /**
@@ -135,6 +161,115 @@ export enum LoopMode {
   Value2 = 2,
 }
 
+/**
+ * MinecraftPlayer
+ * Informações de um jogador de Minecraft.
+ */
+export interface MinecraftPlayer {
+  /** Name */
+  name: string;
+  /** Id */
+  id?: string | null;
+}
+
+/**
+ * MinecraftStatus
+ * Status do servidor Minecraft.
+ */
+export interface MinecraftStatus {
+  /**
+   * Is Running
+   * Se o servidor está rodando
+   */
+  is_running: boolean;
+  /** Version */
+  version?: string | null;
+  /** Online Players */
+  online_players?: number | null;
+  /** Max Players */
+  max_players?: number | null;
+  /**
+   * Players List
+   * @default []
+   */
+  players_list?: MinecraftPlayer[];
+  /** Cpu Percent */
+  cpu_percent?: number | null;
+  /** Memory Mb */
+  memory_mb?: number | null;
+}
+
+/**
+ * ProcessInfo
+ * Informações de um processo do sistema.
+ */
+export interface ProcessInfo {
+  /** Pid */
+  pid: number;
+  /** Name */
+  name: string;
+  /** Cpu Percent */
+  cpu_percent: number;
+  /** Memory Percent */
+  memory_percent: number;
+  /** Command */
+  command: string;
+}
+
+/**
+ * SystemStatus
+ * Status do sistema com informações de recursos.
+ */
+export interface SystemStatus {
+  /**
+   * Cpu Percent
+   * Percentual de uso de CPU
+   */
+  cpu_percent: number;
+  /**
+   * Memory Percent
+   * Percentual de uso de memória
+   */
+  memory_percent: number;
+  /**
+   * Memory Total
+   * Total de memória em GB
+   */
+  memory_total: number;
+  /**
+   * Memory Used
+   * Memória usada em GB
+   */
+  memory_used: number;
+  /**
+   * Uptime
+   * Tempo de atividade do sistema
+   */
+  uptime: string;
+  /**
+   * Disks
+   * Informações de discos
+   */
+  disks: DiskInfo[];
+}
+
+/**
+ * TopProcesses
+ * Lista dos processos mais ativos do sistema.
+ */
+export interface TopProcesses {
+  /**
+   * Timestamp
+   * Timestamp da coleta
+   */
+  timestamp: string;
+  /**
+   * Processes
+   * Lista de processos
+   */
+  processes: ProcessInfo[];
+}
+
 /** ValidationError */
 export interface ValidationError {
   /** Location */
@@ -145,12 +280,10 @@ export interface ValidationError {
   type: string;
 }
 
-import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, HeadersDefaults, ResponseType } from "axios";
-import axios from "axios";
-
 export type QueryParamsType = Record<string | number, any>;
 
-export interface FullRequestParams extends Omit<AxiosRequestConfig, "data" | "params" | "url" | "responseType"> {
+export interface FullRequestParams
+  extends Omit<AxiosRequestConfig, 'data' | 'params' | 'url' | 'responseType'> {
   /** set parameter to `true` for call `securityWorker` for this request */
   secure?: boolean;
   /** request path */
@@ -165,32 +298,38 @@ export interface FullRequestParams extends Omit<AxiosRequestConfig, "data" | "pa
   body?: unknown;
 }
 
-export type RequestParams = Omit<FullRequestParams, "body" | "method" | "query" | "path">;
+export type RequestParams = Omit<FullRequestParams, 'body' | 'method' | 'query' | 'path'>;
 
-export interface ApiConfig<SecurityDataType = unknown> extends Omit<AxiosRequestConfig, "data" | "cancelToken"> {
+export interface ApiConfig<SecurityDataType = unknown>
+  extends Omit<AxiosRequestConfig, 'data' | 'cancelToken'> {
   securityWorker?: (
-    securityData: SecurityDataType | null,
+    securityData: SecurityDataType | null
   ) => Promise<AxiosRequestConfig | void> | AxiosRequestConfig | void;
   secure?: boolean;
   format?: ResponseType;
 }
 
 export enum ContentType {
-  Json = "application/json",
-  FormData = "multipart/form-data",
-  UrlEncoded = "application/x-www-form-urlencoded",
-  Text = "text/plain",
+  Json = 'application/json',
+  FormData = 'multipart/form-data',
+  UrlEncoded = 'application/x-www-form-urlencoded',
+  Text = 'text/plain',
 }
 
 export class HttpClient<SecurityDataType = unknown> {
   public instance: AxiosInstance;
   private securityData: SecurityDataType | null = null;
-  private securityWorker?: ApiConfig<SecurityDataType>["securityWorker"];
+  private securityWorker?: ApiConfig<SecurityDataType>['securityWorker'];
   private secure?: boolean;
   private format?: ResponseType;
 
-  constructor({ securityWorker, secure, format, ...axiosConfig }: ApiConfig<SecurityDataType> = {}) {
-    this.instance = axios.create({ ...axiosConfig, baseURL: axiosConfig.baseURL || "" });
+  constructor({
+    securityWorker,
+    secure,
+    format,
+    ...axiosConfig
+  }: ApiConfig<SecurityDataType> = {}) {
+    this.instance = axios.create({ ...axiosConfig, baseURL: axiosConfig.baseURL || '' });
     this.secure = secure;
     this.format = format;
     this.securityWorker = securityWorker;
@@ -200,7 +339,10 @@ export class HttpClient<SecurityDataType = unknown> {
     this.securityData = data;
   };
 
-  protected mergeRequestParams(params1: AxiosRequestConfig, params2?: AxiosRequestConfig): AxiosRequestConfig {
+  protected mergeRequestParams(
+    params1: AxiosRequestConfig,
+    params2?: AxiosRequestConfig
+  ): AxiosRequestConfig {
     const method = params1.method || (params2 && params2.method);
 
     return {
@@ -208,7 +350,9 @@ export class HttpClient<SecurityDataType = unknown> {
       ...params1,
       ...(params2 || {}),
       headers: {
-        ...((method && this.instance.defaults.headers[method.toLowerCase() as keyof HeadersDefaults]) || {}),
+        ...((method &&
+          this.instance.defaults.headers[method.toLowerCase() as keyof HeadersDefaults]) ||
+          {}),
         ...(params1.headers || {}),
         ...((params2 && params2.headers) || {}),
       },
@@ -216,7 +360,7 @@ export class HttpClient<SecurityDataType = unknown> {
   }
 
   protected stringifyFormItem(formItem: unknown) {
-    if (typeof formItem === "object" && formItem !== null) {
+    if (typeof formItem === 'object' && formItem !== null) {
       return JSON.stringify(formItem);
     } else {
       return `${formItem}`;
@@ -250,18 +394,18 @@ export class HttpClient<SecurityDataType = unknown> {
     ...params
   }: FullRequestParams): Promise<AxiosResponse<T>> => {
     const secureParams =
-      ((typeof secure === "boolean" ? secure : this.secure) &&
+      ((typeof secure === 'boolean' ? secure : this.secure) &&
         this.securityWorker &&
         (await this.securityWorker(this.securityData))) ||
       {};
     const requestParams = this.mergeRequestParams(params, secureParams);
     const responseFormat = format || this.format || undefined;
 
-    if (type === ContentType.FormData && body && body !== null && typeof body === "object") {
+    if (type === ContentType.FormData && body && body !== null && typeof body === 'object') {
       body = this.createFormData(body as Record<string, unknown>);
     }
 
-    if (type === ContentType.Text && body && body !== null && typeof body !== "string") {
+    if (type === ContentType.Text && body && body !== null && typeof body !== 'string') {
       body = JSON.stringify(body);
     }
 
@@ -269,7 +413,7 @@ export class HttpClient<SecurityDataType = unknown> {
       ...requestParams,
       headers: {
         ...(requestParams.headers || {}),
-        ...(type ? { "Content-Type": type } : {}),
+        ...(type ? { 'Content-Type': type } : {}),
       },
       params: query,
       responseType: responseFormat,
@@ -296,8 +440,8 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     getApiGuildsGet: (params: RequestParams = {}) =>
       this.request<IGuild[], void>({
         path: `/api/guilds`,
-        method: "GET",
-        format: "json",
+        method: 'GET',
+        format: 'json',
         ...params,
       }),
 
@@ -314,13 +458,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {},
+      params: RequestParams = {}
     ) =>
       this.request<IGuild | null, void | HTTPValidationError>({
         path: `/api/guilds/`,
-        method: "GET",
+        method: 'GET',
         query: query,
-        format: "json",
+        format: 'json',
         ...params,
       }),
 
@@ -337,13 +481,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {},
+      params: RequestParams = {}
     ) =>
       this.request<IMusic[], void | HTTPValidationError>({
         path: `/api/guilds/music/list`,
-        method: "GET",
+        method: 'GET',
         query: query,
-        format: "json",
+        format: 'json',
         ...params,
       }),
 
@@ -360,13 +504,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {},
+      params: RequestParams = {}
     ) =>
       this.request<IMusicState, void | HTTPValidationError>({
         path: `/api/guilds/state`,
-        method: "GET",
+        method: 'GET',
         query: query,
-        format: "json",
+        format: 'json',
         ...params,
       }),
 
@@ -385,13 +529,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Url */
         url: string;
       },
-      params: RequestParams = {},
+      params: RequestParams = {}
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/queue`,
-        method: "POST",
+        method: 'POST',
         query: query,
-        format: "json",
+        format: 'json',
         ...params,
       }),
 
@@ -408,13 +552,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {},
+      params: RequestParams = {}
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/skip`,
-        method: "POST",
+        method: 'POST',
         query: query,
-        format: "json",
+        format: 'json',
         ...params,
       }),
 
@@ -431,13 +575,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {},
+      params: RequestParams = {}
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/pause`,
-        method: "POST",
+        method: 'POST',
         query: query,
-        format: "json",
+        format: 'json',
         ...params,
       }),
 
@@ -454,13 +598,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {},
+      params: RequestParams = {}
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/resume`,
-        method: "POST",
+        method: 'POST',
         query: query,
-        format: "json",
+        format: 'json',
         ...params,
       }),
 
@@ -477,13 +621,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {},
+      params: RequestParams = {}
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/stop`,
-        method: "POST",
+        method: 'POST',
         query: query,
-        format: "json",
+        format: 'json',
         ...params,
       }),
 
@@ -501,15 +645,15 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         idx: string;
       },
       data: ILoopRequest,
-      params: RequestParams = {},
+      params: RequestParams = {}
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/loop`,
-        method: "POST",
+        method: 'POST',
         query: query,
         body: data,
         type: ContentType.Json,
-        format: "json",
+        format: 'json',
         ...params,
       }),
 
@@ -528,13 +672,77 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Channel Id */
         channel_id: string | number;
       },
-      params: RequestParams = {},
+      params: RequestParams = {}
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/voice/connect`,
-        method: "POST",
+        method: 'POST',
         query: query,
-        format: "json",
+        format: 'json',
+        ...params,
+      }),
+
+    /**
+     * @description Obtém o status atual do sistema. Retorna informações sobre CPU, memória, discos e uptime. Returns ------- SystemStatus Objeto contendo estatísticas do sistema.
+     *
+     * @tags system
+     * @name GetSystemStatusApiSystemStatusGet
+     * @summary Get System Status
+     * @request GET:/api/system/status
+     */
+    getSystemStatusApiSystemStatusGet: (params: RequestParams = {}) =>
+      this.request<SystemStatus, void>({
+        path: `/api/system/status`,
+        method: 'GET',
+        format: 'json',
+        ...params,
+      }),
+
+    /**
+     * @description Obtém o status do servidor Minecraft. Verifica se o servidor está rodando e obtém informações como versão, jogadores online e uso de recursos. Returns ------- MinecraftStatus Status do servidor Minecraft.
+     *
+     * @tags system
+     * @name GetMinecraftStatusApiSystemMinecraftGet
+     * @summary Get Minecraft Status
+     * @request GET:/api/system/minecraft
+     */
+    getMinecraftStatusApiSystemMinecraftGet: (params: RequestParams = {}) =>
+      this.request<MinecraftStatus, void>({
+        path: `/api/system/minecraft`,
+        method: 'GET',
+        format: 'json',
+        ...params,
+      }),
+
+    /**
+     * @description Obtém informações sobre os processos mais ativos do sistema. Similar ao comando 'top' do Linux, retorna uma lista dos processos que estão consumindo mais recursos. Returns ------- TopProcesses Lista dos processos mais ativos.
+     *
+     * @tags system
+     * @name GetTopProcessesApiSystemTopGet
+     * @summary Get Top Processes
+     * @request GET:/api/system/top
+     */
+    getTopProcessesApiSystemTopGet: (params: RequestParams = {}) =>
+      this.request<TopProcesses, void>({
+        path: `/api/system/top`,
+        method: 'GET',
+        format: 'json',
+        ...params,
+      }),
+
+    /**
+     * @description Retorna uma imagem com a saída do comando 'top'. Gera uma imagem contendo a saída formatada do comando 'top', semelhante ao que é feito no comando do Discord. Returns ------- StreamingResponse Imagem PNG contendo a saída do 'top'.
+     *
+     * @tags system
+     * @name GetTopImageApiSystemTopImageGet
+     * @summary Get Top Image
+     * @request GET:/api/system/top/image
+     */
+    getTopImageApiSystemTopImageGet: (params: RequestParams = {}) =>
+      this.request<any, void>({
+        path: `/api/system/top/image`,
+        method: 'GET',
+        format: 'json',
         ...params,
       }),
 
@@ -549,8 +757,8 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     botStatusApiStatusGet: (params: RequestParams = {}) =>
       this.request<IStatus, any>({
         path: `/api/status`,
-        method: "GET",
-        format: "json",
+        method: 'GET',
+        format: 'json',
         ...params,
       }),
   };

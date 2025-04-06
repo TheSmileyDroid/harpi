@@ -23,6 +23,7 @@ const AnimatedOutlet = forwardRef<HTMLDivElement>((_prop, ref) => {
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.2 }}
+      className="h-full w-full"
     >
       <RouterContext.Provider value={renderedContext.current}>
         <Outlet />

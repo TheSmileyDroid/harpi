@@ -52,7 +52,7 @@ function Status() {
   }, [queryClient]);
 
   return (
-    <div className="m-1 flex h-fit overflow-clip bg-gradient-to-t from-neutral-100 to-neutral-300 text-black">
+    <div className="m-1 flex h-fit min-h-8 overflow-clip rounded-sm bg-gradient-to-t from-neutral-100 to-neutral-300 text-xs text-black sm:text-sm md:text-base">
       <span className="hidden content-center p-1 px-2 md:block">Status</span>
       <AnimatePresence mode="wait">
         <motion.span
@@ -61,14 +61,14 @@ function Status() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
-          className={`flex ${query.isFetching && 'bg-accent'} ${
+          className={`flex items-center ${query.isFetching && 'bg-accent'} ${
             query.isError && 'bg-error'
-          } ${query.isSuccess && 'bg-success'} content-center p-1`}
+          } ${query.isSuccess && 'bg-success'} content-center p-0.5 sm:p-1`}
         >
-          <span className="m-1 content-center">
+          <span className="m-0.5 content-center sm:m-1">
             {query.isPending || (query.isFetching && '...')}
             {query.isSuccess && query.data?.status}
-            {query.isError && query.error.message}
+            {query.isError && 'Erro'}
           </span>
           {!query.isPending && (
             <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
@@ -78,9 +78,9 @@ function Status() {
                 }}
                 variant={'ghost'}
                 size={'icon'}
-                className="border-black text-black hover:border-black/80 hover:text-black/80"
+                className="h-6 w-6 border-black p-0 text-black hover:border-black/80 hover:text-black/80 sm:h-7 sm:w-7 md:h-8 md:w-8"
               >
-                <RefreshCcw />
+                <RefreshCcw className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
             </motion.div>
           )}

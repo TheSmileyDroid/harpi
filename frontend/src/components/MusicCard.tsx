@@ -80,9 +80,9 @@ export default function MusicCard({
     >
       <Card className="rounded-none border-0 bg-[rgba(12,12,14,0.85)]">
         <CardContent className="w-full p-0">
-          <div className="flex flex-wrap items-center p-4 md:p-6">
+          <div className="flex flex-col items-center p-2 sm:flex-row sm:p-4 md:p-6">
             <motion.div
-              className="relative h-24 w-24 flex-shrink-0 sm:h-32 sm:w-32"
+              className="relative mb-3 h-32 w-32 flex-shrink-0 sm:mb-0 sm:h-24 sm:w-24 md:h-32 md:w-32"
               whileHover={{ scale: 1.05 }}
               transition={{ type: 'spring', stiffness: 400, damping: 10 }}
             >
@@ -101,16 +101,16 @@ export default function MusicCard({
               )}
               <div className="absolute inset-0 bg-[rgba(12,12,14,0.15)]"></div>
             </motion.div>
-            <div className="mx-auto flex w-4/6 flex-grow flex-col space-y-2 p-4">
+            <div className="mx-auto flex w-full flex-grow flex-col space-y-2 px-2 sm:w-4/6 sm:px-4">
               <motion.div layout>
-                <h2 className="text-md truncate font-bold tracking-wider text-[var(--primary)] sm:text-lg">
+                <h2 className="truncate text-center font-bold tracking-wider text-[var(--primary)] sm:text-left sm:text-base md:text-lg">
                   {music.title} - {music.album}
                 </h2>
-                <p className="truncate text-sm text-[var(--secondary)]">
+                <p className="truncate text-center text-xs text-[var(--secondary)] sm:text-left sm:text-sm">
                   {music.artists?.join(', ') || 'Artista desconhecido'}
                 </p>
               </motion.div>
-              <div className="w-5/6 space-y-1">
+              <div className="w-full space-y-1 sm:w-5/6">
                 <Slider
                   value={[_progress]}
                   max={duration}
@@ -127,53 +127,59 @@ export default function MusicCard({
                   </span>
                 </div>
               </div>
-              <div className="music-controls mt-4 flex justify-center space-x-3">
+              <div className="music-controls mt-2 flex justify-center space-x-2 sm:mt-4 sm:space-x-3">
                 <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                   <Button
                     variant="outline"
                     size="icon"
+                    className="h-8 w-8 sm:h-9 sm:w-9"
                     onClick={() =>
                       apiClient.api.stopMusicApiGuildsStopPost({ idx: activeGuild?.id || '-1' })
                     }
                   >
-                    <Square className="h-4 w-4" />
+                    <Square className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                  <Button size="icon" onClick={handleTogglePlay}>
-                    {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  <Button size="icon" className="h-8 w-8 sm:h-9 sm:w-9" onClick={handleTogglePlay}>
+                    {playing ? (
+                      <Pause className="h-3 w-3 sm:h-4 sm:w-4" />
+                    ) : (
+                      <Play className="h-3 w-3 sm:h-4 sm:w-4" />
+                    )}
                   </Button>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                   <Button
                     variant="outline"
                     size="icon"
+                    className="h-8 w-8 sm:h-9 sm:w-9"
                     onClick={() => {
                       apiClient.api.skipMusicApiGuildsSkipPost({ idx: activeGuild?.id || '-1' });
                     }}
                   >
-                    <SkipForward className="h-4 w-4" />
+                    <SkipForward className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                   <Button
                     variant={'outline'}
                     size={'icon'}
-                    isLoading={toggleLoop.isPending}
-                    className={clsx({
+                    className={clsx('h-8 w-8 sm:h-9 sm:w-9', {
                       'border-background bg-[rgba(197,199,180,0.95)] text-background hover:text-[rgba(197,199,180,0.95)]/50':
                         loopMode === LoopMode.Value2 || loopMode === LoopMode.Value1,
                     })}
+                    isLoading={toggleLoop.isPending}
                     onClick={() => {
                       toggleLoop.mutate();
                     }}
                   >
                     {loopMode === LoopMode.Value2 ? (
-                      <Repeat />
+                      <Repeat className="h-3 w-3 sm:h-4 sm:w-4" />
                     ) : loopMode === LoopMode.Value1 ? (
-                      <Repeat1 />
+                      <Repeat1 className="h-3 w-3 sm:h-4 sm:w-4" />
                     ) : (
-                      <Repeat />
+                      <Repeat className="h-3 w-3 sm:h-4 sm:w-4" />
                     )}
                   </Button>
                 </motion.div>
