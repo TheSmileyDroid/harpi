@@ -285,11 +285,11 @@ class YTMusicData:
 
 
 class FFmpegPCMAudio(discord.AudioSource):
-    """Classe responsável por fazer o download de músicas do Youtube."""
+    """Classe responsável por fazer o streaming de áudio via FFmpeg."""
 
     def __init__(
         self,
-        source: io.BufferedIOBase,
+        source: str | io.BufferedIOBase,
         *,
         executable: str = "ffmpeg",
         pipe: bool = False,
@@ -300,21 +300,20 @@ class FFmpegPCMAudio(discord.AudioSource):
         """Cria uma instância de FFmpegPCMAudio.
 
         Args:
-            source (io.BufferedIOBase): A file-like object that reads
-            byte data representing raw PCM.
-            executable (str, optional): The executable to use.
+            source (str | io.BufferedIOBase): A URL ou arquivo de áudio
+            executable (str, optional): O executável a ser usado.
             Defaults to "ffmpeg".
-            pipe (bool, optional): Whether to pipe the audio.
+            pipe (bool, optional): Se o áudio deve ser enviado via pipe.
             Defaults to False.
-            stderr (io.TextIOWrapper | None, optional): The stderr to use.
+            stderr (io.TextIOWrapper | None, optional): O stderr a ser usado.
             Defaults to None.
-            before_options (str | None, optional): The before options to use.
+            before_options (str | None, optional): Opções antes do input.
             Defaults to None.
-            options (str | None, optional): The options to use.
+            options (str | None, optional): Opções adicionais.
             Defaults to None.
 
         Raises:
-            discord.ClientException: _description_
+            discord.ClientException: Se o executável não for encontrado.
 
         """
         stdin = None if not pipe else source
@@ -332,19 +331,21 @@ class FFmpegPCMAudio(discord.AudioSource):
             "-loglevel",
             "warning",
         ))
+        args.extend((
+            "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5",
+        ))
         if isinstance(options, str):
             args.extend(shlex.split(options))
         args.append("pipe:1")
-        self._process = None
+
+        logger.debug(f"FFmpegPCMAudio command: {' '.join(args)}")
+
         try:
             self._process = subprocess.Popen(  # noqa: S603
                 args,
-                stdin=subprocess.PIPE,
+                stdin=stdin if pipe else subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
-                stderr=stderr,
-            )
-            self._stdout = io.BytesIO(
-                self._process.communicate(input=cast("bytes", stdin))[0],
+                stderr=stderr or subprocess.PIPE,
             )
         except FileNotFoundError:
             raise discord.ClientException(
@@ -360,22 +361,36 @@ class FFmpegPCMAudio(discord.AudioSource):
         """Read 20ms worth of audio.
 
         Returns:
-            bytes: A bytes like object that represents the PCM or Opus data.
+            bytes: A bytes like object that represents the PCM data.
 
         """
-        ret = self._stdout.read(Encoder.FRAME_SIZE)
-        if len(ret) != Encoder.FRAME_SIZE:
+        if self._process is None:
             return b""
+
+        ret = b""
+        # Lê apenas o tamanho exato de um frame
+        try:
+            ret = self._process.stdout.read(Encoder.FRAME_SIZE)  # type: ignore
+            if len(ret) != Encoder.FRAME_SIZE:
+                return b""
+        except (OSError, ValueError):
+            self.cleanup()
+            return b""
+
         return ret
 
     def cleanup(self) -> None:
         """Clean up the process."""
-        proc = self._process
+        proc = getattr(self, "_process", None)
         if proc is None:
             return
-        proc.kill()
-        if proc.poll() is None:
-            proc.communicate()
+
+        try:
+            proc.kill()
+            if proc.poll() is None:
+                proc.communicate()
+        except Exception:  # noqa: BLE001
+            pass
 
         self._process = None
 
