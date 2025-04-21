@@ -12,6 +12,7 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as SystemImport } from './routes/system'
+import { Route as CanvasImport } from './routes/canvas'
 import { Route as AboutImport } from './routes/about'
 import { Route as IndexImport } from './routes/index'
 
@@ -20,6 +21,12 @@ import { Route as IndexImport } from './routes/index'
 const SystemRoute = SystemImport.update({
   id: '/system',
   path: '/system',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const CanvasRoute = CanvasImport.update({
+  id: '/canvas',
+  path: '/canvas',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -53,6 +60,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutImport
       parentRoute: typeof rootRoute
     }
+    '/canvas': {
+      id: '/canvas'
+      path: '/canvas'
+      fullPath: '/canvas'
+      preLoaderRoute: typeof CanvasImport
+      parentRoute: typeof rootRoute
+    }
     '/system': {
       id: '/system'
       path: '/system'
@@ -68,12 +82,14 @@ declare module '@tanstack/react-router' {
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/canvas': typeof CanvasRoute
   '/system': typeof SystemRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/canvas': typeof CanvasRoute
   '/system': typeof SystemRoute
 }
 
@@ -81,27 +97,30 @@ export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/canvas': typeof CanvasRoute
   '/system': typeof SystemRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/system'
+  fullPaths: '/' | '/about' | '/canvas' | '/system'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/system'
-  id: '__root__' | '/' | '/about' | '/system'
+  to: '/' | '/about' | '/canvas' | '/system'
+  id: '__root__' | '/' | '/about' | '/canvas' | '/system'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  CanvasRoute: typeof CanvasRoute
   SystemRoute: typeof SystemRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  CanvasRoute: CanvasRoute,
   SystemRoute: SystemRoute,
 }
 
@@ -117,6 +136,7 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/about",
+        "/canvas",
         "/system"
       ]
     },
@@ -125,6 +145,9 @@ export const routeTree = rootRoute
     },
     "/about": {
       "filePath": "about.tsx"
+    },
+    "/canvas": {
+      "filePath": "canvas.tsx"
     },
     "/system": {
       "filePath": "system.tsx"

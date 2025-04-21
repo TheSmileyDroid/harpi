@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from src.cogs.music import LoopMode, MusicCog
 from src.HarpiLib.musicdata.ytmusicdata import YTMusicData
+from src.models.canvas import CanvasData, CanvasStorage
 from src.models.guild import (
     IGuild,
     IMusic,
@@ -25,6 +26,7 @@ router = APIRouter(
 )
 
 _guilds_cache: list[IGuild] = []
+_canvas_storage = CanvasStorage()
 
 
 @router.get("")
@@ -165,6 +167,26 @@ async def add_to_queue(
             status_code=400,
             detail=detail,
         ) from e
+
+
+@router.get("/canvas")
+async def get_canvas(request: Request, idx: str) -> CanvasData:
+    """Obtém os dados do canvas para uma guilda específica.
+
+    Parameters
+    ----------
+    request : Request
+        Requisição FastAPI
+    idx : str
+        ID da guilda
+
+    Returns
+    -------
+    CanvasData
+        Dados do canvas da guilda
+    """
+    guild_id = idx
+    return _canvas_storage.get_canvas(guild_id)
 
 
 @router.post("/skip")

@@ -188,7 +188,9 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocketmanager.connect(websocket)
     try:
         while True:
-            await websocket.receive_text()
+            message = await websocket.receive_text()
+            # Processar as mensagens recebidas usando o manipulador de mensagens
+            await websocketmanager.handle_message(websocket, message)
     except (WebSocketDisconnect, WebSocketException):
         websocketmanager.disconnect(websocket)
 

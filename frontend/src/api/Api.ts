@@ -19,6 +19,22 @@ import type {
 import axios from 'axios';
 
 /**
+ * CanvasData
+ * Dados do canvas para uma guilda.
+ */
+export interface CanvasData {
+  /** Elements */
+  elements?: object[];
+  /** App State */
+  app_state?: object | null;
+  /**
+   * Version
+   * @default 0
+   */
+  version?: number;
+}
+
+/**
  * DiskInfo
  * Informações de um disco.
  */
@@ -149,6 +165,28 @@ export interface IVoiceChannel {
   name: string;
   /** Members */
   members: string[];
+}
+
+/**
+ * ImageData
+ * Dados de uma imagem para armazenamento.
+ */
+export interface ImageData {
+  /** Content */
+  content: string;
+  /** File Type */
+  file_type: string;
+}
+
+/**
+ * ImageReference
+ * Referência a uma imagem armazenada.
+ */
+export interface ImageReference {
+  /** Image Id */
+  image_id: string;
+  /** File Type */
+  file_type: string;
 }
 
 /**
@@ -534,6 +572,97 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/queue`,
         method: 'POST',
+        query: query,
+        format: 'json',
+        ...params,
+      }),
+
+    /**
+     * @description Obtém os dados do canvas para uma guilda específica. Parameters ---------- request : Request Requisição FastAPI idx : str ID da guilda Returns ------- CanvasData Dados do canvas da guilda
+     *
+     * @tags guilds
+     * @name GetCanvasApiGuildsCanvasGet
+     * @summary Get Canvas
+     * @request GET:/api/guilds/canvas
+     */
+    getCanvasApiGuildsCanvasGet: (
+      query: {
+        /** Idx */
+        idx: string;
+      },
+      params: RequestParams = {}
+    ) =>
+      this.request<CanvasData, void | HTTPValidationError>({
+        path: `/api/guilds/canvas`,
+        method: 'GET',
+        query: query,
+        format: 'json',
+        ...params,
+      }),
+
+    /**
+     * @description Atualiza os dados do canvas para uma guilda específica. Parameters ---------- request : Request Requisição FastAPI idx : str ID da guilda canvas_data : CanvasData Novos dados do canvas Returns ------- dict[str, str] Mensagem de confirmação
+     *
+     * @tags guilds
+     * @name UpdateCanvasApiGuildsCanvasPost
+     * @summary Update Canvas
+     * @request POST:/api/guilds/canvas
+     */
+    updateCanvasApiGuildsCanvasPost: (
+      query: {
+        /** Idx */
+        idx: string;
+      },
+      data: CanvasData,
+      params: RequestParams = {}
+    ) =>
+      this.request<Record<string, string>, void | HTTPValidationError>({
+        path: `/api/guilds/canvas`,
+        method: 'POST',
+        query: query,
+        body: data,
+        type: ContentType.Json,
+        format: 'json',
+        ...params,
+      }),
+
+    /**
+     * @description Faz upload de uma imagem para o canvas. Args: image_data (ImageData): Dados da imagem em base64. Returns: ImageReference: Referência para a imagem armazenada.
+     *
+     * @tags guilds
+     * @name UploadImageApiGuildsCanvasImagesPost
+     * @summary Upload Image
+     * @request POST:/api/guilds/canvas/images
+     */
+    uploadImageApiGuildsCanvasImagesPost: (data: ImageData, params: RequestParams = {}) =>
+      this.request<ImageReference, void | HTTPValidationError>({
+        path: `/api/guilds/canvas/images`,
+        method: 'POST',
+        body: data,
+        type: ContentType.Json,
+        format: 'json',
+        ...params,
+      }),
+
+    /**
+     * @description Obtém uma imagem pelo seu ID. Args: image_id (str): ID da imagem. file_type (str): Tipo de arquivo da imagem. Returns: Response: Conteúdo binário da imagem.
+     *
+     * @tags guilds
+     * @name GetImageApiGuildsCanvasImagesImageIdGet
+     * @summary Get Image
+     * @request GET:/api/guilds/canvas/images/{image_id}
+     */
+    getImageApiGuildsCanvasImagesImageIdGet: (
+      imageId: string,
+      query: {
+        /** File Type */
+        file_type: string;
+      },
+      params: RequestParams = {}
+    ) =>
+      this.request<any, void | HTTPValidationError>({
+        path: `/api/guilds/canvas/images/${imageId}`,
+        method: 'GET',
         query: query,
         format: 'json',
         ...params,

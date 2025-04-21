@@ -1,5 +1,5 @@
-import { Store } from "@tanstack/react-store";
-import type { IGuild, IMusicState } from "./api/Api";
+import { Store } from '@tanstack/react-store';
+import type { IGuild, IMusicState } from './api/Api';
 
 interface IStore {
   guild?: IGuild;
@@ -20,7 +20,7 @@ export const setGuild = (guild: IGuild) => {
   });
 };
 
-export const setMusicState = (musicState: any) => {
+export const setMusicState = (musicState: IMusicState | undefined) => {
   store.setState((state) => {
     return {
       ...state,

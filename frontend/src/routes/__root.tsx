@@ -95,6 +95,13 @@ export const Route = createRootRoute({
                   Início
                 </Link>
                 <Link
+                  to="/canvas"
+                  className="nier-button px-3 py-1 text-sm [&.active]:bg-[rgba(197,199,180,0.2)]"
+                  activeProps={{ className: 'active' }}
+                >
+                  Canvas
+                </Link>
+                <Link
                   to="/system"
                   className="nier-button px-3 py-1 text-sm [&.active]:bg-[rgba(197,199,180,0.2)]"
                   activeProps={{ className: 'active' }}
@@ -127,6 +134,13 @@ export const Route = createRootRoute({
                     activeProps={{ className: 'active' }}
                   >
                     Início
+                  </Link>
+                  <Link
+                    to="/canvas"
+                    className="nier-button px-3 py-1 text-sm [&.active]:bg-[rgba(197,199,180,0.2)]"
+                    activeProps={{ className: 'active' }}
+                  >
+                    Canvas
                   </Link>
                   <Link
                     to="/system"
