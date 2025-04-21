@@ -141,9 +141,6 @@ temp/
 data/
 .temp/
 
-./Lavalink.jar
-models/
-
 
 # Remove voice recordings
 .voice_recordings/
