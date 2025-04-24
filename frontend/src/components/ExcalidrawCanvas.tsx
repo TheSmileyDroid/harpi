@@ -81,6 +81,8 @@ export default function ExcalidrawCanvas() {
     new Map<string, Collaborator>()
   );
 
+  const sentFiles = useRef<BinaryFiles>();
+
   function mergeIntoElements(receivedElements: ExcalidrawElement[]): ExcalidrawElement[] {
     const mergedElements = new Map<string, ExcalidrawElement>();
 
@@ -149,20 +151,18 @@ export default function ExcalidrawCanvas() {
           return;
         }
 
-        console.log('Mensagem recebida do WebSocket:', data);
-
         const canvasData: CanvasData = data.canvasData;
 
-        const elements = mergeIntoElements(canvasData.elements);
+        const mergedCanvasElements = mergeIntoElements(canvasData.elements);
 
         excalidrawApiRef.current?.updateScene({
-          elements: elements,
+          elements: mergedCanvasElements,
           commitToHistory: false,
         });
 
         const files = JSON.parse(data.files) as BinaryFiles;
         const fileData: BinaryFileData[] = Object.values(files);
-        if (fileData && Object.keys(fileData).length > 0) {
+        if (fileData && fileData.length > 0) {
           excalidrawApiRef.current?.addFiles(fileData);
         }
         lastUpdate.current = data.timestamp;
@@ -246,7 +246,21 @@ export default function ExcalidrawCanvas() {
         collaborators: activeCollaborators,
       };
 
-      sendCanvasUpdate(canvasData, files, now);
+      const filesToSend: BinaryFiles = {};
+      Object.keys(files).forEach((key) => {
+        if (sentFiles.current && sentFiles.current[key]) {
+          return;
+        }
+
+        const file = files[key];
+        if (file) {
+          filesToSend[key] = file;
+        }
+      });
+
+      sendCanvasUpdate(canvasData, filesToSend, now);
+
+      sentFiles.current = { ...sentFiles.current, ...filesToSend };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [wsConnection, selectedGuild, collaborators, userName]

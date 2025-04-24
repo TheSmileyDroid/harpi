@@ -166,6 +166,7 @@ app.include_router(
     tags=["system"],
 )
 
+
 app.include_router(api_router)
 
 if not (Path.cwd() / "frontend" / "dist").exists():

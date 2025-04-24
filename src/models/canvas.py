@@ -19,6 +19,7 @@ class CanvasStorage:
 
     _instance = None
     _storage: Dict[str, CanvasData] = {}
+    _files: Dict[str, str] = {}
 
     def __new__(cls) -> CanvasStorage:
         """Singleton pattern implementation."""
@@ -39,11 +40,25 @@ class CanvasStorage:
             self._storage[guild_id] = CanvasData()
         return self._storage[guild_id]
 
-    def update_canvas(self, guild_id: str, canvas_data: CanvasData) -> None:
+    def get_files(self) -> Dict[str, str]:
+        """Retorna os arquivos associados ao canvas.
+
+        Returns:
+            dict: Arquivos associados ao canvas.
+        """
+        return self._files
+
+    def update_canvas(
+        self, guild_id: str, canvas_data: CanvasData, files: dict
+    ) -> None:
         """Atualiza os dados do canvas para uma guilda específica.
 
         Args:
             guild_id (str): ID da guilda.
             canvas_data (CanvasData): Novos dados do canvas.
+            files (dict): Arquivos associados ao canvas.
         """
         self._storage[guild_id] = canvas_data
+        print(files)
+        for key, value in files.items():
+            self._files[key] = value

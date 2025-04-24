@@ -144,3 +144,4 @@ data/
 
 # Remove voice recordings
 .voice_recordings/
+nohup.out

@@ -74,6 +74,7 @@ class WebSocketManager:
                     "type": "canvas-update",
                     "guildId": guild_id,
                     "canvasData": canvas_data.model_dump(),
+                    "files": json.dumps(self.canvas_storage.get_files()),
                     "timestamp": 0,  # Timestamp zero para garantir que os dados sejam aplicados
                 })
 
@@ -82,7 +83,9 @@ class WebSocketManager:
                 room_id = f"guild-{guild_id}"
 
                 self.canvas_storage.update_canvas(
-                    guild_id, CanvasData(**data["canvasData"])
+                    guild_id,
+                    CanvasData(**data["canvasData"]),
+                    json.loads(data.get("files", "{}")),
                 )
 
                 logger.debug(
