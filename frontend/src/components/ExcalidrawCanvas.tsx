@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { BASE_URL } from '@/api/ApiClient';
+import { store } from '@/store';
 import { Excalidraw, exportToBlob } from '@excalidraw/excalidraw';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
 import {
@@ -9,11 +10,11 @@ import {
   type ExcalidrawImperativeAPI,
 } from '@excalidraw/excalidraw/types/types';
 import { useStore } from '@tanstack/react-store';
-import { store } from '@/store';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 
 // URL base para o WebSocket
-const WS_BASE_URL = import.meta.env.PROD ? `wss://${window.location.host}` : 'ws://localhost:8000';
+const WS_BASE_URL = 'ws' + (location.protocol === 'https:' ? 's' : '') + '://' + BASE_URL + '/ws';
 
 interface CanvasData {
   collaborators?: Map<string, Collaborator>;
