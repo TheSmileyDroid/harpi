@@ -9,6 +9,7 @@ import {
   type ExcalidrawImperativeAPI,
 } from '@excalidraw/excalidraw/types/types';
 import { useStore } from '@tanstack/react-store';
+import _ from 'lodash';
 import { BASE_URL } from '@/api/ApiClient';
 import { store } from '@/store';
 import { Button } from './ui/button';
@@ -87,7 +88,7 @@ export default function ExcalidrawCanvas() {
 
   const selectedGuild = useStore(store, (state) => state.guild);
 
-  const [elements, setElements] = useState<ExcalidrawElement[]>([]);
+  const elements = useRef<ExcalidrawElement[]>([]);
   const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
   const lastUpdate = useRef<number>(Date.now());
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -103,16 +104,29 @@ export default function ExcalidrawCanvas() {
   const sentFiles = useRef<BinaryFiles>();
 
   function mergeIntoElements(receivedElements: ExcalidrawElement[]): ExcalidrawElement[] {
-    const mergedElements: ExcalidrawElement[] = [...elements];
+    const mergedElements: ExcalidrawElement[] = [...elements.current];
 
     receivedElements.forEach((element) => {
       const existingElement = mergedElements.find((el) => el.id === element.id);
       if (existingElement) {
-        Object.assign(existingElement, element);
+        console.log('Elemento existente encontrado:', existingElement);
+        if (existingElement.version > element.version) {
+          // Se o elemento existente for mais recente, não faz nada
+          console.log('Elemento existente é mais recente, não faz nada');
+          return;
+        } else if (existingElement.version < element.version) {
+          // Se o elemento recebido for mais recente, atualiza o existente
+          const index = mergedElements.indexOf(existingElement);
+          mergedElements[index] = element;
+          console.log('Elemento existente atualizado:', element);
+        }
       } else {
         mergedElements.push(element);
+        console.log('Elemento recebido adicionado:', element);
       }
     });
+
+    elements.current = mergedElements;
 
     return mergedElements;
   }
@@ -305,10 +319,11 @@ export default function ExcalidrawCanvas() {
    * Gerencia mudanças no canvas e sincroniza com outros usuários via WebSocket
    */
   const handleChange = useCallback(
-    (newElements: readonly ExcalidrawElement[], _: AppState, files: BinaryFiles) => {
+    (newElements: readonly ExcalidrawElement[], _appState: AppState, files: BinaryFiles) => {
       if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN || !selectedGuild) {
         return;
       }
+      console.log('changes!');
 
       const newElementsHash = hashExcalidrawElementList(newElements as ExcalidrawElement[]);
 
@@ -316,14 +331,12 @@ export default function ExcalidrawCanvas() {
         return;
       }
 
-      hashRef.current = newElementsHash;
+      elements.current = _.cloneDeep(newElements as ExcalidrawElement[]);
 
       // Limpa qualquer temporizador de debounce anterior
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
-
-      setElements(newElements as ExcalidrawElement[]);
 
       debounceTimerRef.current = setTimeout(() => {
         const appState = excalidrawApiRef.current?.getAppState();
@@ -347,6 +360,10 @@ export default function ExcalidrawCanvas() {
             filesToSend[key] = file;
           }
         });
+
+        console.log('new changes!');
+
+        hashRef.current = newElementsHash;
 
         sendCanvasUpdate(canvasData, filesToSend, lastUpdate.current);
         sentFiles.current = { ...sentFiles.current, ...filesToSend };
@@ -383,7 +400,7 @@ export default function ExcalidrawCanvas() {
             excalidrawApiRef.current = api;
           }}
           initialData={{
-            elements,
+            elements: elements.current,
             appState: { currentItemFontFamily: 1 },
           }}
           onChange={handleChange}
