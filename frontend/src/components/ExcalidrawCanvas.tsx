@@ -319,6 +319,8 @@ export default function ExcalidrawCanvas() {
         return;
       }
 
+      hashRef.current = newElementsHash;
+
       // Limpa qualquer temporizador de debounce anterior
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
@@ -326,9 +328,6 @@ export default function ExcalidrawCanvas() {
 
       // Configurar um novo temporizador de debounce
       debounceTimerRef.current = setTimeout(() => {
-        lastUpdate.current = Date.now();
-        hashRef.current = newElementsHash;
-
         const appState = excalidrawApiRef.current?.getAppState();
         const activeCollaborators = createCollaboratorsMap();
         setCollaborators(activeCollaborators);
@@ -353,7 +352,7 @@ export default function ExcalidrawCanvas() {
 
         sendCanvasUpdate(canvasData, filesToSend, lastUpdate.current);
         sentFiles.current = { ...sentFiles.current, ...filesToSend };
-      }, 200); // Aguardar 200ms antes de enviar a atualização
+      }, 50); // Aguardar 200ms antes de enviar a atualização
     },
     [wsConnection, selectedGuild, createCollaboratorsMap, sendCanvasUpdate]
   );
