@@ -63,6 +63,22 @@ const getRandomName = () => {
   return `${randomName} ${random_colors[randomColor]}`;
 };
 
+function hashExcalidrawElement(element: ExcalidrawElement): string {
+  let hash = 0;
+  const str = JSON.stringify(element);
+  for (let i = 0; i < str.length; i++) {
+    hash += str.charCodeAt(i);
+  }
+  return hash.toString();
+}
+function hashExcalidrawElementList(list: ExcalidrawElement[]): string {
+  let hash = 0;
+  for (let i = 0; i < list.length; i++) {
+    hash += hashExcalidrawElement(list[i]).charCodeAt(0);
+  }
+  return hash.toString();
+}
+
 /**
  * Componente ExcalidrawCanvas que gerencia um canvas colaborativo usando Excalidraw
  */
@@ -74,6 +90,8 @@ export default function ExcalidrawCanvas() {
   const [elements, setElements] = useState<ExcalidrawElement[]>([]);
   const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
   const lastUpdate = useRef<number>(Date.now());
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hashRef = useRef<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const [userName, setUserName] = useState<string | null>(null);
@@ -152,6 +170,13 @@ export default function ExcalidrawCanvas() {
           return;
         }
 
+        const receivedHash = hashExcalidrawElementList(data.canvasData.elements);
+        if (receivedHash === hashRef.current) {
+          return;
+        }
+
+        hashRef.current = receivedHash;
+
         const canvasData: CanvasData = data.canvasData;
 
         const mergedCanvasElements = mergeIntoElements(canvasData.elements);
@@ -222,55 +247,9 @@ export default function ExcalidrawCanvas() {
   }, [excalidrawApiRef, selectedGuild]);
 
   /**
-   * Gerencia mudanças no canvas e sincroniza com outros usuários via WebSocket
-   */
-  const handleChange = useCallback(
-    (newElements: readonly ExcalidrawElement[], _: AppState, files: BinaryFiles) => {
-      if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN || !selectedGuild) {
-        return;
-      }
-
-      const now = Date.now();
-      if (now - lastUpdate.current <= 200) {
-        return;
-      }
-
-      lastUpdate.current = now;
-
-      const appState = excalidrawApiRef.current?.getAppState();
-      const activeCollaborators = createCollaboratorsMap();
-      setCollaborators(activeCollaborators);
-
-      const canvasData: CanvasData = {
-        elements: [...newElements],
-        appState,
-        collaborators: activeCollaborators,
-      };
-
-      const filesToSend: BinaryFiles = {};
-      Object.keys(files).forEach((key) => {
-        if (sentFiles.current && sentFiles.current[key]) {
-          return;
-        }
-
-        const file = files[key];
-        if (file) {
-          filesToSend[key] = file;
-        }
-      });
-
-      sendCanvasUpdate(canvasData, filesToSend, now);
-
-      sentFiles.current = { ...sentFiles.current, ...filesToSend };
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [wsConnection, selectedGuild, collaborators, userName]
-  );
-
-  /**
    * Cria um mapa de colaboradores ativos, incluindo o usuário atual
    */
-  const createCollaboratorsMap = (): Map<string, Collaborator> => {
+  const createCollaboratorsMap = useCallback((): Map<string, Collaborator> => {
     const activeCollaborators = new Map<string, Collaborator>();
 
     // Adiciona colaboradores existentes
@@ -302,29 +281,82 @@ export default function ExcalidrawCanvas() {
 
     activeCollaborators.set(userName ?? 'Anônimo Vermelho', currentUser);
     return activeCollaborators;
-  };
+  }, [collaborators, userName]);
 
   /**
    * Envia atualização do canvas para outros usuários via WebSocket
    */
-  const sendCanvasUpdate = (
-    canvasData: CanvasData,
-    files: BinaryFiles,
-    timestamp: number
-  ): void => {
-    if (!wsConnection || !selectedGuild) return;
-    console.log('Enviando atualização do canvas:', canvasData);
-    wsConnection.send(
-      JSON.stringify({
-        type: 'canvas-update',
-        guildId: selectedGuild.id,
-        canvasData,
-        files: JSON.stringify(files),
-        timestamp,
-        user: userName,
-      })
-    );
-  };
+  const sendCanvasUpdate = useCallback(
+    (canvasData: CanvasData, files: BinaryFiles, timestamp: number): void => {
+      if (!wsConnection || !selectedGuild) return;
+      console.log('Enviando atualização do canvas:', canvasData);
+      wsConnection.send(
+        JSON.stringify({
+          type: 'canvas-update',
+          guildId: selectedGuild.id,
+          canvasData,
+          files: JSON.stringify(files),
+          timestamp,
+          user: userName,
+        })
+      );
+    },
+    [selectedGuild, userName, wsConnection]
+  );
+
+  /**
+   * Gerencia mudanças no canvas e sincroniza com outros usuários via WebSocket
+   */
+  const handleChange = useCallback(
+    (newElements: readonly ExcalidrawElement[], _: AppState, files: BinaryFiles) => {
+      if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN || !selectedGuild) {
+        return;
+      }
+
+      const newElementsHash = hashExcalidrawElementList(newElements as ExcalidrawElement[]);
+
+      if (newElementsHash === hashRef.current) {
+        return;
+      }
+
+      // Limpa qualquer temporizador de debounce anterior
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      // Configurar um novo temporizador de debounce
+      debounceTimerRef.current = setTimeout(() => {
+        lastUpdate.current = Date.now();
+        hashRef.current = newElementsHash;
+
+        const appState = excalidrawApiRef.current?.getAppState();
+        const activeCollaborators = createCollaboratorsMap();
+        setCollaborators(activeCollaborators);
+
+        const canvasData: CanvasData = {
+          elements: [...newElements],
+          appState,
+          collaborators: activeCollaborators,
+        };
+
+        const filesToSend: BinaryFiles = {};
+        Object.keys(files).forEach((key) => {
+          if (sentFiles.current && sentFiles.current[key]) {
+            return;
+          }
+
+          const file = files[key];
+          if (file) {
+            filesToSend[key] = file;
+          }
+        });
+
+        sendCanvasUpdate(canvasData, filesToSend, lastUpdate.current);
+        sentFiles.current = { ...sentFiles.current, ...filesToSend };
+      }, 200); // Aguardar 200ms antes de enviar a atualização
+    },
+    [wsConnection, selectedGuild, createCollaboratorsMap, sendCanvasUpdate]
+  );
 
   if (!selectedGuild) {
     return (
