@@ -102,23 +102,23 @@ export default function ExcalidrawCanvas() {
 
   const sentFiles = useRef<BinaryFiles>();
 
-  function mergeIntoElements(receivedElements: ExcalidrawElement[]): ExcalidrawElement[] {
-    const mergedElements = new Map<string, ExcalidrawElement>();
+  const mergeIntoElements = useCallback(
+    (receivedElements: ExcalidrawElement[]): ExcalidrawElement[] => {
+      const mergedElements: ExcalidrawElement[] = [...elements];
 
-    receivedElements.forEach((element) => {
-      if (mergedElements.has(element.id)) {
-        mergedElements.set(element.id, { ...mergedElements.get(element.id), ...element });
-      } else {
-        mergedElements.set(element.id, element);
-      }
-    });
+      receivedElements.forEach((element) => {
+        const existingElement = mergedElements.find((el) => el.id === element.id);
+        if (existingElement) {
+          Object.assign(existingElement, element);
+        } else {
+          mergedElements.push(element);
+        }
+      });
 
-    const mergedElementsArray = Array.from(mergedElements.values());
-
-    setElements(mergedElementsArray);
-
-    return mergedElementsArray;
-  }
+      return mergedElements;
+    },
+    [elements]
+  );
 
   useEffect(() => {
     if (!selectedGuild) return;
@@ -217,7 +217,7 @@ export default function ExcalidrawCanvas() {
         setWsConnection(null);
       }
     };
-  }, [selectedGuild, connectionError]);
+  }, [selectedGuild, connectionError, mergeIntoElements]);
 
   const exportToImage = useCallback(async () => {
     if (!excalidrawApiRef.current) return;
@@ -326,7 +326,8 @@ export default function ExcalidrawCanvas() {
         clearTimeout(debounceTimerRef.current);
       }
 
-      // Configurar um novo temporizador de debounce
+      setElements(newElements as ExcalidrawElement[]);
+
       debounceTimerRef.current = setTimeout(() => {
         const appState = excalidrawApiRef.current?.getAppState();
         const activeCollaborators = createCollaboratorsMap();
@@ -352,7 +353,7 @@ export default function ExcalidrawCanvas() {
 
         sendCanvasUpdate(canvasData, filesToSend, lastUpdate.current);
         sentFiles.current = { ...sentFiles.current, ...filesToSend };
-      }, 50); // Aguardar 200ms antes de enviar a atualização
+      }, 100);
     },
     [wsConnection, selectedGuild, createCollaboratorsMap, sendCanvasUpdate]
   );
