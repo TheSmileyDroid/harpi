@@ -102,23 +102,20 @@ export default function ExcalidrawCanvas() {
 
   const sentFiles = useRef<BinaryFiles>();
 
-  const mergeIntoElements = useCallback(
-    (receivedElements: ExcalidrawElement[]): ExcalidrawElement[] => {
-      const mergedElements: ExcalidrawElement[] = [...elements];
+  function mergeIntoElements(receivedElements: ExcalidrawElement[]): ExcalidrawElement[] {
+    const mergedElements: ExcalidrawElement[] = [...elements];
 
-      receivedElements.forEach((element) => {
-        const existingElement = mergedElements.find((el) => el.id === element.id);
-        if (existingElement) {
-          Object.assign(existingElement, element);
-        } else {
-          mergedElements.push(element);
-        }
-      });
+    receivedElements.forEach((element) => {
+      const existingElement = mergedElements.find((el) => el.id === element.id);
+      if (existingElement) {
+        Object.assign(existingElement, element);
+      } else {
+        mergedElements.push(element);
+      }
+    });
 
-      return mergedElements;
-    },
-    [elements]
-  );
+    return mergedElements;
+  }
 
   useEffect(() => {
     if (!selectedGuild) return;
@@ -217,7 +214,7 @@ export default function ExcalidrawCanvas() {
         setWsConnection(null);
       }
     };
-  }, [selectedGuild, connectionError, mergeIntoElements]);
+  }, [selectedGuild, connectionError]);
 
   const exportToImage = useCallback(async () => {
     if (!excalidrawApiRef.current) return;
