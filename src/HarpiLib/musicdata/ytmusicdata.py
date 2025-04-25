@@ -332,7 +332,12 @@ class FFmpegPCMAudio(discord.AudioSource):
             "warning",
         ))
         args.extend((
-            "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5",
+            "-reconnect",
+            "1",
+            "-reconnect_streamed",
+            "1",
+            "-reconnect_delay_max",
+            "5",
         ))
         if isinstance(options, str):
             args.extend(shlex.split(options))
@@ -343,7 +348,7 @@ class FFmpegPCMAudio(discord.AudioSource):
         try:
             self._process = subprocess.Popen(  # noqa: S603
                 args,
-                stdin=stdin if pipe else subprocess.DEVNULL,
+                stdin=cast("IO", stdin) if pipe else subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=stderr or subprocess.PIPE,
             )
