@@ -22,6 +22,7 @@ from fastapi import (
 )
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -201,3 +202,17 @@ app.mount(
     StaticFiles(directory="frontend/dist", html=True),
     name="static",
 )
+
+
+@app.get("/{path:path}")
+async def redirect(path: str) -> RedirectResponse:
+    """Redirect all other requests to the frontend.
+
+    Args:
+        path (str): The path to redirect.
+
+    """
+
+    response = RedirectResponse(url="/")
+    response.headers["Cache-Control"] = "no-store"
+    return response
