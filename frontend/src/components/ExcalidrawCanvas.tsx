@@ -64,20 +64,10 @@ const getRandomName = () => {
   return `${randomName} ${random_colors[randomColor]}`;
 };
 
-function hashExcalidrawElement(element: ExcalidrawElement): string {
-  let hash = 0;
-  const str = JSON.stringify(element);
-  for (let i = 0; i < str.length; i++) {
-    hash += str.charCodeAt(i);
-  }
-  return hash.toString();
-}
-function hashExcalidrawElementList(list: ExcalidrawElement[]): string {
-  let hash = 0;
-  for (let i = 0; i < list.length; i++) {
-    hash += hashExcalidrawElement(list[i]).charCodeAt(0);
-  }
-  return hash.toString();
+function stringToHash(string: string) {
+  return string.split('').reduce((hash, char) => {
+    return char.charCodeAt(0) + (hash << 6) + (hash << 16) - hash;
+  }, 0);
 }
 
 /**
@@ -92,7 +82,7 @@ export default function ExcalidrawCanvas() {
   const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
   const lastUpdate = useRef<number>(Date.now());
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const hashRef = useRef<string | null>(null);
+  const hashRef = useRef<number>(-1);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const [userName, setUserName] = useState<string | null>(null);
@@ -181,7 +171,7 @@ export default function ExcalidrawCanvas() {
           return;
         }
 
-        const receivedHash = hashExcalidrawElementList(data.canvasData.elements);
+        const receivedHash = stringToHash(JSON.stringify(data.canvasData.elements as unknown[]));
         if (receivedHash === hashRef.current) {
           return;
         }
@@ -194,7 +184,7 @@ export default function ExcalidrawCanvas() {
 
         excalidrawApiRef.current?.updateScene({
           elements: mergedCanvasElements,
-          commitToHistory: false,
+          commitToHistory: true,
         });
 
         const files = JSON.parse(data.files) as BinaryFiles;
@@ -325,9 +315,10 @@ export default function ExcalidrawCanvas() {
       }
       console.log('changes!');
 
-      const newElementsHash = hashExcalidrawElementList(newElements as ExcalidrawElement[]);
+      const newElementsHash = stringToHash(JSON.stringify(newElements as ExcalidrawElement[]));
 
       if (newElementsHash === hashRef.current) {
+        console.log('Hash igual, não atualizando: ', newElementsHash);
         return;
       }
 
