@@ -20,11 +20,6 @@ from src.errors.nothingfound import NothingFoundError
 
 logger = logging.getLogger(__name__)
 
-
-yt_dlp.utils.bug_reports_message = lambda: logger.warning(
-    "Please report this issue",
-)
-
 ytdl_format_options = {
     "format": "140",
     "outtmpl": ".audios/%(extractor)s-%(id)s-%(title)s.%(ext)s",
