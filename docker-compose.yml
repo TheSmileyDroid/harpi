@@ -74,6 +74,7 @@ services:
       watch:
         - path: frontend
           action: sync+restart
+          target: /app/frontend
 
 networks:
   harpi-net:
