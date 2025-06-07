@@ -30,6 +30,7 @@ services:
     mem_limit: 1g
     mem_reservation: 512m
     command: uv run uvicorn app:app --host "0.0.0.0" --port 8000 --reload
+    profiles: ["dev", "prod", "default"]
 
   frontend:
     build:
@@ -66,13 +67,13 @@ services:
     networks:
       - harpi-net
     command: bun run build
-    profiles: ["build"]
+    profiles: ["build", "prod", "default"]
     depends_on:
       - backend
     develop:
       watch:
         - path: frontend
-          action: rebuild
+          action: sync+restart
 
 networks:
   harpi-net:
