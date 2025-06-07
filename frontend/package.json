@@ -15,7 +15,7 @@
     "format:check": "prettier --check src/**/*.{ts,tsx,js,jsx,json,css,md}"
   },
   "dependencies": {
-    "@excalidraw/excalidraw": "0.17.0",
+    "@excalidraw/excalidraw": "0.17.6",
     "@headlessui/react": "^2.2.0",
     "@radix-ui/react-collapsible": "^1.1.1",
     "@radix-ui/react-slider": "^1.2.1",
@@ -25,12 +25,12 @@
     "@tanstack/react-store": "^0.5.6",
     "@types/node": "^22.9.0",
     "autoprefixer": "^10.4.20",
-    "axios": "^1.7.7",
+    "axios": "1.8.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "eslint-plugin-react-compiler": "^19.1.0-rc.1",
     "lodash": "^4.17.21",
-    "lucide-react": "^0.456.0",
+    "lucide-react": "^0.513.0",
     "motion": "^12.6.3",
     "postcss": "^8.4.47",
     "react": "^18.3.1",

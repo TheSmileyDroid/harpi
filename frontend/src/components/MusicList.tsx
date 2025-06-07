@@ -125,6 +125,11 @@ function MusicList({ className }: { className?: string }) {
               className="w-full"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && url.trim()) {
+                  addMusic.mutate(url);
+                }
+              }}
             />
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button

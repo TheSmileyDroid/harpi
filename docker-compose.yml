@@ -1,7 +1,8 @@
 version: "3.8"
 
+
 services:
-  harpi:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
@@ -10,8 +11,11 @@ services:
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - PYTHONUNBUFFERED=1
+      - TZ=UTC
+    env_file: ".env"
     volumes:
-      - .:/app
+      - ./:/app
     restart: unless-stopped
     networks:
       - harpi-net
@@ -21,6 +25,54 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    mem_reservation: 512m
+    command: uv run uvicorn app:app --host "0.0.0.0" --port 8000 --reload
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8000
+    networks:
+      - harpi-net
+    command: bun run dev
+    depends_on:
+      - backend
+    profiles: ["dev", "default"]
+
+  frontend-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+      - ./frontend/dist:/app/static/dist
+    environment:
+      - NODE_ENV=production
+      - VITE_API_URL=/api
+    networks:
+      - harpi-net
+    command: bun run build
+    profiles: ["build"]
+    depends_on:
+      - backend
+    develop:
+      watch:
+        - path: frontend
+          action: rebuild
 
 networks:
   harpi-net:
