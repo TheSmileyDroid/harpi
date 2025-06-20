@@ -29,6 +29,6 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=frontend /app/frontend/dist ./static
 COPY uv.lock .
-RUN uv sync --locked
+RUN uv sync --upgrade
 
 ENV PATH="/app/.venv/bin:$PATH"

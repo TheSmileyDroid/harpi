@@ -101,11 +101,11 @@ async def main() -> cd.Bot:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # noqa: ANN201
+async def lifespan(_app: FastAPI):  # noqa: ANN201
     client = await main()
-    app.state.bot = client
+    _app.state.bot = client # type: ignore  # noqa: PGH003
     yield
-    client.close()  # type: ignore  # noqa: PGH003
+    await client.close()  # type: ignore  # noqa: PGH003
 
 
 app = FastAPI(lifespan=lifespan)

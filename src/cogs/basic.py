@@ -31,7 +31,7 @@ class BasicCog(commands.Cog):
 
     @commands.command()
     async def status(self, ctx: commands.Context) -> None:
-        """Mostra o status do servidor."""
+        """Mostra o estado do servidor."""
 
         memory = psutil.virtual_memory()
         cpu = psutil.cpu_percent(interval=1)
