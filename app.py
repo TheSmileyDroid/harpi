@@ -34,7 +34,6 @@ from src.cogs.ai import AiCog
 from src.cogs.basic import BasicCog
 from src.cogs.dice_cog import DiceCog
 from src.cogs.music import MusicCog
-from src.cogs.receive_audio import ReceiveAudioCog
 from src.cogs.tts import TTSCog
 from src.websocket import manager as websocketmanager
 
