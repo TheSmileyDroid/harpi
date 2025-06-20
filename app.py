@@ -84,12 +84,11 @@ async def main() -> cd.Bot:
 
     client = cd.Bot(command_prefix="-", intents=intents)
 
-    client.add_cog(TTSCog())
-    client.add_cog(MusicCog(client))
-    client.add_cog(BasicCog())
-    client.add_cog(DiceCog(client))
-    client.add_cog(AiCog(client))
-    client.add_cog(ReceiveAudioCog(client))
+    await client.add_cog(TTSCog())
+    await client.add_cog(MusicCog(client))
+    await client.add_cog(BasicCog())
+    await client.add_cog(DiceCog(client))
+    await client.add_cog(AiCog(client))
 
     task = asyncio.create_task(client.start(get_token()))
 
@@ -103,7 +102,7 @@ async def main() -> cd.Bot:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):  # noqa: ANN201
     client = await main()
-    _app.state.bot = client # type: ignore  # noqa: PGH003
+    _app.state.bot = client  # type: ignore  # noqa: PGH003
     yield
     await client.close()  # type: ignore  # noqa: PGH003
 

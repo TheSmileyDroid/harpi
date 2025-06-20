@@ -154,7 +154,7 @@ class MusicCog(Cog):
             link (str): Link da música a ser tocada.
 
         """
-        guild: Guild = ctx.guild
+        guild: Guild | None = ctx.guild
         if (
             guild
             and (voice := cast("Member", ctx.author).voice)
@@ -223,7 +223,7 @@ class MusicCog(Cog):
         if ctx is None:
             raise CommandError("Contexto não encontrado")
 
-        with ctx.typing():
+        async with ctx.typing():
             if ctx.guild:
                 music_data_list = await YTMusicData.from_url(link)
                 await self.add_music_to_queue(ctx.guild.id, music_data_list)
@@ -246,7 +246,7 @@ class MusicCog(Cog):
             CommandError: Se o usuário não estiver em um canal de voz.
 
         """
-        with ctx.typing():
+        async with ctx.typing():
             if not ctx.guild:
                 raise CommandError("Contexto não encontrado")
             guild_id = ctx.guild.id
@@ -272,7 +272,7 @@ class MusicCog(Cog):
             CommandError: Se o usuário não estiver em um canal de voz.
 
         """
-        with ctx.typing():
+        async with ctx.typing():
             if not ctx.guild:
                 raise CommandError
             guild_id = ctx.guild.id
@@ -298,7 +298,7 @@ class MusicCog(Cog):
     @command("pause")
     async def pause(self, ctx: Context) -> None:
         """Pausa a música atual."""
-        with ctx.typing():
+        async with ctx.typing():
             if not ctx.guild:
                 return
             guild_id = ctx.guild.id
@@ -316,7 +316,7 @@ class MusicCog(Cog):
     @command("resume")
     async def resume(self, ctx: Context) -> None:
         """Retoma a música atual."""
-        with ctx.typing():
+        async with ctx.typing():
             if not ctx.guild:
                 return
             guild_id = ctx.guild.id
@@ -341,7 +341,7 @@ class MusicCog(Cog):
         Raises:
             CommandError: Se o bot não estiver em um canal de voz.
         """
-        with ctx.typing():
+        async with ctx.typing():
             if not ctx.guild:
                 raise CommandError("Você não está em uma guilda")
 
@@ -397,7 +397,7 @@ class MusicCog(Cog):
             CommandError: If the user is not in a voice channel.
 
         """
-        with ctx.typing():
+        async with ctx.typing():
             if not ctx.guild:
                 raise CommandError
             if mode in {"off", "false", "0", "no", "n"}:
@@ -432,7 +432,7 @@ class MusicCog(Cog):
             CommandError: If the user is not in a guild.
 
         """
-        with ctx.typing():
+        async with ctx.typing():
             if not ctx.guild:
                 raise CommandError
             if (
