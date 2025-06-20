@@ -11,7 +11,6 @@ from discord import Message, TextChannel
 from google.generativeai import types
 
 from src.cogs.music import MusicCog
-from src.HarpiLib.ai.browser import ask
 from src.HarpiLib.math.parser import DiceParser
 from src.HarpiLib.musicdata.ytmusicdata import YTMusicData
 
@@ -241,46 +240,6 @@ class AiTools:
 
         return "<Nenhum resultado encontrado>"
 
-    async def ask_browser(self, ctx: commands.Context, args) -> str:
-        """A função ask é responsável por fazer uma pergunta ao agente Navegador.
-        O agente Navegador é um agente que pode navegar na web livremente e responder perguntas.
-        Ele consegue acessar informações em tempo real e gerar respostas com base nessas informações.
-
-        Parameters
-        ----------
-        question : str
-            A pergunta que você deseja fazer ao agente Navegador.
-            O agente Navegador irá gerar uma resposta com base nessa pergunta.
-
-        Returns
-        -------
-        str
-            A resposta gerada pelo agente Navegador.
-            Se o agente Navegador não conseguir encontrar uma resposta, ele retornará uma mensagem padrão.
-        """
-
-        history = ctx.history(limit=3)
-
-        print(f"Pergunta: {args}")
-        async with ctx.typing():
-            await ctx.send(
-                "*Procurando na web*",
-                silent=True,
-                delete_after=5.0,
-            )
-            result = await ask(
-                question=f"<<<Histórico de conversa: {history}>>>\n\n Pedido: {args}"
-            )
-            await ctx.send(
-                "*Resposta encontrada*",
-                silent=True,
-                delete_after=5.0,
-            )
-
-        print(f"Resposta: {result.answer}")
-
-        return result.answer
-
     async def disconnect_from_voice(
         self,
         ctx: commands.Context,
@@ -359,20 +318,6 @@ class AiTools:
     ) -> types.Tool:
         return types.Tool(
             function_declarations=[
-                {
-                    "name": "ask_browser",
-                    "description": "A função ask é responsável por fazer uma pergunta ao agente Navegador. O agente Navegador é um agente que pode navegar na web livremente e responder perguntas. Ele consegue acessar informações em tempo real e gerar respostas com base nessas informações.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "args": {
-                                "type": "string",
-                                "description": "A pergunta que você deseja fazer ao agente Navegador. O agente Navegador irá gerar uma resposta com base nessa pergunta. Passe o máximo de informação possível para ajuda-lo a encontrar a resposta.",
-                            },
-                        },
-                        "required": ["args"],
-                    },
-                },
                 {
                     "name": "get_music_list",
                     "description": "Get music list that is playing now.",
