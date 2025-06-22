@@ -140,6 +140,7 @@ class DiceParser:
 
     def _roll_dice(self, dice_match):
         """Roll dice based on the dice notation"""
+        random.seed()
         count_str, sides_str = dice_match.groups()
 
         # Handle the # notation for multiple separate dice rolls
@@ -177,7 +178,6 @@ class DiceParser:
 
     def roll(self, expression):
         """Roll dice and evaluate the expression, with formatted output"""
-        random.seed()
         try:
             result = self.parse(expression)
             return self._format_result(result, expression)

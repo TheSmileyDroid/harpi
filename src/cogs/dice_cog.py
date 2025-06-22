@@ -56,7 +56,6 @@ class DiceCog(Cog):
         """Executa uma simulação Monte Carlo com n iterações de uma expressão de dados.
 
         Args:
-            ctx (Context): Contexto do comando
             n (int): Número de iterações para a simulação
             roll_expression (str): Expressão de dados para simular (ex: 2d6+3)
 
@@ -94,9 +93,7 @@ class DiceCog(Cog):
         for _ in range(n):
             parser = DiceParser()
             result = parser.roll(roll_expression)
-            # Assumindo que o parser retorna um valor numérico ou string com número
             if isinstance(result, str):
-                # Extrai apenas o número do resultado se for string
                 numeric_result = int(
                     "".join(filter(str.isdigit, result.split()[-1]))
                 )
