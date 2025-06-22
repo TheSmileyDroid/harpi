@@ -20,7 +20,7 @@ class DiceParser:
         }
 
         # Define regex patterns
-        self.dice_pattern = re.compile(r"(\d+)#?d(\d+)")
+        self.dice_pattern = re.compile(r"(\d+#?)d(\d+)")
         self.token_pattern = re.compile(
             r"(\d+\#?d\d+|\d+\.\d+|\d+|\/\/|[\+\-\*\/\(\)\^\%])"
         )
@@ -140,16 +140,17 @@ class DiceParser:
 
     def _roll_dice(self, dice_match):
         """Roll dice based on the dice notation"""
-        random.seed()
         count_str, sides_str = dice_match.groups()
 
         # Handle the # notation for multiple separate dice rolls
-        if "#" in count_str:
-            count = int(count_str.split("#")[0])
+        if count_str.endswith("#"):
+            count = int(count_str[:-1])  # Remove the # from the end
             separate_rolls = True
+            original_notation = f"{count_str}d{sides_str}"
         else:
             count = int(count_str)
             separate_rolls = False
+            original_notation = f"{count_str}d{sides_str}"
 
         sides = int(sides_str)
 
@@ -162,19 +163,17 @@ class DiceParser:
             roll = random.randint(1, sides)
             rolls.append(roll)
 
-        # Calculate the result value
-        total = sum(rolls)
-
-        # Format the roll details
-        roll_text = f"{count}d{sides}"
-
-        # For separate roll handling (like the example with 2#d6+2)
+        # For separate rolls (#), return max value instead of sum
         if separate_rolls:
-            roll_text = (
-                f"{count}#d{sides}"  # Preserve the # notation in the result
+            # For separate rolls, the value should be the maximum of all rolls
+            max_value = max(rolls)
+            return RollResult(
+                max_value, [(rolls, original_notation)], original_notation
             )
-
-        return RollResult(total, [(rolls, roll_text)], str(total))
+        else:
+            # Calculate the result value normally
+            total = sum(rolls)
+            return RollResult(total, [(rolls, original_notation)], str(total))
 
     def roll(self, expression):
         """Roll dice and evaluate the expression, with formatted output"""
@@ -190,62 +189,62 @@ class DiceParser:
 
         # For handling multiple separate dice rolls (#)
         if "#" in original_expression:
-            dice_matches = re.findall(r"(\d+)#d(\d+)", original_expression)
+            # Extract the dice notation and additional math
+            dice_match = re.search(r"(\d+)#d(\d+)", original_expression)
+            if dice_match:
+                count = int(dice_match.group(1))
+                sides = int(dice_match.group(2))
 
-            # Process each #d pattern
-            for count_str, sides_str in dice_matches:
-                count = int(count_str)
-                sides = int(sides_str)
+                # Get additional math after the dice
+                rest_of_expr = original_expression[dice_match.end() :].strip()
 
-                # Replace the #d syntax with regular dice for evaluation
-                modified_expr = re.sub(
-                    f"{count}#d{sides}",
-                    f"1d{sides}",
-                    original_expression,
-                    count=1,
-                )
+                # Get the actual rolls from the result
+                for rolls, notation in result.rolls:
+                    if "#" in notation:
+                        individual_rolls = rolls
 
-                # Perform multiple separate rolls
-                results = []
-                for i in range(count):
-                    single_roll_result = self.parse(modified_expr)
-                    results.append(single_roll_result.value)
-
-                    # Extract the dice roll result
-                    for rolls, notation in single_roll_result.rolls:
-                        if (
-                            "d" + sides_str in notation
-                        ):  # Find the specific dice we're interested in
-                            roll_value = rolls[
-                                0
-                            ]  # Only one die per roll in this case
-
+                        # Show each individual roll
+                        for roll_value in individual_rolls:
                             # Bold formatting for max rolls
                             if roll_value == sides:
                                 roll_str = f"[**{roll_value}**]"
                             else:
                                 roll_str = f"[{roll_value}]"
 
-                            # Get the rest of the expression by removing the dice part
-                            rest_of_expr = modified_expr.replace(
-                                f"1d{sides}", ""
-                            ).strip()
-
-                            # Format the output based on whether there's additional math
+                            # Calculate final value for this roll
                             if rest_of_expr:
-                                output_lines.append(
-                                    f"` {single_roll_result.value} ` ⟵ {roll_str} 1d{sides} {rest_of_expr}"
-                                )
+                                # Simple math evaluation
+                                try:
+                                    final_value = eval(
+                                        f"{roll_value}{rest_of_expr}"
+                                    )
+                                    output_lines.append(
+                                        f"` {final_value} ` ⟵ {roll_str} 1d{sides} {rest_of_expr}"
+                                    )
+                                except Exception:
+                                    final_value = roll_value
+                                    output_lines.append(
+                                        f"` {final_value} ` ⟵ {roll_str} 1d{sides}"
+                                    )
                             else:
                                 output_lines.append(
-                                    f"` {single_roll_result.value} ` ⟵ {roll_str} 1d{sides}"
+                                    f"` {roll_value} ` ⟵ {roll_str} 1d{sides}"
                                 )
-                            break
 
-                # Add greater value if multiple rolls
-                if count > 1:
-                    max_value = max(results)
-                    output_lines.append(f"Max: {max_value}")
+                        # Add max value if multiple rolls
+                        if count > 1:
+                            max_roll = max(individual_rolls)
+                            if rest_of_expr:
+                                try:
+                                    max_value = eval(
+                                        f"{max_roll}{rest_of_expr}"
+                                    )
+                                except Exception:
+                                    max_value = max_roll
+                            else:
+                                max_value = max_roll
+                            output_lines.append(f"Max: {max_value}")
+                        break
         else:
             # Regular single evaluation with proper formatting
             if not result.rolls:
@@ -305,8 +304,21 @@ class DiceParser:
 if __name__ == "__main__":
     parser = DiceParser()
 
+    # Debug test
+    print("=== DEBUG TEST ===")
+    roll_result = parser.parse("2#d6")
+    print(f"Value: {roll_result.value}")
+    print(f"Rolls: {roll_result.rolls}")
+    print(f"Expression: {roll_result.expression}")
+    print("==================")
+
     # Example from the prompt
     print(parser.roll("2#d6+2"))
+    print("---")
+
+    roll_result = parser.parse("2#d6")
+    print(parser._format_result(roll_result, "2#d6"))
+    print(roll_result.value)  # Should print the max of the two rolls
     print("---")
 
     # Additional examples
