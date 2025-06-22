@@ -49,7 +49,7 @@ class DiceCog(Cog):
         response = parser.roll(args)
         await ctx.reply(response)
 
-    @command(name="monte", aliases=["mc", "montecarlo", "simulation", "sim"])
+    @command(name="monte", aliases=["montecarlo", "simulation"])
     async def monte_carlo(
         self, ctx: Context, n: int, *, roll_expression: str
     ) -> None:
