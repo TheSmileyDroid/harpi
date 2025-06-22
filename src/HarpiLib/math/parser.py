@@ -163,13 +163,26 @@ class DiceParser:
             roll = random.randint(1, sides)
             rolls.append(roll)
 
-        # For separate rolls (#), return max value instead of sum
+        # For separate rolls (#), return min value for count=0, max for others
         if separate_rolls:
-            # For separate rolls, the value should be the maximum of all rolls
-            max_value = max(rolls)
-            return RollResult(
-                max_value, [(rolls, original_notation)], original_notation
-            )
+            if count == 0:
+                # For 0#dX, roll 2 dice and return minimum (disadvantage)
+                disadvantage_rolls = []
+                for _ in range(2):
+                    roll = random.randint(1, sides)
+                    disadvantage_rolls.append(roll)
+                min_value = min(disadvantage_rolls)
+                return RollResult(
+                    min_value,
+                    [(disadvantage_rolls, original_notation)],
+                    original_notation,
+                )
+            else:
+                # For separate rolls, the value should be the maximum of all rolls
+                max_value = max(rolls)
+                return RollResult(
+                    max_value, [(rolls, original_notation)], original_notation
+                )
         else:
             # Calculate the result value normally
             total = sum(rolls)
@@ -203,47 +216,87 @@ class DiceParser:
                     if "#" in notation:
                         individual_rolls = rolls
 
-                        # Show each individual roll
-                        for roll_value in individual_rolls:
-                            # Bold formatting for max rolls
-                            if roll_value == sides:
-                                roll_str = f"[**{roll_value}**]"
-                            else:
-                                roll_str = f"[{roll_value}]"
+                        # Special case for 0#dX (disadvantage - roll 2 dice, take minimum)
+                        if count == 0:
+                            # Show each die separately for disadvantage (same as advantage but with Min instead of Max)
+                            for roll_value in individual_rolls:
+                                if roll_value == sides:
+                                    roll_str = f"[**{roll_value}**]"
+                                else:
+                                    roll_str = f"[{roll_value}]"
 
-                            # Calculate final value for this roll
-                            if rest_of_expr:
-                                # Simple math evaluation
-                                try:
-                                    final_value = eval(
-                                        f"{roll_value}{rest_of_expr}"
-                                    )
+                                # Calculate final value for this roll
+                                if rest_of_expr:
+                                    try:
+                                        final_value = eval(
+                                            f"{roll_value}{rest_of_expr}"
+                                        )
+                                        output_lines.append(
+                                            f"` {final_value} ` ⟵ {roll_str} 1d{sides} {rest_of_expr}"
+                                        )
+                                    except Exception:
+                                        output_lines.append(
+                                            f"` {roll_value} ` ⟵ {roll_str} 1d{sides}"
+                                        )
+                                else:
                                     output_lines.append(
-                                        f"` {final_value} ` ⟵ {roll_str} 1d{sides} {rest_of_expr}"
+                                        f"` {roll_value} ` ⟵ {roll_str} 1d{sides}"
                                     )
-                                except Exception:
-                                    final_value = roll_value
-                                    output_lines.append(
-                                        f"` {final_value} ` ⟵ {roll_str} 1d{sides}"
-                                    )
-                            else:
-                                output_lines.append(
-                                    f"` {roll_value} ` ⟵ {roll_str} 1d{sides}"
-                                )
 
-                        # Add max value if multiple rolls
-                        if count > 1:
-                            max_roll = max(individual_rolls)
+                            # Add minimum value for disadvantage
+                            min_roll = min(individual_rolls)
                             if rest_of_expr:
                                 try:
-                                    max_value = eval(
-                                        f"{max_roll}{rest_of_expr}"
+                                    min_value = eval(
+                                        f"{min_roll}{rest_of_expr}"
                                     )
                                 except Exception:
+                                    min_value = min_roll
+                            else:
+                                min_value = min_roll
+                            output_lines.append(f"Min: {min_value}")
+                        else:
+                            # Show each individual roll
+                            for roll_value in individual_rolls:
+                                # Bold formatting for max rolls
+                                if roll_value == sides:
+                                    roll_str = f"[**{roll_value}**]"
+                                else:
+                                    roll_str = f"[{roll_value}]"
+
+                                # Calculate final value for this roll
+                                if rest_of_expr:
+                                    # Simple math evaluation
+                                    try:
+                                        final_value = eval(
+                                            f"{roll_value}{rest_of_expr}"
+                                        )
+                                        output_lines.append(
+                                            f"` {final_value} ` ⟵ {roll_str} 1d{sides} {rest_of_expr}"
+                                        )
+                                    except Exception:
+                                        final_value = roll_value
+                                        output_lines.append(
+                                            f"` {final_value} ` ⟵ {roll_str} 1d{sides}"
+                                        )
+                                else:
+                                    output_lines.append(
+                                        f"` {roll_value} ` ⟵ {roll_str} 1d{sides}"
+                                    )
+
+                            # Add max value if multiple rolls
+                            if count > 1:
+                                max_roll = max(individual_rolls)
+                                if rest_of_expr:
+                                    try:
+                                        max_value = eval(
+                                            f"{max_roll}{rest_of_expr}"
+                                        )
+                                    except Exception:
+                                        max_value = max_roll
+                                else:
                                     max_value = max_roll
-                            else:
-                                max_value = max_roll
-                            output_lines.append(f"Max: {max_value}")
+                                output_lines.append(f"Max: {max_value}")
                         break
         else:
             # Regular single evaluation with proper formatting
@@ -319,6 +372,16 @@ if __name__ == "__main__":
     roll_result = parser.parse("2#d6")
     print(parser._format_result(roll_result, "2#d6"))
     print(roll_result.value)  # Should print the max of the two rolls
+    print("---")
+
+    # Exemplo de atributo 0
+    roll_result = parser.parse("0#d6")
+    print(parser._format_result(roll_result, "0#d6"))
+    print(roll_result.value)  # Should print the min of the two rolls
+    print("---")
+
+    # Exemplo de atributo 0 com soma
+    print(parser.roll("0#d6+2"))
     print("---")
 
     # Additional examples
