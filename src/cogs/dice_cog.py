@@ -6,7 +6,7 @@ from discord.ext.commands.context import Context
 from typing import Dict, List
 import logging
 
-from src.HarpiLib.math.parser import DiceParser
+from src.HarpiLib.math.parser import DiceParser, RollResult
 
 
 class DiceCog(Cog):
@@ -92,14 +92,8 @@ class DiceCog(Cog):
 
         for _ in range(n):
             parser = DiceParser()
-            result = parser.roll(roll_expression)
-            if isinstance(result, str):
-                numeric_result = int(
-                    "".join(filter(str.isdigit, result.split()[-1]))
-                )
-            else:
-                numeric_result = int(result)
-            results.append(numeric_result)
+            result: RollResult = parser.parse(roll_expression)
+            results.append(result.value)
 
         return results
 
