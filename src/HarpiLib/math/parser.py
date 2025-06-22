@@ -206,8 +206,10 @@ class DiceParser:
                 )
 
                 # Perform multiple separate rolls
+                results = []
                 for i in range(count):
                     single_roll_result = self.parse(modified_expr)
+                    results.append(single_roll_result.value)
 
                     # Extract the dice roll result
                     for rolls, notation in single_roll_result.rolls:
@@ -242,9 +244,7 @@ class DiceParser:
 
                 # Add greater value if multiple rolls
                 if count > 1:
-                    max_value = max(
-                        self.parse(modified_expr).value for _ in range(count)
-                    )
+                    max_value = max(results)
                     output_lines.append(f"Max: {max_value}")
         else:
             # Regular single evaluation with proper formatting
