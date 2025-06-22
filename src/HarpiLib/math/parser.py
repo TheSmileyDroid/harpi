@@ -177,6 +177,7 @@ class DiceParser:
 
     def roll(self, expression):
         """Roll dice and evaluate the expression, with formatted output"""
+        random.seed()
         try:
             result = self.parse(expression)
             return self._format_result(result, expression)

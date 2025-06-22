@@ -88,10 +88,11 @@ class DiceCog(Cog):
             List[int]: Lista com os resultados de cada iteração
 
         """
-        parser = DiceParser()
+
         results: List[int] = []
 
         for _ in range(n):
+            parser = DiceParser()
             result = parser.roll(roll_expression)
             # Assumindo que o parser retorna um valor numérico ou string com número
             if isinstance(result, str):
