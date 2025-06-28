@@ -27,7 +27,6 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=frontend /app/frontend/dist ./static
 COPY uv.lock .
 RUN rm -rf .venv
 RUN uv sync --upgrade

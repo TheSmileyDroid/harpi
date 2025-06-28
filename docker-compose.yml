@@ -76,3 +76,6 @@ services:
 networks:
   harpi-net:
     driver: bridge
+
+volumes:
+  frontend_dist:
