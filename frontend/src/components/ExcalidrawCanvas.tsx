@@ -363,6 +363,12 @@ export default function ExcalidrawCanvas() {
     [wsConnection, selectedGuild, createCollaboratorsMap, sendCanvasUpdate]
   );
 
+  const [isFullScreen, setIsFullScreen] = useState(false);
+
+  const toggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+  };
+
   if (!selectedGuild) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -372,20 +378,31 @@ export default function ExcalidrawCanvas() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col">
+    <div
+      className={`flex h-full w-full flex-col ${
+        isFullScreen ? 'fixed inset-0 z-50 bg-white' : ''
+      }`}
+    >
       <div className="mb-2 flex justify-between">
         <h2 className="text-xl font-bold">
           Canvas Colaborativo - {selectedGuild.name} -{' '}
           <span style={{ color: userName?.split(' ')[1] }}>{userName?.split(' ')[0]}</span>
         </h2>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={toggleFullScreen}>
+            {isFullScreen ? 'Sair da Tela Cheia' : 'Tela Cheia'}
+          </Button>
           <Button variant="outline" onClick={exportToImage}>
             Exportar como Imagem
           </Button>
         </div>
       </div>
 
-      <div className="min-h-[500px] w-full overflow-hidden rounded-md border border-gray-200">
+      <div
+        className={`flex-grow w-full overflow-hidden rounded-md border border-gray-200 ${
+          isFullScreen ? 'h-full' : ''
+        }`}
+      >
         <Excalidraw
           excalidrawAPI={(api) => {
             excalidrawApiRef.current = api;
