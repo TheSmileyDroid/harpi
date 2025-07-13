@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SystemRouteImport } from './routes/system'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as CanvasRouteImport } from './routes/canvas'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -17,6 +18,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const SystemRoute = SystemRouteImport.update({
   id: '/system',
   path: '/system',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CanvasRoute = CanvasRouteImport.update({
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/canvas': typeof CanvasRoute
+  '/settings': typeof SettingsRoute
   '/system': typeof SystemRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/canvas': typeof CanvasRoute
+  '/settings': typeof SettingsRoute
   '/system': typeof SystemRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/canvas': typeof CanvasRoute
+  '/settings': typeof SettingsRoute
   '/system': typeof SystemRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/canvas' | '/system'
+  fullPaths: '/' | '/about' | '/canvas' | '/settings' | '/system'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/canvas' | '/system'
-  id: '__root__' | '/' | '/about' | '/canvas' | '/system'
+  to: '/' | '/about' | '/canvas' | '/settings' | '/system'
+  id: '__root__' | '/' | '/about' | '/canvas' | '/settings' | '/system'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   CanvasRoute: typeof CanvasRoute
+  SettingsRoute: typeof SettingsRoute
   SystemRoute: typeof SystemRoute
 }
 
@@ -76,6 +86,13 @@ declare module '@tanstack/react-router' {
       path: '/system'
       fullPath: '/system'
       preLoaderRoute: typeof SystemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/canvas': {
@@ -106,6 +123,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   CanvasRoute: CanvasRoute,
+  SettingsRoute: SettingsRoute,
   SystemRoute: SystemRoute,
 }
 export const routeTree = rootRouteImport

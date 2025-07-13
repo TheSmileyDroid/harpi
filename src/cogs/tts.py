@@ -2,10 +2,11 @@ from discord.ext import commands
 from discord.ext.commands.context import Context
 
 from src.HarpiLib.say import say
+from src.cogs.base import TrackedCog
 
 
-class TTSCog(commands.Cog):
-    """TTS Cog."""
+class TTSCog(TrackedCog):
+    """TTS Cog for text-to-speech functionality."""
 
     @commands.command(
         name="tts",

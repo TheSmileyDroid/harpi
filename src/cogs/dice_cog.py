@@ -7,10 +7,11 @@ from typing import Dict, List
 import logging
 
 from src.HarpiLib.math.parser import DiceParser, RollResult
+from src.cogs.base import TrackedCog
 
 
-class DiceCog(Cog):
-    """Cog for handling dice."""
+class DiceCog(TrackedCog):
+    """Cog for handling dice rolling and math operations."""
 
     def __init__(self, bot: Bot) -> None:
         """Initialize the cog.
