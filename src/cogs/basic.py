@@ -15,9 +15,11 @@ from discord import Embed, File
 from discord.ext import commands
 from mcstatus import JavaServer
 
+from src.cogs.base import TrackedCog
 
-class BasicCog(commands.Cog):
-    """Docstring for BasicCog."""
+
+class BasicCog(TrackedCog):
+    """Basic bot commands like ping, echo, and system status."""
 
     @commands.command()
     async def ping(self, ctx: commands.Context) -> None:

@@ -28,6 +28,7 @@ from pydantic import BaseModel
 
 import src
 import src.routers
+import src.routers.cogs
 import src.routers.guild
 import src.routers.system
 from src.cogs.ai import AiCog
@@ -35,6 +36,7 @@ from src.cogs.basic import BasicCog
 from src.cogs.dice_cog import DiceCog
 from src.cogs.music import MusicCog
 from src.cogs.tts import TTSCog
+from src.services.cog_manager import cog_manager
 from src.websocket import manager as websocketmanager
 
 load_dotenv()
@@ -83,11 +85,35 @@ async def main() -> cd.Bot:
 
     client = cd.Bot(command_prefix="-", intents=intents)
 
-    await client.add_cog(TTSCog())
-    await client.add_cog(MusicCog(client))
-    await client.add_cog(BasicCog())
-    await client.add_cog(DiceCog(client))
-    await client.add_cog(AiCog(client))
+    # Available cog classes mapped by name
+    available_cogs = {
+        "TTSCog": TTSCog,
+        "MusicCog": lambda: MusicCog(client),
+        "BasicCog": BasicCog,
+        "DiceCog": lambda: DiceCog(client),
+        "AiCog": lambda: AiCog(client),
+    }
+
+    # Load cogs based on configuration
+    for cog_name, cog_class in available_cogs.items():
+        if cog_manager.is_cog_enabled(cog_name):
+            try:
+                # Create cog instance
+                if callable(cog_class) and not isinstance(cog_class, type):
+                    # Lambda function - call it to get instance
+                    cog_instance = cog_class()
+                else:
+                    # Regular class - instantiate it
+                    cog_instance = cog_class()
+                
+                await client.add_cog(cog_instance)
+                
+                # Update cog information in configuration
+                cog_manager.update_cog_info(cog_name, cog_instance)
+                
+                logging.getLogger(__name__).info(f"Loaded cog: {cog_name}")
+            except Exception as e:
+                logging.getLogger(__name__).error(f"Failed to load cog {cog_name}: {e}")
 
     task = asyncio.create_task(client.start(get_token()))
 
@@ -163,6 +189,12 @@ app.include_router(
     src.routers.system.router,
     prefix="/api/system",
     tags=["system"],
+)
+
+app.include_router(
+    src.routers.cogs.router,
+    prefix="/api/cogs",
+    tags=["cogs"],
 )
 
 
