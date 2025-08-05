@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, cast
 import discord
 import discord.ext
 import discord.ext.commands
+from discord.ext.commands.bot import Bot
 import wikipediaapi
 from discord import Message, TextChannel
 from google.generativeai import types
@@ -45,7 +46,7 @@ class AiTools:
 
     async def get_wikipedia_summary(
         self,
-        ctx: commands.Context,
+        ctx: commands.Context[Bot],
         args: str,
     ) -> str:
         """Get Wikipedia summary based on the search term (Sua fonte mais
@@ -74,7 +75,7 @@ class AiTools:
 
     async def get_full_wikipedia_page(
         self,
-        ctx: commands.Context,
+        ctx: commands.Context[Bot],
         args: str,
     ) -> str:
         """Get full Wikipedia page based on the search term.
@@ -101,7 +102,7 @@ class AiTools:
 
     async def get_music_list(
         self,
-        ctx: commands.Context,
+        ctx: commands.Context[Bot],
     ) -> str:
         """Get music list that is playing now.
 
@@ -127,7 +128,7 @@ class AiTools:
 
     async def play_music(
         self,
-        ctx: commands.Context,
+        ctx: commands.Context[Bot],
         args: str,
     ) -> str:
         """Play music based on the search term.
@@ -165,7 +166,7 @@ class AiTools:
 
     async def roll_dice(
         self,
-        ctx: commands.Context,
+        ctx: commands.Context[Bot],
         args: str,
     ) -> str:
         """Roll dices based on the input string.
@@ -193,7 +194,7 @@ class AiTools:
 
     async def get_guild_members(
         self,
-        ctx: commands.Context,
+        ctx: commands.Context[Bot],
     ) -> str:
         """Get guild members.
 
@@ -212,7 +213,7 @@ class AiTools:
 
     async def get_last_messages(
         self,
-        ctx: discord.ext.commands.Context,
+        ctx: discord.ext.commands.Context[Bot],
     ) -> str:
         """Obtém as últimas mensagens do canal.
         Mais útil para obter contexto da conversa.
@@ -242,7 +243,7 @@ class AiTools:
 
     async def disconnect_from_voice(
         self,
-        ctx: commands.Context,
+        ctx: commands.Context[Bot],
     ) -> str:
         """Desconecta o bot do canal de voz atual.
 
@@ -268,7 +269,7 @@ class AiTools:
 
     async def skip_music(
         self,
-        ctx: commands.Context,
+        ctx: commands.Context[Bot],
     ) -> str:
         """Pula a música atual que está sendo reproduzida.
 
@@ -293,7 +294,7 @@ class AiTools:
 
     async def call_function(
         self,
-        ctx: discord.ext.commands.Context,
+        ctx: discord.ext.commands.Context[Bot],
         name: str,
         args: Any,  # noqa: ANN401
     ) -> Any:  # noqa: ANN401

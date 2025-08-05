@@ -10,7 +10,9 @@ from typing import TYPE_CHECKING
 import discord
 import discord.ext
 import discord.ext.commands
+from discord.ext.commands.bot import Bot
 import google.generativeai as genai
+from google.generativeai.generative_models import ChatSession, GenerativeModel
 from google.protobuf.struct_pb2 import Struct
 
 from src.HarpiLib.ai.base import BaseAi
@@ -35,7 +37,7 @@ class Gemini(BaseAi):
     def __init__(self) -> None:
         super().__init__()
         genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        self.model = genai.GenerativeModel(
+        self.model: GenerativeModel = genai.GenerativeModel(
             "gemini-2.0-flash-exp",
             generation_config={"max_output_tokens": 4000},
             system_instruction=(
@@ -55,8 +57,8 @@ utilizá-las apenas faça. E faça o máximo possível.
 """
             ),
         )
-        self.chat = self.model.start_chat()
-        self.chat_starting_time = datetime.datetime.now(
+        self.chat: ChatSession = self.model.start_chat()
+        self.chat_starting_time: datetime.datetime = datetime.datetime.now(
             tz=datetime.timezone(datetime.timedelta(hours=-3)),
         )
 
@@ -79,7 +81,7 @@ utilizá-las apenas faça. E faça o máximo possível.
     async def _handle_function_calls(
         self,
         response: GenerateContentResponse,
-        ctx: discord.ext.commands.Context,
+        ctx: discord.ext.commands.Context[Bot],
         tools: AiTools,
     ) -> GenerateContentResponse:
         """Handle function calls in the response.
@@ -104,8 +106,8 @@ utilizá-las apenas faça. E faça o máximo possível.
                             result = str(e)
                         s = Struct()
                         s.update({"result": result})
-                        function_response = genai.protos.Part(
-                            function_response=genai.protos.FunctionResponse(
+                        function_response = genai.protos.Part( # type: ignore # TODO: Fix type ignore
+                            function_response=genai.protos.FunctionResponse( # type: ignore # TODO: Fix type ignore
                                 name=fn.name,
                                 response=s,
                             ),
@@ -127,7 +129,7 @@ utilizá-las apenas faça. E faça o máximo possível.
     async def get_response(
         self,
         message: str,
-        ctx: discord.ext.commands.Context,
+        ctx: discord.ext.commands.Context[Bot],
         tools: AiTools,
     ) -> str:
         """Get response from Gemini AI.

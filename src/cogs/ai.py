@@ -22,7 +22,7 @@ class AiCog(commands.Cog):
         self.base_ai = Gemini
 
     @commands.command(aliases=["c", ""])
-    async def chat(self, ctx: commands.Context, *, message: str) -> None:
+    async def chat(self, ctx: commands.Context[Bot], *, message: str) -> None:
         """Chat with Gemini AI."""
         guild = ctx.guild
         if not guild:
@@ -45,7 +45,7 @@ class AiCog(commands.Cog):
                 await ctx.send(slice_)
 
     @commands.command(aliases=[])
-    async def fc(self, ctx: commands.Context, *, message: str) -> None:
+    async def fc(self, ctx: commands.Context[Bot], *, message: str) -> None:
         """Chat with Gemini AI."""
         guild = ctx.guild
         if not guild:
@@ -65,7 +65,7 @@ class AiCog(commands.Cog):
             await ctx.send(slice_)
 
     @commands.command()
-    async def reset_chat(self, ctx: commands.Context) -> None:
+    async def reset_chat(self, ctx: commands.Context[Bot]) -> None:
         """Reset chat session."""
         guild = ctx.guild
         if guild:

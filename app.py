@@ -6,7 +6,7 @@ import asyncio
 import logging
 import os
 from pathlib import Path
-from typing import Literal
+from typing import cast
 
 import discord
 import discord.ext
@@ -22,14 +22,14 @@ from fastapi import (
 )
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from fastapi.responses import FileResponse
+from fastapi.security import OAuth2PasswordBearer
 
 import src
 import src.routers
 import src.routers.guild
 import src.routers.system
+from models.status import IStatus
 from src.cogs.ai import AiCog
 from src.cogs.basic import BasicCog
 from src.cogs.dice_cog import DiceCog
@@ -37,7 +37,7 @@ from src.cogs.music import MusicCog
 from src.cogs.tts import TTSCog
 from src.websocket import manager as websocketmanager
 
-load_dotenv()
+_ = load_dotenv()
 
 terminal_logger = logging.StreamHandler()
 # noinspection SpellCheckingInspection
@@ -49,7 +49,7 @@ logging.basicConfig(
 )
 logging.getLogger().addHandler(terminal_logger)
 
-background_tasks = set()
+background_tasks: set[asyncio.Task[None]] = set()
 
 
 def get_token() -> str:
@@ -108,6 +108,8 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
 
 app = FastAPI(lifespan=lifespan)
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
 origins = [
     "http://localhost:5173",
     "https://localhost:5173",
@@ -116,6 +118,7 @@ origins = [
     "https://localhost:8000",
     "http://localhost:8000",
 ]
+
 if os.getenv("DOMAIN"):
     origins.append(os.getenv("DOMAIN") or "")
 
@@ -131,12 +134,6 @@ app.add_middleware(
 api_router = APIRouter(prefix="/api", tags=["api"])
 
 
-class IStatus(BaseModel):
-    """Estado atual do Bot."""
-
-    status: Literal["online", "offline"]
-
-
 @api_router.get("/status")
 async def bot_status() -> IStatus:
     """Check the bot's status via a FastAPI endpoint.
@@ -147,10 +144,12 @@ async def bot_status() -> IStatus:
         Status.
 
     """
-    bot: discord.ext.commands.Bot | None = app.state.bot
-    return IStatus.model_validate({
-        "status": "online" if bot and bot.is_ready() else "offline",
-    })
+    bot = cast(discord.ext.commands.Bot | None, app.state.bot)
+    return IStatus.model_validate(
+        {
+            "status": "online" if bot and bot.is_ready() else "offline",
+        }
+    )
 
 
 app.include_router(
@@ -195,22 +194,12 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         websocketmanager.disconnect(websocket)
 
 
-app.mount(
-    "/",
-    StaticFiles(directory="frontend/dist", html=True),
-    name="static",
-)
-
-
 @app.get("/{path:path}")
-async def redirect(path: str) -> RedirectResponse:
-    """Redirect all other requests to the frontend.
-
-    Args:
-        path (str): The path to redirect.
-
+def serve_static(path: str) -> FileResponse:
     """
-
-    response = RedirectResponse(url="/")
-    response.headers["Cache-Control"] = "no-store"
-    return response
+    Use index.html for all requests without an existing file.
+    """
+    print(f"Request for path: {path}")
+    if path and (Path("frontend/dist") / path).exists():
+        return FileResponse(Path("frontend/dist") / path)
+    return FileResponse(path=Path("frontend/dist") / "index.html")

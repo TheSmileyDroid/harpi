@@ -67,7 +67,3 @@ exclude = [
     "venv",
     "env",
 ]
-
-[tool.pytest]
-addopts = "--doctest-modules --doctest-report ndiff"
-doctest_optionflags = "NORMALIZE_WHITESPACE ELLIPSIS"

@@ -17,11 +17,11 @@ amigos = {
 }
 
 
-def check_if_is_me(ctx: commands.Context):
+def check_if_is_me(ctx: commands.Context[Bot]):
     return ctx.author.id == 439894995890208768
 
 
-def check_if_is_member(ctx: commands.Context):
+def check_if_is_member(ctx: commands.Context[Bot]):
     return ctx.author.name in amigos
 
 
@@ -29,7 +29,7 @@ class AmigoCog(commands.Cog):
     @commands.command()
     @commands.dm_only()
     @commands.check(check_if_is_member)
-    async def amigo(self, ctx: commands.Context) -> None:  # noqa: PLR6301
+    async def amigo(self, ctx: commands.Context[Bot]) -> None:  # noqa: PLR6301
         random.seed("manda desce")
         shuffled_list = list(amigos.keys())
         shuffled_list.sort()
@@ -42,12 +42,12 @@ class AmigoCog(commands.Cog):
 
     @commands.command()
     @commands.check(check_if_is_member)
-    async def lista_de_amigos(self, ctx: commands.Context) -> None:  # noqa: PLR6301
+    async def lista_de_amigos(self, ctx: commands.Context[Bot]) -> None:  # noqa: PLR6301
         await ctx.send("Lista de amigos: " + ", ".join(amigos.values()))
 
     @commands.command()
     @commands.check(check_if_is_me)
-    async def lista_de_amigos_secreta(self, ctx: commands.Context):
+    async def lista_de_amigos_secreta(self, ctx: commands.Context[Bot]):
         random.seed("amigo2022")
         shuffled_list = [x for x in amigos]
         shuffled_list.sort()

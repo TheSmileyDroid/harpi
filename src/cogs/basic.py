@@ -10,6 +10,7 @@ import PIL
 import PIL.Image
 import PIL.ImageDraw
 import PIL.ImageFont
+from discord.ext.commands.bot import Bot
 import psutil
 from discord import Embed, File
 from discord.ext import commands
@@ -20,17 +21,17 @@ class BasicCog(commands.Cog):
     """Docstring for BasicCog."""
 
     @commands.command()
-    async def ping(self, ctx: commands.Context) -> None:
+    async def ping(self, ctx: commands.Context[Bot]) -> None:
         """Responde Ping de volta."""
         await ctx.send("Pong!")
 
     @commands.command()
-    async def echo(self, ctx: commands.Context, *, args: str) -> None:
+    async def echo(self, ctx: commands.Context[Bot], *, args: str) -> None:
         """Repete a mensagem."""
         await ctx.send(args)
 
     @commands.command()
-    async def status(self, ctx: commands.Context) -> None:
+    async def status(self, ctx: commands.Context[Bot]) -> None:
         """Mostra o estado do servidor."""
 
         memory = psutil.virtual_memory()
@@ -70,7 +71,7 @@ class BasicCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command()
-    async def mc(self, ctx: commands.Context) -> None:
+    async def mc(self, ctx: commands.Context[Bot]) -> None:
         """Mostra o status do servidor Minecraft."""
         java_process = [
             process
@@ -106,7 +107,7 @@ class BasicCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command()
-    async def top(self, ctx: commands.Context) -> None:
+    async def top(self, ctx: commands.Context[Bot]) -> None:
         """Retorna o retorno do comando top como uma imagem."""
 
         result = await asyncio.to_thread(
@@ -212,7 +213,7 @@ class BasicCog(commands.Cog):
         )
 
     @commands.command()
-    async def shutdown(self, ctx: commands.Context) -> None:
+    async def shutdown(self, ctx: commands.Context[Bot]) -> None:
         """Desliga o Harpi."""
         await ctx.send("Desligando...")
         await ctx.bot.close()

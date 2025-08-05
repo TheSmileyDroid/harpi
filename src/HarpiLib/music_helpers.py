@@ -6,13 +6,14 @@ from typing import cast
 
 import discord
 import discord.ext.commands as commands
+from discord.ext.commands.bot import Bot
 
 
-def voice_state(ctx: commands.Context) -> discord.VoiceState:
+def voice_state(ctx: commands.Context[Bot]) -> discord.VoiceState:
     """Obtém o estado de voz do autor do comando.
 
     Args:
-        ctx (commands.Context): Contexto do comando.
+        ctx (commands.Context[Bot]): Contexto do comando.
 
     Raises:
         commands.CommandError: Se o autor não estiver em um canal de voz.
@@ -27,11 +28,11 @@ def voice_state(ctx: commands.Context) -> discord.VoiceState:
     return ctx.author.voice
 
 
-def voice_channel(ctx: commands.Context) -> discord.VoiceChannel:
+def voice_channel(ctx: commands.Context[Bot]) -> discord.VoiceChannel:
     """Obtém o canal de voz do autor do comando.
 
     Args:
-        ctx (commands.Context): Contexto do comando.
+        ctx (commands.Context[Bot]): Contexto do comando.
 
     Raises:
         commands.CommandError: Se o autor não estiver em um canal de voz.
@@ -45,11 +46,11 @@ def voice_channel(ctx: commands.Context) -> discord.VoiceChannel:
     return cast("discord.VoiceChannel", _voice_state.channel)
 
 
-def guild(ctx: commands.Context) -> discord.Guild:
+def guild(ctx: commands.Context[Bot]) -> discord.Guild:
     """Obtém a guilda do comando.
 
     Args:
-        ctx (commands.Context): Contexto do comando.
+        ctx (commands.Context[Bot]): Contexto do comando.
 
     Raises:
         commands.NoPrivateMessage: Se o comando for usado em mensagem privada.
@@ -57,18 +58,20 @@ def guild(ctx: commands.Context) -> discord.Guild:
     Returns:
         discord.Guild: Guilda do comando.
     """
-    if ctx.guild is None:
+    guild = ctx.guild()
+
+    if guild is None:
         raise commands.NoPrivateMessage(
             "Este comando não pode ser usado em MP",
         )
-    return ctx.guild
+    return guild
 
 
-async def voice_client(ctx: commands.Context) -> discord.VoiceClient:
+async def voice_client(ctx: commands.Context[Bot]) -> discord.VoiceProtocol:
     """Obtém ou cria um cliente de voz.
 
     Args:
-        ctx (commands.Context): Contexto do comando.
+        ctx (commands.Context[Bot]): Contexto do comando.
 
     Returns:
         discord.VoiceClient: Cliente de voz.
@@ -76,7 +79,7 @@ async def voice_client(ctx: commands.Context) -> discord.VoiceClient:
     voice = discord.utils.get(ctx.bot.voice_clients, guild=guild(ctx))
     if voice is None:
         _voice_channel = voice_channel(ctx)
-        voice = await _voice_channel.connect()
+        voice: discord.VoiceProtocol = await _voice_channel.connect()
     return voice
 
 
