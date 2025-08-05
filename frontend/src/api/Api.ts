@@ -1,5 +1,6 @@
 /* eslint-disable */
 /* tslint:disable */
+// @ts-nocheck
 /*
  * ---------------------------------------------------------------
  * ## THIS FILE WAS GENERATED VIA SWAGGER-TYPESCRIPT-API        ##
@@ -9,14 +10,15 @@
  * ---------------------------------------------------------------
  */
 
-import type {
-  AxiosInstance,
-  AxiosRequestConfig,
-  AxiosResponse,
-  HeadersDefaults,
-  ResponseType,
-} from 'axios';
-import axios from 'axios';
+/**
+ * LoopMode
+ * Enum que representa o modo de loop.
+ */
+export enum LoopMode {
+  Value0 = 0,
+  Value1 = 1,
+  Value2 = 2,
+}
 
 /**
  * CanvasData
@@ -24,14 +26,126 @@ import axios from 'axios';
  */
 export interface CanvasData {
   /** Elements */
-  elements?: object[];
+  elements?: Record<string, any>[];
   /** App State */
-  app_state?: object | null;
+  app_state?: Record<string, any> | null;
+}
+
+/**
+ * CogInfo
+ * Information about a Discord cog.
+ */
+export interface CogInfo {
   /**
-   * Version
+   * Name
+   * Cog name
+   */
+  name: string;
+  /**
+   * Description
+   * Cog description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   * Whether the cog is enabled
+   * @default true
+   */
+  enabled?: boolean;
+  /**
+   * Commands
+   * Commands in this cog
+   */
+  commands?: CommandInfo[];
+  /**
+   * Usage Stats
+   * Usage statistics
+   */
+  usage_stats?: CommandUsage[];
+}
+
+/**
+ * CogStatusUpdate
+ * Request model for updating cog status.
+ */
+export interface CogStatusUpdate {
+  /**
+   * Enabled
+   * Whether to enable or disable the cog
+   */
+  enabled: boolean;
+}
+
+/**
+ * CommandInfo
+ * Information about a Discord command.
+ */
+export interface CommandInfo {
+  /**
+   * Name
+   * Command name
+   */
+  name: string;
+  /**
+   * Description
+   * Command description
+   */
+  description?: string | null;
+  /**
+   * Aliases
+   * Command aliases
+   */
+  aliases?: string[];
+  /**
+   * Usage
+   * Command usage example
+   */
+  usage?: string | null;
+}
+
+/**
+ * CommandUsage
+ * Usage statistics for a command.
+ */
+export interface CommandUsage {
+  /**
+   * Command Name
+   * Command name
+   */
+  command_name: string;
+  /**
+   * Total Uses
+   * Total number of uses
    * @default 0
    */
-  version?: number;
+  total_uses?: number;
+  /**
+   * Last Used
+   * Last time used
+   */
+  last_used?: string | null;
+  /**
+   * Last User
+   * Last user who used it
+   */
+  last_user?: string | null;
+}
+
+/**
+ * CommandUsageUpdate
+ * Request model for updating command usage.
+ */
+export interface CommandUsageUpdate {
+  /**
+   * Command Name
+   * Command name
+   */
+  command_name: string;
+  /**
+   * User Id
+   * User who used the command
+   */
+  user_id?: string | null;
 }
 
 /**
@@ -140,7 +254,7 @@ export interface IMusicState {
  */
 export interface IStatus {
   /** Status */
-  status: 'online' | 'offline';
+  status: "online" | "offline";
 }
 
 /**
@@ -165,38 +279,6 @@ export interface IVoiceChannel {
   name: string;
   /** Members */
   members: string[];
-}
-
-/**
- * ImageData
- * Dados de uma imagem para armazenamento.
- */
-export interface ImageData {
-  /** Content */
-  content: string;
-  /** File Type */
-  file_type: string;
-}
-
-/**
- * ImageReference
- * Referência a uma imagem armazenada.
- */
-export interface ImageReference {
-  /** Image Id */
-  image_id: string;
-  /** File Type */
-  file_type: string;
-}
-
-/**
- * LoopMode
- * Enum que representa o modo de loop.
- */
-export enum LoopMode {
-  Value0 = 0,
-  Value1 = 1,
-  Value2 = 2,
 }
 
 /**
@@ -318,10 +400,19 @@ export interface ValidationError {
   type: string;
 }
 
+import type {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+  HeadersDefaults,
+  ResponseType,
+} from "axios";
+import axios from "axios";
+
 export type QueryParamsType = Record<string | number, any>;
 
 export interface FullRequestParams
-  extends Omit<AxiosRequestConfig, 'data' | 'params' | 'url' | 'responseType'> {
+  extends Omit<AxiosRequestConfig, "data" | "params" | "url" | "responseType"> {
   /** set parameter to `true` for call `securityWorker` for this request */
   secure?: boolean;
   /** request path */
@@ -336,28 +427,32 @@ export interface FullRequestParams
   body?: unknown;
 }
 
-export type RequestParams = Omit<FullRequestParams, 'body' | 'method' | 'query' | 'path'>;
+export type RequestParams = Omit<
+  FullRequestParams,
+  "body" | "method" | "query" | "path"
+>;
 
 export interface ApiConfig<SecurityDataType = unknown>
-  extends Omit<AxiosRequestConfig, 'data' | 'cancelToken'> {
+  extends Omit<AxiosRequestConfig, "data" | "cancelToken"> {
   securityWorker?: (
-    securityData: SecurityDataType | null
+    securityData: SecurityDataType | null,
   ) => Promise<AxiosRequestConfig | void> | AxiosRequestConfig | void;
   secure?: boolean;
   format?: ResponseType;
 }
 
 export enum ContentType {
-  Json = 'application/json',
-  FormData = 'multipart/form-data',
-  UrlEncoded = 'application/x-www-form-urlencoded',
-  Text = 'text/plain',
+  Json = "application/json",
+  JsonApi = "application/vnd.api+json",
+  FormData = "multipart/form-data",
+  UrlEncoded = "application/x-www-form-urlencoded",
+  Text = "text/plain",
 }
 
 export class HttpClient<SecurityDataType = unknown> {
   public instance: AxiosInstance;
   private securityData: SecurityDataType | null = null;
-  private securityWorker?: ApiConfig<SecurityDataType>['securityWorker'];
+  private securityWorker?: ApiConfig<SecurityDataType>["securityWorker"];
   private secure?: boolean;
   private format?: ResponseType;
 
@@ -367,7 +462,10 @@ export class HttpClient<SecurityDataType = unknown> {
     format,
     ...axiosConfig
   }: ApiConfig<SecurityDataType> = {}) {
-    this.instance = axios.create({ ...axiosConfig, baseURL: axiosConfig.baseURL || '' });
+    this.instance = axios.create({
+      ...axiosConfig,
+      baseURL: axiosConfig.baseURL || "",
+    });
     this.secure = secure;
     this.format = format;
     this.securityWorker = securityWorker;
@@ -379,7 +477,7 @@ export class HttpClient<SecurityDataType = unknown> {
 
   protected mergeRequestParams(
     params1: AxiosRequestConfig,
-    params2?: AxiosRequestConfig
+    params2?: AxiosRequestConfig,
   ): AxiosRequestConfig {
     const method = params1.method || (params2 && params2.method);
 
@@ -389,7 +487,9 @@ export class HttpClient<SecurityDataType = unknown> {
       ...(params2 || {}),
       headers: {
         ...((method &&
-          this.instance.defaults.headers[method.toLowerCase() as keyof HeadersDefaults]) ||
+          this.instance.defaults.headers[
+            method.toLowerCase() as keyof HeadersDefaults
+          ]) ||
           {}),
         ...(params1.headers || {}),
         ...((params2 && params2.headers) || {}),
@@ -398,7 +498,7 @@ export class HttpClient<SecurityDataType = unknown> {
   }
 
   protected stringifyFormItem(formItem: unknown) {
-    if (typeof formItem === 'object' && formItem !== null) {
+    if (typeof formItem === "object" && formItem !== null) {
       return JSON.stringify(formItem);
     } else {
       return `${formItem}`;
@@ -411,11 +511,15 @@ export class HttpClient<SecurityDataType = unknown> {
     }
     return Object.keys(input || {}).reduce((formData, key) => {
       const property = input[key];
-      const propertyContent: any[] = property instanceof Array ? property : [property];
+      const propertyContent: any[] =
+        property instanceof Array ? property : [property];
 
       for (const formItem of propertyContent) {
         const isFileType = formItem instanceof Blob || formItem instanceof File;
-        formData.append(key, isFileType ? formItem : this.stringifyFormItem(formItem));
+        formData.append(
+          key,
+          isFileType ? formItem : this.stringifyFormItem(formItem),
+        );
       }
 
       return formData;
@@ -432,18 +536,28 @@ export class HttpClient<SecurityDataType = unknown> {
     ...params
   }: FullRequestParams): Promise<AxiosResponse<T>> => {
     const secureParams =
-      ((typeof secure === 'boolean' ? secure : this.secure) &&
+      ((typeof secure === "boolean" ? secure : this.secure) &&
         this.securityWorker &&
         (await this.securityWorker(this.securityData))) ||
       {};
     const requestParams = this.mergeRequestParams(params, secureParams);
     const responseFormat = format || this.format || undefined;
 
-    if (type === ContentType.FormData && body && body !== null && typeof body === 'object') {
+    if (
+      type === ContentType.FormData &&
+      body &&
+      body !== null &&
+      typeof body === "object"
+    ) {
       body = this.createFormData(body as Record<string, unknown>);
     }
 
-    if (type === ContentType.Text && body && body !== null && typeof body !== 'string') {
+    if (
+      type === ContentType.Text &&
+      body &&
+      body !== null &&
+      typeof body !== "string"
+    ) {
       body = JSON.stringify(body);
     }
 
@@ -451,7 +565,7 @@ export class HttpClient<SecurityDataType = unknown> {
       ...requestParams,
       headers: {
         ...(requestParams.headers || {}),
-        ...(type ? { 'Content-Type': type } : {}),
+        ...(type ? { "Content-Type": type } : {}),
       },
       params: query,
       responseType: responseFormat,
@@ -462,10 +576,14 @@ export class HttpClient<SecurityDataType = unknown> {
 }
 
 /**
- * @title FastAPI
- * @version 0.1.0
+ * @title Harpi API
+ * @version 1.0.0
+ *
+ * Discord bot management API
  */
-export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
+export class Api<
+  SecurityDataType extends unknown,
+> extends HttpClient<SecurityDataType> {
   api = {
     /**
      * @description Retorna uma lista de guildas disponíveis. Returns ------- list[IGuild] As guildas.
@@ -478,8 +596,8 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     getApiGuildsGet: (params: RequestParams = {}) =>
       this.request<IGuild[], void>({
         path: `/api/guilds`,
-        method: 'GET',
-        format: 'json',
+        method: "GET",
+        format: "json",
         ...params,
       }),
 
@@ -496,13 +614,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<IGuild | null, void | HTTPValidationError>({
         path: `/api/guilds/`,
-        method: 'GET',
+        method: "GET",
         query: query,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -519,13 +637,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<IMusic[], void | HTTPValidationError>({
         path: `/api/guilds/music/list`,
-        method: 'GET',
+        method: "GET",
         query: query,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -542,13 +660,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<IMusicState, void | HTTPValidationError>({
         path: `/api/guilds/state`,
-        method: 'GET',
+        method: "GET",
         query: query,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -567,13 +685,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Url */
         url: string;
       },
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/queue`,
-        method: 'POST',
+        method: "POST",
         query: query,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -590,81 +708,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<CanvasData, void | HTTPValidationError>({
         path: `/api/guilds/canvas`,
-        method: 'GET',
+        method: "GET",
         query: query,
-        format: 'json',
-        ...params,
-      }),
-
-    /**
-     * @description Atualiza os dados do canvas para uma guilda específica. Parameters ---------- request : Request Requisição FastAPI idx : str ID da guilda canvas_data : CanvasData Novos dados do canvas Returns ------- dict[str, str] Mensagem de confirmação
-     *
-     * @tags guilds
-     * @name UpdateCanvasApiGuildsCanvasPost
-     * @summary Update Canvas
-     * @request POST:/api/guilds/canvas
-     */
-    updateCanvasApiGuildsCanvasPost: (
-      query: {
-        /** Idx */
-        idx: string;
-      },
-      data: CanvasData,
-      params: RequestParams = {}
-    ) =>
-      this.request<Record<string, string>, void | HTTPValidationError>({
-        path: `/api/guilds/canvas`,
-        method: 'POST',
-        query: query,
-        body: data,
-        type: ContentType.Json,
-        format: 'json',
-        ...params,
-      }),
-
-    /**
-     * @description Faz upload de uma imagem para o canvas. Args: image_data (ImageData): Dados da imagem em base64. Returns: ImageReference: Referência para a imagem armazenada.
-     *
-     * @tags guilds
-     * @name UploadImageApiGuildsCanvasImagesPost
-     * @summary Upload Image
-     * @request POST:/api/guilds/canvas/images
-     */
-    uploadImageApiGuildsCanvasImagesPost: (data: ImageData, params: RequestParams = {}) =>
-      this.request<ImageReference, void | HTTPValidationError>({
-        path: `/api/guilds/canvas/images`,
-        method: 'POST',
-        body: data,
-        type: ContentType.Json,
-        format: 'json',
-        ...params,
-      }),
-
-    /**
-     * @description Obtém uma imagem pelo seu ID. Args: image_id (str): ID da imagem. file_type (str): Tipo de arquivo da imagem. Returns: Response: Conteúdo binário da imagem.
-     *
-     * @tags guilds
-     * @name GetImageApiGuildsCanvasImagesImageIdGet
-     * @summary Get Image
-     * @request GET:/api/guilds/canvas/images/{image_id}
-     */
-    getImageApiGuildsCanvasImagesImageIdGet: (
-      imageId: string,
-      query: {
-        /** File Type */
-        file_type: string;
-      },
-      params: RequestParams = {}
-    ) =>
-      this.request<any, void | HTTPValidationError>({
-        path: `/api/guilds/canvas/images/${imageId}`,
-        method: 'GET',
-        query: query,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -681,13 +731,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/skip`,
-        method: 'POST',
+        method: "POST",
         query: query,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -704,13 +754,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/pause`,
-        method: 'POST',
+        method: "POST",
         query: query,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -727,13 +777,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/resume`,
-        method: 'POST',
+        method: "POST",
         query: query,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -750,13 +800,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Idx */
         idx: string;
       },
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/stop`,
-        method: 'POST',
+        method: "POST",
         query: query,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -774,15 +824,15 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         idx: string;
       },
       data: ILoopRequest,
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/loop`,
-        method: 'POST',
+        method: "POST",
         query: query,
         body: data,
         type: ContentType.Json,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -801,13 +851,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Channel Id */
         channel_id: string | number;
       },
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<null, void | HTTPValidationError>({
         path: `/api/guilds/voice/connect`,
-        method: 'POST',
+        method: "POST",
         query: query,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -822,8 +872,8 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     getSystemStatusApiSystemStatusGet: (params: RequestParams = {}) =>
       this.request<SystemStatus, void>({
         path: `/api/system/status`,
-        method: 'GET',
-        format: 'json',
+        method: "GET",
+        format: "json",
         ...params,
       }),
 
@@ -838,8 +888,8 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     getMinecraftStatusApiSystemMinecraftGet: (params: RequestParams = {}) =>
       this.request<MinecraftStatus, void>({
         path: `/api/system/minecraft`,
-        method: 'GET',
-        format: 'json',
+        method: "GET",
+        format: "json",
         ...params,
       }),
 
@@ -854,8 +904,8 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     getTopProcessesApiSystemTopGet: (params: RequestParams = {}) =>
       this.request<TopProcesses, void>({
         path: `/api/system/top`,
-        method: 'GET',
-        format: 'json',
+        method: "GET",
+        format: "json",
         ...params,
       }),
 
@@ -870,8 +920,142 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     getTopImageApiSystemTopImageGet: (params: RequestParams = {}) =>
       this.request<any, void>({
         path: `/api/system/top/image`,
-        method: 'GET',
-        format: 'json',
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Get all available cogs with their configuration and status. Returns a dictionary mapping cog names to their configuration, including enabled status, commands, and usage statistics. Returns: Dict[str, CogInfo]: All cog configurations
+     *
+     * @tags cogs
+     * @name GetAllCogsApiCogsGet
+     * @summary Get All Cogs
+     * @request GET:/api/cogs/
+     */
+    getAllCogsApiCogsGet: (params: RequestParams = {}) =>
+      this.request<Record<string, CogInfo>, void>({
+        path: `/api/cogs/`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Get configuration for a specific cog. Args: cog_name: Name of the cog to retrieve Returns: CogInfo: The cog configuration Raises: HTTPException: If cog is not found
+     *
+     * @tags cogs
+     * @name GetCogApiCogsCogNameGet
+     * @summary Get Cog
+     * @request GET:/api/cogs/{cog_name}
+     */
+    getCogApiCogsCogNameGet: (cogName: string, params: RequestParams = {}) =>
+      this.request<CogInfo, void | HTTPValidationError>({
+        path: `/api/cogs/${cogName}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Enable or disable a cog. Args: cog_name: Name of the cog to toggle status_update: New status for the cog request: FastAPI request object to access bot instance Returns: Dict[str, str]: Status message Raises: HTTPException: If cog is not found or operation fails
+     *
+     * @tags cogs
+     * @name ToggleCogApiCogsCogNameTogglePost
+     * @summary Toggle Cog
+     * @request POST:/api/cogs/{cog_name}/toggle
+     */
+    toggleCogApiCogsCogNameTogglePost: (
+      cogName: string,
+      data: CogStatusUpdate,
+      params: RequestParams = {},
+    ) =>
+      this.request<Record<string, string>, void | HTTPValidationError>({
+        path: `/api/cogs/${cogName}/toggle`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Get all commands for a specific cog with their documentation. Args: cog_name: Name of the cog Returns: List[dict]: List of commands with their documentation Raises: HTTPException: If cog is not found
+     *
+     * @tags cogs
+     * @name GetCogCommandsApiCogsCogNameCommandsGet
+     * @summary Get Cog Commands
+     * @request GET:/api/cogs/{cog_name}/commands
+     */
+    getCogCommandsApiCogsCogNameCommandsGet: (
+      cogName: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<Record<string, any>[], void | HTTPValidationError>({
+        path: `/api/cogs/${cogName}/commands`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Get usage statistics for all commands in a cog. Args: cog_name: Name of the cog Returns: List[CommandUsage]: Usage statistics for all commands Raises: HTTPException: If cog is not found
+     *
+     * @tags cogs
+     * @name GetCogUsageApiCogsCogNameUsageGet
+     * @summary Get Cog Usage
+     * @request GET:/api/cogs/{cog_name}/usage
+     */
+    getCogUsageApiCogsCogNameUsageGet: (
+      cogName: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<CommandUsage[], void | HTTPValidationError>({
+        path: `/api/cogs/${cogName}/usage`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Record usage of a command (typically called by the bot). Args: cog_name: Name of the cog usage_update: Command usage information Returns: Dict[str, str]: Status message Raises: HTTPException: If cog is not found
+     *
+     * @tags cogs
+     * @name RecordCommandUsageApiCogsCogNameUsagePost
+     * @summary Record Command Usage
+     * @request POST:/api/cogs/{cog_name}/usage
+     */
+    recordCommandUsageApiCogsCogNameUsagePost: (
+      cogName: string,
+      data: CommandUsageUpdate,
+      params: RequestParams = {},
+    ) =>
+      this.request<Record<string, string>, void | HTTPValidationError>({
+        path: `/api/cogs/${cogName}/usage`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Get usage statistics for a specific command. Args: cog_name: Name of the cog command_name: Name of the command Returns: List[CommandUsage]: Usage statistics for the command Raises: HTTPException: If cog or command is not found
+     *
+     * @tags cogs
+     * @name GetCommandUsageApiCogsCogNameUsageCommandNameGet
+     * @summary Get Command Usage
+     * @request GET:/api/cogs/{cog_name}/usage/{command_name}
+     */
+    getCommandUsageApiCogsCogNameUsageCommandNameGet: (
+      cogName: string,
+      commandName: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<CommandUsage[], void | HTTPValidationError>({
+        path: `/api/cogs/${cogName}/usage/${commandName}`,
+        method: "GET",
+        format: "json",
         ...params,
       }),
 
@@ -886,8 +1070,24 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     botStatusApiStatusGet: (params: RequestParams = {}) =>
       this.request<IStatus, any>({
         path: `/api/status`,
-        method: 'GET',
-        format: 'json',
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+  };
+  path = {
+    /**
+     * @description Redirect all other requests to the frontend. Args: path (str): The path to redirect.
+     *
+     * @name RedirectPathGet
+     * @summary Redirect
+     * @request GET:/{path}
+     */
+    redirectPathGet: (path: string, params: RequestParams = {}) =>
+      this.request<any, HTTPValidationError>({
+        path: `/${path}`,
+        method: "GET",
+        format: "json",
         ...params,
       }),
   };

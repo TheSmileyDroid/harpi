@@ -146,3 +146,6 @@ data/
 .voice_recordings/
 nohup.out
 /frontend/.fuse_*
+
+# Cog configuration file (runtime state)
+cog_config.json
