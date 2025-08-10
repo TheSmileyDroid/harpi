@@ -21,7 +21,7 @@ from src.errors.nothingfound import NothingFoundError
 logger = logging.getLogger(__name__)
 
 ytdl_format_options = {
-    "format": "bestaudio",
+    "format": "m4a/bestaudio/best",
     "outtmpl": ".audios/%(extractor)s-%(id)s-%(title)s.%(ext)s",
     "restrictfilenames": True,
     "noplaylist": False,
