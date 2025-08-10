@@ -59,7 +59,7 @@ def guild(ctx: commands.Context) -> discord.Guild:
     """
     if ctx.guild is None:
         raise commands.NoPrivateMessage(
-            "Este comando não pode ser usado em MP",
+            "Este comando não pode ser usado em DMs.",
         )
     return ctx.guild
 
@@ -73,7 +73,10 @@ async def voice_client(ctx: commands.Context) -> discord.VoiceClient:
     Returns:
         discord.VoiceClient: Cliente de voz.
     """
-    voice = discord.utils.get(ctx.bot.voice_clients, guild=guild(ctx))
+    voice = cast(
+        discord.VoiceClient | None,
+        discord.utils.get(ctx.bot.voice_clients, guild=guild(ctx)),
+    )
     if voice is None:
         _voice_channel = voice_channel(ctx)
         voice = await _voice_channel.connect()

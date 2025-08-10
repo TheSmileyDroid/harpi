@@ -1,34 +1,40 @@
-FROM oven/bun:latest as frontend
+# -----------------
+# FRONTEND
+# -----------------
+FROM oven/bun:latest AS frontend
 
-COPY frontend /app/frontend
-# Set working directory
 WORKDIR /app/frontend
 
-# Install bun
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:${PATH}"
-
-# Copy frontend package files
+# Install deps first (cached between builds)
 COPY frontend/package.json frontend/bun.lockb ./
-
-# Install frontend dependencies
 RUN bun install
 
+# Copy source and build for production
+COPY frontend .
 RUN bun run build
 
-# Python backend
-FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim as backend
 
-COPY . /app
+# -----------------
+# BACKEND
+# -----------------
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend
+
 WORKDIR /app
 
+# System deps
 RUN apt-get update && apt-get install -y \
     curl \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-COPY uv.lock .
-RUN rm -rf .venv
-RUN uv sync --upgrade
+# Install backend deps first (cached)
+COPY uv.lock pyproject.toml ./
+RUN rm -rf .venv && uv sync --upgrade
+
+# Copy backend source
+COPY . .
 
 ENV PATH="/app/.venv/bin:$PATH"
+
+# Default command (can be overridden in docker-compose)
+CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

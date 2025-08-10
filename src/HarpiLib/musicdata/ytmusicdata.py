@@ -21,7 +21,7 @@ from src.errors.nothingfound import NothingFoundError
 logger = logging.getLogger(__name__)
 
 ytdl_format_options = {
-    "format": "140",
+    "format": "bestaudio",
     "outtmpl": ".audios/%(extractor)s-%(id)s-%(title)s.%(ext)s",
     "restrictfilenames": True,
     "noplaylist": False,
@@ -34,7 +34,7 @@ ytdl_format_options = {
     "cookiefile": "cookies.txt",
 }
 
-ffmpeg_options: dict[str, Any] = {
+ffmpeg_options = {
     "options": "-vn",
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
 }
@@ -44,8 +44,8 @@ ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
 
 class AudioSourceTracked(discord.AudioSource):
     def __init__(self, source: discord.AudioSource) -> None:
-        self._source = source
-        self.count_20ms = 0
+        self._source: discord.AudioSource = source
+        self.count_20ms: int = 0
 
     def read(self) -> bytes:
         data = self._source.read()
@@ -100,16 +100,22 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
             None,
             lambda: ytdl.extract_info(musicdata.get_url(), download=False),
         )
+
         if data is None:
             raise BadLink(musicdata.get_url())
+        assert isinstance(data, dict), "Invalid data from ytdl"
         if "entries" in data:
             data = data["entries"][0]
+        assert isinstance(data, dict), "Invalid data from ytdl"
 
+        url = data["url"]
+        assert isinstance(url, str), "Invalid URL from ytdl"
         # Use the URL directly for streaming instead of downloading the file
         return cls(
             FFmpegPCMAudio(
-                source=data["url"],
-                **ffmpeg_options,
+                source=url,
+                options=ffmpeg_options["options"],
+                before_options=ffmpeg_options["before_options"],
             ),
             data=data,
             volume=volume,
@@ -316,24 +322,28 @@ class FFmpegPCMAudio(discord.AudioSource):
         if isinstance(before_options, str):
             args.extend(shlex.split(before_options))
         args.extend(("-i", cast("str", "-" if pipe else source)))
-        args.extend((
-            "-f",
-            "s16le",
-            "-ar",
-            "48000",
-            "-ac",
-            "2",
-            "-loglevel",
-            "warning",
-        ))
-        args.extend((
-            "-reconnect",
-            "1",
-            "-reconnect_streamed",
-            "1",
-            "-reconnect_delay_max",
-            "5",
-        ))
+        args.extend(
+            (
+                "-f",
+                "s16le",
+                "-ar",
+                "48000",
+                "-ac",
+                "2",
+                "-loglevel",
+                "warning",
+            )
+        )
+        args.extend(
+            (
+                "-reconnect",
+                "1",
+                "-reconnect_streamed",
+                "1",
+                "-reconnect_delay_max",
+                "5",
+            )
+        )
         if isinstance(options, str):
             args.extend(shlex.split(options))
         args.append("pipe:1")

@@ -2,7 +2,7 @@
 name = "harpi"
 version = "0.1.0"
 authors = [{ name = "TheSmileyDroid", email = "ghsilha@gmail.com" }]
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "cryptography>=45.0.3",
     "fastapi>=0.115.12",
@@ -22,8 +22,16 @@ dependencies = [
     "uvicorn[standard]>=0.34.3",
     "websockets>=15.0.1",
     "wikipedia-api>=0.8.1",
-    "yt-dlp>=2025.5.22",
+    "yt-dlp>=2025.7.21",
 ]
+
+[tool.pyright]
+reportMissingTypeArgument = false
+reportUnknownParameterType = false
+reportMissingTypeStubs = false
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnknownLambdaType = false
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -67,7 +75,3 @@ exclude = [
     "venv",
     "env",
 ]
-
-[tool.pytest]
-addopts = "--doctest-modules --doctest-report ndiff"
-doctest_optionflags = "NORMALIZE_WHITESPACE ELLIPSIS"

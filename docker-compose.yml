@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: backend
     ports:
       - "8000:8000"
     environment:
@@ -26,7 +27,9 @@ services:
       - no-new-privileges:true
     mem_limit: 1g
     mem_reservation: 512m
-    command: uv run uvicorn app:app --host "0.0.0.0" --port 8000 --reload
+    command: >
+      sh -c "uv sync --upgrade &&
+             uv run uvicorn app:app --host 0.0.0.0 --port 8000 --reload"
     profiles: ["dev", "prod", "default"]
 
   frontend:
@@ -67,11 +70,6 @@ services:
     profiles: ["build", "prod", "default"]
     depends_on:
       - backend
-    develop:
-      watch:
-        - path: frontend
-          action: sync+restart
-          target: /app/frontend
 
 networks:
   harpi-net:

@@ -11,16 +11,37 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as UsersImport } from './routes/users'
 import { Route as SystemImport } from './routes/system'
+import { Route as ProfileImport } from './routes/profile'
+import { Route as LoginImport } from './routes/login'
 import { Route as CanvasImport } from './routes/canvas'
 import { Route as AboutImport } from './routes/about'
 import { Route as IndexImport } from './routes/index'
 
 // Create/Update Routes
 
+const UsersRoute = UsersImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const SystemRoute = SystemImport.update({
   id: '/system',
   path: '/system',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ProfileRoute = ProfileImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const LoginRoute = LoginImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -67,11 +88,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CanvasImport
       parentRoute: typeof rootRoute
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginImport
+      parentRoute: typeof rootRoute
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileImport
+      parentRoute: typeof rootRoute
+    }
     '/system': {
       id: '/system'
       path: '/system'
       fullPath: '/system'
       preLoaderRoute: typeof SystemImport
+      parentRoute: typeof rootRoute
+    }
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersImport
       parentRoute: typeof rootRoute
     }
   }
@@ -83,14 +125,20 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/canvas': typeof CanvasRoute
+  '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/system': typeof SystemRoute
+  '/users': typeof UsersRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/canvas': typeof CanvasRoute
+  '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/system': typeof SystemRoute
+  '/users': typeof UsersRoute
 }
 
 export interface FileRoutesById {
@@ -98,15 +146,33 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/canvas': typeof CanvasRoute
+  '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/system': typeof SystemRoute
+  '/users': typeof UsersRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/canvas' | '/system'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/canvas'
+    | '/login'
+    | '/profile'
+    | '/system'
+    | '/users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/canvas' | '/system'
-  id: '__root__' | '/' | '/about' | '/canvas' | '/system'
+  to: '/' | '/about' | '/canvas' | '/login' | '/profile' | '/system' | '/users'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/canvas'
+    | '/login'
+    | '/profile'
+    | '/system'
+    | '/users'
   fileRoutesById: FileRoutesById
 }
 
@@ -114,14 +180,20 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   CanvasRoute: typeof CanvasRoute
+  LoginRoute: typeof LoginRoute
+  ProfileRoute: typeof ProfileRoute
   SystemRoute: typeof SystemRoute
+  UsersRoute: typeof UsersRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   CanvasRoute: CanvasRoute,
+  LoginRoute: LoginRoute,
+  ProfileRoute: ProfileRoute,
   SystemRoute: SystemRoute,
+  UsersRoute: UsersRoute,
 }
 
 export const routeTree = rootRoute
@@ -137,7 +209,10 @@ export const routeTree = rootRoute
         "/",
         "/about",
         "/canvas",
-        "/system"
+        "/login",
+        "/profile",
+        "/system",
+        "/users"
       ]
     },
     "/": {
@@ -149,8 +224,17 @@ export const routeTree = rootRoute
     "/canvas": {
       "filePath": "canvas.tsx"
     },
+    "/login": {
+      "filePath": "login.tsx"
+    },
+    "/profile": {
+      "filePath": "profile.tsx"
+    },
     "/system": {
       "filePath": "system.tsx"
+    },
+    "/users": {
+      "filePath": "users.tsx"
     }
   }
 }
