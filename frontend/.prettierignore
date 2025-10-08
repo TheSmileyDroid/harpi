@@ -1,9 +1,0 @@
-node_modules
-build
-dist
-.vite
-coverage
-*.d.ts
-vite.config.ts.timestamp-*
-openapi.json
-src/api

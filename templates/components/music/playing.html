@@ -1,0 +1,10 @@
+<div class="h-60" hx-get="/components/music/playing" hx-trigger="load delay:5s" hx-swap="outerHTML">
+    {% if current_music %}
+    {{current_music.get_title()}}
+    <img src="{{current_music.thumbnail}}" alt="Music Thumbnail" class="h-full">
+        {{current_music.artist}}
+        {{queue}}
+
+    {% else %}
+    {% endif %}
+</div>

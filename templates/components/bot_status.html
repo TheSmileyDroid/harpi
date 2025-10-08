@@ -1,0 +1,6 @@
+<div class="flex border-primary border-2 w-fit h-8 text-sm" hx-get="/status" hx-trigger="load delay:1s" hx-swap="outerHTML">
+    <div class="bg-primary text-background p-1">Status</div>
+    <div class="p-1">
+        {% if status %}{{ status }}{% else %} <span class="animate-pulse">Unknown...</span> {% endif %}
+    </div>
+</div>
