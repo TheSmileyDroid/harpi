@@ -146,3 +146,5 @@ data/
 .voice_recordings/
 nohup.out
 /frontend/.fuse_*
+
+tailwindcss
