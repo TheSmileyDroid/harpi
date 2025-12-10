@@ -5,9 +5,8 @@ from flask.app import Flask
 
 assert load_dotenv(), "Environment variables loaded"
 
-# Gunicorn server settings
 bind = "0.0.0.0:8000"
-workers = 1  # Must be 1 to avoid multiple Discord bot instances
+workers = 1
 worker_class = "sync"
 timeout = 30
 keepalive = 2
@@ -25,7 +24,7 @@ access_log_format = (
 reload = True
 
 
-# Server hooks - simplified to avoid multiple bot instances
+# Server hooks
 def on_starting(_server: Flask):
     """Called just before the master process is initialized."""
     print("Gunicorn server is starting up...")

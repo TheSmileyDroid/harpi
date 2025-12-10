@@ -1,9 +1,6 @@
 services:
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: backend
+    build: .
     ports:
       - "8000:8000"
     environment:
@@ -14,6 +11,8 @@ services:
     env_file: ".env"
     volumes:
       - ./:/app
+      - /app/.venv
+    working_dir: /app
     restart: unless-stopped
     networks:
       - harpi-net
@@ -23,57 +22,27 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    security_opt:
-      - no-new-privileges:true
     mem_limit: 1g
     mem_reservation: 512m
-    command: >
-      sh -c "uv sync --upgrade &&
-             uv run uvicorn app:app --host 0.0.0.0 --port 8000 --reload"
-    profiles: ["dev", "prod", "default"]
+    command: "uv run gunicorn --config gunicorn_config.py --bind '0.0.0.0:8000' app:app"
+    develop:
+      # Create a `watch` configuration to update the app
+      # https://docs.docker.com/compose/file-watch/#compose-watch-versus-bind-mounts
+      watch:
+        # Sync the working directory with the `/app` directory in the container
+        - action: sync
+          path: .
+          target: /app
 
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: frontend
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app/frontend
-      - /app/frontend/node_modules
-    environment:
-      - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8000
-    networks:
-      - harpi-net
-    command: bun run dev
-    depends_on:
-      - backend
-    profiles: ["dev", "default"]
+          ignore:
+            - .venv/
 
-  frontend-build:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: frontend
-    volumes:
-      - ./frontend:/app/frontend
-      - /app/frontend/node_modules
-      - ./frontend/dist:/app/static/dist
-    environment:
-      - NODE_ENV=production
-      - VITE_API_URL=/api
-    networks:
-      - harpi-net
-    command: bun run build
-    profiles: ["build", "prod", "default"]
-    depends_on:
-      - backend
+        # Rebuild the image if dependencies change by checking uv.lock
+        - action: rebuild
+          path: ./uv.lock
+        - action: rebuild
+          path: ./pyproject.toml
 
 networks:
   harpi-net:
     driver: bridge
-
-volumes:
-  frontend_dist:
