@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap');
+
+@theme {
+    --font-sans: "Fira Code", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    --color-primary: oklch(0.8 0.1 100);
+    /*oklch(0.8223 0.1533 99.58);*/
+    /* #D97614 */
+    --color-background: oklch(0.1 0 0);
+
+    --shadow-glow: 0 0 10px 5px var(--color-primary),
+        0 0 10px 5px var(--color-primary);
+
+
+}

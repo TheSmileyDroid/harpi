@@ -2,42 +2,21 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
-from pathlib import Path
-from typing import Literal
 
-import discord
-import discord.ext
-import discord.ext.commands
-import discord.ext.commands as cd
+import psutil
+from discord.guild import Guild
 from dotenv import load_dotenv
-from fastapi import (
-    APIRouter,
-    FastAPI,
-    WebSocket,
-    WebSocketDisconnect,
-    WebSocketException,
-)
-from fastapi.concurrency import asynccontextmanager
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from flask import Flask, render_template
+from flask.globals import session
+from flask.helpers import make_response
 
-import src
-import src.routers
-import src.routers.guild
-import src.routers.system
-from src.cogs.ai import AiCog
-from src.cogs.basic import BasicCog
-from src.cogs.dice_cog import DiceCog
-from src.cogs.music import MusicCog
-from src.cogs.tts import TTSCog
-from src.websocket import manager as websocketmanager
+from common.botsync import run_async
+from router.guild import music
+from src.discord_bot import get_bot_instance, run_bot_in_background
 
-load_dotenv()
+assert load_dotenv(), "dot env not loaded"
 
 terminal_logger = logging.StreamHandler()
 # noinspection SpellCheckingInspection
@@ -49,168 +28,106 @@ logging.basicConfig(
 )
 logging.getLogger().addHandler(terminal_logger)
 
-background_tasks = set()
+app = Flask(__name__)
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.secret_key = os.environ.get("SECRET_KEY")
 
 
-def get_token() -> str:
-    """Obtém o token do bot.
-
-    Raises:
-        ValueError: Se o token não estiver definido.
-
-    Returns:
-        str: O token do bot.
-
-    """
-    token = os.getenv("DISCORD_TOKEN")
-
-    if token:
-        return token
-
-    raise ValueError
+@app.route("/")
+def index():
+    return render_template("base.html")
 
 
-async def main() -> cd.Bot:
-    """Start the bot.
-
-    Returns
-    -------
-    cd.Bot
-        Bot instance
-
-    """
-    intents = discord.Intents.all()
-
-    client = cd.Bot(command_prefix="-", intents=intents)
-
-    await client.add_cog(TTSCog())
-    await client.add_cog(MusicCog(client))
-    await client.add_cog(BasicCog())
-    await client.add_cog(DiceCog(client))
-    await client.add_cog(AiCog(client))
-
-    task = asyncio.create_task(client.start(get_token()))
-
-    background_tasks.add(task)
-
-    task.add_done_callback(background_tasks.remove)
-
-    return client
+guilds: list[Guild] | None = None
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):  # noqa: ANN201
-    client = await main()
-    _app.state.bot = client  # type: ignore  # noqa: PGH003
-    yield
-    await client.close()  # type: ignore  # noqa: PGH003
+async def _get_guilds() -> list[Guild]:
+    global guilds
+    if guilds is not None:
+        return guilds
+    bot = get_bot_instance()
+    if not bot:
+        return []
+
+    async def load_guild():
+        return [guild async for guild in bot.fetch_guilds(limit=150)]
+
+    guilds = run_async(bot, load_guild()) or []
+    return guilds
 
 
-app = FastAPI(lifespan=lifespan)
-
-origins = [
-    "http://localhost:5173",
-    "https://localhost:5173",
-    "http://127.0.0.1:8000",
-    "https://127.0.0.1:8000",
-    "https://localhost:8000",
-    "http://localhost:8000",
-]
-if os.getenv("DOMAIN"):
-    origins.append(os.getenv("DOMAIN") or "")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.route("/components/guilds")
+async def guild():
+    guilds = await _get_guilds()
+    return render_template("components/guild_list.html", guilds=guilds)
 
 
-api_router = APIRouter(prefix="/api", tags=["api"])
-
-
-class IStatus(BaseModel):
-    """Estado atual do Bot."""
-
-    status: Literal["online", "offline"]
-
-
-@api_router.get("/status")
-async def bot_status() -> IStatus:
-    """Check the bot's status via a FastAPI endpoint.
-
-    Returns
-    -------
-    IStatus
-        Status.
-
-    """
-    bot: discord.ext.commands.Bot | None = app.state.bot
-    return IStatus.model_validate({
-        "status": "online" if bot and bot.is_ready() else "offline",
-    })
-
-
-app.include_router(
-    src.routers.guild.router,
-    prefix="/api/guilds",
-    tags=["guilds"],
-)
-
-app.include_router(
-    src.routers.system.router,
-    prefix="/api/system",
-    tags=["system"],
-)
-
-
-app.include_router(api_router)
-
-if not (Path.cwd() / "frontend" / "dist").exists():
-    Path.mkdir((Path.cwd() / "frontend" / "dist"), parents=True)
-
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket) -> None:
-    """Handle the WebSocket connection for a client.
-
-    This function manages the lifecycle of a WebSocket connection. It connects
-    the client to the WebSocket manager, continuously listens for incoming
-    messages, and ensures proper disconnection in case of an error or when the
-    connection is closed.
-
-    Args:
-        websocket (WebSocket): The WebSocket connection instance.
-
-    """
-    await websocketmanager.connect(websocket)
+@app.route("/status")
+def status():
+    """A route to check if the bot is running and ready."""
+    status = "Unknown"
     try:
-        while True:
-            message = await websocket.receive_text()
-            # Processar as mensagens recebidas usando o manipulador de mensagens
-            await websocketmanager.handle_message(websocket, message)
-    except (WebSocketDisconnect, WebSocketException):
-        websocketmanager.disconnect(websocket)
+        bot = get_bot_instance()
+
+        if bot and bot.is_ready():
+            status = f"Bot is logged in as {bot.user}!"
+        else:
+            status = "Bot is not connected or has not started yet."
+    except Exception as e:
+        logging.error(f"Error checking bot status: {e}")
+        status = "Error checking bot status."
+    return render_template("components/bot_status.html", status=status)
 
 
-app.mount(
-    "/",
-    StaticFiles(directory="frontend/dist", html=True),
-    name="static",
-)
+@app.route("/select/guild/<int:guild_id>")
+async def select_guild(guild_id: int):
+    bot = get_bot_instance()
+    guilds = await _get_guilds()
+
+    if bot and bot.is_ready():
+        guild = bot.get_guild(guild_id)
+        assert guild
+        session["guild_id"] = guild_id
+
+    resp = make_response(
+        render_template("components/guild_list.html", guilds=guilds)
+    )
+    resp.headers["HX-Trigger"] = "guild-selected"
+    return resp
 
 
-@app.get("/{path:path}")
-async def redirect(path: str) -> RedirectResponse:
-    """Redirect all other requests to the frontend.
+@app.route("/components/current_guild")
+def current_guild():
+    guild_id: int | None = session.get("guild_id")
+    if not guild_id:
+        return render_template("components/current_guild.html", guild=None)
 
-    Args:
-        path (str): The path to redirect.
+    bot = get_bot_instance()
+    if bot and bot.is_ready():
+        guild = bot.get_guild(guild_id)
+        if guild:
+            return render_template(
+                "components/current_guild.html", guild=guild
+            )
 
-    """
+    return render_template("components/current_guild.html", guild=None)
 
-    response = RedirectResponse(url="/")
-    response.headers["Cache-Control"] = "no-store"
-    return response
+
+@app.route("/components/serverstatus")
+def serverstatus():
+    cpu_percent = psutil.cpu_percent()
+    mem = psutil.virtual_memory()
+
+    return render_template(
+        "components/server_status.html", cpu_percent=cpu_percent, mem=mem
+    )
+
+
+app.register_blueprint(music.bp)
+
+with app.app_context():
+    try:
+        run_bot_in_background()
+        logging.info("Discord bot initialization started")
+    except Exception as e:
+        logging.error(f"Failed to start Discord bot: {e}")

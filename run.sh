@@ -1,13 +1,18 @@
 #!/bin/bash
 
-while true
-do
-    uvicorn app:app --host 0.0.0.0 --port 8000 --reload
-    echo "Rebooting in:"
-    for i in 12 11 10 9 8 7 6 5 4 3 2 1
-    do
-        echo "$i..."
+
+HOST="0.0.0.0"
+PORT="8000"
+
+while true; do
+    echo "checando atualizações..."
+    uv sync --upgrade
+    echo "Inciando Harpi..."
+    gunicorn --config gunicorn_config.py --bind "${HOST}:${PORT}" app:app
+    echo "Harpi parou. Reiniciando em 5 segundos..."
+
+    for i in {5..1}; do
+        echo "Reiniciando em $i segundos..."
         sleep 1
     done
-    echo "Rebooting now!"
 done

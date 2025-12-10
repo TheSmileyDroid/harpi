@@ -22,7 +22,11 @@ dependencies = [
     "uvicorn[standard]>=0.34.3",
     "websockets>=15.0.1",
     "wikipedia-api>=0.8.1",
-    "yt-dlp>=2025.10.22",
+    "yt-dlp>=2025.7.21",
+    "jinja2>=3.1.6",
+    "flask[async]>=3.1.2",
+    "gunicorn>=23.0.0",
+    "yt-dlp-ejs>=0.3.2"
 ]
 
 [tool.pyright]
