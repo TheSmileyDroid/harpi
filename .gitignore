@@ -147,6 +147,4 @@ data/
 nohup.out
 /frontend/.fuse_*
 
-
-# Tailwindcss
 tailwindcss
