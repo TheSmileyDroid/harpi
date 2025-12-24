@@ -10,9 +10,11 @@ import discord
 import discord.ext
 import discord.ext.commands
 from discord import Guild, Member, Message
-from discord.ext.commands import Bot, Cog, CommandError, Context, command
+from discord.ext.commands import Cog, CommandError, Context, command
 
 from src.HarpiLib.api import HarpiAPI
+
+from src.HarpiLib.HarpiBot import HarpiBot
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +33,12 @@ idx_count = 0
 class MusicCog(Cog):
     """Cog responsável por tocar músicas."""
 
-    def __init__(self, bot: discord.ext.commands.bot.Bot) -> None:
+    def __init__(self, bot: HarpiBot) -> None:
         """Inicializa o cog."""
         super().__init__()
 
-        self.bot: Bot = bot
-        self.api: HarpiAPI = HarpiAPI(bot)
+        self.bot: HarpiBot = bot
+        self.api: HarpiAPI = bot.api
 
     async def _guild_ctx(self, ctx: Context):
         member: Member = cast(Member, ctx.author)

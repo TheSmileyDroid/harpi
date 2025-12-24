@@ -11,5 +11,5 @@
   "python.testing.pytestEnabled": true,
   "search.useIgnoreFiles": true,
   "github.copilot.chat.codeGeneration.useInstructionFiles": true,
-  "python.languageServer": "Pylance",
+  "python.languageServer": "Jedi",
 }

@@ -5,22 +5,21 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import re
 import shlex
 import subprocess  # noqa: S404
 import time
-from typing import IO, Any, cast
+from typing import IO, Any, cast, override
 
 import discord
 import yt_dlp
 from discord.opus import Encoder
-from requests import get
 
-from src.errors.bad_link import BadLink
 from src.errors.nothingfound import NothingFoundError
 
 logger = logging.getLogger(__name__)
 
-ytdl_format_options = {
+ytdl_format_options: yt_dlp._Params = {
     "format": "m4a/bestaudio/best",
     "outtmpl": ".audios/%(extractor)s-%(id)s-%(title)s.%(ext)s",
     "restrictfilenames": True,
@@ -29,8 +28,6 @@ ytdl_format_options = {
     "verbose": True,
     "no_warnings": False,
     "default_search": "auto_warning",
-    "concurrent-fragments": 8,
-    "flat-playlist": True,
     "cookiefile": "cookies.txt",
 }
 
@@ -71,10 +68,10 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
         """Cria uma instância de YoutubeDLSource."""
         super().__init__(source, volume)
 
-        self.data = data
+        self.data: dict[str, str | int] = data
 
-        self.title = data.get("title")
-        self.url = data.get("url")
+        self.title: str = data.get("title", "Unknown Title")
+        self.url: str = data.get("url", "Unknown URL")
 
     @classmethod
     async def from_music_data(
@@ -101,14 +98,12 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
             lambda: ytdl.extract_info(musicdata.get_url(), download=False),
         )
 
-        if data is None:
-            raise BadLink(musicdata.get_url())
         assert isinstance(data, dict), "Invalid data from ytdl"
         if "entries" in data:
             data = data["entries"][0]
         assert isinstance(data, dict), "Invalid data from ytdl"
 
-        url = data["url"]
+        url = data.get("url")
         assert isinstance(url, str), "Invalid URL from ytdl"
         # Use the URL directly for streaming instead of downloading the file
         return cls(
@@ -117,12 +112,12 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
                 options=ffmpeg_options["options"],
                 before_options=ffmpeg_options["before_options"],
             ),
-            data=data,
+            data=dict(data),
             volume=volume,
         )
 
 
-def search(arg: str) -> dict[str, Any]:
+def search(arg: str):
     """Pesquisa no Youtube e retorna a informação da música.
 
     Args:
@@ -137,17 +132,34 @@ def search(arg: str) -> dict[str, Any]:
     """
     _start_time = time.time()
 
+    URL_REGEX = re.compile(
+        r"https?://(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
+    )
+    video: dict | None = None
     try:
-        get(arg, timeout=5)
-    except Exception:  # noqa: BLE001
-        video = ytdl.extract_info(
-            f"ytsearch:{arg}",
-            download=True,
-            process=False,
-        )
-    else:
-        video = ytdl.extract_info(arg, download=True, process=False)
-    if video is None:
+        if not re.match(URL_REGEX, arg):
+            video = cast(
+                dict[str, str | int],
+                cast(
+                    object,
+                    ytdl.extract_info(
+                        f"ytsearch:{arg}",
+                        download=True,
+                        process=False,
+                    ),
+                ),
+            )
+        else:
+            video = cast(
+                dict[str, str | int],
+                cast(
+                    object,
+                    ytdl.extract_info(arg, download=True, process=False),
+                ),
+            )
+    except Exception as e:
+        logger.error(f"Error during search: {e}")
+    if not video:
         raise NothingFoundError(arg)
     logger.info(
         f"Searched for {arg} in {time.time() - _start_time} seconds.",
@@ -158,7 +170,7 @@ def search(arg: str) -> dict[str, Any]:
 class YTMusicData:
     """Classe responsável por armazenar informações sobre uma música."""
 
-    def __init__(self, video: dict[str, Any]) -> None:
+    def __init__(self, video: dict[str, str | int]) -> None:
         """Cria uma instância de YTMusicData.
 
         Args:
@@ -166,12 +178,15 @@ class YTMusicData:
                 A dictionary containing the information of the music.
 
         """
-        self._title: str = video.get("title", "Unknown")
-        self._url: str = video.get(
-            "url",
-            video.get("original_url", "Unknown"),
+        self._title: str = cast(str, video.get("title", "Unknown"))
+        self._url: str = cast(
+            str,
+            video.get(
+                "url",
+                cast(str, video.get("original_url", "Unknown")),
+            ),
         )
-        self._video: dict[str, Any] = video
+        self._video: dict[str, str | int] = video
         self._source: YoutubeDLSource | None = None
 
     @classmethod
@@ -187,13 +202,18 @@ class YTMusicData:
         """
         logger.info(f"Searching for {url}")
         result = search(url)
-        if "entries" in result:
+        if result.get("entries"):
             logger.info(
-                f"Found {result['entries']} results.",
+                f"Found {result.get('entries')} results.",
             )
-            return [cls(video) for video in result["entries"]]
+            return [
+                cls(dict(cast(dict[str, str | int], video)))
+                for video in cast(list, result.get("entries"))
+            ]
         video = result
-        return [cls(video)]
+        return cast(
+            list[YTMusicData], [cls(dict(cast(dict[str, str | int], video)))]
+        )
 
     def get_title(self) -> str:
         """Retorna o título da música.
@@ -243,7 +263,7 @@ class YTMusicData:
             str: The artist of the music.
 
         """
-        return self._video.get("artist", "Unknown")
+        return cast(str, self._video.get("artist", "Unknown"))
 
     @property
     def artist(self) -> str:
@@ -253,7 +273,7 @@ class YTMusicData:
             str: The artist of the music.
 
         """
-        return self._video.get("artist", "Unknown")
+        return cast(str, self._video.get("artist", "Unknown"))
 
     def get_thumbnail(self) -> str:
         """Retorna a URL da imagem de capa da música.
@@ -262,7 +282,7 @@ class YTMusicData:
             str: The URL of the thumbnail.
 
         """
-        return self._video.get("thumbnail", "Unknown")
+        return cast(str, self._video.get("thumbnail", "Unknown"))
 
     @property
     def thumbnail(self) -> str:
@@ -272,7 +292,7 @@ class YTMusicData:
             str: The URL of the thumbnail.
 
         """
-        return self._video.get("thumbnail", "Unknown")
+        return cast(str, self._video.get("thumbnail", "Unknown"))
 
     @property
     def duration(self) -> int:
@@ -282,11 +302,18 @@ class YTMusicData:
             int: The duration of the music.
 
         """
-        return self._video.get("duration", 0)
+        return cast(int, self._video.get("duration", 0))
 
 
 class FFmpegPCMAudio(discord.AudioSource):
-    """Classe responsável por fazer o streaming de áudio via FFmpeg."""
+    """Classe responsável por fazer o streaming de áudio via FFmpeg com tipagem rigorosa.
+
+    Melhorias aplicadas:
+    1. Lazy Loading: O processo só inicia na primeira leitura (economiza recursos).
+    2. Deadlock Fix: Stderr é redirecionado para DEVNULL se não fornecido.
+    3. Type Hints: Tipagem completa para validação estática (Mypy/Pyright).
+    4. Auto-Reconnection: Flags de reconexão aplicadas apenas para URLs HTTP(s).
+    """
 
     def __init__(
         self,
@@ -294,36 +321,66 @@ class FFmpegPCMAudio(discord.AudioSource):
         *,
         executable: str = "ffmpeg",
         pipe: bool = False,
-        stderr: io.TextIOWrapper | None = None,
+        stderr: IO[str] | None = None,
         before_options: str | None = None,
         options: str | None = None,
     ) -> None:
-        """Cria uma instância de FFmpegPCMAudio.
+        """Inicializa o FFmpegPCMAudio.
 
         Args:
-            source (str | io.BufferedIOBase): A URL ou arquivo de áudio
-            executable (str, optional): O executável a ser usado.
-            Defaults to "ffmpeg".
-            pipe (bool, optional): Se o áudio deve ser enviado via pipe.
-            Defaults to False.
-            stderr (io.TextIOWrapper | None, optional): O stderr a ser usado.
-            Defaults to None.
-            before_options (str | None, optional): Opções antes do input.
-            Defaults to None.
-            options (str | None, optional): Opções adicionais.
-            Defaults to None.
-
-        Raises:
-            discord.ClientException: Se o executável não for encontrado.
-
+            source: URL (str) ou objeto de arquivo (buffer) para leitura.
+            executable: Nome ou caminho do executável do ffmpeg.
+            pipe: Se True, o source será passado via stdin.
+            stderr: Arquivo/Pipe para log de erros.
+            before_options: Argumentos do FFmpeg antes do input (-i).
+            options: Argumentos do FFmpeg depois do input.
         """
-        stdin = None if not pipe else source
-        args: list[str] = [executable]
-        if isinstance(before_options, str):
-            args.extend(shlex.split(before_options))
-        args.extend(("-i", cast("str", "-" if pipe else source)))
+        self.source: str | io.BufferedIOBase = source
+        self.executable: str = executable
+        self.pipe: bool = pipe
+        self.stderr: IO[str] | None = stderr
+        self.before_options: str | None = before_options
+        self.options: str | None = options
+
+        # O processo é tipado como Popen que retorna bytes no stdout
+        self._process: subprocess.Popen[bytes] | None = None
+
+    def _spawn_process(self) -> None:
+        """Inicia o subprocesso FFmpeg (Lazy Loading)."""
+        args: list[str] = [self.executable]
+
+        # 1. Before Options
+        if self.before_options:
+            args.extend(shlex.split(self.before_options))
+
+        # 2. Flags de Reconexão (Apenas para URLs HTTP/HTTPS)
+        # Evita erro em arquivos locais onde essas flags não existem.
+        if isinstance(self.source, str) and self.source.startswith(
+            ("http:", "https:")
+        ):
+            # Verifica se o usuário já não passou essas flags manualmente
+            if (
+                not self.before_options
+                or "-reconnect" not in self.before_options
+            ):
+                args.extend(
+                    [
+                        "-reconnect",
+                        "1",
+                        "-reconnect_streamed",
+                        "1",
+                        "-reconnect_delay_max",
+                        "5",
+                    ]
+                )
+
+        # 3. Input (-i)
+        args.append("-i")
+        args.append("-" if self.pipe else str(self.source))
+
+        # 4. Codec Options (Padrão Discord: PCM 16-bit Little Endian, 48kHz, Stereo)
         args.extend(
-            (
+            [
                 "-f",
                 "s16le",
                 "-ar",
@@ -332,77 +389,103 @@ class FFmpegPCMAudio(discord.AudioSource):
                 "2",
                 "-loglevel",
                 "warning",
-            )
+            ]
         )
-        args.extend(
-            (
-                "-reconnect",
-                "1",
-                "-reconnect_streamed",
-                "1",
-                "-reconnect_delay_max",
-                "5",
-            )
-        )
-        if isinstance(options, str):
-            args.extend(shlex.split(options))
+
+        # 5. After Options
+        if self.options:
+            args.extend(shlex.split(self.options))
+
+        # 6. Output Pipe
         args.append("pipe:1")
 
-        logger.debug(f"FFmpegPCMAudio command: {' '.join(args)}")
+        logger.debug(f"Iniciando FFmpeg com comando: {shlex.join(args)}")
+
+        # Configuração do Stdin
+        # Se pipe=True, usamos self.source como stdin. Se não, usamos DEVNULL.
+        # Precisamos garantir que stdin seja um arquivo válido ou None/DEVNULL.
+        input_stream: IO[bytes] | int | None = None
+        if self.pipe:
+            if isinstance(self.source, (str, bytes)):
+                # Se source for string mas pipe=True, isso geralmente é erro de uso,
+                # a menos que a string seja os dados brutos (o que str não deveria ser).
+                # Assumimos aqui que source é um Buffer válido se pipe=True.
+                pass
+            input_stream = cast(IO[bytes], cast(object, self.source))
+        else:
+            input_stream = subprocess.DEVNULL  # type: ignore
 
         try:
-            self._process = subprocess.Popen(  # noqa: S603
+            # FIX DEADLOCK: Usar DEVNULL se stderr não for definido pelo usuário.
+            # Nunca deixe stderr=subprocess.PIPE sem ler os dados, isso trava o processo.
+            stderr_dest = self.stderr if self.stderr else subprocess.DEVNULL
+
+            self._process = subprocess.Popen(
                 args,
-                stdin=cast("IO", stdin) if pipe else subprocess.DEVNULL,
+                stdin=input_stream,
                 stdout=subprocess.PIPE,
-                stderr=stderr or subprocess.PIPE,
+                stderr=stderr_dest,
             )
         except FileNotFoundError:
             raise discord.ClientException(
-                executable + " was not found.",
+                f"Executável '{self.executable}' não foi encontrado."
             ) from None
         except subprocess.SubprocessError as exc:
-            msg = f"Popen failed: {exc.__class__.__name__}: {exc}"
             raise discord.ClientException(
-                msg,
+                f"Falha ao iniciar Popen: {exc}"
             ) from exc
 
+    @override
     def read(self) -> bytes:
-        """Read 20ms worth of audio.
-
-        Returns:
-            bytes: A bytes like object that represents the PCM data.
-
-        """
+        """Lê 20ms de áudio PCM."""
+        # Inicialização sob demanda
         if self._process is None:
+            self._spawn_process()
+
+        # Verificação de segurança pós-spawn
+        if self._process is None or self._process.stdout is None:
             return b""
 
-        ret = b""
-        # Lê apenas o tamanho exato de um frame
+        ret: bytes = b""
         try:
-            ret = self._process.stdout.read(Encoder.FRAME_SIZE)  # type: ignore
+            # Lê o tamanho exato do frame (geralmente 3840 bytes para estéreo/48k)
+            ret = self._process.stdout.read(Encoder.FRAME_SIZE)
+
+            # Se o tamanho lido for menor que o frame, chegamos ao fim do stream ou erro.
             if len(ret) != Encoder.FRAME_SIZE:
+                # Opcional: Logar se foi um corte abrupto
+                # if len(ret) > 0: logger.warning("Frame incompleto recebido.")
+                self.cleanup()
                 return b""
-        except (OSError, ValueError):
+        except (OSError, ValueError) as e:
+            logger.error(f"Erro ao ler do FFmpeg: {e}")
             self.cleanup()
             return b""
 
         return ret
 
+    @override
     def cleanup(self) -> None:
-        """Clean up the process."""
-        proc = getattr(self, "_process", None)
+        """Encerra o processo de forma limpa."""
+        proc = self._process
         if proc is None:
             return
 
         try:
-            proc.kill()
-            if proc.poll() is None:
-                proc.communicate()
-        except Exception:  # noqa: BLE001
+            # Tenta terminar gentilmente (SIGTERM)
+            proc.terminate()
+            try:
+                # Aguarda brevemente para evitar processos zumbis
+                _ = proc.wait(timeout=0.1)
+            except subprocess.TimeoutExpired:
+                # Se não fechar, mata forçado (SIGKILL)
+                proc.kill()
+                _ = proc.communicate()
+        except Exception:
+            # Ignora erros durante o cleanup para não crashar o bot
             pass
-
-        self._process = None
+        finally:
+            self._process = None
 
 
 class FastStartFFmpegPCMAudio(discord.FFmpegPCMAudio):

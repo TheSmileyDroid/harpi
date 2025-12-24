@@ -11,6 +11,7 @@ class MixerSource(discord.AudioSource):
     def __init__(self):
         self.tracks: list[YoutubeDLSource] = []
         self.track_from_queue: YoutubeDLSource | None = None
+        self.tts_track: discord.AudioSource | None = None
         self._lock: threading.Lock = threading.Lock()
         self.has_active_tracks: bool = False
 
@@ -34,6 +35,11 @@ class MixerSource(discord.AudioSource):
         """Replace queue music."""
         with self._lock:
             self.track_from_queue = source
+
+    def set_tts_track(self, source: discord.AudioSource | None):
+        """Sets the TTS track."""
+        with self._lock:
+            self.tts_track = source
 
     def _read_track(self, track: YoutubeDLSource):
         """Reads a chunk from a specific track safely."""
@@ -109,6 +115,32 @@ class MixerSource(discord.AudioSource):
                         self.queue_observers()
                     self.track_from_queue = None
 
+            if self.tts_track:
+                to_remove_tts = False
+                try:
+                    data = self.tts_track.read()
+                except Exception as e:
+                    print(f"Error reading TTS track: {e}")
+                    data = b""
+
+                if not data:
+                    to_remove_tts = True
+                else:
+                    has_active_tracks = True
+                    audio_chunk = np.frombuffer(data, dtype=np.int16)
+
+                    if len(audio_chunk) < len(mixed_audio):
+                        padded = np.zeros(len(mixed_audio), dtype=np.int16)
+                        padded[: len(audio_chunk)] = audio_chunk
+                        audio_chunk = padded
+                        to_remove_tts = True
+
+                    mixed_audio += audio_chunk
+
+                if to_remove_tts:
+                    self.tts_track.cleanup()
+                    self.tts_track = None
+
             # Clean up finished tracks
             if to_remove and self.ending_song_observers:
                 self.ending_song_observers(to_remove=to_remove)
@@ -130,6 +162,9 @@ class MixerSource(discord.AudioSource):
         with self._lock:
             if self.tracks and self.ending_song_observers:
                 self.ending_song_observers(to_remove=self.tracks)
+            if self.tts_track:
+                self.tts_track.cleanup()
+                self.tts_track = None
             for track in self.tracks:
                 track.cleanup()
             self.tracks = []

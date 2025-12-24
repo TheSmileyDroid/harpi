@@ -202,6 +202,21 @@ class HarpiAPI:
             guild_config.background = []
         guild_config.background.append(source)
 
+    async def play_tts_source(
+        self,
+        guild_id: int,
+        channel_id: int,
+        source: discord.AudioSource,
+        ctx: Context | None = None,
+    ) -> None:
+        """Plays a TTS source."""
+        guild_config = self.guilds.get(guild_id)
+        if not guild_config:
+            guild_config = await self.connect_to_voice(
+                guild_id, channel_id, ctx
+            )
+        guild_config.mixer.set_tts_track(source)
+
     async def clean_background_audios(self, guild_id: int) -> None:
         guild_config = self.guilds.get(guild_id)
         if not guild_config:

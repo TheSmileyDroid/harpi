@@ -16,6 +16,7 @@ from src.cogs.basic import BasicCog
 from src.cogs.dice_cog import DiceCog
 from src.cogs.music import MusicCog
 from src.cogs.tts import TTSCog
+from src.HarpiLib.HarpiBot import HarpiBot
 
 assert load_dotenv(), "dot env not loaded"
 
@@ -51,12 +52,12 @@ def get_token() -> str:
     raise ValueError
 
 
-async def create_bot() -> cd.Bot:
+async def create_bot() -> HarpiBot:
     """Start the bot.
 
     Returns
     -------
-    cd.Bot
+    HarpiBot
         Bot instance
 
     """
@@ -64,10 +65,10 @@ async def create_bot() -> cd.Bot:
     intents = discord.Intents.all()
 
     logging.info("Creating Discord bot client...")
-    client = cd.Bot(command_prefix="-", intents=intents)
+    client = HarpiBot(command_prefix="-", intents=intents)
 
     logging.info("Adding cogs to bot...")
-    await client.add_cog(TTSCog())
+    await client.add_cog(TTSCog(client))
     logging.info("Added TTSCog")
     await client.add_cog(MusicCog(client))
     logging.info("Added MusicCog")
