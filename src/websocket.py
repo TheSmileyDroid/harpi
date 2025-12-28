@@ -69,14 +69,16 @@ class WebSocketManager:
             elif message_type == "get-canvas" and "guildId" in data:
                 guild_id = str(data["guildId"])
                 canvas_data = self.canvas_storage.get_canvas(guild_id)
-                await websocket.send_json({
-                    "entity": ["canvas"],
-                    "type": "canvas-update",
-                    "guildId": guild_id,
-                    "canvasData": canvas_data.model_dump(),
-                    "files": json.dumps(self.canvas_storage.get_files()),
-                    "timestamp": 0,  # Timestamp zero para garantir que os dados sejam aplicados
-                })
+                await websocket.send_json(
+                    {
+                        "entity": ["canvas"],
+                        "type": "canvas-update",
+                        "guildId": guild_id,
+                        "canvasData": canvas_data.model_dump(),
+                        "files": json.dumps(self.canvas_storage.get_files()),
+                        "timestamp": 0,  # Timestamp zero para garantir que os dados sejam aplicados
+                    }
+                )
 
             elif message_type == "canvas-update" and "guildId" in data:
                 guild_id = str(data["guildId"])

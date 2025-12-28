@@ -29,6 +29,7 @@ dependencies = [
     "yt-dlp-ejs>=0.3.2",
     "pydub>=0.25.1",
     "numpy>=2.4.0",
+    "flask-sock>=0.7.0",
 ]
 
 [tool.pyright]

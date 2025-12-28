@@ -1,41 +1,42 @@
 <!doctype html>
 <html lang="pt" class="h-full w-full">
-    <head>
-        <meta charset="UTF-8" />
-        <title>{% block title %} Harpi {% endblock %}</title>
-        <link rel="stylesheet" type="text/css" href="/static/css/output.css" />
-        <link rel="stylesheet" type="text/css" href="/static/css/index.css" />
-        <link rel="icon" href="/static/smileybot.svg" />
-        {% block head %} {% endblock %}
-        <script src="/static/js/lib/htmx.min.js"></script>
-    </head>
-    <body
-        class="bg-background text-primary font-bold text-xl h-full w-full flex flex-col items-center p-2 grainy"
-    >
 
-        {% include 'header.html' %}
-        <div class="h-full w-full flex flex-col items-center drop-shadow-[0_0_5px_rgba(0,0,0,1.0)] drop-shadow-primary/30">
+<head>
+    <meta charset="UTF-8" />
+    <title>{% block title %} Harpi {% endblock %}</title>
+    <link rel="stylesheet" type="text/css" href="/static/css/output.css" />
+    <link rel="stylesheet" type="text/css" href="/static/css/index.css" />
+    <link rel="icon" href="/static/smileybot.svg" />
+    {% block head %} {% endblock %}
+    <script src="/static/js/lib/htmx.min.js"></script>
+</head>
 
-            <div class="flex flex-col h-full w-full overflow-auto py-2">
-                {% block content %}
-                <div class="flex h-full w-full gap-2">
-                    <div class="flex flex-col border-primary border-2 p-2 h-full w-full">
-                        <div>
-                            <h3>Guildas</h3>
-                            <div hx-get="/components/guilds" hx-trigger="load" class="overflow-y-auto">
-                                <span class="animate-pulse">...</span>
-                            </div>
+<body class="bg-background text-primary font-bold text-xl h-full w-full flex flex-col items-center p-2 grainy">
+
+    {% include 'header.html' %}
+    <div class="h-full w-full flex flex-col items-center drop-shadow-[0_0_5px_rgba(0,0,0,1.0)] drop-shadow-primary/30">
+
+        <div class="flex flex-col h-full w-full overflow-auto py-2">
+            {% block content %}
+            <div class="flex h-full w-full gap-2">
+                <div class="flex flex-col border-primary border-2 p-2 h-full w-full">
+                    <div>
+                        <h3>Guildas</h3>
+                        <div hx-get="/components/guilds" hx-trigger="load" class="overflow-y-auto">
+                            <span class="animate-pulse">...</span>
                         </div>
                     </div>
-                    <div class="flex flex-col border-primary border-2 p-2 h-full w-full">
-                        {% include 'components/server_status.html' %}
-                    </div>
                 </div>
-                {% endblock %}
+                <div class="flex flex-col border-primary border-2 p-2 h-full w-full">
+                    {% include 'components/server_status.html' %}
+                </div>
             </div>
-            <div class="h-8 w-full text-center flex-none flex">
-                {% block footer %} {% include 'footer.html' %} {% endblock %}
-            </div>
+            {% endblock %}
         </div>
-    </body>
+        <div class="h-8 w-full text-center flex-none flex">
+            {% block footer %} {% include 'footer.html' %} {% endblock %}
+        </div>
+    </div>
+</body>
+
 </html>

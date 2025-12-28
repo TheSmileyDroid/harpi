@@ -9,11 +9,10 @@ from typing import cast
 import discord
 import discord.ext
 import discord.ext.commands
-from discord import Guild, Member, Message
+from discord import Guild, Member, Message, StageChannel
 from discord.ext.commands import Cog, CommandError, Context, command
 
 from src.HarpiLib.api import HarpiAPI
-
 from src.HarpiLib.HarpiBot import HarpiBot
 
 logger = logging.getLogger(__name__)
@@ -40,7 +39,9 @@ class MusicCog(Cog):
         self.bot: HarpiBot = bot
         self.api: HarpiAPI = bot.api
 
-    async def _guild_ctx(self, ctx: Context):
+    async def _guild_ctx(
+        self, ctx: Context
+    ) -> tuple[Guild, discord.VoiceChannel, Member]:
         member: Member = cast(Member, ctx.author)
 
         if not member.voice:
@@ -48,6 +49,10 @@ class MusicCog(Cog):
             raise CommandError("Você não está em um servidor")
 
         voice_channel = member.voice.channel
+
+        if voice_channel is None or isinstance(voice_channel, StageChannel):
+            _ = await ctx.send("Canal de voz inválido")
+            raise CommandError("Canal de voz inválido")
 
         if not voice_channel:
             _ = await ctx.send("Você não está em um canal de voz")

@@ -88,8 +88,8 @@ class HarpiAPI:
             Callable,
             partial(self._background_callback, guild_config=guild_config),
         )
-        mixer.queue_observers = callback
-        mixer.ending_song_observers = bg_callback
+        mixer.add_observer("queue_end", callback)
+        mixer.add_observer("track_end", bg_callback)
         guild_config.ctx = ctx
         guild_config.mixer = mixer
         self.guilds[guild.id] = guild_config
