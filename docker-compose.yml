@@ -16,8 +16,6 @@ services:
     restart: unless-stopped
     networks:
       - harpi-net
-    depends_on:
-      - frontend
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/status"]
       interval: 30s
