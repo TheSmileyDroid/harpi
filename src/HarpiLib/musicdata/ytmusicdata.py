@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import io
-import logging
 import re
 import shlex
 import subprocess  # noqa: S404
@@ -14,10 +13,9 @@ from typing import IO, Any, cast, override
 import discord
 import yt_dlp
 from discord.opus import Encoder
+from loguru import logger
 
 from src.errors.nothingfound import NothingFoundError
-
-logger = logging.getLogger(__name__)
 
 ytdl_format_options = {
     "format": "m4a/bestaudio/best",
@@ -413,7 +411,7 @@ class FFmpegPCMAudio(discord.AudioSource):
                 pass
             input_stream = cast(IO[bytes], cast(object, self.source))
         else:
-            input_stream = subprocess.DEVNULL  # type: ignore
+            input_stream = subprocess.DEVNULL
 
         try:
             # FIX DEADLOCK: Usar DEVNULL se stderr não for definido pelo usuário.

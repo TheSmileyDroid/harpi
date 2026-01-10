@@ -1,10 +1,11 @@
 """RPG Dice Cog module."""
 
+from typing import Dict, List
+
 from discord import Message
 from discord.ext.commands import Bot, Cog, command
 from discord.ext.commands.context import Context
-from typing import Dict, List
-import logging
+from loguru import logger
 
 from src.HarpiLib.math.parser import DiceParser, RollResult
 
@@ -20,7 +21,6 @@ class DiceCog(Cog):
 
         """
         self.bot = bot
-        self.logger = logging.getLogger(__name__)
 
     @Cog.listener()
     async def on_message(self, message: Message) -> None:
@@ -71,7 +71,7 @@ class DiceCog(Cog):
             await ctx.reply(response)
 
         except Exception as e:
-            self.logger.error(f"Erro na simulação Monte Carlo: {e}")
+            logger.error(f"Erro na simulação Monte Carlo: {e}")
             await ctx.reply(f"Erro ao executar simulação: {str(e)}")
 
     def _run_monte_carlo_simulation(
@@ -146,8 +146,8 @@ class DiceCog(Cog):
             Dict: Dicionário com as estatísticas calculadas
 
         """
-        from collections import Counter
         import statistics
+        from collections import Counter
 
         mean = statistics.mean(results)
         median = statistics.median(results)

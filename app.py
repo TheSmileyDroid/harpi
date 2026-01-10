@@ -2,40 +2,39 @@
 
 from __future__ import annotations
 
-import logging
 import os
+import sys
 
 import psutil
 from discord.guild import Guild
 from dotenv import load_dotenv
-from flask import Flask, render_template
-from flask.globals import session
-from flask.helpers import make_response
+from loguru import logger
+from quart import Quart, jsonify, render_template, session
+from quart_cors import cors
 
 from common.botsync import run_async
 from router.guild import music
 from src.discord_bot import get_bot_instance, run_bot_in_background
 
 assert load_dotenv(), "dot env not loaded"
+logger.remove()
+logger.add("spam.log", level="DEBUG")
+logger.add(sys.stdout, level="INFO")
 
-terminal_logger = logging.StreamHandler()
-# noinspection SpellCheckingInspection
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(name)s: %(message)s",
-    style="%",
-    filename="discord.log",
-)
-logging.getLogger().addHandler(terminal_logger)
+app = Quart(__name__)
 
-app = Flask(__name__)
+app = cors(app, allow_origin="*")
+
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.secret_key = os.environ.get("SECRET_KEY")
 
 
-@app.route("/")
-def index():
-    return render_template("base.html")
+def _guild_to_dict(guild: Guild):
+    return {
+        "id": str(guild.id),
+        "name": guild.name,
+        "icon": str(guild.icon.url) if guild.icon else None,
+    }
 
 
 guilds: list[Guild] | None = None
@@ -59,75 +58,58 @@ async def _get_guilds() -> list[Guild]:
 @app.route("/components/guilds")
 async def guild():
     guilds = await _get_guilds()
-    return render_template("components/guild_list.html", guilds=guilds)
+    return await render_template("components/guild_list.html", guilds=guilds)
 
 
-@app.route("/status")
-def status():
-    """A route to check if the bot is running and ready."""
-    status = "Unknown"
-    try:
-        bot = get_bot_instance()
-
-        if bot and bot.is_ready():
-            status = f"Bot is logged in as {bot.user}!"
-        else:
-            status = "Bot is not connected or has not started yet."
-    except Exception as e:
-        logging.error(f"Error checking bot status: {e}")
-        status = "Error checking bot status."
-    return render_template("components/bot_status.html", status=status)
+@app.route("/api/guilds")
+async def api_guilds():
+    guilds_list = await _get_guilds()
+    return jsonify([_guild_to_dict(g) for g in guilds_list])
 
 
-@app.route("/select/guild/<int:guild_id>")
-async def select_guild(guild_id: int):
+@app.route("/api/guild/select/<int:guild_id>", methods=["POST"])
+async def api_select_guild(guild_id: int):
     bot = get_bot_instance()
-    guilds = await _get_guilds()
 
-    if bot and bot.is_ready():
-        guild = bot.get_guild(guild_id)
-        assert guild
-        session["guild_id"] = guild_id
-
-    resp = make_response(
-        render_template("components/guild_list.html", guilds=guilds)
-    )
-    resp.headers["HX-Trigger"] = "guild-selected"
-    return resp
-
-
-@app.route("/components/current_guild")
-def current_guild():
-    guild_id: int | None = session.get("guild_id")
-    if not guild_id:
-        return render_template("components/current_guild.html", guild=None)
-
-    bot = get_bot_instance()
     if bot and bot.is_ready():
         guild = bot.get_guild(guild_id)
         if guild:
-            return render_template(
-                "components/current_guild.html", guild=guild
-            )
+            session["guild_id"] = guild_id
+            return jsonify({"success": True, "guild": _guild_to_dict(guild)})
 
-    return render_template("components/current_guild.html", guild=None)
+    return jsonify(
+        {"success": False, "error": "Guild not found or bot not ready"}
+    ), 404
 
 
-@app.route("/components/serverstatus")
-def serverstatus():
+@app.route("/api/serverstatus")
+def api_serverstatus():
     cpu_percent = psutil.cpu_percent()
     mem = psutil.virtual_memory()
-
-    return render_template(
-        "components/server_status.html", cpu_percent=cpu_percent, mem=mem
+    return jsonify(
+        {
+            "cpu": cpu_percent,
+            "memory": {
+                "total": mem.total,
+                "available": mem.available,
+                "percent": mem.percent,
+                "used": mem.used,
+                "free": mem.free,
+            },
+        }
     )
 
 
 app.register_blueprint(music.bp)
 
-with app.app_context():
+
+@app.before_serving
+async def startup():
     try:
         run_bot_in_background()
-        logging.info("Discord bot initialization started")
+        logger.info("Discord bot initialization started")
     except Exception as e:
-        logging.error(f"Failed to start Discord bot: {e}")
+        logger.error(f"Failed to start Discord bot: {e}")
+
+
+asgi_app = app

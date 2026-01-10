@@ -1,7 +1,7 @@
 import asyncio
-import logging
 
 from discord.ext.commands import Bot
+from loguru import logger
 
 
 def run_async(bot: Bot, coro):
@@ -14,5 +14,5 @@ def run_async(bot: Bot, coro):
         else:
             return None
     except Exception as e:
-        logging.error(f"Error fetching guilds: {e}")
+        logger.error(f"Error fetching guilds: {e}")
         return None

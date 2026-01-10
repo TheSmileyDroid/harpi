@@ -2,13 +2,13 @@
 
 
 HOST="0.0.0.0"
-PORT="8000"
+PORT="5000"
 
 while true; do
     echo "checando atualizações..."
     uv sync --upgrade
     echo "Inciando Harpi..."
-    gunicorn --config gunicorn_config.py --bind "${HOST}:${PORT}" app:app
+    uv run uvicorn app:asgi_app --host "${HOST}" --port "${PORT}"
     echo "Harpi parou. Reiniciando em 5 segundos..."
 
     for i in {5..1}; do

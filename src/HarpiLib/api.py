@@ -1,3 +1,4 @@
+import enum
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
@@ -13,6 +14,12 @@ from src.HarpiLib.musicdata.ytmusicdata import (
 )
 
 
+class LoopMode(enum.Enum):
+    OFF = 0
+    TRACK = 1
+    QUEUE = 2
+
+
 @dataclass
 class GuildConfig:
     id: int
@@ -22,7 +29,7 @@ class GuildConfig:
     queue: list[YTMusicData] | None = None
     background: list[YoutubeDLSource] | None = None
     current_music: YTMusicData | None = None
-    loop: bool = False
+    loop: LoopMode = LoopMode.OFF
 
 
 class HarpiAPI:
@@ -98,10 +105,7 @@ class HarpiAPI:
         return guild_config
 
     def _mixer_callback(self, guild_config: GuildConfig):
-        if guild_config.queue and len(guild_config.queue) > 0:
-            _ = self.bot.loop.create_task(self.next_music(guild_config))
-        else:
-            guild_config.current_music = None
+        _ = self.bot.loop.create_task(self.next_music(guild_config))
 
     def _background_callback(
         self, guild_config: GuildConfig, to_remove: list[YoutubeDLSource]
@@ -110,21 +114,31 @@ class HarpiAPI:
             if guild_config.background and bg in guild_config.background:
                 guild_config.background.remove(bg)
 
-    async def next_music(self, guild_config: GuildConfig):
+    async def next_music(
+        self, guild_config: GuildConfig, force_next: bool = False
+    ):
+        if guild_config.current_music:
+            if guild_config.loop == LoopMode.TRACK and not force_next:
+                source = await YoutubeDLSource.from_music_data(
+                    guild_config.current_music
+                )
+                guild_config.mixer.set_current_from_queue(source)
+                return
+
+            if guild_config.loop == LoopMode.QUEUE:
+                if not guild_config.queue:
+                    guild_config.queue = []
+                guild_config.queue.append(guild_config.current_music)
+
         if not guild_config.queue or len(guild_config.queue) == 0:
             guild_config.current_music = None
             guild_config.mixer.set_current_from_queue(None)
             return
-        if not guild_config.loop:
-            music_data = guild_config.queue.pop(0)
-            guild_config.current_music = music_data
-            source = await YoutubeDLSource.from_music_data(music_data)
-            guild_config.mixer.set_current_from_queue(source)
-        else:
-            music_data = guild_config.queue[0]
-            guild_config.current_music = music_data
-            source = await YoutubeDLSource.from_music_data(music_data)
-            guild_config.mixer.set_current_from_queue(source)
+
+        music_data = guild_config.queue.pop(0)
+        guild_config.current_music = music_data
+        source = await YoutubeDLSource.from_music_data(music_data)
+        guild_config.mixer.set_current_from_queue(source)
 
     async def add_music_to_queue(
         self,
@@ -161,7 +175,7 @@ class HarpiAPI:
         guild_config = self.guilds.get(guild_id)
         if not guild_config:
             raise ValueError("Guilda não conectada")
-        await self.next_music(guild_config)
+        await self.next_music(guild_config, force_next=True)
 
     async def disconnect_voice(self, guild_id: int):
         guild_config = self.guilds.get(guild_id)
@@ -172,7 +186,7 @@ class HarpiAPI:
             await voice_client.disconnect()
         del self.guilds[guild_id]
 
-    async def set_loop(self, guild_id: int, loop: bool):
+    async def set_loop(self, guild_id: int, loop: LoopMode):
         guild_config = self.guilds.get(guild_id)
         if not guild_config:
             raise ValueError("Guilda não conectada")

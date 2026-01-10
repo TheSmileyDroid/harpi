@@ -4,10 +4,10 @@ include .env
 export $(shell sed 's/=.*//' .env)
 
 start: types build
-	uvicorn app:app
+	uvicorn app:asgi_app
 
 dev:
-	uvicorn app:app --reload &
+	uvicorn app:asgi_app --reload &
 	cd frontend; \
 	$(JS_RUNNER) run dev;
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import enum
-import logging
 from typing import cast
 
 import discord
@@ -12,19 +10,8 @@ import discord.ext.commands
 from discord import Guild, Member, Message, StageChannel
 from discord.ext.commands import Cog, CommandError, Context, command
 
-from src.HarpiLib.api import HarpiAPI
+from src.HarpiLib.api import HarpiAPI, LoopMode
 from src.HarpiLib.HarpiBot import HarpiBot
-
-logger = logging.getLogger(__name__)
-
-
-class LoopMode(enum.Enum):
-    """Enum que representa o modo de loop."""
-
-    OFF = 0
-    TRACK = 1
-    QUEUE = 2
-
 
 idx_count = 0
 
@@ -160,13 +147,13 @@ class MusicCog(Cog):
             if not ctx.guild:
                 raise CommandError
             if mode in {"off", "false", "0", "no", "n"}:
-                await self.api.set_loop(ctx.guild.id, False)
+                await self.api.set_loop(ctx.guild.id, LoopMode.OFF)
                 _ = await ctx.send("Loop mode: OFF")
             elif mode in {"track", "true", "1", "yes", "y", "musica"}:
-                await self.api.set_loop(ctx.guild.id, True)
+                await self.api.set_loop(ctx.guild.id, LoopMode.TRACK)
                 _ = await ctx.send("Loop mode: TRACK")
             elif mode in {"queue", "fila"}:
-                await self.api.set_loop(ctx.guild.id, True)
+                await self.api.set_loop(ctx.guild.id, LoopMode.QUEUE)
                 _ = await ctx.send("Loop mode: QUEUE")
             else:
                 _ = await ctx.send(

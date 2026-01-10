@@ -4,6 +4,7 @@ from typing import Callable, cast, override
 
 import discord
 import numpy as np
+from loguru import logger
 
 from src.HarpiLib.musicdata.ytmusicdata import YoutubeDLSource
 
@@ -54,7 +55,9 @@ class MixerSource(discord.AudioSource):
                 try:
                     callback(**kwargs)
                 except Exception as e:
-                    print(f"Error in observer callback for {event}: {e}")
+                    logger.error(
+                        f"Error in observer callback for {event}: {e}"
+                    )
 
     def add_track(self, source: YoutubeDLSource):
         """Adds a new audio source (track) to the mixer."""
@@ -76,7 +79,7 @@ class MixerSource(discord.AudioSource):
         try:
             return track.read()
         except Exception as e:
-            print(f"Error reading track: {e}")
+            logger.error(f"Error reading track: {e}")
             return b""
 
     @override
@@ -143,7 +146,9 @@ class MixerSource(discord.AudioSource):
             try:
                 data = future.result()
             except Exception as e:
-                print(f"Unexpected error in thread for {source_type}: {e}")
+                logger.error(
+                    f"Unexpected error in thread for {source_type}: {e}"
+                )
                 data = b""
 
             # Specific logic for each type
