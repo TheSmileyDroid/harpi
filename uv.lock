@@ -619,7 +619,7 @@ grpc = [
 
 [[package]]
 name = "google-api-python-client"
-version = "2.187.0"
+version = "2.188.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "google-api-core" },
@@ -628,9 +628,9 @@ dependencies = [
     { name = "httplib2" },
     { name = "uritemplate" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/75/83/60cdacf139d768dd7f0fcbe8d95b418299810068093fdf8228c6af89bb70/google_api_python_client-2.187.0.tar.gz", hash = "sha256:e98e8e8f49e1b5048c2f8276473d6485febc76c9c47892a8b4d1afa2c9ec8278", size = 14068154, upload-time = "2025-11-06T01:48:53.274Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a8/d7/14613c7efbab5b428b400961f5dbac46ad9e019c44e1f3fd14d67c33111c/google_api_python_client-2.188.0.tar.gz", hash = "sha256:5c469db6614f071009e3e5bb8b6aeeccae3beb3647fa9c6cd97f0d551edde0b6", size = 14302906, upload-time = "2026-01-13T22:15:13.747Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/58/c1e716be1b055b504d80db2c8413f6c6a890a6ae218a65f178b63bc30356/google_api_python_client-2.187.0-py3-none-any.whl", hash = "sha256:d8d0f6d85d7d1d10bdab32e642312ed572bdc98919f72f831b44b9a9cebba32f", size = 14641434, upload-time = "2025-11-06T01:48:50.763Z" },
+    { url = "https://files.pythonhosted.org/packages/33/67/a99a7d79d7a37a67cb8008f1d7dcedc46d29c6df5063aeb446112afd4aa4/google_api_python_client-2.188.0-py3-none-any.whl", hash = "sha256:3cad1b68f9d48b82b93d77927e8370a6f43f33d97848242601f14a93a1c70ef5", size = 14870005, upload-time = "2026-01-13T22:15:11.345Z" },
 ]
 
 [[package]]
@@ -666,7 +666,7 @@ wheels = [
 
 [[package]]
 name = "google-genai"
-version = "1.57.0"
+version = "1.58.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -680,9 +680,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2b/b4/8251c2d2576224a4b51a8ab6159820f9200b8da28ff555c78ee15607096e/google_genai-1.57.0.tar.gz", hash = "sha256:0ff9c36b8d68abfbdbd13b703ece926de5f3e67955666b36315ecf669b94a826", size = 485648, upload-time = "2026-01-07T20:38:20.271Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b4/49/0c2dd11c50db7ee2c299c63f1795256c96543be8b40e6f139c1a680f92e8/google_genai-1.58.0.tar.gz", hash = "sha256:bbec3abf253c17ad57b68e7f8d87d5cda34d5909c67b7ba726207a2bd10aa9fd", size = 486640, upload-time = "2026-01-15T00:38:48.404Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d6/02/858bdae08e2184b6afe0b18bc3113318522c9cf326a5a1698055edd31f88/google_genai-1.57.0-py3-none-any.whl", hash = "sha256:d63c7a89a1f549c4d14032f41a0cdb4b6fe3f565e2eee6b5e0907a0aeceabefd", size = 713323, upload-time = "2026-01-07T20:38:18.051Z" },
+    { url = "https://files.pythonhosted.org/packages/56/61/098a414cc41600036fe3eb24415221f5412f446e1be1ce9595bb32f2ae92/google_genai-1.58.0-py3-none-any.whl", hash = "sha256:2df3fceb92a519d51e266babde26f7c298fb12f84f469605c4ce80c2ec43f796", size = 718352, upload-time = "2026-01-15T00:38:46.658Z" },
 ]
 
 [[package]]
@@ -893,14 +893,14 @@ wheels = [
 
 [[package]]
 name = "httplib2"
-version = "0.31.0"
+version = "0.31.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyparsing" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/52/77/6653db69c1f7ecfe5e3f9726fdadc981794656fcd7d98c4209fecfea9993/httplib2-0.31.0.tar.gz", hash = "sha256:ac7ab497c50975147d4f7b1ade44becc7df2f8954d42b38b3d69c515f531135c", size = 250759, upload-time = "2025-09-11T12:16:03.403Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/77/df/6eb1d485a513776bbdbb1c919b72e59b5acc51c5e7ef28ad1cd444e252a3/httplib2-0.31.1.tar.gz", hash = "sha256:21591655ac54953624c6ab8d587c71675e379e31e2cfe3147c83c11e9ef41f92", size = 250746, upload-time = "2026-01-13T12:14:14.365Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8c/a2/0d269db0f6163be503775dc8b6a6fa15820cc9fdc866f6ba608d86b721f2/httplib2-0.31.0-py3-none-any.whl", hash = "sha256:b9cd78abea9b4e43a7714c6e0f8b6b8561a6fc1e95d5dbd367f5bf0ef35f5d24", size = 91148, upload-time = "2025-09-11T12:16:01.803Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/d8/1b05076441c2f01e4b64f59e5255edc2f0384a711b6d618845c023dc269b/httplib2-0.31.1-py3-none-any.whl", hash = "sha256:d520d22fa7e50c746a7ed856bac298c4300105d01bc2d8c2580a9b57fb9ed617", size = 91101, upload-time = "2026-01-13T12:14:12.676Z" },
 ]
 
 [[package]]
@@ -1045,7 +1045,7 @@ wheels = [
 
 [[package]]
 name = "langchain-google-genai"
-version = "4.1.3"
+version = "4.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "filetype" },
@@ -1053,14 +1053,14 @@ dependencies = [
     { name = "langchain-core" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/85/078d5aba488a82a53b8372ac1037dee4f64b020bac69e6a07e37a5059059/langchain_google_genai-4.1.3.tar.gz", hash = "sha256:28966c8fe58c9a401fdc37aeeeb0eb51744210803838ce050f022fc53d2f994e", size = 277024, upload-time = "2026-01-05T23:29:34.362Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d8/0b/eae2305e207574dc633983a8a82a745e0ede1bce1f3a9daff24d2341fadc/langchain_google_genai-4.2.0.tar.gz", hash = "sha256:9a8d9bfc35354983ed29079cefff53c3e7c9c2a44b6ba75cc8f13a0cf8b55c33", size = 277361, upload-time = "2026-01-13T20:41:17.63Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/aa/ca61dc2d202a23d7605a5c0ea24bd86a39a5c23c932a166b87c7797747c5/langchain_google_genai-4.1.3-py3-none-any.whl", hash = "sha256:5d710e2dcf449d49704bdbcd31729be90b386fa008395f9552a5c090241de1a5", size = 66262, upload-time = "2026-01-05T23:29:32.924Z" },
+    { url = "https://files.pythonhosted.org/packages/22/51/39942c0083139652494bb354dddf0ed397703a4882302f7b48aeca531c96/langchain_google_genai-4.2.0-py3-none-any.whl", hash = "sha256:856041aaafceff65a4ef0d5acf5731f2db95229ff041132af011aec51e8279d9", size = 66452, upload-time = "2026-01-13T20:41:16.296Z" },
 ]
 
 [[package]]
 name = "langsmith"
-version = "0.6.2"
+version = "0.6.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -1072,9 +1072,9 @@ dependencies = [
     { name = "uuid-utils" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0c/8e/3ea7a8e9ce8c530204964207af7f7778597f5a548dc1a489c0c0940561f3/langsmith-0.6.2.tar.gz", hash = "sha256:c2efd7ed61eed3b6fdbf158ea2e9862bc2636f2edc95e90d2faad9462773d097", size = 1739277, upload-time = "2026-01-08T23:17:40.504Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/02/ac91c812238cd232ff3270c253eea31b28253fdeb28df61571932cb26e88/langsmith-0.6.3.tar.gz", hash = "sha256:33246769c0bb24e2c17e0c34bb21931084437613cd37faf83bd0978a297b826f", size = 1739709, upload-time = "2026-01-14T19:26:23.529Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ed/e0/9d173dd2fa7f85d9ec4989f6f5a1a057d281daa8dada0ff8db0de0cb68aa/langsmith-0.6.2-py3-none-any.whl", hash = "sha256:1ea1a591f52683a5aeebdaa2b58458d72ce9598105dd8b29e16f7373631a6434", size = 282918, upload-time = "2026-01-08T23:17:38.858Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/11/22a56b615f1ca84f65fda68b1a53b6e2765f2bdb1c6d885793430a664bfe/langsmith-0.6.3-py3-none-any.whl", hash = "sha256:44fdf8084165513e6bede9dda715e7b460b1b3f57ac69f2ca3f03afa911233ec", size = 282991, upload-time = "2026-01-14T19:26:21.882Z" },
 ]
 
 [[package]]
@@ -1898,7 +1898,7 @@ wheels = [
 
 [[package]]
 name = "strawberry-graphql"
-version = "0.288.3"
+version = "0.289.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cross-web" },
@@ -1907,9 +1907,9 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f4/a9/41f727b8c37e40ba746b509d41880311f1b391a661c8f230aa73ca44ebab/strawberry_graphql-0.288.3.tar.gz", hash = "sha256:985af4c33ea98343409892207d15b7d4a8491b1ba65ae3bb8ddcd674525069a6", size = 215302, upload-time = "2026-01-10T12:05:33.004Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/8d/491b4912919e45466e998b24e31eab708b1f1201fbf82a362d83f8c9ffcd/strawberry_graphql-0.289.0.tar.gz", hash = "sha256:cb5b6718d7f6a99b4a5d6edf0d76a6b4e414e04b1ad93662dff402b52ed565f2", size = 215985, upload-time = "2026-01-13T22:52:31.966Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c7/e3/2d8362503956729e51350647adf43ac9691aef8542680691f61d2f1ec38d/strawberry_graphql-0.288.3-py3-none-any.whl", hash = "sha256:4cccc871d5545360bfea65a0b21ff823e4c66ab962da6eec812fb9e3a586316e", size = 313279, upload-time = "2026-01-10T12:05:30.771Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/88/6a831f429d15c5d4bf4cc6af48acf1d9fbc2187c19b8834efc84d80ad550/strawberry_graphql-0.289.0-py3-none-any.whl", hash = "sha256:8fd30c3de55bb518dae68088d43259c831a68a1a688870733a6fcba7512368d0", size = 313971, upload-time = "2026-01-13T22:52:29.69Z" },
 ]
 
 [package.optional-dependencies]

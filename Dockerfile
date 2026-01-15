@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim as backend
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend
 
 # System deps
 RUN apt-get update && apt-get install -y \

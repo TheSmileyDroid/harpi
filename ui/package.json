@@ -28,7 +28,7 @@
 		"eslint-plugin-svelte": "^3.13.1",
 		"globals": "^16.5.0",
 		"prettier": "^3.7.4",
-		"prettier-plugin-svelte": "^3.4.0",
+		"prettier-plugin-svelte": "^3.4.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",
 		"svelte": "^5.45.6",
 		"svelte-adapter-bun": "^1.0.1",
@@ -39,7 +39,9 @@
 		"vite": "^7.2.6"
 	},
 	"dependencies": {
-		"@tanstack/svelte-query": "^6.0.14",
-		"socket.io-client": "^4.8.3"
+		"@tanstack/svelte-query": "^6.0.15",
+		"socket.io-client": "^4.8.3",
+		"sveltekit-proxy": "^1.0.3",
+		"valibot": "^1.2.0"
 	}
 }

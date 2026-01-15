@@ -148,3 +148,4 @@ nohup.out
 /frontend/.fuse_*
 
 tailwindcss
+ui/src/lib/server/.fuse_*

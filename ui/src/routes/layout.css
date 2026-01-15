@@ -5,93 +5,108 @@
 @plugin '@tailwindcss/typography';
 
 :root {
-  --color-retro-bg: #1a150e;
-  --color-retro-primary: #ffb800; /* Amber/Orange */
-  --color-retro-dim: #996e00;
-  --color-retro-off: #4a3500;
-  --crt-scanline: rgba(18, 16, 16, 0.1);
-  --font-retro: 'VT323', monospace;
+	--color-retro-bg: #1a150e;
+	--color-retro-primary: #ffb800; /* Amber/Orange */
+	--color-retro-dim: #996e00;
+	--color-retro-off: #4a3500;
+	--crt-scanline: rgba(18, 16, 16, 0.1);
+	--font-retro: 'VT323', monospace;
 }
 
 @theme {
-  --color-retro-bg: var(--color-retro-bg);
-  --color-retro-primary: var(--color-retro-primary);
-  --color-retro-dim: var(--color-retro-dim);
-  --color-retro-off: var(--color-retro-off);
-  --font-retro: var(--font-retro);
+	--color-retro-bg: var(--color-retro-bg);
+	--color-retro-primary: var(--color-retro-primary);
+	--color-retro-dim: var(--color-retro-dim);
+	--color-retro-off: var(--color-retro-off);
+	--font-retro: var(--font-retro);
 }
 
 body {
-  background-color: var(--color-retro-bg);
-  color: var(--color-retro-primary);
-  font-family: var(--font-retro);
-  margin: 0;
-  overflow-x: hidden;
-  height: 100vh;
-  text-transform: uppercase;
+	background-color: var(--color-retro-bg);
+	color: var(--color-retro-primary);
+	font-family: var(--font-retro);
+	margin: 0;
+	overflow-x: hidden;
+	height: 100vh;
+	text-transform: uppercase;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
+	width: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-retro-bg);
+	background: var(--color-retro-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-retro-dim);
-  border: 1px solid var(--color-retro-primary);
+	background: var(--color-retro-dim);
+	border: 1px solid var(--color-retro-primary);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-retro-primary);
+	background: var(--color-retro-primary);
 }
 
 /* CRT Effect Overlay */
 .crt::before {
-  content: " ";
-  display: block;
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  background: linear-gradient(
-    rgba(18, 16, 16, 0) 50%,
-    rgba(0, 0, 0, 0.25) 50%
-  ), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-  z-index: 50;
-  background-size: 100% 2px, 3px 100%;
-  pointer-events: none;
+	content: ' ';
+	display: block;
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	background:
+		linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+		linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+	z-index: 50;
+	background-size:
+		100% 2px,
+		3px 100%;
+	pointer-events: none;
 }
 
 .crt-flicker {
-  animation: flicker 0.15s infinite;
+	animation: flicker 0.15s infinite;
 }
 
 @keyframes flicker {
-  0% { opacity: 0.95; }
-  5% { opacity: 0.9; }
-  10% { opacity: 0.95; }
-  15% { opacity: 1; }
-  20% { opacity: 0.95; }
-  50% { opacity: 0.9; }
-  100% { opacity: 0.95; }
+	0% {
+		opacity: 0.95;
+	}
+	5% {
+		opacity: 0.9;
+	}
+	10% {
+		opacity: 0.95;
+	}
+	15% {
+		opacity: 1;
+	}
+	20% {
+		opacity: 0.95;
+	}
+	50% {
+		opacity: 0.9;
+	}
+	100% {
+		opacity: 0.95;
+	}
 }
 
 .retro-border {
-  border: 2px solid var(--color-retro-primary);
-  box-shadow: 0 0 10px var(--color-retro-dim);
+	border: 2px solid var(--color-retro-primary);
+	box-shadow: 0 0 10px var(--color-retro-dim);
 }
 
 .retro-shadow {
-    text-shadow: 2px 2px 0px var(--color-retro-off);
+	text-shadow: 2px 2px 0px var(--color-retro-off);
 }
 
 a {
-    color: var(--color-retro-primary);
-    text-decoration: none;
+	color: var(--color-retro-primary);
+	text-decoration: none;
 }
 a:hover {
-    color: #ffd866;
-    text-shadow: 0 0 8px var(--color-retro-primary);
+	color: #ffd866;
+	text-shadow: 0 0 8px var(--color-retro-primary);
 }

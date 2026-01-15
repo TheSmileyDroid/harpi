@@ -128,8 +128,6 @@ async def music_control():
                 voice_client.resume()
         else:
             return jsonify({"error": "Invalid action"}), 400
-
-        emit_update(guild_id)
         return jsonify({"status": "ok"})
 
     except Exception as e:
@@ -175,24 +173,8 @@ async def music_add():
             ), 400
 
         await bot.api.add_music_to_queue(guild_id, channel_id or 0, link)
-        emit_update(guild_id)
         return jsonify({"status": "ok"})
 
     except Exception as e:
         logger.error(f"Error adding music: {e}")
         return jsonify({"error": str(e)}), 500
-
-
-def emit_update(guild_id: int):
-    """Emit a music update event via SocketIO.
-
-    Args:
-        guild_id: The guild ID to emit update for.
-    """
-    # TODO: Implement WebSocket updates using Quart
-    pass
-    # data = get_music_data(guild_id)
-    # if data:
-    #     from app import socketio
-    #
-    #     socketio.emit("music_update", data, room=str(guild_id))
