@@ -5,6 +5,7 @@ from loguru import logger
 from quart import Blueprint, jsonify, request
 
 from src.discord_bot import get_bot_instance
+from src.HarpiLib.api import LoopMode
 from src.models.guild import AudioSourceTrackedProtocol
 
 bp = Blueprint("music", __name__)
@@ -31,6 +32,7 @@ def get_music_data(guild_id: int):
     guild_config = bot.api.get_guild_config(guild_id)
     current_music = guild_config.current_music if guild_config else None
     queue = guild_config.queue if guild_config else None
+    loop_mode = guild_config.loop if guild_config else LoopMode.OFF
     progress = 0
 
     voice_client = (
@@ -55,6 +57,7 @@ def get_music_data(guild_id: int):
         ],
         "is_playing": voice_client.is_playing() if voice_client else False,
         "is_paused": voice_client.is_paused() if voice_client else False,
+        "loop_mode": loop_mode.name.lower(),
     }
 
 
@@ -90,7 +93,8 @@ async def music_control():
 
     Body:
         guild_id: The guild ID.
-        action: One of 'stop', 'skip', 'pause', 'resume'.
+        action: One of 'stop', 'skip', 'pause', 'resume', 'loop'.
+        mode: (Optional) Loop mode for 'loop' action.
 
     Returns:
         JSON with status or error.
@@ -126,6 +130,16 @@ async def music_control():
             if guild and guild.voice_client:
                 voice_client = cast(VoiceClient, guild.voice_client)
                 voice_client.resume()
+        elif action == "loop":
+            mode = body.get("mode")
+            if mode in {"off", "false", "0", "no", "n"}:
+                await bot.api.set_loop(guild_id, LoopMode.OFF)
+            elif mode in {"track", "true", "1", "yes", "y", "musica"}:
+                await bot.api.set_loop(guild_id, LoopMode.TRACK)
+            elif mode in {"queue", "fila"}:
+                await bot.api.set_loop(guild_id, LoopMode.QUEUE)
+            else:
+                return jsonify({"error": "Invalid loop mode"}), 400
         else:
             return jsonify({"error": "Invalid action"}), 400
         return jsonify({"status": "ok"})

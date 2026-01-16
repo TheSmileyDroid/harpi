@@ -13,7 +13,6 @@ import PIL.ImageFont
 import psutil
 from discord import Embed, File
 from discord.ext import commands
-from mcstatus import JavaServer
 
 
 class BasicCog(commands.Cog):
@@ -70,48 +69,12 @@ class BasicCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command()
-    async def mc(self, ctx: commands.Context) -> None:
-        """Mostra o status do servidor Minecraft."""
-        java_process = [
-            process
-            for process in psutil.process_iter(attrs=["pid", "name"])
-            if "java" in process.info["name"]
-        ]
-        if not java_process:
-            await ctx.send("O servidor de Minecraft não está rodando.")
-            return
-        server = JavaServer.lookup("localhost:25565")
-        status = server.status()
-        cpu = java_process[0].cpu_percent(interval=1)
-        memory = java_process[0].memory_info().rss / 1024**2
-        embed = Embed(
-            title="Status do servidor de Minecraft",
-            color=0x11CC99,
-        )
-        embed.add_field(name="Versão", value=status.version.name)
-        embed.add_field(name="Jogadores", value=str(status.players.online))
-        embed.add_field(name="Uso de CPU", value=f"{cpu}%")
-        embed.add_field(name="Uso de Memória", value=f"{memory:.2f} MB")
-        players_sample = status.players.sample
-        if players_sample:
-            players_list = "\n".join([
-                player.name for player in players_sample
-            ])
-        else:
-            players_list = "Ninguém está jogando."
-        embed.add_field(
-            name="Lista de Jogadores",
-            value=players_list,
-        )
-        await ctx.send(embed=embed)
-
-    @commands.command()
     async def top(self, ctx: commands.Context) -> None:
         """Retorna o retorno do comando top como uma imagem."""
 
         result = await asyncio.to_thread(
             subprocess.check_output,
-            ["top", "-b", "-n", "1"],
+            ["top", "-b", "-n", "1"],  # type: ignore
         )
         result = result.decode("utf-8")
 

@@ -5,12 +5,7 @@ authors = [{ name = "TheSmileyDroid", email = "ghsilha@gmail.com" }]
 requires-python = ">=3.13"
 dependencies = [
     "cryptography>=45.0.3",
-    "fastapi>=0.115.12",
-    "fastapi-cors>=0.0.6",
-    "google-generativeai>=0.8.4",
     "gtts>=2.5.4",
-    "langchain-google-genai>=2.0.10",
-    "mcstatus>=12.0.1",
     "pillow>=11.2.1",
     "psutil>=7.0.0",
     "discord.py[voice]>=2.5.2",

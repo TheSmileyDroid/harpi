@@ -72,13 +72,18 @@ async def get_channels(guild_id: int):
     if not guild:
         return jsonify([]), 404
 
+    channel: str | None = None
+    if (guild_config := bot.api.get_guild_config(guild_id)) and (
+        voice_channel := guild_config.channel
+    ):
+        channel = str(voice_channel.id)
+
+    logger.debug(f"Connected to channel {channel}.")
+
     return jsonify(
         {
             "channels": [_channel_to_dict(c) for c in guild.voice_channels],
-            "current_channel": (guild.voice_client.channel.id)
-            if guild.voice_client
-            and guild.voice_client.channel is VoiceChannel
-            else None,
+            "current_channel": channel,
         }
     ), 200
 

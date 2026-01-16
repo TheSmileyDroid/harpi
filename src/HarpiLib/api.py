@@ -5,6 +5,7 @@ from functools import partial
 from typing import cast
 
 import discord
+from discord.channel import VoiceChannel
 from discord.ext.commands import Bot, Context
 
 from src.HarpiLib.music.mixer import MixerSource
@@ -30,6 +31,7 @@ class GuildConfig:
     background: list[YoutubeDLSource] | None = None
     current_music: YTMusicData | None = None
     loop: LoopMode = LoopMode.OFF
+    channel: VoiceChannel | None = None
 
 
 class HarpiAPI:
@@ -85,7 +87,13 @@ class HarpiAPI:
         mixer = MixerSource()
         guild_config = self.guilds.get(
             guild.id,
-            GuildConfig(id=guild.id, mixer=mixer, ctx=ctx, voice_client=vc),
+            GuildConfig(
+                id=guild.id,
+                mixer=mixer,
+                ctx=ctx,
+                voice_client=vc,
+                channel=channel,
+            ),
         )
         callback = cast(
             Callable,

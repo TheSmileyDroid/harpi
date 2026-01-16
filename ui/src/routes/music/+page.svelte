@@ -12,6 +12,7 @@
 		queue: { title: string; duration: string; url: string }[];
 		is_playing: boolean;
 		is_paused: boolean;
+		loop_mode: 'off' | 'track' | 'queue';
 	};
 
 	const guildId = $derived(guildStore.current?.id);
@@ -28,13 +29,13 @@
 		refetchInterval: 5000
 	}));
 
-	const controlMutation = createMutation<void, Error, string>(() => ({
-		mutationFn: async (action: string) => {
+	const controlMutation = createMutation<void, Error, { action: string; mode?: string }>(() => ({
+		mutationFn: async ({ action, mode }) => {
 			if (!guildId) throw new Error('No guild selected');
 			await fetch('/api/music/control', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ guild_id: guildId, action })
+				body: JSON.stringify({ guild_id: guildId, action, mode })
 			});
 		},
 		onSuccess: () => {
@@ -134,7 +135,7 @@
 			<div class="mt-6 flex flex-wrap justify-center gap-4">
 				{#if musicData?.is_paused}
 					<button
-						onclick={() => controlMutation.mutate('resume')}
+						onclick={() => controlMutation.mutate({ action: 'resume' })}
 						disabled={controlMutation.isPending}
 						class="border-2 border-retro-primary px-6 py-2 font-bold transition-colors hover:bg-retro-primary hover:text-retro-bg disabled:opacity-50"
 					>
@@ -142,7 +143,7 @@
 					</button>
 				{:else}
 					<button
-						onclick={() => controlMutation.mutate('pause')}
+						onclick={() => controlMutation.mutate({ action: 'pause' })}
 						disabled={controlMutation.isPending}
 						class="border-2 border-retro-primary px-6 py-2 font-bold transition-colors hover:bg-retro-primary hover:text-retro-bg disabled:opacity-50"
 					>
@@ -150,18 +151,30 @@
 					</button>
 				{/if}
 				<button
-					onclick={() => controlMutation.mutate('stop')}
+					onclick={() => controlMutation.mutate({ action: 'stop' })}
 					disabled={controlMutation.isPending}
 					class="border-2 border-retro-primary px-6 py-2 font-bold transition-colors hover:bg-retro-primary hover:text-retro-bg disabled:opacity-50"
 				>
 					[ STOP ]
 				</button>
 				<button
-					onclick={() => controlMutation.mutate('skip')}
+					onclick={() => controlMutation.mutate({ action: 'skip' })}
 					disabled={controlMutation.isPending}
 					class="border-2 border-retro-primary px-6 py-2 font-bold transition-colors hover:bg-retro-primary hover:text-retro-bg disabled:opacity-50"
 				>
 					[ SKIP ]
+				</button>
+				<button
+					onclick={() => {
+						const modes = ['off', 'track', 'queue'];
+						const currentIdx = modes.indexOf(musicData?.loop_mode || 'off');
+						const nextMode = modes[(currentIdx + 1) % modes.length];
+						controlMutation.mutate({ action: 'loop', mode: nextMode });
+					}}
+					disabled={controlMutation.isPending}
+					class="border-2 border-retro-primary px-6 py-2 font-bold transition-colors hover:bg-retro-primary hover:text-retro-bg disabled:opacity-50"
+				>
+					[ LOOP: {musicData?.loop_mode?.toUpperCase() || 'OFF'} ]
 				</button>
 			</div>
 		</div>
