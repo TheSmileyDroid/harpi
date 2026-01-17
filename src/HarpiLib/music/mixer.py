@@ -64,6 +64,13 @@ class MixerSource(discord.AudioSource):
         with self._lock:
             self.tracks.append(source)
 
+    def remove_track(self, source: YoutubeDLSource):
+        """Removes a specific track from the mixer."""
+        with self._lock:
+            if source in self.tracks:
+                self.tracks.remove(source)
+                source.cleanup()
+
     def set_current_from_queue(self, source: YoutubeDLSource | None):
         """Replace queue music."""
         with self._lock:
@@ -114,6 +121,13 @@ class MixerSource(discord.AudioSource):
                 self.pending_futures[source] = self.executor.submit(
                     self._read_track, source
                 )
+
+        # Cleanup pending futures for removed sources
+        active_sources = {s for _, s in sources_to_read}
+        for s in list(self.pending_futures.keys()):
+            if s not in active_sources:
+                self.pending_futures[s].cancel()
+                del self.pending_futures[s]
 
         # Wait for futures to complete with a timeout
         # We only care about futures for current sources

@@ -32,6 +32,7 @@ def get_music_data(guild_id: int):
     guild_config = bot.api.get_guild_config(guild_id)
     current_music = guild_config.current_music if guild_config else None
     queue = guild_config.queue if guild_config else None
+    background = guild_config.background if guild_config else None
     loop_mode = guild_config.loop if guild_config else LoopMode.OFF
     progress = 0
 
@@ -55,9 +56,14 @@ def get_music_data(guild_id: int):
             {"title": m.title, "duration": m.duration, "url": m.url}
             for m in (queue if queue else [])
         ],
+        "layers": [
+            {"title": l.title, "id": l.id, "url": l.url, "volume": l.volume}
+            for l in (background if background else [])
+        ],
         "is_playing": voice_client.is_playing() if voice_client else False,
         "is_paused": voice_client.is_paused() if voice_client else False,
         "loop_mode": loop_mode.name.lower(),
+        "volume": guild_config.volume if guild_config else 0.5,
     }
 
 
@@ -140,6 +146,26 @@ async def music_control():
                 await bot.api.set_loop(guild_id, LoopMode.QUEUE)
             else:
                 return jsonify({"error": "Invalid loop mode"}), 400
+        elif action == "remove_layer":
+            layer_id = body.get("layer_id")
+            if not layer_id:
+                return jsonify({"error": "layer_id required"}), 400
+            await bot.api.remove_background_audio(guild_id, layer_id)
+        elif action == "clean_layers":
+            await bot.api.clean_background_audios(guild_id)
+        elif action == "set_volume":
+            volume = body.get("volume")
+            if volume is None:
+                return jsonify({"error": "volume required"}), 400
+            await bot.api.set_music_volume(guild_id, float(volume))
+        elif action == "set_layer_volume":
+            layer_id = body.get("layer_id")
+            volume = body.get("volume")
+            if not layer_id or volume is None:
+                return jsonify({"error": "layer_id and volume required"}), 400
+            await bot.api.set_background_volume(
+                guild_id, layer_id, float(volume)
+            )
         else:
             return jsonify({"error": "Invalid action"}), 400
         return jsonify({"status": "ok"})
@@ -157,6 +183,7 @@ async def music_add():
         guild_id: The guild ID.
         channel_id: The voice channel ID to connect to.
         link: The music URL (YouTube, etc).
+        type: (Optional) 'queue' (default) or 'layer'.
 
     Returns:
         JSON with status or error.
@@ -165,6 +192,7 @@ async def music_add():
     guild_id = body.get("guild_id")
     channel_id = body.get("channel_id")
     link = body.get("link")
+    music_type = body.get("type", "queue")
 
     if not guild_id or not link:
         return jsonify({"error": "guild_id and link required"}), 400
@@ -186,7 +214,10 @@ async def music_add():
                 {"error": "channel_id required when bot not connected"}
             ), 400
 
-        await bot.api.add_music_to_queue(guild_id, channel_id or 0, link)
+        if music_type == "layer":
+            await bot.api.add_background_audio(guild_id, channel_id or 0, link)
+        else:
+            await bot.api.add_music_to_queue(guild_id, channel_id or 0, link)
         return jsonify({"status": "ok"})
 
     except Exception as e:

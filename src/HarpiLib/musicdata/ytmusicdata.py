@@ -8,6 +8,7 @@ import re
 import shlex
 import subprocess  # noqa: S404
 import time
+import uuid
 from typing import IO, Any, cast, override
 
 import discord
@@ -64,12 +65,26 @@ class YoutubeDLSource(discord.PCMVolumeTransformer):
         volume: float = 0.3,
     ) -> None:
         """Cria uma instância de YoutubeDLSource."""
+        self._volume_linear = volume
         super().__init__(source, volume)
 
         self.data: dict[str, str | int] = data
 
         self.title: str = data.get("title", "Unknown Title")
         self.url: str = data.get("url", "Unknown URL")
+        self.id: str = str(uuid.uuid4())
+
+    @property
+    def volume(self) -> float:
+        """Volume visual (linear) para controle da UI."""
+        return self._volume_linear
+
+    @volume.setter
+    def volume(self, value: float) -> None:
+        """Define o volume com uma curva exponencial (cúbica)."""
+        self._volume_linear = max(value, 0.0)
+        # Aplica curva cúbica (x^3) para percepção mais natural de volume
+        self._volume = self._volume_linear**3
 
     @classmethod
     async def from_music_data(

@@ -216,6 +216,34 @@ class MusicCog(Cog):
 
         return await ctx.send(f"Adicionado **{link}** ao mixer.")
 
+    @command("remove_layer")
+    async def remove_layer(self, ctx: Context, index: int) -> Message:
+        """Remove um layer específico pelo índice.
+
+        Args:
+            ctx (Context): Contexto do comando.
+            index (int): Índice do layer a ser removido (baseado em list_layers).
+
+        """
+        guild, _, _ = await self._guild_ctx(ctx)
+
+        try:
+            guild_config = self.api.get_guild_config(guild.id)
+            if (
+                not guild_config
+                or not guild_config.background
+                or index < 1
+                or index > len(guild_config.background)
+            ):
+                return await ctx.send("Layer inválido.")
+
+            # Get ID from index
+            layer = guild_config.background[index - 1]
+            await self.api.remove_background_audio(guild.id, layer.id)
+            return await ctx.send(f"Layer removido: {layer.title}")
+        except Exception as e:
+            return await ctx.send(str(e))
+
     @command("clean_layers")
     async def clean_layers(self, ctx: Context) -> Message:
         """Limpa os layers de áudio de fundo.
