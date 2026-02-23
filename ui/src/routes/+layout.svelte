@@ -27,7 +27,7 @@
 		<Header />
 
 		<!-- Main Content -->
-		<main class="relative z-10 flex-grow">
+		<main class="relative z-10 grow">
 			{@render children()}
 		</main>
 

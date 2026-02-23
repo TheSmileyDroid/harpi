@@ -1,24 +1,10 @@
 <script lang="ts">
+	import { api } from '$lib/apiClient';
 	import { createQuery } from '@tanstack/svelte-query';
 
-	type ServerStats = {
-		cpu: number;
-		memory: {
-			total: number;
-			available: number;
-			percent: number;
-			used: number;
-			free: number;
-		};
-	};
-
-	const statsQuery = createQuery<ServerStats>(() => ({
+	const statsQuery = createQuery(() => ({
 		queryKey: ['serverstatus'],
-		queryFn: async () => {
-			const res = await fetch('/api/serverstatus');
-			if (!res.ok) throw new Error('Failed to fetch stats');
-			return res.json();
-		},
+		queryFn: async () => await api.getApiServerstatus(),
 		refetchInterval: 5000
 	}));
 
@@ -53,19 +39,19 @@
 			<div class="retro-border bg-black/30 p-6">
 				<h2 class="mb-4 border-b border-retro-dim pb-1 text-2xl">MEMORY FRAME</h2>
 				<div class="mb-2 flex items-end justify-between">
-					<span class="text-4xl font-bold">{stats.memory?.percent}%</span>
+					<span class="text-4xl font-bold">{stats.memoryPercent}%</span>
 					<span class="text-retro-dim"
-						>{(stats.memory?.used / 1024 / 1024 / 1024).toFixed(2)} GB USED</span
+						>{(stats.memoryUsed / 1024 / 1024 / 1024).toFixed(2)} GB USED</span
 					>
 				</div>
 				<div class="h-4 w-full bg-retro-off">
 					<div
 						class="h-full bg-retro-primary transition-all duration-500"
-						style="width: {stats.memory?.percent}%"
+						style="width: {stats.memoryPercent}%"
 					></div>
 				</div>
 				<div class="mt-2 text-sm text-retro-dim">
-					TOTAL: {(stats.memory?.total / 1024 / 1024 / 1024).toFixed(2)} GB
+					TOTAL: {(stats.memoryTotal / 1024 / 1024 / 1024).toFixed(2)} GB
 				</div>
 			</div>
 		</div>

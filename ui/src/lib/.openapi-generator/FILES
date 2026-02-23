@@ -1,0 +1,8 @@
+apis/DefaultApi.ts
+apis/index.ts
+docs/DefaultApi.md
+docs/ServerStatusModel.md
+index.ts
+models/ServerStatusModel.ts
+models/index.ts
+runtime.ts

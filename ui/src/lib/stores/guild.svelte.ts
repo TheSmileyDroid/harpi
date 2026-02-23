@@ -1,23 +1,12 @@
 import { browser } from '$app/environment';
+import type { GuildResponse, ChannelsResponse } from '$lib/api/models';
+
+export type { GuildResponse, ChannelsResponse };
 
 const STORAGE_KEY = 'harpi_selected_guild';
 
-export type Guild = {
-	id: string;
-	name: string;
-	icon: string | null;
-};
-
-export type ChannelsDict = {
-	channels: {
-		id: string;
-		name: string;
-	}[];
-	current_channel: string | null;
-};
-
 function createGuildStore() {
-	let selectedGuild = $state<Guild | null>(null);
+	let selectedGuild = $state<GuildResponse | null>(null);
 
 	if (browser) {
 		const stored = localStorage.getItem(STORAGE_KEY);
@@ -34,7 +23,7 @@ function createGuildStore() {
 		get current() {
 			return selectedGuild;
 		},
-		select(guild: Guild | null) {
+		select(guild: GuildResponse | null) {
 			selectedGuild = guild;
 			if (browser) {
 				if (guild) {

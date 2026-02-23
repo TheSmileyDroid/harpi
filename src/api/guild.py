@@ -1,11 +1,15 @@
 """Guild API"""
 
+from __future__ import annotations
+
 import asyncio
 
 from discord import Guild, VoiceChannel
 from discord.ext.commands import Bot
 from loguru import logger
-from quart import Blueprint, jsonify, request, session
+from pydantic import BaseModel
+from quart import Blueprint, session
+from quart_schema import validate_request, validate_response
 
 from src.discord_bot import get_bot_instance
 
@@ -44,78 +48,114 @@ async def _get_guilds() -> list[Guild]:
     return guilds
 
 
-def _guild_to_dict(guild: Guild):
-    return {
-        "id": str(guild.id),
-        "name": guild.name,
-        "icon": str(guild.icon.url) if guild.icon else None,
-    }
+class ChannelResponse(BaseModel):
+    id: str
+    name: str
 
 
-def _channel_to_dict(channel: VoiceChannel):
-    return {
-        "id": str(channel.id),
-        "name": channel.name,
-    }
+def to_channel_response(channel: VoiceChannel) -> ChannelResponse:
+    return ChannelResponse(
+        id=str(channel.id),
+        name=channel.name,
+    )
 
 
-@bp.route("/api/guilds")
-async def api_guilds():
+class GuildResponse(BaseModel):
+    id: str
+    name: str
+    icon: str
+
+
+def to_guild_response(guild: Guild) -> GuildResponse:
+    return GuildResponse(
+        id=str(guild.id),
+        name=guild.name,
+        icon=str(guild.icon.url) if guild.icon else "",
+    )
+
+
+@bp.route("/api/guild")
+@validate_response(list[GuildResponse])
+async def get_guilds():
     guilds_list = await _get_guilds()
-    return jsonify([_guild_to_dict(g) for g in guilds_list])
+    return [to_guild_response(g) for g in guilds_list]
 
 
-@bp.route("/api/guilds/<int:guild_id>/channels")
-async def get_channels(guild_id: int):
+class ChannelsResponse(BaseModel):
+    channels: list[ChannelResponse]
+    current_channel: str | None
+
+
+@bp.route("/api/guild/<guild_id>/channels")
+@validate_response(ChannelsResponse)
+async def get_channels(guild_id: str):
     bot = get_bot_instance()
-    guild = bot.get_guild(guild_id)
+    guild = bot.get_guild(int(guild_id))
     if not guild:
-        return jsonify([]), 404
+        return ChannelsResponse(channels=[], current_channel=None), 404
 
     channel: str | None = None
-    if (guild_config := bot.api.get_guild_config(guild_id)) and (
+    if (guild_config := bot.api.get_guild_config(int(guild_id))) and (
         voice_channel := guild_config.channel
     ):
         channel = str(voice_channel.id)
 
     logger.debug(f"Connected to channel {channel}.")
 
-    return jsonify(
-        {
-            "channels": [_channel_to_dict(c) for c in guild.voice_channels],
-            "current_channel": channel,
-        }
-    ), 200
+    return ChannelsResponse(
+        channels=[to_channel_response(c) for c in guild.voice_channels],
+        current_channel=channel,
+    )
 
 
-@bp.route("/api/guild/select/<int:guild_id>", methods=["POST"])
-async def api_select_guild(guild_id: int):
+class SelectGuildRequest(BaseModel):
+    guild_id: str
+
+
+class GuildSelectResponse(BaseModel):
+    success: bool
+    guild: GuildResponse | None = None
+    error: str | None = None
+
+
+@bp.route("/api/guild", methods=["POST"])
+@validate_request(SelectGuildRequest)
+@validate_response(GuildSelectResponse)
+async def select_guild(data: SelectGuildRequest):
     bot = get_bot_instance()
 
     if bot and bot.is_ready():
-        guild = bot.get_guild(guild_id)
+        guild = bot.get_guild(int(data.guild_id))
         if guild:
-            session["guild_id"] = guild_id
-            return jsonify({"success": True, "guild": _guild_to_dict(guild)})
+            session["guild_id"] = data.guild_id
+            return GuildSelectResponse(
+                success=True, guild=to_guild_response(guild)
+            )
 
-    return jsonify(
-        {"success": False, "error": "Guild not found or bot not ready"}
+    return GuildSelectResponse(
+        success=False, error="Guild not found or bot not ready"
     ), 404
 
 
-@bp.route("/api/guilds/<int:guild_id>/select-channel", methods=["POST"])
-async def select_channel(guild_id: int):
-    bot = get_bot_instance()
-    data = await request.get_json()
-    if not data:
-        return jsonify(
-            {
-                "success": False,
-                "error": "Expected channelId to be passed through POST body.",
-            }
-        ), 400
-    channel_id = int(data.get("channelId"))
-    logger.info(f"Connecting to channel {channel_id}.")
-    run_async(bot, bot.api.connect_to_voice(guild_id, channel_id))
+class SelectChannelRequest(BaseModel):
+    guild_id: str
+    channel_id: str
 
-    return jsonify({"success": True}), 201
+
+class ChannelSelectResponse(BaseModel):
+    success: bool
+    error: str | None = None
+
+
+@bp.route("/api/guild/channel", methods=["POST"])
+@validate_request(SelectChannelRequest)
+@validate_response(ChannelSelectResponse)
+async def select_channel(data: SelectChannelRequest):
+    bot = get_bot_instance()
+    logger.info(f"Connecting to channel {data.channel_id}.")
+    run_async(
+        bot,
+        bot.api.connect_to_voice(int(data.guild_id), int(data.channel_id)),
+    )
+
+    return ChannelSelectResponse(success=True), 201

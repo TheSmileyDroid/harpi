@@ -1,48 +1,55 @@
 <script lang="ts">
 	import { createQuery, createMutation, useQueryClient } from '@tanstack/svelte-query';
 	import { guildStore } from '$lib/stores/guild.svelte';
+	import { api } from '$lib/apiClient';
+	import type {
+		MusicControlResponse,
+		MusicAddResponse,
+		MusicStatusResponse,
+		MusicControlRequestActionEnum,
+		MusicAddRequest,
+		MusicAddRequestTypeEnum
+	} from '$lib/api/models';
 
 	const queryClient = useQueryClient();
 
 	let newMusicLink = $state('');
 	let newLayerLink = $state('');
 
-	type MusicData = {
-		current_music: { title: string; duration: string; url: string } | null;
-		progress: number;
-		queue: { title: string; duration: string; url: string }[];
-		layers: { title: string; id: string; url: string; volume: number }[];
-		is_playing: boolean;
-		is_paused: boolean;
-		loop_mode: 'off' | 'track' | 'queue';
-		volume: number;
-	};
-
 	const guildId = $derived(guildStore.current?.id);
 
-	const musicQuery = createQuery<MusicData>(() => ({
+	const musicQuery = createQuery(() => ({
 		queryKey: ['music', guildId],
 		queryFn: async () => {
 			if (!guildId) throw new Error('No guild selected');
-			const res = await fetch(`/api/music/status?guild_id=${guildId}`);
-			if (!res.ok) throw new Error('Failed to fetch status');
-			return res.json();
+			return await api.getMusicStatus({
+				guildId: guildId
+			});
 		},
 		enabled: !!guildId,
 		refetchInterval: 5000
 	}));
 
 	const controlMutation = createMutation<
-		void,
+		MusicControlResponse,
 		Error,
-		{ action: string; mode?: string; layer_id?: string; volume?: number }
+		{
+			action: MusicControlRequestActionEnum;
+			mode?: string;
+			layer_id?: string;
+			volume?: number;
+		}
 	>(() => ({
 		mutationFn: async ({ action, mode, layer_id, volume }) => {
 			if (!guildId) throw new Error('No guild selected');
-			await fetch('/api/music/control', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ guild_id: guildId, action, mode, layer_id, volume })
+			return await api.postMusicControl({
+				musicControlRequest: {
+					guildId: guildId,
+					action,
+					mode: mode ?? null,
+					layerId: layer_id ?? null,
+					volume: volume ?? null
+				}
 			});
 		},
 		onSuccess: () => {
@@ -53,29 +60,33 @@
 		}
 	}));
 
-	const addMusicMutation = createMutation<void, Error, { link: string; type?: 'queue' | 'layer' }>(
-		() => ({
-			mutationFn: async ({ link, type }) => {
-				if (!guildId) throw new Error('No guild selected');
-				await fetch('/api/music/add', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ guild_id: guildId, link, type })
-				});
-			},
-			onSuccess: (_, variables) => {
-				if (variables.type === 'layer') {
-					newLayerLink = '';
-				} else {
-					newMusicLink = '';
+	const addMusicMutation = createMutation<
+		MusicAddResponse,
+		Error,
+		{ link: string; type?: MusicAddRequestTypeEnum }
+	>(() => ({
+		mutationFn: async ({ link, type }) => {
+			if (!guildId) throw new Error('No guild selected');
+			return await api.postMusicAdd({
+				musicAddRequest: {
+					guildId: guildId,
+					link,
+					type: type ?? 'queue'
 				}
-				queryClient.invalidateQueries({ queryKey: ['music', guildId] });
-			},
-			onError: (error: Error) => {
-				console.error('Add music failed', error);
+			});
+		},
+		onSuccess: (_, variables) => {
+			if (variables.type === 'layer') {
+				newLayerLink = '';
+			} else {
+				newMusicLink = '';
 			}
-		})
-	);
+			queryClient.invalidateQueries({ queryKey: ['music', guildId] });
+		},
+		onError: (error: Error) => {
+			console.error('Add music failed', error);
+		}
+	}));
 
 	const musicData = $derived(musicQuery.data);
 	const connected = $derived(!!musicData);
@@ -83,14 +94,20 @@
 	function handleAddMusic(e: SubmitEvent) {
 		e.preventDefault();
 		if (newMusicLink.trim()) {
-			addMusicMutation.mutate({ link: newMusicLink.trim(), type: 'queue' });
+			addMusicMutation.mutate({
+				link: newMusicLink.trim(),
+				type: 'queue' as MusicAddRequestTypeEnum
+			});
 		}
 	}
 
 	function handleAddLayer(e: SubmitEvent) {
 		e.preventDefault();
 		if (newLayerLink.trim()) {
-			addMusicMutation.mutate({ link: newLayerLink.trim(), type: 'layer' });
+			addMusicMutation.mutate({
+				link: newLayerLink.trim(),
+				type: 'layer' as MusicAddRequestTypeEnum
+			});
 		}
 	}
 </script>
@@ -133,15 +150,15 @@
 		<div class="retro-border relative overflow-hidden bg-black/30 p-6">
 			<h2 class="mb-2 text-xl text-retro-dim">NOW PLAYING sequence...</h2>
 
-			{#if musicData?.current_music}
+			{#if musicData?.currentMusic}
 				<div class="retro-shadow mb-4 truncate text-3xl font-bold">
-					{musicData.current_music.title}
+					{musicData.currentMusic.title}
 				</div>
 
 				<div class="mb-4">
 					<div class="mb-1 flex justify-between text-xs">
 						<span>{musicData.progress}s</span>
-						<span>{musicData.current_music.duration}</span>
+						<span>{musicData.currentMusic.duration}</span>
 					</div>
 					<div class="h-6 w-full border border-retro-primary bg-retro-off p-1">
 						<div class="h-full w-full animate-pulse bg-retro-primary opacity-50"></div>
@@ -153,7 +170,7 @@
 
 			<!-- Controls -->
 			<div class="mt-6 flex flex-wrap justify-center gap-4">
-				{#if musicData?.is_paused}
+				{#if musicData?.isPaused}
 					<button
 						onclick={() => controlMutation.mutate({ action: 'resume' })}
 						disabled={controlMutation.isPending}
@@ -186,15 +203,15 @@
 				</button>
 				<button
 					onclick={() => {
-						const modes = ['off', 'track', 'queue'];
-						const currentIdx = modes.indexOf(musicData?.loop_mode || 'off');
+						const modes: string[] = ['off', 'track', 'queue'];
+						const currentIdx = modes.indexOf(musicData?.loopMode || 'off');
 						const nextMode = modes[(currentIdx + 1) % modes.length];
 						controlMutation.mutate({ action: 'loop', mode: nextMode });
 					}}
 					disabled={controlMutation.isPending}
 					class="border-2 border-retro-primary px-6 py-2 font-bold transition-colors hover:bg-retro-primary hover:text-retro-bg disabled:opacity-50"
 				>
-					[ LOOP: {musicData?.loop_mode?.toUpperCase() || 'OFF'} ]
+					[ LOOP: {musicData?.loopMode?.toString().toUpperCase() || 'OFF'} ]
 				</button>
 			</div>
 
@@ -207,10 +224,10 @@
 					max="2"
 					step="0.05"
 					value={musicData?.volume ?? 0.5}
-					onchange={(e) =>
+					onchange={(e: Event) =>
 						controlMutation.mutate({
 							action: 'set_volume',
-							volume: parseFloat(e.currentTarget.value)
+							volume: parseFloat((e.target as HTMLInputElement).value)
 						})}
 					class="h-2 flex-1 cursor-pointer appearance-none bg-retro-dim/30 accent-retro-primary"
 				/>
@@ -273,11 +290,11 @@
 									max="2"
 									step="0.05"
 									value={layer.volume ?? 0.3}
-									onchange={(e) =>
+									onchange={(e: Event) =>
 										controlMutation.mutate({
 											action: 'set_layer_volume',
 											layer_id: layer.id,
-											volume: parseFloat(e.currentTarget.value)
+											volume: parseFloat((e.target as HTMLInputElement).value)
 										})}
 									class="h-1 flex-1 cursor-pointer appearance-none bg-retro-dim/30 accent-retro-primary"
 								/>

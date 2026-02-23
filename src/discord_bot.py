@@ -13,6 +13,7 @@ from loguru import logger
 from src.cogs.basic import BasicCog
 from src.cogs.dice_cog import DiceCog
 from src.cogs.music import MusicCog
+from src.cogs.test import TestCog
 from src.cogs.tts import TTSCog
 from src.HarpiLib.HarpiBot import HarpiBot
 
@@ -65,6 +66,8 @@ async def create_bot() -> HarpiBot:
     logger.info("Added BasicCog")
     await client.add_cog(DiceCog(client))
     logger.info("Added DiceCog")
+    await client.add_cog(TestCog(client))
+    logger.info("Added TestCog")
 
     logger.info("Bot creation completed")
     return client

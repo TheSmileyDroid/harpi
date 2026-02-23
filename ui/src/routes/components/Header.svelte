@@ -1,26 +1,22 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { guildStore, type ChannelsDict, type Guild } from '$lib/stores/guild.svelte';
+	import { api } from '$lib/apiClient';
+	import { guildStore, type GuildResponse } from '$lib/stores/guild.svelte';
 	import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 	const queryClient = useQueryClient();
 
-	const guildsQuery = createQuery<Guild[]>(() => ({
+	const guildsQuery = createQuery(() => ({
 		queryKey: ['guilds'],
-		queryFn: async () => {
-			const res = await fetch('/api/guilds');
-			if (!res.ok) throw new Error('Failed to fetch guilds');
-			return res.json();
-		}
+		queryFn: async () => api.getGetGuilds()
 	}));
 
-	const channelsQuery = createQuery<ChannelsDict>(() => ({
+	const channelsQuery = createQuery(() => ({
 		queryKey: ['channels', guildStore.current?.id],
 		queryFn: async () => {
-			if (!guildStore.current) return { channels: [], current_channel: null };
-			const res = await fetch(`/api/guilds/${guildStore.current.id}/channels`);
-			if (!res.ok) throw new Error('Failed to fetch channels');
-			return res.json();
+			return await api.getGetChannels({
+				guildId: guildStore.current?.id || ''
+			});
 		},
 		enabled: !!guildStore.current
 	}));
@@ -28,22 +24,19 @@
 	const selectChannelMutation = createMutation(() => ({
 		mutationFn: async (channelId: string) => {
 			if (!guildStore.current) return;
-			const res = await fetch(`/api/guilds/${guildStore.current.id}/select-channel`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ channelId })
+			return await api.postSelectChannel({
+				selectChannelRequest: {
+					guildId: guildStore.current.id,
+					channelId: channelId
+				}
 			});
-			if (!res.ok) throw new Error('Failed to select channel');
-			return res.json();
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['channels'] });
 		}
 	}));
 
-	function selectGuild(guild: Guild) {
+	function selectGuild(guild: GuildResponse) {
 		guildStore.select(guild);
 	}
 </script>
@@ -94,11 +87,11 @@
 			{:else if channelsQuery.isLoading}
 				<option value="">LOADING...</option>
 			{:else if channelsQuery.data}
-				{#if !channelsQuery.data.current_channel}
+				{#if !channelsQuery.data.currentChannel}
 					<option value="">-- SELECT -- </option>
 				{/if}
 				{#each channelsQuery.data.channels as channel (channel.id)}
-					<option value={channel.id} selected={channelsQuery.data.current_channel === channel.id}>
+					<option value={channel.id} selected={channelsQuery.data.currentChannel === channel.id}>
 						{channel.name}
 					</option>
 				{/each}
@@ -109,6 +102,7 @@
 	<nav class="flex gap-6 text-xl">
 		<a href={resolve('/')} class="hover:underline">[ HOME ]</a>
 		<a href={resolve('/music')} class="hover:underline">[ MUSIC ]</a>
+		<a href={resolve('/soundboard')} class="hover:underline">[ SOUNDBOARD ]</a>
 	</nav>
 	<div class="text-retro-dim">
 		{guildStore.current ? `CONNECTED: ${guildStore.current.name.toUpperCase()}` : 'NO GUILD'}

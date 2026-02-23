@@ -54,37 +54,25 @@ class AudioSourceTracked(discord.AudioSource):
         return self.count_20ms * 0.02  # count_20ms * 20ms
 
 
-class YoutubeDLSource(discord.PCMVolumeTransformer):
+class UniqueAudioSource(discord.PCMVolumeTransformer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.id: str = str(uuid.uuid4())
+
+
+class YoutubeDLSource(UniqueAudioSource):
     """Classe responsável por fazer o download de músicas do Youtube."""
 
     def __init__(
-        self,
-        source: discord.AudioSource,
-        *,
-        data: dict[str, Any],
-        volume: float = 0.3,
+        self, source: discord.AudioSource, data: dict[str, Any], **kwargs
     ) -> None:
         """Cria uma instância de YoutubeDLSource."""
-        self._volume_linear = volume
-        super().__init__(source, volume)
+        super().__init__(original=source, **kwargs)
 
         self.data: dict[str, str | int] = data
 
         self.title: str = data.get("title", "Unknown Title")
         self.url: str = data.get("url", "Unknown URL")
-        self.id: str = str(uuid.uuid4())
-
-    @property
-    def volume(self) -> float:
-        """Volume visual (linear) para controle da UI."""
-        return self._volume_linear
-
-    @volume.setter
-    def volume(self, value: float) -> None:
-        """Define o volume com uma curva exponencial (cúbica)."""
-        self._volume_linear = max(value, 0.0)
-        # Aplica curva cúbica (x^3) para percepção mais natural de volume
-        self._volume = self._volume_linear**3
 
     @classmethod
     async def from_music_data(
