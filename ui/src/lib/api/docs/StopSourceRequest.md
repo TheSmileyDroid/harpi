@@ -1,6 +1,7 @@
 
 # StopSourceRequest
 
+Request to stop a source.
 
 ## Properties
 

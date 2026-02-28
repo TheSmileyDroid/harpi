@@ -14,7 +14,7 @@ from quart_cors import cors
 from quart_schema import QuartSchema, validate_request, validate_response
 from src.api import guild, music, soundboard
 from src.discord_bot import run_bot_in_background
-from src.HarpiLib.soundboard.websocket import create_socketio_app
+from src.harpi_lib.soundboard.websocket import create_socketio_app
 
 assert load_dotenv(), "dot env not loaded"
 logger.remove()
@@ -66,7 +66,7 @@ async def startup():
         run_bot_in_background()
         logger.info("Discord bot initialization started")
     except Exception as e:
-        logger.error(f"Failed to start Discord bot: {e}")
+        logger.opt(exception=True).error(f"Failed to start Discord bot: {e}")
 
 
 asgi_app = app

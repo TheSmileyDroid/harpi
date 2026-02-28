@@ -8,16 +8,16 @@ start: types build
 
 dev:
 	uvicorn app:asgi_app --reload &
-	cd frontend; \
+	cd ui; \
 	$(JS_RUNNER) run dev;
 
 build: types
-	cd frontend; \
+	cd ui; \
 	$(JS_RUNNER) run build;
 
 types:
 	python export.py
-	cd frontend; \
+	cd ui; \
 	$(JS_RUNNER) run types;
 
 .PHONY: start types dev build

@@ -1,6 +1,7 @@
 
 # SelectChannelRequest
 
+Request to select a voice channel.
 
 ## Properties
 

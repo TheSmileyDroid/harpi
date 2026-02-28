@@ -6,9 +6,9 @@ from discord.ext import commands
 from discord.ext.commands.context import Context
 from gtts import gTTS
 
-from src.HarpiLib.api import HarpiAPI
-from src.HarpiLib.HarpiBot import HarpiBot
-from src.HarpiLib.musicdata.ytmusicdata import (
+from src.harpi_lib.api import HarpiAPI
+from src.harpi_lib.harpi_bot import HarpiBot
+from src.harpi_lib.musicdata.ytmusicdata import (
     AudioSourceTracked,
     FastStartFFmpegPCMAudio,
 )
@@ -17,7 +17,7 @@ from src.HarpiLib.musicdata.ytmusicdata import (
 class TTSCog(commands.Cog):
     """TTS Cog."""
 
-    def __init__(self, bot: HarpiBot):
+    def __init__(self, bot: HarpiBot) -> None:
         self.bot: HarpiBot = bot
         self.api: HarpiAPI = bot.api
 
@@ -29,8 +29,7 @@ class TTSCog(commands.Cog):
     async def tts(self, ctx: Context, *, text: str) -> discord.Message | None:
         """Text-To-Speech.
 
-        Permite falar (Usando TTS do Google Translate)
-        em um canal de voz.
+        Speak text in a voice channel using Google Translate TTS.
         """
         if not ctx.guild:
             return await ctx.send("Você precisa estar em um servidor.")

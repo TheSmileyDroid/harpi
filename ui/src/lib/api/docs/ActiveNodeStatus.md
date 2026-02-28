@@ -1,6 +1,7 @@
 
 # ActiveNodeStatus
 
+Status of an active soundboard node.
 
 ## Properties
 

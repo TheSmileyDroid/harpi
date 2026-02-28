@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Discord guild information.
  * @export
  * @interface GuildResponse
  */

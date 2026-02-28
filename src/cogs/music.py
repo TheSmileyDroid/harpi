@@ -1,4 +1,4 @@
-"""Módulo responsável por tocar músicas."""
+"""Music playback cog for Discord."""
 
 from __future__ import annotations
 
@@ -10,17 +10,17 @@ import discord.ext.commands
 from discord import Guild, Member, Message, StageChannel
 from discord.ext.commands import Cog, CommandError, Context, command
 
-from src.HarpiLib.api import HarpiAPI, LoopMode
-from src.HarpiLib.HarpiBot import HarpiBot
+from src.harpi_lib.api import HarpiAPI, LoopMode
+from src.harpi_lib.harpi_bot import HarpiBot
 
 idx_count = 0
 
 
 class MusicCog(Cog):
-    """Cog responsável por tocar músicas."""
+    """Discord cog for music playback commands."""
 
     def __init__(self, bot: HarpiBot) -> None:
-        """Inicializa o cog."""
+        """Initialize the music cog."""
         super().__init__()
 
         self.bot: HarpiBot = bot
@@ -50,10 +50,10 @@ class MusicCog(Cog):
 
     @command("join")
     async def join(self, ctx: Context) -> Message:
-        """Entra no canal de voz do usuário.
+        """Join the user's voice channel.
 
         Args:
-             ctx (Context): Contexto do comando.
+             ctx (Context): Command context.
 
         """
         guild, voice_channel, _ = await self._guild_ctx(ctx)
@@ -71,11 +71,11 @@ class MusicCog(Cog):
 
     @command("play")
     async def play(self, ctx: Context, *, link: str) -> None:
-        """Toca uma música.
+        """Play a song.
 
         Arguments:
-            ctx (Context): Contexto do comando.
-            link (str): Link da música a ser tocada.
+            ctx (Context): Command context.
+            link (str): Link of the song to play.
 
         """
         guild, voice_channel, _ = await self._guild_ctx(ctx)
@@ -86,13 +86,13 @@ class MusicCog(Cog):
 
     @command("stop")
     async def stop(self, ctx: Context) -> None:
-        """Para a música atual.
+        """Stop the current song.
 
         Args:
-            ctx (Context): Contexto do comando.
+            ctx (Context): Command context.
 
         Raises:
-            CommandError: Se o usuário não estiver em um canal de voz.
+            CommandError: If the user is not in a voice channel.
 
         """
         async with ctx.typing():
@@ -102,13 +102,13 @@ class MusicCog(Cog):
 
     @command("skip")
     async def skip(self, ctx: Context) -> None:
-        """Pula a música atual.
+        """Skip the current song.
 
         Args:
-            ctx (Context): Contexto do comando.
+            ctx (Context): Command context.
 
         Raises:
-            CommandError: Se o usuário não estiver em um canal de voz.
+            CommandError: If the user is not in a voice channel.
 
         """
         async with ctx.typing():
@@ -118,13 +118,13 @@ class MusicCog(Cog):
 
     @command("disconnect")
     async def disconnect(self, ctx: Context) -> None:
-        """Desconecta o bot do canal de voz atual.
+        """Disconnect the bot from the current voice channel.
 
         Args:
-            ctx (Context): Contexto do comando.
+            ctx (Context): Command context.
 
         Raises:
-            CommandError: Se o bot não estiver em um canal de voz.
+            CommandError: If the bot is not in a voice channel.
         """
         async with ctx.typing():
             guild, _, _ = await self._guild_ctx(ctx)
@@ -136,7 +136,7 @@ class MusicCog(Cog):
         """Loop mode command [off, track, queue].
 
         Args:
-            ctx (Context): Contexto do comando.
+            ctx (Context): Command context.
             mode (str | None): Loop mode [off, track, queue].
 
         Raises:
@@ -165,7 +165,7 @@ class MusicCog(Cog):
         """List the current music queue.
 
         Args:
-            ctx (Context): Contexto do comando.
+            ctx (Context): Command context.
 
         Raises:
             CommandError: If the user is not in a voice channel.
@@ -198,11 +198,11 @@ class MusicCog(Cog):
 
     @command("add_layer")
     async def add_layer(self, ctx: Context, *, link: str) -> Message:
-        """Adiciona um layer.
+        """Add a background audio layer.
 
         Arguments:
-            ctx (Context): Contexto do comando.
-            link (str): Link da música a ser tocada.
+            ctx (Context): Command context.
+            link (str): Link of the audio to play.
 
         """
         guild, voice_channel, _ = await self._guild_ctx(ctx)
@@ -218,11 +218,11 @@ class MusicCog(Cog):
 
     @command("remove_layer")
     async def remove_layer(self, ctx: Context, index: int) -> Message:
-        """Remove um layer específico pelo índice.
+        """Remove a specific layer by index.
 
         Args:
-            ctx (Context): Contexto do comando.
-            index (int): Índice do layer a ser removido (baseado em list_layers).
+            ctx (Context): Command context.
+            index (int): Index of the layer to remove (based on list_layers).
 
         """
         guild, _, _ = await self._guild_ctx(ctx)
@@ -237,19 +237,22 @@ class MusicCog(Cog):
             ):
                 return await ctx.send("Layer inválido.")
 
-            # Get ID from index
-            layer = guild_config.background[index - 1]
-            await self.api.remove_background_audio(guild.id, layer.id)
-            return await ctx.send(f"Layer removido: {layer.title}")
+            # Get ID from index (background is a dict, convert to list)
+            layer_items = list(guild_config.background.items())
+            layer_id, layer_source = layer_items[index - 1]
+            await self.api.remove_background_audio(guild.id, layer_id)
+            return await ctx.send(
+                f"Layer removido: {getattr(layer_source, 'title', layer_id)}"
+            )
         except Exception as e:
             return await ctx.send(str(e))
 
     @command("clean_layers")
     async def clean_layers(self, ctx: Context) -> Message:
-        """Limpa os layers de áudio de fundo.
+        """Clear all background audio layers.
 
         Arguments:
-            ctx (Context): Contexto do comando.
+            ctx (Context): Command context.
 
         """
         guild, _, _ = await self._guild_ctx(ctx)
@@ -263,10 +266,10 @@ class MusicCog(Cog):
 
     @command("list_layers")
     async def list_layers(self, ctx: Context) -> Message:
-        """Lista os layers de áudio de fundo.
+        """List the background audio layers.
 
         Arguments:
-            ctx (Context): Contexto do comando.
+            ctx (Context): Command context.
 
         """
         guild, _, _ = await self._guild_ctx(ctx)

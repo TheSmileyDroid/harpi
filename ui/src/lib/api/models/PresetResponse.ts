@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Soundboard preset data.
  * @export
  * @interface PresetResponse
  */

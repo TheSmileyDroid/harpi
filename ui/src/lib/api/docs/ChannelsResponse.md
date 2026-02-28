@@ -1,6 +1,7 @@
 
 # ChannelsResponse
 
+List of voice channels.
 
 ## Properties
 

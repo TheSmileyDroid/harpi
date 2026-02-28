@@ -20,8 +20,12 @@ import type {
   ConnectSoundboardRequest,
   ConnectionResponse,
   CreatePresetRequest,
+  GuildRequest,
   GuildResponse,
   GuildSelectResponse,
+  LayerRemoveRequest,
+  LayerVolumeRequest,
+  LoopRequest,
   MetadataRequest,
   MetadataResponse,
   MusicAddRequest,
@@ -49,6 +53,7 @@ import type {
   StopSourceRequest,
   UpdateGraphRequest,
   UpdatePresetRequest,
+  VolumeRequest,
 } from '../models/index';
 import {
     ChannelSelectResponseFromJSON,
@@ -61,10 +66,18 @@ import {
     ConnectionResponseToJSON,
     CreatePresetRequestFromJSON,
     CreatePresetRequestToJSON,
+    GuildRequestFromJSON,
+    GuildRequestToJSON,
     GuildResponseFromJSON,
     GuildResponseToJSON,
     GuildSelectResponseFromJSON,
     GuildSelectResponseToJSON,
+    LayerRemoveRequestFromJSON,
+    LayerRemoveRequestToJSON,
+    LayerVolumeRequestFromJSON,
+    LayerVolumeRequestToJSON,
+    LoopRequestFromJSON,
+    LoopRequestToJSON,
     MetadataRequestFromJSON,
     MetadataRequestToJSON,
     MetadataResponseFromJSON,
@@ -119,6 +132,8 @@ import {
     UpdateGraphRequestToJSON,
     UpdatePresetRequestFromJSON,
     UpdatePresetRequestToJSON,
+    VolumeRequestFromJSON,
+    VolumeRequestToJSON,
 } from '../models/index';
 
 export interface DeleteDeletePresetRequest {
@@ -168,6 +183,42 @@ export interface PostMusicAddRequest {
 
 export interface PostMusicControlRequest {
     musicControlRequest?: MusicControlRequest;
+}
+
+export interface PostMusicLayerCleanRequest {
+    guildRequest?: GuildRequest;
+}
+
+export interface PostMusicLayerRemoveRequest {
+    layerRemoveRequest?: LayerRemoveRequest;
+}
+
+export interface PostMusicLayerVolumeRequest {
+    layerVolumeRequest?: LayerVolumeRequest;
+}
+
+export interface PostMusicLoopRequest {
+    loopRequest?: LoopRequest;
+}
+
+export interface PostMusicPauseRequest {
+    guildRequest?: GuildRequest;
+}
+
+export interface PostMusicResumeRequest {
+    guildRequest?: GuildRequest;
+}
+
+export interface PostMusicSkipRequest {
+    guildRequest?: GuildRequest;
+}
+
+export interface PostMusicStopRequest {
+    guildRequest?: GuildRequest;
+}
+
+export interface PostMusicVolumeRequest {
+    volumeRequest?: VolumeRequest;
 }
 
 export interface PostSelectChannelRequest {
@@ -593,7 +644,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     *  Query params:     guild_id: The guild ID to get status for.  Returns:     JSON with music data or error.
+     *  Query params:     guild_id: The guild ID to get status for.
      * Get music status for a guild.
      */
     async getMusicStatusRaw(requestParameters: GetMusicStatusRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MusicStatusResponse>> {
@@ -604,7 +655,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     *  Query params:     guild_id: The guild ID to get status for.  Returns:     JSON with music data or error.
+     *  Query params:     guild_id: The guild ID to get status for.
      * Get music status for a guild.
      */
     async getMusicStatus(requestParameters: GetMusicStatusRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MusicStatusResponse> {
@@ -815,7 +866,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     *  Body:     guild_id: The guild ID.     channel_id: The voice channel ID to connect to.     link: The music URL (YouTube, etc).     type: (Optional) \'queue\' (default) or \'layer\'.  Returns:     JSON with status or error.
+     *  Body:     guild_id: The guild ID.     channel_id: The voice channel ID to connect to.     link: The music URL (YouTube, etc).     type: (Optional) \'queue\' (default) or \'layer\'.
      * Add music to queue via link.
      */
     async postMusicAddRaw(requestParameters: PostMusicAddRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MusicAddResponse>> {
@@ -826,7 +877,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     *  Body:     guild_id: The guild ID.     channel_id: The voice channel ID to connect to.     link: The music URL (YouTube, etc).     type: (Optional) \'queue\' (default) or \'layer\'.  Returns:     JSON with status or error.
+     *  Body:     guild_id: The guild ID.     channel_id: The voice channel ID to connect to.     link: The music URL (YouTube, etc).     type: (Optional) \'queue\' (default) or \'layer\'.
      * Add music to queue via link.
      */
     async postMusicAdd(requestParameters: PostMusicAddRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MusicAddResponse> {
@@ -857,7 +908,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     *  Body:     guild_id: The guild ID.     action: One of \'stop\', \'skip\', \'pause\', \'resume\', \'loop\'.     mode: (Optional) Loop mode for \'loop\' action.  Returns:     JSON with status or error.
+     *  .. deprecated::     Use the individual endpoints instead (e.g. POST /api/music/stop).  Body:     guild_id: The guild ID.     action: One of \'stop\', \'skip\', \'pause\', \'resume\', \'loop\',             \'remove_layer\', \'clean_layers\', \'set_volume\', \'set_layer_volume\'.     mode: (Optional) Loop mode for \'loop\' action.     layer_id: (Optional) Layer ID for layer actions.     volume: (Optional) Volume level.
      * Control music playback for a guild.
      */
     async postMusicControlRaw(requestParameters: PostMusicControlRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MusicControlResponse>> {
@@ -868,11 +919,389 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     *  Body:     guild_id: The guild ID.     action: One of \'stop\', \'skip\', \'pause\', \'resume\', \'loop\'.     mode: (Optional) Loop mode for \'loop\' action.  Returns:     JSON with status or error.
+     *  .. deprecated::     Use the individual endpoints instead (e.g. POST /api/music/stop).  Body:     guild_id: The guild ID.     action: One of \'stop\', \'skip\', \'pause\', \'resume\', \'loop\',             \'remove_layer\', \'clean_layers\', \'set_volume\', \'set_layer_volume\'.     mode: (Optional) Loop mode for \'loop\' action.     layer_id: (Optional) Layer ID for layer actions.     volume: (Optional) Volume level.
      * Control music playback for a guild.
      */
     async postMusicControl(requestParameters: PostMusicControlRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MusicControlResponse> {
         const response = await this.postMusicControlRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for postMusicLayerClean without sending the request
+     */
+    async postMusicLayerCleanRequestOpts(requestParameters: PostMusicLayerCleanRequest): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/api/music/layer/clean`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: GuildRequestToJSON(requestParameters['guildRequest']),
+        };
+    }
+
+    /**
+     * 
+     * Remove all background audio layers.
+     */
+    async postMusicLayerCleanRaw(requestParameters: PostMusicLayerCleanRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MusicControlResponse>> {
+        const requestOptions = await this.postMusicLayerCleanRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MusicControlResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * 
+     * Remove all background audio layers.
+     */
+    async postMusicLayerClean(requestParameters: PostMusicLayerCleanRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MusicControlResponse> {
+        const response = await this.postMusicLayerCleanRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for postMusicLayerRemove without sending the request
+     */
+    async postMusicLayerRemoveRequestOpts(requestParameters: PostMusicLayerRemoveRequest): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/api/music/layer/remove`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: LayerRemoveRequestToJSON(requestParameters['layerRemoveRequest']),
+        };
+    }
+
+    /**
+     * 
+     * Remove a background audio layer.
+     */
+    async postMusicLayerRemoveRaw(requestParameters: PostMusicLayerRemoveRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MusicControlResponse>> {
+        const requestOptions = await this.postMusicLayerRemoveRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MusicControlResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * 
+     * Remove a background audio layer.
+     */
+    async postMusicLayerRemove(requestParameters: PostMusicLayerRemoveRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MusicControlResponse> {
+        const response = await this.postMusicLayerRemoveRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for postMusicLayerVolume without sending the request
+     */
+    async postMusicLayerVolumeRequestOpts(requestParameters: PostMusicLayerVolumeRequest): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/api/music/layer/volume`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: LayerVolumeRequestToJSON(requestParameters['layerVolumeRequest']),
+        };
+    }
+
+    /**
+     * 
+     * Set volume for a specific background audio layer.
+     */
+    async postMusicLayerVolumeRaw(requestParameters: PostMusicLayerVolumeRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MusicControlResponse>> {
+        const requestOptions = await this.postMusicLayerVolumeRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MusicControlResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * 
+     * Set volume for a specific background audio layer.
+     */
+    async postMusicLayerVolume(requestParameters: PostMusicLayerVolumeRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MusicControlResponse> {
+        const response = await this.postMusicLayerVolumeRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for postMusicLoop without sending the request
+     */
+    async postMusicLoopRequestOpts(requestParameters: PostMusicLoopRequest): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/api/music/loop`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: LoopRequestToJSON(requestParameters['loopRequest']),
+        };
+    }
+
+    /**
+     * 
+     * Set the loop mode (off, track, queue).
+     */
+    async postMusicLoopRaw(requestParameters: PostMusicLoopRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MusicControlResponse>> {
+        const requestOptions = await this.postMusicLoopRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MusicControlResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * 
+     * Set the loop mode (off, track, queue).
+     */
+    async postMusicLoop(requestParameters: PostMusicLoopRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MusicControlResponse> {
+        const response = await this.postMusicLoopRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for postMusicPause without sending the request
+     */
+    async postMusicPauseRequestOpts(requestParameters: PostMusicPauseRequest): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/api/music/pause`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: GuildRequestToJSON(requestParameters['guildRequest']),
+        };
+    }
+
+    /**
+     * 
+     * Pause music playback.
+     */
+    async postMusicPauseRaw(requestParameters: PostMusicPauseRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MusicControlResponse>> {
+        const requestOptions = await this.postMusicPauseRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MusicControlResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * 
+     * Pause music playback.
+     */
+    async postMusicPause(requestParameters: PostMusicPauseRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MusicControlResponse> {
+        const response = await this.postMusicPauseRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for postMusicResume without sending the request
+     */
+    async postMusicResumeRequestOpts(requestParameters: PostMusicResumeRequest): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/api/music/resume`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: GuildRequestToJSON(requestParameters['guildRequest']),
+        };
+    }
+
+    /**
+     * 
+     * Resume music playback.
+     */
+    async postMusicResumeRaw(requestParameters: PostMusicResumeRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MusicControlResponse>> {
+        const requestOptions = await this.postMusicResumeRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MusicControlResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * 
+     * Resume music playback.
+     */
+    async postMusicResume(requestParameters: PostMusicResumeRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MusicControlResponse> {
+        const response = await this.postMusicResumeRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for postMusicSkip without sending the request
+     */
+    async postMusicSkipRequestOpts(requestParameters: PostMusicSkipRequest): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/api/music/skip`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: GuildRequestToJSON(requestParameters['guildRequest']),
+        };
+    }
+
+    /**
+     * 
+     * Skip to the next track in the queue.
+     */
+    async postMusicSkipRaw(requestParameters: PostMusicSkipRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MusicControlResponse>> {
+        const requestOptions = await this.postMusicSkipRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MusicControlResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * 
+     * Skip to the next track in the queue.
+     */
+    async postMusicSkip(requestParameters: PostMusicSkipRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MusicControlResponse> {
+        const response = await this.postMusicSkipRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for postMusicStop without sending the request
+     */
+    async postMusicStopRequestOpts(requestParameters: PostMusicStopRequest): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/api/music/stop`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: GuildRequestToJSON(requestParameters['guildRequest']),
+        };
+    }
+
+    /**
+     * 
+     * Stop music playback for a guild.
+     */
+    async postMusicStopRaw(requestParameters: PostMusicStopRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MusicControlResponse>> {
+        const requestOptions = await this.postMusicStopRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MusicControlResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * 
+     * Stop music playback for a guild.
+     */
+    async postMusicStop(requestParameters: PostMusicStopRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MusicControlResponse> {
+        const response = await this.postMusicStopRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for postMusicVolume without sending the request
+     */
+    async postMusicVolumeRequestOpts(requestParameters: PostMusicVolumeRequest): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/api/music/volume`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: VolumeRequestToJSON(requestParameters['volumeRequest']),
+        };
+    }
+
+    /**
+     * 
+     * Set the main playback volume.
+     */
+    async postMusicVolumeRaw(requestParameters: PostMusicVolumeRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MusicControlResponse>> {
+        const requestOptions = await this.postMusicVolumeRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MusicControlResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * 
+     * Set the main playback volume.
+     */
+    async postMusicVolume(requestParameters: PostMusicVolumeRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MusicControlResponse> {
+        const response = await this.postMusicVolumeRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

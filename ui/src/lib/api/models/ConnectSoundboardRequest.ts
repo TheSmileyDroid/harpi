@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Request to connect to a voice channel.
  * @export
  * @interface ConnectSoundboardRequest
  */

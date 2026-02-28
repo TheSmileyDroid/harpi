@@ -17,11 +17,11 @@ amigos = {
 }
 
 
-def check_if_is_me(ctx: commands.Context):
+def check_if_is_me(ctx: commands.Context) -> bool:
     return ctx.author.id == 439894995890208768
 
 
-def check_if_is_member(ctx: commands.Context):
+def check_if_is_member(ctx: commands.Context) -> bool:
     return ctx.author.name in amigos
 
 
@@ -47,7 +47,7 @@ class AmigoCog(commands.Cog):
 
     @commands.command()
     @commands.check(check_if_is_me)
-    async def lista_de_amigos_secreta(self, ctx: commands.Context):
+    async def lista_de_amigos_secreta(self, ctx: commands.Context) -> None:
         random.seed("amigo2022")
         shuffled_list = [x for x in amigos]
         shuffled_list.sort()

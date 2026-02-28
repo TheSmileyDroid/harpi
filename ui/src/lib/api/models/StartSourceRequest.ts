@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Request to start playing a source.
  * @export
  * @interface StartSourceRequest
  */

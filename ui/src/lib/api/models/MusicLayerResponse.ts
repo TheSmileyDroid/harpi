@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Background audio layer information.
  * @export
  * @interface MusicLayerResponse
  */

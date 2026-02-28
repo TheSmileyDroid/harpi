@@ -36,7 +36,7 @@ import {
 } from './MusicLayerResponse';
 
 /**
- * 
+ * Full music playback status for a guild.
  * @export
  * @interface MusicStatusResponse
  */

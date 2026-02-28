@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.HarpiLib.api import LoopMode
+from src.harpi_lib.api import LoopMode
 
 
 class TestFullPlaybackFlow:
@@ -11,7 +11,7 @@ class TestFullPlaybackFlow:
     async def test_connect_creates_guild_config(
         self, mock_bot, mock_guild, mock_voice_channel, mock_voice_client
     ):
-        from src.HarpiLib.api import HarpiAPI
+        from src.harpi_lib.api import HarpiAPI
 
         mock_bot.get_guild.return_value = mock_guild
         mock_guild.get_channel.return_value = mock_voice_channel
@@ -42,7 +42,9 @@ class TestFullPlaybackFlow:
         guild_config.queue = [mock_music1, mock_music2]
         guild_config.current_music = None
 
-        with patch("src.HarpiLib.api.YoutubeDLSource") as mock_ytdl:
+        with patch(
+            "src.harpi_lib.services.music_queue.YoutubeDLSource"
+        ) as mock_ytdl:
             mock_ytdl.from_music_data = AsyncMock(return_value=mock_source)
             await api.next_music(guild_config)
 
@@ -50,7 +52,9 @@ class TestFullPlaybackFlow:
         assert len(guild_config.queue) == 1
         assert guild_config.controller.get_queue_source() == mock_source
 
-        with patch("src.HarpiLib.api.YoutubeDLSource") as mock_ytdl:
+        with patch(
+            "src.harpi_lib.services.music_queue.YoutubeDLSource"
+        ) as mock_ytdl:
             mock_ytdl.from_music_data = AsyncMock(return_value=mock_source)
             await api.skip_music(12345)
 
@@ -85,7 +89,9 @@ class TestLoopModes:
         guild_config.current_music = mock_music
         guild_config.loop = LoopMode.TRACK
 
-        with patch("src.HarpiLib.api.YoutubeDLSource") as mock_ytdl:
+        with patch(
+            "src.harpi_lib.services.music_queue.YoutubeDLSource"
+        ) as mock_ytdl:
             mock_ytdl.from_music_data = AsyncMock(return_value=mock_source)
             await api.next_music(guild_config)
 
@@ -108,7 +114,9 @@ class TestLoopModes:
         guild_config.current_music = mock_music2
         guild_config.loop = LoopMode.QUEUE
 
-        with patch("src.HarpiLib.api.YoutubeDLSource") as mock_ytdl:
+        with patch(
+            "src.harpi_lib.services.music_queue.YoutubeDLSource"
+        ) as mock_ytdl:
             mock_ytdl.from_music_data = AsyncMock(return_value=mock_source)
             await api.next_music(guild_config)
 
@@ -183,7 +191,7 @@ class TestBackgroundAudio:
 class TestMultipleGuilds:
     @pytest.mark.asyncio
     async def test_multiple_guilds_isolated(self, mock_bot):
-        from src.HarpiLib.api import GuildConfig, HarpiAPI
+        from src.harpi_lib.api import GuildConfig, HarpiAPI
 
         api = HarpiAPI(mock_bot)
 
@@ -212,7 +220,7 @@ class TestMultipleGuilds:
 class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_operations_on_nonexistent_guild(self, mock_bot):
-        from src.HarpiLib.api import HarpiAPI
+        from src.harpi_lib.api import HarpiAPI
 
         api = HarpiAPI(mock_bot)
 

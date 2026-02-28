@@ -1,6 +1,7 @@
 
 # MetadataResponse
 
+Audio source metadata.
 
 ## Properties
 

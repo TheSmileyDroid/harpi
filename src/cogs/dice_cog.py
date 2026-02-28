@@ -7,7 +7,7 @@ from discord.ext.commands import Bot, Cog, command
 from discord.ext.commands.context import Context
 from loguru import logger
 
-from src.HarpiLib.math.parser import DiceParser, RollResult
+from src.harpi_lib.math.parser import DiceParser, RollResult
 
 
 class DiceCog(Cog):
@@ -37,12 +37,12 @@ class DiceCog(Cog):
         name="d", aliases=["dado", "rolar", "roll", "r", "math", "calc", "m"]
     )
     async def roll(self, ctx: Context, *, args: str) -> None:
-        """Comando para rolar dados.
+        """Roll dice command.
 
         Args:
             ctx (Context)
-            args (str): String com a quantidade e o tipo de dado a ser rolado
-            (ex: 2d6 ou 1d20+5)
+            args (str): String with the number and type of dice to roll
+            (e.g. 2d6 or 1d20+5)
 
         """
         parser = DiceParser()
@@ -53,11 +53,11 @@ class DiceCog(Cog):
     async def monte_carlo(
         self, ctx: Context, n: int, *, roll_expression: str
     ) -> None:
-        """Executa uma simulação Monte Carlo com n iterações de uma expressão de dados.
+        """Run a Monte Carlo simulation with n iterations of a dice expression.
 
         Args:
-            n (int): Número de iterações para a simulação
-            roll_expression (str): Expressão de dados para simular (ex: 2d6+3)
+            n (int): Number of iterations for the simulation
+            roll_expression (str): Dice expression to simulate (e.g. 2d6+3)
 
         """
         assert n > 0, "O número de iterações deve ser positivo"
@@ -71,20 +71,22 @@ class DiceCog(Cog):
             await ctx.reply(response)
 
         except Exception as e:
-            logger.error(f"Erro na simulação Monte Carlo: {e}")
+            logger.opt(exception=True).error(
+                f"Erro na simulação Monte Carlo: {e}"
+            )
             await ctx.reply(f"Erro ao executar simulação: {str(e)}")
 
     def _run_monte_carlo_simulation(
         self, n: int, roll_expression: str
     ) -> List[int]:
-        """Executa a simulação Monte Carlo.
+        """Run the Monte Carlo simulation.
 
         Args:
-            n (int): Número de iterações
-            roll_expression (str): Expressão de dados
+            n (int): Number of iterations
+            roll_expression (str): Dice expression
 
         Returns:
-            List[int]: Lista com os resultados de cada iteração
+            List[int]: List with the results of each iteration
 
         """
 
@@ -100,15 +102,15 @@ class DiceCog(Cog):
     def _format_monte_carlo_results(
         self, results: List[int], n: int, expression: str
     ) -> str:
-        """Formata os resultados da simulação Monte Carlo.
+        """Format the Monte Carlo simulation results.
 
         Args:
-            results (List[int]): Resultados da simulação
-            n (int): Número de iterações
-            expression (str): Expressão original
+            results (List[int]): Simulation results
+            n (int): Number of iterations
+            expression (str): Original expression
 
         Returns:
-            str: Mensagem formatada com os resultados
+            str: Formatted message with the results
 
         """
         stats = self._calculate_statistics(results)
@@ -137,13 +139,13 @@ class DiceCog(Cog):
     def _calculate_statistics(
         self, results: List[int]
     ) -> Dict[str, float | int | List[tuple]]:
-        """Calcula estatísticas dos resultados.
+        """Calculate statistics from the results.
 
         Args:
-            results (List[int]): Lista de resultados
+            results (List[int]): List of results
 
         Returns:
-            Dict: Dicionário com as estatísticas calculadas
+            Dict: Dictionary with the calculated statistics
 
         """
         import statistics
@@ -153,7 +155,7 @@ class DiceCog(Cog):
         median = statistics.median(results)
         std_dev = statistics.stdev(results) if len(results) > 1 else 0.0
 
-        # Top 5 resultados mais comuns
+        # Top 5 most common results
         counter = Counter(results)
         top_results = counter.most_common(5)
 

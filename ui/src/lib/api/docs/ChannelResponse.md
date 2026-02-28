@@ -1,6 +1,7 @@
 
 # ChannelResponse
 
+Voice channel information.
 
 ## Properties
 

@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Request to select a guild.
  * @export
  * @interface SelectGuildRequest
  */

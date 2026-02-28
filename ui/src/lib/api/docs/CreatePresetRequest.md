@@ -1,6 +1,7 @@
 
 # CreatePresetRequest
 
+Request to create a preset.
 
 ## Properties
 

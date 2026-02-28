@@ -1,0 +1,71 @@
+/* SvelteFlow retro theme overrides.
+ * Import this file from any Svelte component or layout that uses SvelteFlow.
+ * All selectors are global because this is a plain CSS file.
+ */
+
+.svelte-flow {
+	--xy-background-color: #1a150e;
+	--xy-node-border-radius: 0;
+	--xy-handle-background-color: var(--color-retro-primary);
+	--xy-handle-border-color: var(--color-retro-dim);
+	--xy-edge-stroke: var(--color-retro-dim);
+	--xy-edge-stroke-selected: var(--color-retro-primary);
+	--xy-minimap-background-color: #1a150e;
+	--xy-controls-button-background-color: #1a150e;
+	--xy-controls-button-color: var(--color-retro-primary);
+	--xy-controls-button-border-color: var(--color-retro-dim);
+	--xy-attribution-background-color: transparent;
+}
+
+.svelte-flow .svelte-flow__node {
+	border-radius: 0;
+	font-family: 'VT323', monospace;
+}
+
+.svelte-flow .svelte-flow__handle {
+	width: 8px;
+	height: 8px;
+	border-radius: 0;
+	border: 1px solid var(--color-retro-dim);
+	background: var(--color-retro-primary);
+}
+
+.svelte-flow .svelte-flow__edge-path {
+	stroke: var(--color-retro-dim);
+	stroke-width: 2;
+}
+
+.svelte-flow .svelte-flow__edge.selected .svelte-flow__edge-path {
+	stroke: var(--color-retro-primary);
+}
+
+.svelte-flow .svelte-flow__controls {
+	border: 1px solid var(--color-retro-dim);
+	border-radius: 0;
+	box-shadow: 0 0 6px rgba(255, 184, 0, 0.1);
+}
+
+.svelte-flow .svelte-flow__controls button {
+	background: #1a150e;
+	color: var(--color-retro-primary);
+	border-color: var(--color-retro-dim);
+	border-radius: 0;
+}
+
+.svelte-flow .svelte-flow__controls button:hover {
+	background: var(--color-retro-off);
+}
+
+.svelte-flow .svelte-flow__controls button svg {
+	fill: var(--color-retro-primary);
+}
+
+.svelte-flow .svelte-flow__minimap {
+	border: 1px solid var(--color-retro-dim);
+	border-radius: 0;
+	background: #1a150e;
+}
+
+.svelte-flow .svelte-flow__background pattern line {
+	stroke: var(--color-retro-off) !important;
+}

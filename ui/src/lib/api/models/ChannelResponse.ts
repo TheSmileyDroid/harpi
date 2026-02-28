@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Voice channel information.
  * @export
  * @interface ChannelResponse
  */

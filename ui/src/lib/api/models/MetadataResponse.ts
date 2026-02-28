@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Audio source metadata.
  * @export
  * @interface MetadataResponse
  */

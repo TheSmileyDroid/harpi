@@ -1,6 +1,7 @@
 
 # StatusResponse
 
+Generic status response.
 
 ## Properties
 

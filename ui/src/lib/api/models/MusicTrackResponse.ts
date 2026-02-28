@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Current track information.
  * @export
  * @interface MusicTrackResponse
  */

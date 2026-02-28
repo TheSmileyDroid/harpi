@@ -1,4 +1,17 @@
-"""REST API endpoints for soundboard presets and live audio control."""
+"""REST API endpoints for soundboard presets and live audio control.
+
+Thread safety
+-------------
+``source_managers`` is a module-level dict mapping guild IDs to
+``SoundboardSourceManager`` instances.  It is only mutated from Quart's
+event loop (single-threaded async), so no lock is required.  This is an
+**accepted risk** (HIGH-5): if the architecture ever allows concurrent
+event loops to serve requests, a lock would be needed.
+
+Voice connect/disconnect operations use ``run_on_bot_loop()`` to schedule
+discord.py coroutines on the bot's event loop rather than awaiting them
+directly on the Quart loop.
+"""
 
 from __future__ import annotations
 
@@ -9,9 +22,10 @@ from pydantic import BaseModel
 from quart import Blueprint, request
 from quart_schema import validate_request, validate_response
 
-from src.HarpiLib.api import _has_path_to_output
-from src.HarpiLib.soundboard.preset_store import PresetStore, SoundboardPreset
-from src.HarpiLib.soundboard.source_manager import SoundboardSourceManager
+from src.api.deps import get_api, run_on_bot_loop
+from src.harpi_lib.api import _has_path_to_output
+from src.harpi_lib.soundboard.preset_store import PresetStore, SoundboardPreset
+from src.harpi_lib.soundboard.source_manager import SoundboardSourceManager
 
 bp = Blueprint("soundboard", __name__)
 preset_store = PresetStore()
@@ -22,6 +36,8 @@ source_managers: dict[int, SoundboardSourceManager] = {}
 
 
 class PresetResponse(BaseModel):
+    """Soundboard preset data."""
+
     id: str
     name: str
     guild_id: int
@@ -32,6 +48,7 @@ class PresetResponse(BaseModel):
 
 
 def to_preset_response(preset: SoundboardPreset) -> PresetResponse:
+    """Convert a SoundboardPreset to a PresetResponse."""
     return PresetResponse(
         id=preset.id,
         name=preset.name,
@@ -44,6 +61,8 @@ def to_preset_response(preset: SoundboardPreset) -> PresetResponse:
 
 
 class PresetListResponse(BaseModel):
+    """List of soundboard presets."""
+
     id: str
     name: str
     created_at: str
@@ -51,12 +70,16 @@ class PresetListResponse(BaseModel):
 
 
 class ConnectionResponse(BaseModel):
+    """Voice connection status."""
+
     status: str
     channel_id: int | None = None
     error: str | None = None
 
 
 class ActiveNodeStatus(BaseModel):
+    """Status of an active soundboard node."""
+
     node_id: str
     layer_id: str
     playing: bool
@@ -68,11 +91,15 @@ class ActiveNodeStatus(BaseModel):
 
 
 class SoundboardGraphResponse(BaseModel):
+    """Soundboard graph state."""
+
     nodes: list[dict[str, Any]]
     edges: list[dict[str, Any]]
 
 
 class SoundboardStatusResponse(BaseModel):
+    """Full soundboard status for a guild."""
+
     connected: bool
     channel_id: int | None
     channel_name: str | None
@@ -81,6 +108,8 @@ class SoundboardStatusResponse(BaseModel):
 
 
 class SourceActionResponse(BaseModel):
+    """Response for a source control action."""
+
     status: str
     layer_id: str | None = None
     node_id: str | None = None
@@ -88,6 +117,8 @@ class SourceActionResponse(BaseModel):
 
 
 class SourceVolumeResponse(BaseModel):
+    """Response for a volume change."""
+
     status: str
     node_id: str
     volume: float
@@ -95,6 +126,8 @@ class SourceVolumeResponse(BaseModel):
 
 
 class MetadataResponse(BaseModel):
+    """Audio source metadata."""
+
     title: str
     duration: float
     url: str
@@ -106,15 +139,21 @@ class MetadataResponse(BaseModel):
 
 
 class MetadataRequest(BaseModel):
+    """Request to fetch audio metadata."""
+
     url: str
 
 
 class UpdateGraphRequest(BaseModel):
+    """Request to update the soundboard graph."""
+
     nodes: list[dict[str, Any]]
     edges: list[dict[str, Any]]
 
 
 class CreatePresetRequest(BaseModel):
+    """Request to create a preset."""
+
     guild_id: int
     name: str
     nodes: list[dict[str, Any]] = []
@@ -122,6 +161,8 @@ class CreatePresetRequest(BaseModel):
 
 
 class UpdatePresetRequest(BaseModel):
+    """Request to update a preset."""
+
     guild_id: int
     name: str | None = None
     nodes: list[dict[str, Any]] | None = None
@@ -129,10 +170,14 @@ class UpdatePresetRequest(BaseModel):
 
 
 class ConnectSoundboardRequest(BaseModel):
+    """Request to connect to a voice channel."""
+
     channel_id: int
 
 
 class StartSourceRequest(BaseModel):
+    """Request to start playing a source."""
+
     guild_id: str
     channel_id: str | None = None
     node_id: str
@@ -141,17 +186,23 @@ class StartSourceRequest(BaseModel):
 
 
 class StopSourceRequest(BaseModel):
+    """Request to stop a source."""
+
     guild_id: str
     node_id: str
 
 
 class SourceVolumeRequest(BaseModel):
+    """Request to set a source's volume."""
+
     guild_id: str
     node_id: str
     volume: float
 
 
 class StartNodeRequest(BaseModel):
+    """Request to start a graph node."""
+
     guild_id: str
     node_id: str
     url: str
@@ -160,17 +211,23 @@ class StartNodeRequest(BaseModel):
 
 
 class StopNodeRequest(BaseModel):
+    """Request to stop a graph node."""
+
     guild_id: str
     node_id: str
 
 
 class NodeVolumeRequest(BaseModel):
+    """Request to set a node's volume."""
+
     guild_id: str
     node_id: str
     volume: float
 
 
 class NodeLoopRequest(BaseModel):
+    """Request to set a node's loop mode."""
+
     guild_id: str
     node_id: str
     loop: bool
@@ -179,13 +236,9 @@ class NodeLoopRequest(BaseModel):
 def get_source_manager(guild_id: int) -> SoundboardSourceManager:
     """Get or create a source manager for a guild."""
     if guild_id not in source_managers:
-        from src.discord_bot import get_bot_instance
-
-        bot = get_bot_instance()
-        if bot:
-            source_managers[guild_id] = SoundboardSourceManager(
-                bot.api, guild_id
-            )
+        source_managers[guild_id] = SoundboardSourceManager(
+            get_api(), guild_id
+        )
     return source_managers.get(guild_id)
 
 
@@ -194,7 +247,7 @@ def get_source_manager(guild_id: int) -> SoundboardSourceManager:
 
 @bp.route("/api/soundboard/presets", methods=["GET"])
 @validate_response(list[PresetListResponse])
-async def list_presets():
+async def list_presets() -> tuple[dict, int]:
     """List all presets for a guild."""
     guild_id_str = request.args.get("guild_id")
     if not guild_id_str:
@@ -219,7 +272,7 @@ async def list_presets():
 
 @bp.route("/api/soundboard/presets/<preset_id>", methods=["GET"])
 @validate_response(PresetResponse)
-async def get_preset(preset_id: str):
+async def get_preset(preset_id: str) -> tuple[dict, int]:
     """Get a specific preset."""
     guild_id_str = request.args.get("guild_id")
     if not guild_id_str:
@@ -264,7 +317,7 @@ async def get_preset(preset_id: str):
 @bp.route("/api/soundboard/presets", methods=["POST"])
 @validate_request(CreatePresetRequest)
 @validate_response(PresetResponse)
-async def create_preset(data: CreatePresetRequest):
+async def create_preset(data: CreatePresetRequest) -> tuple[dict, int]:
     """Create a new preset."""
     guild_id = data.guild_id
     name = data.name
@@ -289,7 +342,9 @@ async def create_preset(data: CreatePresetRequest):
 @bp.route("/api/soundboard/presets/<preset_id>", methods=["PUT"])
 @validate_request(UpdatePresetRequest)
 @validate_response(PresetResponse)
-async def update_preset(preset_id: str, data: UpdatePresetRequest):
+async def update_preset(
+    preset_id: str, data: UpdatePresetRequest
+) -> tuple[dict, int]:
     """Update an existing preset."""
     guild_id = data.guild_id
 
@@ -316,13 +371,15 @@ async def update_preset(preset_id: str, data: UpdatePresetRequest):
 
 
 class StatusResponse(BaseModel):
+    """Generic status response."""
+
     status: str
     error: str | None = None
 
 
 @bp.route("/api/soundboard/presets/<preset_id>", methods=["DELETE"])
 @validate_response(StatusResponse)
-async def delete_preset(preset_id: str):
+async def delete_preset(preset_id: str) -> tuple[dict, int]:
     """Delete a preset."""
     guild_id_str = request.args.get("guild_id")
     if not guild_id_str:
@@ -345,15 +402,11 @@ async def delete_preset(preset_id: str):
 
 @bp.route("/api/soundboard/graph/<int:guild_id>", methods=["GET"])
 @validate_response(SoundboardGraphResponse)
-async def get_soundboard_graph(guild_id: int):
+async def get_soundboard_graph(guild_id: int) -> tuple[dict, int]:
     """Get the current soundboard graph for a guild."""
-    from src.discord_bot import get_bot_instance
+    api = get_api()
 
-    bot = get_bot_instance()
-    if not bot:
-        return SoundboardGraphResponse(nodes=[], edges=[]), 503
-
-    graph = bot.api.get_soundboard_graph(guild_id)
+    graph = api.get_soundboard_graph(guild_id)
     if not graph:
         return SoundboardGraphResponse(nodes=[], edges=[]), 404
 
@@ -363,17 +416,13 @@ async def get_soundboard_graph(guild_id: int):
 @bp.route("/api/soundboard/graph/<int:guild_id>", methods=["PUT"])
 @validate_request(UpdateGraphRequest)
 @validate_response(SoundboardGraphResponse)
-async def update_soundboard_graph(guild_id: int, data: UpdateGraphRequest):
+async def update_soundboard_graph(
+    guild_id: int, data: UpdateGraphRequest
+) -> tuple[dict, int]:
     """Update the soundboard graph for a guild."""
-    from src.discord_bot import get_bot_instance
+    api = get_api()
 
-    bot = get_bot_instance()
-    if not bot:
-        return SoundboardGraphResponse(nodes=[], edges=[]), 503
-
-    graph = await bot.api.update_soundboard_graph(
-        guild_id, data.nodes, data.edges
-    )
+    graph = await api.update_soundboard_graph(guild_id, data.nodes, data.edges)
     return SoundboardGraphResponse(nodes=graph.nodes, edges=graph.edges)
 
 
@@ -383,7 +432,9 @@ async def update_soundboard_graph(guild_id: int, data: UpdateGraphRequest):
 @bp.route("/api/soundboard/connect/<int:guild_id>", methods=["POST"])
 @validate_request(ConnectSoundboardRequest)
 @validate_response(ConnectionResponse)
-async def connect_soundboard(guild_id: int, data: ConnectSoundboardRequest):
+async def connect_soundboard(
+    guild_id: int, data: ConnectSoundboardRequest
+) -> tuple[dict, int]:
     """Connect to voice channel for soundboard playback.
 
     Body:
@@ -391,64 +442,48 @@ async def connect_soundboard(guild_id: int, data: ConnectSoundboardRequest):
     """
     channel_id = data.channel_id
 
-    from src.discord_bot import get_bot_instance
-
-    bot = get_bot_instance()
-    if not bot:
-        return ConnectionResponse(status="", error="Bot not ready"), 503
+    api = get_api()
 
     try:
-        await bot.api.connect_to_voice(guild_id, channel_id)
+        await run_on_bot_loop(api.connect_to_voice(guild_id, channel_id))
         logger.info(
             f"Soundboard connected to channel {channel_id} in guild {guild_id}"
         )
         return ConnectionResponse(status="connected", channel_id=channel_id)
     except Exception as e:
-        logger.error(f"Failed to connect soundboard: {e}")
+        logger.opt(exception=True).error(f"Failed to connect soundboard: {e}")
         return ConnectionResponse(status="", error=str(e)), 500
 
 
 @bp.route("/api/soundboard/disconnect/<int:guild_id>", methods=["POST"])
-async def disconnect_soundboard(guild_id: int):
+async def disconnect_soundboard(guild_id: int) -> tuple[dict, int]:
     """Disconnect soundboard from voice channel."""
-    from src.discord_bot import get_bot_instance
-
-    bot = get_bot_instance()
-    if not bot:
-        return ConnectionResponse(status="", error="Bot not ready"), 503
+    api = get_api()
 
     manager = get_source_manager(guild_id)
     if manager:
-        manager.stop_all()
+        await manager.stop_all()
 
     try:
-        guild_config = bot.api.get_guild_config(guild_id)
+        guild_config = api.get_guild_config(guild_id)
         if guild_config and guild_config.voice_client:
-            await guild_config.voice_client.disconnect()
+            await run_on_bot_loop(guild_config.voice_client.disconnect())
         logger.info(f"Soundboard disconnected from guild {guild_id}")
         return ConnectionResponse(status="disconnected")
     except Exception as e:
-        logger.error(f"Failed to disconnect soundboard: {e}")
+        logger.opt(exception=True).error(
+            f"Failed to disconnect soundboard: {e}"
+        )
         return ConnectionResponse(status="", error=str(e)), 500
 
 
 @bp.route("/api/soundboard/status/<int:guild_id>", methods=["GET"])
 @validate_response(SoundboardStatusResponse)
-async def get_soundboard_status(guild_id: int):
+async def get_soundboard_status(guild_id: int) -> tuple[dict, int]:
     """Get soundboard connection and playback status."""
-    from src.discord_bot import get_bot_instance
+    api = get_api()
 
-    bot = get_bot_instance()
-    if not bot:
-        return SoundboardStatusResponse(
-            connected=False,
-            channel_id=None,
-            channel_name=None,
-            active_nodes=[],
-            graph=None,
-        ), 503
-
-    guild_config = bot.api.get_guild_config(guild_id)
+    guild_config = api.get_guild_config(guild_id)
     is_connected = (
         guild_config is not None
         and guild_config.voice_client is not None
@@ -462,7 +497,7 @@ async def get_soundboard_status(guild_id: int):
         for nid, lid in manager._node_to_layer.items():
             layer_to_node[lid] = nid
 
-    active_nodes = bot.api.get_background_audio_status(guild_id)
+    active_nodes = api.get_background_audio_status(guild_id)
     node_statuses = []
 
     playing_node_ids: set[str] = set()
@@ -511,7 +546,7 @@ async def get_soundboard_status(guild_id: int):
                     )
                 )
 
-    graph = bot.api.get_soundboard_graph(guild_id)
+    graph = api.get_soundboard_graph(guild_id)
     graph_response = None
     if graph:
         graph_response = SoundboardGraphResponse(
@@ -537,7 +572,7 @@ async def get_soundboard_status(guild_id: int):
 @bp.route("/api/soundboard/source/start", methods=["POST"])
 @validate_request(StartSourceRequest)
 @validate_response(SourceActionResponse)
-async def start_source(data: StartSourceRequest):
+async def start_source(data: StartSourceRequest) -> tuple[dict, int]:
     """Start playing a source (adds as background layer).
 
     Body:
@@ -547,8 +582,6 @@ async def start_source(data: StartSourceRequest):
         url: The audio URL.
         volume: Initial volume (0-200, default 100).
     """
-    from src.discord_bot import get_bot_instance
-
     try:
         guild_id = int(data.guild_id)
         channel_id = int(data.channel_id) if data.channel_id else None
@@ -556,10 +589,6 @@ async def start_source(data: StartSourceRequest):
         return SourceActionResponse(
             status="", error="Invalid guild_id or channel_id"
         ), 400
-
-    bot = get_bot_instance()
-    if not bot:
-        return SourceActionResponse(status="", error="Bot not ready"), 503
 
     manager = get_source_manager(guild_id)
     if not manager:
@@ -576,14 +605,14 @@ async def start_source(data: StartSourceRequest):
             status="started", layer_id=str(layer_id), node_id=data.node_id
         )
     except Exception as e:
-        logger.error(f"Failed to start source: {e}")
+        logger.opt(exception=True).error(f"Failed to start source: {e}")
         return SourceActionResponse(status="", error=str(e)), 500
 
 
 @bp.route("/api/soundboard/source/stop", methods=["POST"])
 @validate_request(StopSourceRequest)
 @validate_response(SourceActionResponse)
-async def stop_source(data: StopSourceRequest):
+async def stop_source(data: StopSourceRequest) -> tuple[dict, int]:
     """Stop a source (removes background layer).
 
     Body:
@@ -602,18 +631,18 @@ async def stop_source(data: StopSourceRequest):
         ), 404
 
     try:
-        manager.stop_source(data.node_id)
+        await manager.stop_source(data.node_id)
         logger.info(f"Stopped source {data.node_id}")
         return SourceActionResponse(status="stopped", node_id=data.node_id)
     except Exception as e:
-        logger.error(f"Failed to stop source: {e}")
+        logger.opt(exception=True).error(f"Failed to stop source: {e}")
         return SourceActionResponse(status="", error=str(e)), 500
 
 
 @bp.route("/api/soundboard/source/volume", methods=["POST"])
 @validate_request(SourceVolumeRequest)
 @validate_response(SourceVolumeResponse)
-async def set_source_volume(data: SourceVolumeRequest):
+async def set_source_volume(data: SourceVolumeRequest) -> tuple[dict, int]:
     """Set volume for a source.
 
     Body:
@@ -641,12 +670,12 @@ async def set_source_volume(data: SourceVolumeRequest):
         ), 404
 
     try:
-        manager.set_volume(data.node_id, data.volume)
+        await manager.set_volume(data.node_id, data.volume)
         return SourceVolumeResponse(
             status="ok", node_id=data.node_id, volume=data.volume
         )
     except Exception as e:
-        logger.error(f"Failed to set volume: {e}")
+        logger.opt(exception=True).error(f"Failed to set volume: {e}")
         return SourceVolumeResponse(
             status="", node_id=data.node_id, volume=data.volume, error=str(e)
         ), 500
@@ -654,11 +683,11 @@ async def set_source_volume(data: SourceVolumeRequest):
 
 @bp.route("/api/soundboard/stop/<int:guild_id>", methods=["POST"])
 @validate_response(StatusResponse)
-async def stop_all_sources(guild_id: int):
+async def stop_all_sources(guild_id: int) -> tuple[dict, int]:
     """Stop all soundboard sources for a guild."""
     manager = get_source_manager(guild_id)
     if manager:
-        manager.stop_all()
+        await manager.stop_all()
 
     return StatusResponse(status="ok")
 
@@ -669,13 +698,13 @@ async def stop_all_sources(guild_id: int):
 @bp.route("/api/soundboard/node/metadata", methods=["POST"])
 @validate_request(MetadataRequest)
 @validate_response(MetadataResponse)
-async def fetch_node_metadata(data: MetadataRequest):
+async def fetch_node_metadata(data: MetadataRequest) -> tuple[dict, int]:
     """Fetch metadata for a URL without starting playback.
 
     Body:
         url: The audio URL (YouTube, etc).
     """
-    from src.HarpiLib.musicdata.ytmusicdata import YTMusicData
+    from src.harpi_lib.musicdata.ytmusicdata import YTMusicData
 
     try:
         music_data_list = await YTMusicData.from_url(data.url)
@@ -695,7 +724,7 @@ async def fetch_node_metadata(data: MetadataRequest):
             thumbnail=md.thumbnail,
         )
     except Exception as e:
-        logger.error(f"Failed to fetch metadata: {e}")
+        logger.opt(exception=True).error(f"Failed to fetch metadata: {e}")
         return MetadataResponse(
             title="",
             duration=0.0,
@@ -707,7 +736,7 @@ async def fetch_node_metadata(data: MetadataRequest):
 @bp.route("/api/soundboard/node/start", methods=["POST"])
 @validate_request(StartNodeRequest)
 @validate_response(SourceActionResponse)
-async def start_node(data: StartNodeRequest):
+async def start_node(data: StartNodeRequest) -> tuple[dict, int]:
     """Prepare a sound source node (load but don't play yet).
 
     Body:
@@ -717,20 +746,18 @@ async def start_node(data: StartNodeRequest):
         volume: Initial volume (0-200, default 100).
         loop: Whether to loop the audio (default false).
     """
-    from src.discord_bot import get_bot_instance
-
     try:
         guild_id = int(data.guild_id)
     except (ValueError, TypeError):
         return SourceActionResponse(status="", error="Invalid guild_id"), 400
 
-    bot = get_bot_instance()
-    if not bot:
+    api = get_api()
+    if not api:
         return SourceActionResponse(
             status="", node_id=data.node_id, error="Bot not ready"
         ), 503
 
-    guild_config = bot.api.get_guild_config(guild_id)
+    guild_config = api.get_guild_config(guild_id)
     if not guild_config:
         return SourceActionResponse(
             status="", node_id=data.node_id, error="Not connected to voice"
@@ -738,21 +765,21 @@ async def start_node(data: StartNodeRequest):
 
     try:
         if data.node_id not in guild_config.prepared_sources:
-            await bot.api.prepare_source(
+            await api.prepare_source(
                 guild_id, data.node_id, data.url, data.volume
             )
             logger.info(f"Prepared node {data.node_id}")
 
-        graph = bot.api.get_soundboard_graph(guild_id)
+        graph = api.get_soundboard_graph(guild_id)
         if graph and _has_path_to_output(
             data.node_id, graph.nodes, graph.edges
         ):
-            await bot.api.start_source_playback(guild_id, data.node_id)
+            await api.start_source_playback(guild_id, data.node_id)
             logger.info(f"Started playback for node {data.node_id}")
 
         return SourceActionResponse(status="prepared", node_id=data.node_id)
     except Exception as e:
-        logger.error(f"Failed to prepare node: {e}")
+        logger.opt(exception=True).error(f"Failed to prepare node: {e}")
         return SourceActionResponse(
             status="", node_id=data.node_id, error=str(e)
         ), 500
@@ -761,7 +788,7 @@ async def start_node(data: StartNodeRequest):
 @bp.route("/api/soundboard/node/loop", methods=["POST"])
 @validate_request(NodeLoopRequest)
 @validate_response(SourceActionResponse)
-async def set_node_loop(data: NodeLoopRequest):
+async def set_node_loop(data: NodeLoopRequest) -> tuple[dict, int]:
     """Set loop for a node.
 
     Body:
@@ -769,19 +796,17 @@ async def set_node_loop(data: NodeLoopRequest):
         node_id: The node identifier.
         loop: Whether to loop the audio.
     """
-    from src.discord_bot import get_bot_instance
-
     try:
         guild_id = int(data.guild_id)
     except (ValueError, TypeError):
         return SourceActionResponse(status="", error="Invalid guild_id"), 400
 
-    bot = get_bot_instance()
-    if not bot:
+    api = get_api()
+    if not api:
         return SourceActionResponse(status="", error="Bot not ready"), 503
 
     try:
-        graph = bot.api.get_soundboard_graph(guild_id)
+        graph = api.get_soundboard_graph(guild_id)
         if graph:
             for node in graph.nodes:
                 if node.get("id") == data.node_id:
@@ -791,41 +816,39 @@ async def set_node_loop(data: NodeLoopRequest):
         logger.info(f"Set loop={data.loop} for node {data.node_id}")
         return SourceActionResponse(status="ok", node_id=data.node_id)
     except Exception as e:
-        logger.error(f"Failed to set loop: {e}")
+        logger.opt(exception=True).error(f"Failed to set loop: {e}")
         return SourceActionResponse(status="", error=str(e)), 500
 
 
 @bp.route("/api/soundboard/node/stop", methods=["POST"])
 @validate_request(StopNodeRequest)
 @validate_response(SourceActionResponse)
-async def stop_node(data: StopNodeRequest):
+async def stop_node(data: StopNodeRequest) -> tuple[dict, int]:
     """Stop a sound source node - stops playback and unloads.
 
     Body:
         guild_id: The guild ID.
         node_id: The node identifier to stop.
     """
-    from src.discord_bot import get_bot_instance
-
     try:
         guild_id = int(data.guild_id)
     except (ValueError, TypeError):
         return SourceActionResponse(status="", error="Invalid guild_id"), 400
 
-    bot = get_bot_instance()
-    if not bot:
+    api = get_api()
+    if not api:
         return SourceActionResponse(
             status="", node_id=data.node_id, error="Bot not ready"
         ), 503
 
-    guild_config = bot.api.get_guild_config(guild_id)
+    guild_config = api.get_guild_config(guild_id)
     if not guild_config:
         return SourceActionResponse(
             status="", node_id=data.node_id, error="Not connected to voice"
         ), 400
 
     try:
-        await bot.api.stop_source_playback(guild_id, data.node_id)
+        await api.stop_source_playback(guild_id, data.node_id)
 
         if data.node_id in guild_config.prepared_sources:
             source = guild_config.prepared_sources.pop(data.node_id)
@@ -836,7 +859,7 @@ async def stop_node(data: StopNodeRequest):
         logger.info(f"Stopped node {data.node_id}")
         return SourceActionResponse(status="stopped", node_id=data.node_id)
     except Exception as e:
-        logger.error(f"Failed to stop node: {e}")
+        logger.opt(exception=True).error(f"Failed to stop node: {e}")
         return SourceActionResponse(
             status="", node_id=data.node_id, error=str(e)
         ), 500
@@ -845,7 +868,7 @@ async def stop_node(data: StopNodeRequest):
 @bp.route("/api/soundboard/node/volume", methods=["POST"])
 @validate_request(NodeVolumeRequest)
 @validate_response(SourceVolumeResponse)
-async def set_node_volume(data: NodeVolumeRequest):
+async def set_node_volume(data: NodeVolumeRequest) -> tuple[dict, int]:
     """Set volume for a node.
 
     Body:
@@ -874,12 +897,12 @@ async def set_node_volume(data: NodeVolumeRequest):
         ), 404
 
     try:
-        manager.set_volume(data.node_id, volume)
+        await manager.set_volume(data.node_id, volume)
         return SourceVolumeResponse(
             status="ok", node_id=data.node_id, volume=volume
         )
     except Exception as e:
-        logger.error(f"Failed to set volume: {e}")
+        logger.opt(exception=True).error(f"Failed to set volume: {e}")
         return SourceVolumeResponse(
             status="", node_id=data.node_id, volume=data.volume, error=str(e)
         ), 500

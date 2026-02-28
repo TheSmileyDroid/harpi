@@ -1,1 +1,1 @@
-"""O módulo principal do bot."""
+"""Main bot module."""

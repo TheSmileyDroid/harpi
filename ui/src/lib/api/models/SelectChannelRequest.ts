@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Request to select a voice channel.
  * @export
  * @interface SelectChannelRequest
  */

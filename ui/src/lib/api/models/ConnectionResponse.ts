@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Voice connection status.
  * @export
  * @interface ConnectionResponse
  */

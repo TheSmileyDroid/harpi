@@ -1,6 +1,7 @@
 
 # UpdateGraphRequest
 
+Request to update the soundboard graph.
 
 ## Properties
 

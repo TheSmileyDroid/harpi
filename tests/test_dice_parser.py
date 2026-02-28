@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.HarpiLib.math.parser import DiceParser, RollResult
+from src.harpi_lib.math.parser import DiceParser, RollResult
 
 
 class TestDiceParserInit:

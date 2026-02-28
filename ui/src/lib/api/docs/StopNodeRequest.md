@@ -1,6 +1,7 @@
 
 # StopNodeRequest
 
+Request to stop a graph node.
 
 ## Properties
 

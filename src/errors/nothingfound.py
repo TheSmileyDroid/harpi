@@ -1,11 +1,11 @@
-"""Erro gerado quando nenhum vídeo for encontrado."""
+"""Error raised when no video is found."""
 
 
 class NothingFoundError(Exception):
-    """Erro gerado quando nenhum vídeo for encontrado."""
+    """Error raised when no video is found for a search query."""
 
     def __init__(self, query: str) -> None:
-        """Cria uma instância de NothingFound.
+        """Create a NothingFoundError instance.
 
         Args:
             query (str): A string representing the search query.

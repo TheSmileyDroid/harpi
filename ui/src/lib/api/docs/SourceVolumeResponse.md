@@ -1,6 +1,7 @@
 
 # SourceVolumeResponse
 
+Response for a volume change.
 
 ## Properties
 

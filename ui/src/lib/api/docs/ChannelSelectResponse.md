@@ -1,6 +1,7 @@
 
 # ChannelSelectResponse
 
+Response after selecting a channel.
 
 ## Properties
 

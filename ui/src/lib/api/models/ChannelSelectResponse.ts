@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Response after selecting a channel.
  * @export
  * @interface ChannelSelectResponse
  */

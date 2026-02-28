@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Request to set a source's volume.
  * @export
  * @interface SourceVolumeRequest
  */

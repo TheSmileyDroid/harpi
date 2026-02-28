@@ -22,7 +22,7 @@ import {
 } from './GuildResponse';
 
 /**
- * 
+ * Response after selecting a guild.
  * @export
  * @interface GuildSelectResponse
  */

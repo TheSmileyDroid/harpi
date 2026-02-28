@@ -1,6 +1,7 @@
 
 # MusicTrackResponse
 
+Current track information.
 
 ## Properties
 

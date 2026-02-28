@@ -1,10 +1,10 @@
-"""Módulo responsável por gerar erros relacionados a links inválidos."""
+"""Error raised for invalid links."""
 
 
 class BadLink(Exception):
-    """Erro gerado quando o link fornecido não é válido."""
+    """Error raised when the provided link is invalid."""
 
-    def __init__(self, link) -> None:
+    def __init__(self, link: str) -> None:
         self.link = link
 
     def __str__(self) -> str:

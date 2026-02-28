@@ -1,1 +1,1 @@
-"""Módulo responsável por carregar os cogs do bot."""
+"""Bot cog loader module."""

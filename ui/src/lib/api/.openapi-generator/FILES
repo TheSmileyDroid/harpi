@@ -8,8 +8,12 @@ docs/ConnectSoundboardRequest.md
 docs/ConnectionResponse.md
 docs/CreatePresetRequest.md
 docs/DefaultApi.md
+docs/GuildRequest.md
 docs/GuildResponse.md
 docs/GuildSelectResponse.md
+docs/LayerRemoveRequest.md
+docs/LayerVolumeRequest.md
+docs/LoopRequest.md
 docs/MetadataRequest.md
 docs/MetadataResponse.md
 docs/MusicAddRequest.md
@@ -41,6 +45,7 @@ docs/StopNodeRequest.md
 docs/StopSourceRequest.md
 docs/UpdateGraphRequest.md
 docs/UpdatePresetRequest.md
+docs/VolumeRequest.md
 index.ts
 models/ActiveNodeStatus.ts
 models/ChannelResponse.ts
@@ -49,8 +54,12 @@ models/ChannelsResponse.ts
 models/ConnectSoundboardRequest.ts
 models/ConnectionResponse.ts
 models/CreatePresetRequest.ts
+models/GuildRequest.ts
 models/GuildResponse.ts
 models/GuildSelectResponse.ts
+models/LayerRemoveRequest.ts
+models/LayerVolumeRequest.ts
+models/LoopRequest.ts
 models/MetadataRequest.ts
 models/MetadataResponse.ts
 models/MusicAddRequest.ts
@@ -82,5 +91,6 @@ models/StopNodeRequest.ts
 models/StopSourceRequest.ts
 models/UpdateGraphRequest.ts
 models/UpdatePresetRequest.ts
+models/VolumeRequest.ts
 models/index.ts
 runtime.ts

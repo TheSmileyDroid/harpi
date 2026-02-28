@@ -1,6 +1,7 @@
 
 # SourceActionResponse
 
+Response for a source control action.
 
 ## Properties
 

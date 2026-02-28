@@ -1,6 +1,7 @@
 
 # GuildResponse
 
+Discord guild information.
 
 ## Properties
 

@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import discord
 import pytest
 
-from src.HarpiLib.api import GuildConfig, HarpiAPI, LoopMode
-from src.HarpiLib.music.mixer import MixerSource
+from src.harpi_lib.api import GuildConfig, HarpiAPI, LoopMode
+from src.harpi_lib.music.mixer import MixerSource
 
 
 @pytest.fixture
@@ -41,12 +41,6 @@ def mock_voice_client():
     vc.disconnect = AsyncMock()
     vc.play = MagicMock()
     return vc
-
-
-@pytest.fixture
-def mock_context():
-    ctx = MagicMock()
-    return ctx
 
 
 @pytest.fixture
@@ -156,7 +150,9 @@ class TestSkipMusic:
         )
         api.guilds[12345] = guild_config
 
-        with patch.object(api, "next_music", AsyncMock()) as mock_next:
+        with patch.object(
+            api._music_queue, "next_music", AsyncMock()
+        ) as mock_next:
             await api.skip_music(12345)
             mock_next.assert_called_once_with(guild_config, force_next=True)
 

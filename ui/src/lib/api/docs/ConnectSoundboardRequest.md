@@ -1,6 +1,7 @@
 
 # ConnectSoundboardRequest
 
+Request to connect to a voice channel.
 
 ## Properties
 

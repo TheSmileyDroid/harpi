@@ -22,7 +22,7 @@ import {
 } from './ChannelResponse';
 
 /**
- * 
+ * List of voice channels.
  * @export
  * @interface ChannelsResponse
  */

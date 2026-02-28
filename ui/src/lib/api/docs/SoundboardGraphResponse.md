@@ -1,6 +1,7 @@
 
 # SoundboardGraphResponse
 
+Soundboard graph state.
 
 ## Properties
 

@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Response after adding music.
  * @export
  * @interface MusicAddResponse
  */

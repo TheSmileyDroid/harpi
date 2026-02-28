@@ -1,6 +1,7 @@
 
 # MusicLayerResponse
 
+Background audio layer information.
 
 ## Properties
 

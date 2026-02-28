@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Status of an active soundboard node.
  * @export
  * @interface ActiveNodeStatus
  */

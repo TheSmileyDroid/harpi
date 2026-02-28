@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Generic status response.
  * @export
  * @interface StatusResponse
  */

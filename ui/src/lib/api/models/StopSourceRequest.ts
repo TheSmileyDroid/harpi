@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Request to stop a source.
  * @export
  * @interface StopSourceRequest
  */

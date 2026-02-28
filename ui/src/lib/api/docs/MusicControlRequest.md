@@ -1,6 +1,7 @@
 
 # MusicControlRequest
 
+Legacy control request (deprecated).
 
 ## Properties
 

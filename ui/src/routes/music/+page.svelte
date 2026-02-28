@@ -15,6 +15,7 @@
 
 	let newMusicLink = $state('');
 	let newLayerLink = $state('');
+	let mutationError = $state('');
 
 	const guildId = $derived(guildStore.current?.id);
 
@@ -53,9 +54,11 @@
 			});
 		},
 		onSuccess: () => {
+			mutationError = '';
 			queryClient.invalidateQueries({ queryKey: ['music', guildId] });
 		},
 		onError: (error: Error) => {
+			mutationError = error.message || 'Control action failed';
 			console.error('Control failed', error);
 		}
 	}));
@@ -76,6 +79,7 @@
 			});
 		},
 		onSuccess: (_, variables) => {
+			mutationError = '';
 			if (variables.type === 'layer') {
 				newLayerLink = '';
 			} else {
@@ -84,6 +88,7 @@
 			queryClient.invalidateQueries({ queryKey: ['music', guildId] });
 		},
 		onError: (error: Error) => {
+			mutationError = error.message || 'Failed to add music';
 			console.error('Add music failed', error);
 		}
 	}));
@@ -127,8 +132,20 @@
 	{:else if musicQuery.isLoading}
 		<div class="crt-flicker">LOADING DATA STREAMS...</div>
 	{:else if musicQuery.isError}
-		<div class="py-4 text-center text-retro-dim">NO ACTIVE AUDIO SESSION</div>
+		<div class="py-4 text-center text-retro-dim">
+			{musicQuery.error?.message === 'No guild selected'
+				? 'NO ACTIVE AUDIO SESSION'
+				: `ERROR: ${musicQuery.error?.message || 'Failed to fetch music status'}`}
+		</div>
 	{:else}
+		{#if mutationError}
+			<div class="retro-border mb-4 border-red-500 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+				{mutationError}
+				<button onclick={() => (mutationError = '')} class="ml-2 text-red-300 hover:text-red-100">
+					[ DISMISS ]
+				</button>
+			</div>
+		{/if}
 		<!-- Add Music Form -->
 		<form onsubmit={handleAddMusic} class="retro-border flex gap-4 bg-black/30 p-4">
 			<input

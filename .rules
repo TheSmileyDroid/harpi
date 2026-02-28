@@ -3,4 +3,4 @@
 - Harpi é um bot do discord com uma interface de usuário bem polida e com estética retro baseada em computadores antigos com uma iluminação amarelada seguindo o estilo dos tempad da TVA.
 - You need to use uv to manage python packages on backend (root of the project)
 - You need to use bun to manage svelte on frontend (ui folder)
-- The api to connect the two is in the src/api folder and most of the utilities should be in bot.api object (class defined in src.HarpiLib.api) since it is also the same api that responds to the discord commands on the cogs (src/cogs)
+- The api to connect the two is in the src/api folder and most of the utilities should be in bot.api object (class defined in src.harpi_lib.api) since it is also the same api that responds to the discord commands on the cogs (src/cogs)

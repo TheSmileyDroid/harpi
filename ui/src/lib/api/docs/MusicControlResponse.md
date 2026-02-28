@@ -1,6 +1,7 @@
 
 # MusicControlResponse
 
+Response for a music control action.
 
 ## Properties
 

@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Queue track information.
  * @export
  * @interface QueueItemResponse
  */

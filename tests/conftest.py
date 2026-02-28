@@ -4,8 +4,8 @@ import discord
 import numpy as np
 import pytest
 
-from src.HarpiLib.music.soundboard import SoundboardController
-from src.HarpiLib.music.mixer import MixerSource
+from src.harpi_lib.music.soundboard import SoundboardController
+from src.harpi_lib.music.mixer import MixerSource
 
 
 SAMPLE_RATE = 48000

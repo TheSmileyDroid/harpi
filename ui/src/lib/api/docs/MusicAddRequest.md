@@ -1,6 +1,7 @@
 
 # MusicAddRequest
 
+Request to add music to queue or as a layer.
 
 ## Properties
 

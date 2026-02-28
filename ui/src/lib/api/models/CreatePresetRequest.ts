@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Request to create a preset.
  * @export
  * @interface CreatePresetRequest
  */

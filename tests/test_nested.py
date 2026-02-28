@@ -1,4 +1,4 @@
-from src.HarpiLib.nested import get_nested_attr
+from src.harpi_lib.nested import get_nested_attr
 
 
 class SimpleObject:

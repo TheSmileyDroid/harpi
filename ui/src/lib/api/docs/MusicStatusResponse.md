@@ -1,6 +1,7 @@
 
 # MusicStatusResponse
 
+Full music playback status for a guild.
 
 ## Properties
 

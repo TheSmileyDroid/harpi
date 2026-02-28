@@ -1,6 +1,7 @@
 
 # ConnectionResponse
 
+Voice connection status.
 
 ## Properties
 

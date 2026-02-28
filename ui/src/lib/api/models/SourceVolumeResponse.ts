@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Response for a volume change.
  * @export
  * @interface SourceVolumeResponse
  */

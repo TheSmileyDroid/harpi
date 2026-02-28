@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Request to update the soundboard graph.
  * @export
  * @interface UpdateGraphRequest
  */

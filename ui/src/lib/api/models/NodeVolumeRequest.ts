@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Request to set a node's volume.
  * @export
  * @interface NodeVolumeRequest
  */

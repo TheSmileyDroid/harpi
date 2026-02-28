@@ -2,7 +2,7 @@ import threading
 from unittest.mock import MagicMock
 
 
-from src.HarpiLib.music.soundboard import SoundboardController
+from src.harpi_lib.music.soundboard import SoundboardController
 
 
 class TestSoundboardControllerInit:

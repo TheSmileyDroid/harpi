@@ -1,1 +1,1 @@
-"""Define dos erros gerados pelo bot."""
+"""Custom error types for the bot."""

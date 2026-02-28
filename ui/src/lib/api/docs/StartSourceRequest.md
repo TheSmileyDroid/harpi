@@ -1,6 +1,7 @@
 
 # StartSourceRequest
 
+Request to start playing a source.
 
 ## Properties
 

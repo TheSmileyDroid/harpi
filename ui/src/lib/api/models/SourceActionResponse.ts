@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Response for a source control action.
  * @export
  * @interface SourceActionResponse
  */

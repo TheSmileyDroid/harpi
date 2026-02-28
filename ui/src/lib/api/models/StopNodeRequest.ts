@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Request to stop a graph node.
  * @export
  * @interface StopNodeRequest
  */

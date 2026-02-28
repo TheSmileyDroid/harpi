@@ -1,6 +1,7 @@
 
 # QueueItemResponse
 
+Queue track information.
 
 ## Properties
 

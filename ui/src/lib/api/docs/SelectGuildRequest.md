@@ -1,6 +1,7 @@
 
 # SelectGuildRequest
 
+Request to select a guild.
 
 ## Properties
 

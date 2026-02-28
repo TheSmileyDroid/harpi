@@ -1,6 +1,7 @@
 
 # UpdatePresetRequest
 
+Request to update a preset.
 
 ## Properties
 

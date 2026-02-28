@@ -1,6 +1,7 @@
 
 # NodeLoopRequest
 
+Request to set a node\'s loop mode.
 
 ## Properties
 

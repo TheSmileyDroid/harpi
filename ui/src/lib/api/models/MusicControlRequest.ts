@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Legacy control request (deprecated).
  * @export
  * @interface MusicControlRequest
  */

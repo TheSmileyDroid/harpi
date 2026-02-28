@@ -1,6 +1,7 @@
 
 # MusicAddResponse
 
+Response after adding music.
 
 ## Properties
 

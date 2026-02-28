@@ -29,7 +29,7 @@ import {
 } from './ActiveNodeStatus';
 
 /**
- * 
+ * Full soundboard status for a guild.
  * @export
  * @interface SoundboardStatusResponse
  */

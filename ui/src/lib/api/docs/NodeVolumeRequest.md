@@ -1,6 +1,7 @@
 
 # NodeVolumeRequest
 
+Request to set a node\'s volume.
 
 ## Properties
 

@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Request to add music to queue or as a layer.
  * @export
  * @interface MusicAddRequest
  */

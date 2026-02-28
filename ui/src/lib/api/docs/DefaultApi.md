@@ -19,6 +19,15 @@ All URIs are relative to *http://localhost*
 | [**postFetchNodeMetadata**](DefaultApi.md#postfetchnodemetadata) | **POST** /api/soundboard/node/metadata | Fetch metadata for a URL without starting playback. |
 | [**postMusicAdd**](DefaultApi.md#postmusicadd) | **POST** /api/music/add | Add music to queue via link. |
 | [**postMusicControl**](DefaultApi.md#postmusiccontrol) | **POST** /api/music/control | Control music playback for a guild. |
+| [**postMusicLayerClean**](DefaultApi.md#postmusiclayerclean) | **POST** /api/music/layer/clean | Remove all background audio layers. |
+| [**postMusicLayerRemove**](DefaultApi.md#postmusiclayerremove) | **POST** /api/music/layer/remove | Remove a background audio layer. |
+| [**postMusicLayerVolume**](DefaultApi.md#postmusiclayervolume) | **POST** /api/music/layer/volume | Set volume for a specific background audio layer. |
+| [**postMusicLoop**](DefaultApi.md#postmusicloop) | **POST** /api/music/loop | Set the loop mode (off, track, queue). |
+| [**postMusicPause**](DefaultApi.md#postmusicpause) | **POST** /api/music/pause | Pause music playback. |
+| [**postMusicResume**](DefaultApi.md#postmusicresume) | **POST** /api/music/resume | Resume music playback. |
+| [**postMusicSkip**](DefaultApi.md#postmusicskip) | **POST** /api/music/skip | Skip to the next track in the queue. |
+| [**postMusicStop**](DefaultApi.md#postmusicstop) | **POST** /api/music/stop | Stop music playback for a guild. |
+| [**postMusicVolume**](DefaultApi.md#postmusicvolume) | **POST** /api/music/volume | Set the main playback volume. |
 | [**postSelectChannel**](DefaultApi.md#postselectchannel) | **POST** /api/guild/channel |  |
 | [**postSelectGuild**](DefaultApi.md#postselectguild) | **POST** /api/guild |  |
 | [**postSetNodeLoop**](DefaultApi.md#postsetnodeloop) | **POST** /api/soundboard/node/loop | Set loop for a node. |
@@ -96,7 +105,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Generic status response. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -218,7 +227,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | List of voice channels. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -342,7 +351,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Soundboard preset data. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -409,7 +418,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Soundboard graph state. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -476,7 +485,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Full soundboard status for a guild. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -546,7 +555,7 @@ No authorization required
 
 Get music status for a guild.
 
- Query params:     guild_id: The guild ID to get status for.  Returns:     JSON with music data or error.
+ Query params:     guild_id: The guild ID to get status for.
 
 ### Example
 
@@ -602,7 +611,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Full music playback status for a guild. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -672,7 +681,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Voice connection status. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -739,7 +748,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Soundboard preset data. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -868,7 +877,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Audio source metadata. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -879,7 +888,7 @@ No authorization required
 
 Add music to queue via link.
 
- Body:     guild_id: The guild ID.     channel_id: The voice channel ID to connect to.     link: The music URL (YouTube, etc).     type: (Optional) \&#39;queue\&#39; (default) or \&#39;layer\&#39;.  Returns:     JSON with status or error.
+ Body:     guild_id: The guild ID.     channel_id: The voice channel ID to connect to.     link: The music URL (YouTube, etc).     type: (Optional) \&#39;queue\&#39; (default) or \&#39;layer\&#39;.
 
 ### Example
 
@@ -935,7 +944,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Response after adding music. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -946,7 +955,7 @@ No authorization required
 
 Control music playback for a guild.
 
- Body:     guild_id: The guild ID.     action: One of \&#39;stop\&#39;, \&#39;skip\&#39;, \&#39;pause\&#39;, \&#39;resume\&#39;, \&#39;loop\&#39;.     mode: (Optional) Loop mode for \&#39;loop\&#39; action.  Returns:     JSON with status or error.
+ .. deprecated::     Use the individual endpoints instead (e.g. POST /api/music/stop).  Body:     guild_id: The guild ID.     action: One of \&#39;stop\&#39;, \&#39;skip\&#39;, \&#39;pause\&#39;, \&#39;resume\&#39;, \&#39;loop\&#39;,             \&#39;remove_layer\&#39;, \&#39;clean_layers\&#39;, \&#39;set_volume\&#39;, \&#39;set_layer_volume\&#39;.     mode: (Optional) Loop mode for \&#39;loop\&#39; action.     layer_id: (Optional) Layer ID for layer actions.     volume: (Optional) Volume level.
 
 ### Example
 
@@ -1002,7 +1011,610 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Response for a music control action. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## postMusicLayerClean
+
+> MusicControlResponse postMusicLayerClean(guildRequest)
+
+Remove all background audio layers.
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  DefaultApi,
+} from '';
+import type { PostMusicLayerCleanRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const api = new DefaultApi();
+
+  const body = {
+    // GuildRequest (optional)
+    guildRequest: ...,
+  } satisfies PostMusicLayerCleanRequest;
+
+  try {
+    const data = await api.postMusicLayerClean(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **guildRequest** | [GuildRequest](GuildRequest.md) |  | [Optional] |
+
+### Return type
+
+[**MusicControlResponse**](MusicControlResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Response for a music control action. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## postMusicLayerRemove
+
+> MusicControlResponse postMusicLayerRemove(layerRemoveRequest)
+
+Remove a background audio layer.
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  DefaultApi,
+} from '';
+import type { PostMusicLayerRemoveRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const api = new DefaultApi();
+
+  const body = {
+    // LayerRemoveRequest (optional)
+    layerRemoveRequest: ...,
+  } satisfies PostMusicLayerRemoveRequest;
+
+  try {
+    const data = await api.postMusicLayerRemove(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **layerRemoveRequest** | [LayerRemoveRequest](LayerRemoveRequest.md) |  | [Optional] |
+
+### Return type
+
+[**MusicControlResponse**](MusicControlResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Response for a music control action. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## postMusicLayerVolume
+
+> MusicControlResponse postMusicLayerVolume(layerVolumeRequest)
+
+Set volume for a specific background audio layer.
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  DefaultApi,
+} from '';
+import type { PostMusicLayerVolumeRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const api = new DefaultApi();
+
+  const body = {
+    // LayerVolumeRequest (optional)
+    layerVolumeRequest: ...,
+  } satisfies PostMusicLayerVolumeRequest;
+
+  try {
+    const data = await api.postMusicLayerVolume(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **layerVolumeRequest** | [LayerVolumeRequest](LayerVolumeRequest.md) |  | [Optional] |
+
+### Return type
+
+[**MusicControlResponse**](MusicControlResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Response for a music control action. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## postMusicLoop
+
+> MusicControlResponse postMusicLoop(loopRequest)
+
+Set the loop mode (off, track, queue).
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  DefaultApi,
+} from '';
+import type { PostMusicLoopRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const api = new DefaultApi();
+
+  const body = {
+    // LoopRequest (optional)
+    loopRequest: ...,
+  } satisfies PostMusicLoopRequest;
+
+  try {
+    const data = await api.postMusicLoop(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **loopRequest** | [LoopRequest](LoopRequest.md) |  | [Optional] |
+
+### Return type
+
+[**MusicControlResponse**](MusicControlResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Response for a music control action. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## postMusicPause
+
+> MusicControlResponse postMusicPause(guildRequest)
+
+Pause music playback.
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  DefaultApi,
+} from '';
+import type { PostMusicPauseRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const api = new DefaultApi();
+
+  const body = {
+    // GuildRequest (optional)
+    guildRequest: ...,
+  } satisfies PostMusicPauseRequest;
+
+  try {
+    const data = await api.postMusicPause(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **guildRequest** | [GuildRequest](GuildRequest.md) |  | [Optional] |
+
+### Return type
+
+[**MusicControlResponse**](MusicControlResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Response for a music control action. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## postMusicResume
+
+> MusicControlResponse postMusicResume(guildRequest)
+
+Resume music playback.
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  DefaultApi,
+} from '';
+import type { PostMusicResumeRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const api = new DefaultApi();
+
+  const body = {
+    // GuildRequest (optional)
+    guildRequest: ...,
+  } satisfies PostMusicResumeRequest;
+
+  try {
+    const data = await api.postMusicResume(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **guildRequest** | [GuildRequest](GuildRequest.md) |  | [Optional] |
+
+### Return type
+
+[**MusicControlResponse**](MusicControlResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Response for a music control action. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## postMusicSkip
+
+> MusicControlResponse postMusicSkip(guildRequest)
+
+Skip to the next track in the queue.
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  DefaultApi,
+} from '';
+import type { PostMusicSkipRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const api = new DefaultApi();
+
+  const body = {
+    // GuildRequest (optional)
+    guildRequest: ...,
+  } satisfies PostMusicSkipRequest;
+
+  try {
+    const data = await api.postMusicSkip(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **guildRequest** | [GuildRequest](GuildRequest.md) |  | [Optional] |
+
+### Return type
+
+[**MusicControlResponse**](MusicControlResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Response for a music control action. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## postMusicStop
+
+> MusicControlResponse postMusicStop(guildRequest)
+
+Stop music playback for a guild.
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  DefaultApi,
+} from '';
+import type { PostMusicStopRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const api = new DefaultApi();
+
+  const body = {
+    // GuildRequest (optional)
+    guildRequest: ...,
+  } satisfies PostMusicStopRequest;
+
+  try {
+    const data = await api.postMusicStop(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **guildRequest** | [GuildRequest](GuildRequest.md) |  | [Optional] |
+
+### Return type
+
+[**MusicControlResponse**](MusicControlResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Response for a music control action. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## postMusicVolume
+
+> MusicControlResponse postMusicVolume(volumeRequest)
+
+Set the main playback volume.
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  DefaultApi,
+} from '';
+import type { PostMusicVolumeRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const api = new DefaultApi();
+
+  const body = {
+    // VolumeRequest (optional)
+    volumeRequest: ...,
+  } satisfies PostMusicVolumeRequest;
+
+  try {
+    const data = await api.postMusicVolume(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **volumeRequest** | [VolumeRequest](VolumeRequest.md) |  | [Optional] |
+
+### Return type
+
+[**MusicControlResponse**](MusicControlResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Response for a music control action. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -1067,7 +1679,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Response after selecting a channel. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -1132,7 +1744,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Response after selecting a guild. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -1199,7 +1811,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Response for a source control action. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -1266,7 +1878,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Response for a volume change. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -1333,7 +1945,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Response for a volume change. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -1400,7 +2012,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Response for a source control action. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -1467,7 +2079,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Response for a source control action. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -1534,7 +2146,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Generic status response. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -1601,7 +2213,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Response for a source control action. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -1668,7 +2280,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Response for a source control action. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -1738,7 +2350,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Soundboard preset data. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -1808,7 +2420,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **200** | Soundboard graph state. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

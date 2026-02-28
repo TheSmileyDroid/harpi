@@ -1,6 +1,7 @@
 
 # PresetResponse
 
+Soundboard preset data.
 
 ## Properties
 

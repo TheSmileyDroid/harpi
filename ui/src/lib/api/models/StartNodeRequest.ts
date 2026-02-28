@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * 
+ * Request to start a graph node.
  * @export
  * @interface StartNodeRequest
  */

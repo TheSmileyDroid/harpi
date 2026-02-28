@@ -1,6 +1,7 @@
 
 # StartNodeRequest
 
+Request to start a graph node.
 
 ## Properties
 

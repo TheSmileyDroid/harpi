@@ -1,6 +1,7 @@
 
 # PresetListResponse
 
+List of soundboard presets.
 
 ## Properties
 

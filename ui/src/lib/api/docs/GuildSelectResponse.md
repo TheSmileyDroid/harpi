@@ -1,6 +1,7 @@
 
 # GuildSelectResponse
 
+Response after selecting a guild.
 
 ## Properties
 

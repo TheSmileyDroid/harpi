@@ -1,6 +1,7 @@
 
 # MetadataRequest
 
+Request to fetch audio metadata.
 
 ## Properties
 

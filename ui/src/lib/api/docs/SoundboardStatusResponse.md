@@ -1,6 +1,7 @@
 
 # SoundboardStatusResponse
 
+Full soundboard status for a guild.
 
 ## Properties
 

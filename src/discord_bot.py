@@ -1,4 +1,4 @@
-"""O executável do bot."""
+"""Bot runner and startup utilities."""
 
 from __future__ import annotations
 
@@ -15,22 +15,22 @@ from src.cogs.dice_cog import DiceCog
 from src.cogs.music import MusicCog
 from src.cogs.test import TestCog
 from src.cogs.tts import TTSCog
-from src.HarpiLib.HarpiBot import HarpiBot
+from src.api.deps import init_bot
+from src.harpi_lib.harpi_bot import HarpiBot
 
 assert load_dotenv(), "dot env not loaded"
 
-background_tasks = set()
 bot_instance: HarpiBot | None = None
 
 
 def get_token() -> str:
-    """Obtém o token do bot.
+    """Retrieve the bot token from environment variables.
 
     Raises:
-        ValueError: Se o token não estiver definido.
+        ValueError: If the token is not defined.
 
     Returns:
-        str: O token do bot.
+        str: The bot token.
 
     """
     token = os.getenv("DISCORD_TOKEN")
@@ -73,7 +73,7 @@ async def create_bot() -> HarpiBot:
     return client
 
 
-def run_bot_in_background():
+def run_bot_in_background() -> None:
     """Run the Discord bot in a background thread."""
     global bot_instance
 
@@ -92,16 +92,14 @@ def run_bot_in_background():
 
             # Store bot reference globally
             bot_instance = client
+            init_bot(client)
             logger.info("Bot instance stored globally")
 
             # Run the bot
             logger.info("Starting Discord bot connection...")
             loop.run_until_complete(client.start(get_token()))
         except Exception as e:
-            logger.error(f"Error running Discord bot: {e}")
-            import traceback
-
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.opt(exception=True).error(f"Error running Discord bot: {e}")
         finally:
             loop.close()
 
@@ -123,6 +121,10 @@ def run_bot_in_background():
 
 
 def get_bot_instance() -> HarpiBot:
-    """Get the global bot instance."""
+    """Get the global bot instance.
+
+    .. deprecated::
+        Use ``src.api.deps.get_bot()`` instead.
+    """
     assert bot_instance, "Bot does not exists!"
     return bot_instance
