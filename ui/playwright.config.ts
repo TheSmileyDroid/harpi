@@ -25,5 +25,13 @@ export default defineConfig({
 			stdout: 'pipe',
 			stderr: 'pipe',
 		},
+		{
+			command: 'uv run uvicorn app:asgi_app --port 8000',
+			port: 8000,
+			reuseExistingServer: !process.env.CI,
+			stdout: 'pipe',
+			stderr: 'pipe',
+			cwd: '..',
+		}
 	],
 });

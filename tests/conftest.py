@@ -4,8 +4,8 @@ import discord
 import numpy as np
 import pytest
 
-from src.harpi_lib.music.soundboard import SoundboardController
-from src.harpi_lib.music.mixer import MixerSource
+from src.harpi_lib.audio.controller import AudioController
+from src.harpi_lib.audio.mixer import MixerSource
 
 
 SAMPLE_RATE = 48000
@@ -144,10 +144,10 @@ def mock_ytdl_source():
 
 
 @pytest.fixture
-def soundboard_controller() -> SoundboardController:
-    return SoundboardController()
+def soundboard_controller() -> AudioController:
+    return AudioController()
 
 
 @pytest.fixture
-def mixer_source(soundboard_controller: SoundboardController) -> MixerSource:
+def mixer_source(soundboard_controller: AudioController) -> MixerSource:
     return MixerSource(soundboard_controller)

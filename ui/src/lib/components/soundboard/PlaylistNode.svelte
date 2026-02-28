@@ -1,21 +1,30 @@
 <script lang="ts">
-	import { Handle, Position, type NodeProps } from '@xyflow/svelte';
+	import Port from './Port.svelte';
+	import type { SoundboardNode, PlaylistItem } from '$lib/types/soundboard';
+	import { soundboardStore } from '$lib/stores/soundboard.svelte';
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	let { id: _id, data, selected }: NodeProps = $props();
-
-	interface PlaylistItem {
-		title: string;
-		duration: number;
-		url: string;
+	interface ConnectEvent {
+		type: 'target' | 'source';
+		event: MouseEvent;
+		element: HTMLElement;
 	}
 
-	const items = $derived((data?.items as PlaylistItem[]) || []);
-	const currentIndex = $derived((data?.currentIndex as number) ?? -1);
-	const playing = $derived((data?.playing as boolean) ?? false);
-	const loop = $derived((data?.loop as boolean) ?? true);
-	const volume = $derived((data?.volume as number) ?? 100);
-	const progress = $derived((data?.progress as number) ?? 0);
+	interface Props {
+		node: SoundboardNode;
+		selected?: boolean;
+		onConnectStart?: (detail: ConnectEvent) => void;
+		onConnectEnd?: (detail: ConnectEvent) => void;
+	}
+
+	let { node, selected = false, onConnectStart, onConnectEnd }: Props = $props();
+
+	const items = $derived((node.data?.items as PlaylistItem[]) || []);
+	const currentIndex = $derived((node.data?.currentIndex as number) ?? -1);
+	const playing = $derived((node.data?.playing as boolean) ?? false);
+	const loop = $derived((node.data?.loop as boolean) ?? true);
+	const volume = $derived((node.data?.volume as number) ?? 100);
+	const progress = $derived((node.data?.progress as number) ?? 0);
+	const guildId = $derived((node.data?.guildId as string) || '');
 
 	const currentItem = $derived(
 		currentIndex >= 0 && currentIndex < items.length ? items[currentIndex] : null
@@ -31,10 +40,37 @@
 	const progressPct = $derived(
 		currentItem && currentItem.duration > 0 ? (progress / currentItem.duration) * 100 : 0
 	);
+
+	async function handleVolumeChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const newVolume = parseInt(target.value);
+		
+		// Optimistic update
+		soundboardStore.updateNode(node.id, { volume: newVolume });
+
+		if (!guildId) return;
+
+		try {
+			const res = await fetch('/api/soundboard/node/volume', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					guild_id: guildId,
+					node_id: node.id,
+					volume: newVolume
+				})
+			});
+			if (!res.ok) {
+				console.error('Failed to update volume');
+			}
+		} catch (e) {
+			console.error('Volume update error:', e);
+		}
+	}
 </script>
 
 <div class="node-playlist" class:node-selected={selected} class:node-playing={playing}>
-	<Handle type="target" position={Position.Left} />
+	<Port type="target" {onConnectStart} {onConnectEnd} />
 
 	<div class="node-header">
 		<span class="node-type">LIST</span>
@@ -68,7 +104,19 @@
 		{/if}
 
 		<div class="node-controls">
-			<span class="node-vol">VOL: {volume}%</span>
+			<div class="flex items-center gap-2 flex-1">
+				<span class="node-vol-label">VOL</span>
+				<input
+					type="range"
+					min="0"
+					max="200"
+					step="5"
+					value={volume}
+					oninput={handleVolumeChange}
+					class="node-vol-slider"
+				/>
+				<span class="node-vol-value">{volume}%</span>
+			</div>
 			<span class="node-loop" class:active={loop}>
 				{loop ? '[LOOP]' : '[ONCE]'}
 			</span>
@@ -83,11 +131,12 @@
 		<div class="node-status stopped">STOPPED</div>
 	{/if}
 
-	<Handle type="source" position={Position.Right} />
+	<Port type="source" {onConnectStart} {onConnectEnd} />
 </div>
 
 <style>
 	.node-playlist {
+		position: relative;
 		background: rgba(0, 0, 0, 0.85);
 		border: 2px solid #004d80;
 		padding: 8px 12px;
@@ -206,8 +255,48 @@
 	.node-controls {
 		display: flex;
 		justify-content: space-between;
+		align-items: center;
 		font-size: 10px;
 		color: #004d80;
+		gap: 8px;
+	}
+
+	.node-vol-label {
+		flex-shrink: 0;
+	}
+
+	.node-vol-slider {
+		-webkit-appearance: none;
+		appearance: none;
+		height: 4px;
+		background: #003355;
+		outline: none;
+		flex: 1;
+		width: 60px;
+	}
+
+	.node-vol-slider::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 8px;
+		height: 8px;
+		background: #00b8ff;
+		cursor: pointer;
+		border-radius: 0;
+	}
+
+	.node-vol-slider::-moz-range-thumb {
+		width: 8px;
+		height: 8px;
+		background: #00b8ff;
+		cursor: pointer;
+		border-radius: 0;
+		border: none;
+	}
+
+	.node-vol-value {
+		min-width: 24px;
+		text-align: right;
 	}
 
 	.node-loop.active {

@@ -41,7 +41,6 @@
 	"dependencies": {
 		"@openapitools/openapi-generator-cli": "^2.29.0",
 		"@tanstack/svelte-query": "^6.0.15",
-		"@xyflow/svelte": "^1.5.1",
 		"sveltekit-proxy": "^1.0.3"
 	}
 }

@@ -8,7 +8,7 @@ from gtts import gTTS
 
 from src.harpi_lib.api import HarpiAPI
 from src.harpi_lib.harpi_bot import HarpiBot
-from src.harpi_lib.musicdata.ytmusicdata import (
+from src.harpi_lib.music.ytmusicdata import (
     AudioSourceTracked,
     FastStartFFmpegPCMAudio,
 )

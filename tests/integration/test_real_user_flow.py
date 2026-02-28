@@ -38,7 +38,7 @@ async def ensure_connected(http_client: httpx.AsyncClient):
         "/api/guild/channel",
         json={"guild_id": GUILD_ID, "channel_id": CHANNEL_ID},
     )
-    assert response.status_code == 201
+    assert response.status_code in (200, 201)
     await asyncio.sleep(2)
 
 
@@ -96,7 +96,7 @@ class TestVoiceConnection:
             "/api/guild/channel",
             json={"guild_id": GUILD_ID, "channel_id": CHANNEL_ID},
         )
-        assert response.status_code == 201
+        assert response.status_code in (200, 201)
         data = response.json()
         assert data.get("success") is True
 

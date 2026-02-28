@@ -6,7 +6,6 @@ import re
 import subprocess
 from datetime import datetime
 
-import PIL
 import PIL.Image
 import PIL.ImageDraw
 import PIL.ImageFont

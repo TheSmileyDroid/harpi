@@ -420,6 +420,6 @@ class TestMismatchedParentheses:
         parser = DiceParser()
         try:
             parser.parse("(2+3")
-            assert False, "Should have raised ValueError"
+            raise AssertionError("Should have raised ValueError")
         except ValueError as e:
             assert "Mismatched parentheses" in str(e)

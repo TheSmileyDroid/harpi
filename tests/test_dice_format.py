@@ -3,7 +3,7 @@
 import random
 from unittest.mock import patch
 
-from src.harpi_lib.math.parser import DiceParser, RollResult
+from src.harpi_lib.math.parser import DiceParser
 
 
 # === Repeat (#) operator ===

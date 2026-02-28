@@ -5,8 +5,6 @@ from __future__ import annotations
 from typing import cast
 
 import discord
-import discord.ext
-import discord.ext.commands
 from discord import Guild, Member, Message, StageChannel
 from discord.ext.commands import Cog, CommandError, Context, command
 

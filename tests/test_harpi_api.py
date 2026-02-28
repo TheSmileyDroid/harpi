@@ -5,7 +5,7 @@ import discord
 import pytest
 
 from src.harpi_lib.api import GuildConfig, HarpiAPI, LoopMode
-from src.harpi_lib.music.mixer import MixerSource
+from src.harpi_lib.audio.mixer import MixerSource
 
 
 @pytest.fixture

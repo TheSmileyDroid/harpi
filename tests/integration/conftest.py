@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from typing import override
 from unittest.mock import AsyncMock, MagicMock
 
@@ -7,8 +8,8 @@ import numpy as np
 import pytest
 
 from src.harpi_lib.api import GuildConfig, HarpiAPI
-from src.harpi_lib.music.mixer import MixerSource
-from src.harpi_lib.music.soundboard import SoundboardController
+from src.harpi_lib.audio.mixer import MixerSource
+from src.harpi_lib.audio.controller import AudioController
 
 
 SAMPLE_RATE = 48000
@@ -30,6 +31,7 @@ class FakeAudioSource(discord.AudioSource):
         self._current_frame = 0
         self._cleaned_up = False
         self.read_calls = 0
+        self.id = str(uuid.uuid4())
 
     @override
     def read(self) -> bytes:
@@ -110,7 +112,7 @@ def fake_audio_source_factory():
 
 @pytest.fixture
 def audio_pipeline():
-    controller = SoundboardController()
+    controller = AudioController()
     mixer = MixerSource(controller)
     return controller, mixer
 
@@ -160,7 +162,7 @@ def harpi_api_with_guild(
 
     api = HarpiAPI(mock_bot)
 
-    controller = SoundboardController()
+    controller = AudioController()
     mixer = MixerSource(controller)
     guild_config = GuildConfig(
         id=12345,

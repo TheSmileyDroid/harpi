@@ -1,6 +1,6 @@
 """Tests for audio test tone sources."""
 
-from src.harpi_lib.audio.test_tone_source import (
+from src.harpi_lib.audio.tone_source import (
     MultiFrequencyTestSource,
     TestToneSource,
 )

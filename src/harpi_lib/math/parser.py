@@ -9,6 +9,8 @@ Supported notation
 * Arithmetic: ``+``, ``-``, ``*``, ``/``, ``//``, ``%``, ``^``, ``()``
 """
 
+from typing import Callable
+
 import operator
 import random
 import re
@@ -27,7 +29,9 @@ class DiceParser:
     """Recursive descent parser for dice notation expressions (e.g. '2d6+3')."""
 
     def __init__(self) -> None:
-        self.operators: dict[str, object] = {
+        self.operators: dict[
+            str, Callable[[int | float, int | float], int | float]
+        ] = {
             "+": operator.add,
             "-": operator.sub,
             "*": operator.mul,
@@ -174,8 +178,8 @@ class DiceParser:
             if value.is_integer():
                 value = int(value)
             return RollResult(value, [], str(value))
-        except ValueError:
-            raise ValueError(f"Unexpected token: {token}")
+        except ValueError as e:
+            raise ValueError(f"Unexpected token: {token}") from e
 
     # ------------------------------------------------------------------
     # Dice rolling
@@ -215,7 +219,7 @@ class DiceParser:
                 sorted_indices = sorted(range(count), key=lambda i: rolls[i])
             kept_indices = set(sorted_indices[:keep_n])
             kept_mask = [i in kept_indices for i in range(count)]
-            total = sum(r for r, k in zip(rolls, kept_mask) if k)
+            total = sum(r for r, k in zip(rolls, kept_mask, strict=False) if k)
         else:
             total = sum(rolls)
 

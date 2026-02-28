@@ -1,8 +1,25 @@
 <script lang="ts">
-	import { Handle, Position, type NodeProps } from '@xyflow/svelte';
+	import Port from './Port.svelte';
+	import type { SoundboardNode } from '$lib/types/soundboard';
+	import { soundboardStore } from '$lib/stores/soundboard.svelte';
+	import { guildStore } from '$lib/stores/guild.svelte';
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	let { id: _id, data, selected }: NodeProps = $props();
+	interface ConnectEvent {
+		type: 'target' | 'source';
+		event: MouseEvent;
+		element: HTMLElement;
+	}
+
+	interface Props {
+		node: SoundboardNode;
+		selected?: boolean;
+		onConnectStart?: (detail: ConnectEvent) => void;
+		onConnectEnd?: (detail: ConnectEvent) => void;
+	}
+
+	let { node, selected = false, onConnectStart, onConnectEnd }: Props = $props();
+
+	const guildId = $derived(guildStore.current?.id);
 
 	interface MixerInput {
 		nodeId: string;
@@ -10,14 +27,41 @@
 		volume: number;
 	}
 
-	const label = $derived((data?.label as string) || 'MIXER');
-	const inputs = $derived((data?.inputs as MixerInput[]) || []);
-	const masterVolume = $derived((data?.volume as number) ?? 100);
-	const active = $derived((data?.active as boolean) ?? false);
+	const label = $derived((node.data?.label as string) || 'MIXER');
+	const inputs = $derived((node.data?.inputs as MixerInput[]) || []);
+	const masterVolume = $derived((node.data?.volume as number) ?? 100);
+	const active = $derived((node.data?.active as boolean) ?? false);
+
+	async function handleVolumeChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const newVolume = parseInt(target.value);
+		
+		// Optimistic update
+		soundboardStore.updateNode(node.id, { volume: newVolume });
+
+		if (!guildId) return;
+
+		try {
+			const res = await fetch('/api/soundboard/node/volume', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					guild_id: guildId,
+					node_id: node.id,
+					volume: newVolume
+				})
+			});
+			if (!res.ok) {
+				console.error('Failed to update volume');
+			}
+		} catch (e) {
+			console.error('Volume update error:', e);
+		}
+	}
 </script>
 
 <div class="node-mixer" class:node-selected={selected} class:node-active={active}>
-	<Handle type="target" position={Position.Left} />
+	<Port type="target" {onConnectStart} {onConnectEnd} />
 
 	<div class="node-header">
 		<span class="node-type">MIX</span>
@@ -42,7 +86,18 @@
 
 		<div class="mixer-master">
 			<span class="master-label">MASTER</span>
-			<span class="master-value">{masterVolume}%</span>
+			<div class="flex items-center gap-2 flex-1">
+				<input
+					type="range"
+					min="0"
+					max="200"
+					step="5"
+					value={masterVolume}
+					oninput={handleVolumeChange}
+					class="node-vol-slider"
+				/>
+				<span class="master-value">{masterVolume}%</span>
+			</div>
 		</div>
 	</div>
 
@@ -52,11 +107,12 @@
 		<div class="node-status inactive">INACTIVE</div>
 	{/if}
 
-	<Handle type="source" position={Position.Right} />
+	<Port type="source" {onConnectStart} {onConnectEnd} />
 </div>
 
 <style>
 	.node-mixer {
+		position: relative;
 		background: rgba(0, 0, 0, 0.85);
 		border: 2px solid #005533;
 		padding: 8px 12px;
@@ -146,7 +202,8 @@
 
 	.mixer-master {
 		display: flex;
-		justify-content: space-between;
+		align-items: center;
+		gap: 8px;
 		font-size: 11px;
 		border-top: 1px solid #003322;
 		padding-top: 4px;
@@ -154,11 +211,43 @@
 
 	.master-label {
 		color: #005533;
+		flex-shrink: 0;
 	}
 
 	.master-value {
 		color: #00ff88;
 		font-weight: bold;
+		min-width: 24px;
+		text-align: right;
+	}
+
+	.node-vol-slider {
+		-webkit-appearance: none;
+		appearance: none;
+		height: 4px;
+		background: #003322;
+		outline: none;
+		flex: 1;
+		width: 60px;
+	}
+
+	.node-vol-slider::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 8px;
+		height: 8px;
+		background: #00ff88;
+		cursor: pointer;
+		border-radius: 0;
+	}
+
+	.node-vol-slider::-moz-range-thumb {
+		width: 8px;
+		height: 8px;
+		background: #00ff88;
+		cursor: pointer;
+		border-radius: 0;
+		border: none;
 	}
 
 	.node-status {
@@ -175,3 +264,6 @@
 		color: #005533;
 	}
 </style>
+
+
+

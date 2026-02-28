@@ -9,12 +9,11 @@ import sys
 import psutil
 from dotenv import load_dotenv
 from loguru import logger
-from quart import Quart, jsonify
+from quart import Quart
 from quart_cors import cors
-from quart_schema import QuartSchema, validate_request, validate_response
-from src.api import guild, music, soundboard
+from quart_schema import QuartSchema, validate_response
+from src.api import guild, music
 from src.discord_bot import run_bot_in_background
-from src.harpi_lib.soundboard.websocket import create_socketio_app
 
 assert load_dotenv(), "dot env not loaded"
 logger.remove()
@@ -57,7 +56,6 @@ def api_serverstatus():
 
 app.register_blueprint(music.bp)
 app.register_blueprint(guild.bp)
-app.register_blueprint(soundboard.bp)
 
 
 @app.before_serving
@@ -70,5 +68,3 @@ async def startup():
 
 
 asgi_app = app
-
-socketio_app = create_socketio_app()

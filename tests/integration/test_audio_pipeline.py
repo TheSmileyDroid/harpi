@@ -2,11 +2,9 @@ import threading
 from unittest.mock import MagicMock
 
 import numpy as np
-import pytest
 
 from tests.integration.conftest import (
     FRAME_SIZE,
-    generate_silence_frame,
     generate_tone_frame,
 )
 
@@ -247,7 +245,7 @@ class TestThreadSafety:
 
         def adder_thread():
             try:
-                for i in range(20):
+                for _i in range(20):
                     source = fake_audio_source_factory(frame_count=3)
                     controller.add_layer(source)
             except Exception as e:

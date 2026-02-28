@@ -22,7 +22,7 @@ import discord
 from discord.ext.commands import Bot, Context
 from loguru import logger
 
-from src.harpi_lib.musicdata.ytmusicdata import YoutubeDLSource, YTMusicData
+from src.harpi_lib.music.ytmusicdata import YoutubeDLSource, YTMusicData
 
 if TYPE_CHECKING:
     from src.harpi_lib.api import GuildConfig, LoopMode
@@ -84,7 +84,6 @@ class MusicQueueService:
         self, guild_config: GuildConfig, force_next: bool = False
     ) -> None:
         """Schedule the next track to play."""
-        from src.harpi_lib.api import LoopMode
 
         try:
             await self._next_music_inner(guild_config, force_next)

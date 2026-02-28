@@ -1,16 +1,29 @@
 <script lang="ts">
-	import { Handle, Position, type NodeProps } from '@xyflow/svelte';
+	import Port from './Port.svelte';
+	import type { SoundboardNode } from '$lib/types/soundboard';
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	let { id: _id, data, selected }: NodeProps = $props();
+	interface ConnectEvent {
+		type: 'target' | 'source';
+		event: MouseEvent;
+		element: HTMLElement;
+	}
 
-	const connected = $derived((data?.connected as boolean) ?? false);
-	const channelName = $derived((data?.channelName as string) || '---');
-	const activeCount = $derived((data?.activeCount as number) ?? 0);
+	interface Props {
+		node: SoundboardNode;
+		selected?: boolean;
+		onConnectStart?: (detail: ConnectEvent) => void;
+		onConnectEnd?: (detail: ConnectEvent) => void;
+	}
+
+	let { node, selected = false, onConnectStart, onConnectEnd }: Props = $props();
+
+	const connected = $derived((node.data?.connected as boolean) ?? false);
+	const channelName = $derived((node.data?.channelName as string) || '---');
+	const activeCount = $derived((node.data?.activeCount as number) ?? 0);
 </script>
 
 <div class="node-output" class:node-selected={selected} class:node-connected={connected}>
-	<Handle type="target" position={Position.Left} />
+	<Port type="target" {onConnectStart} {onConnectEnd} />
 
 	<div class="node-header">
 		<span class="node-type">OUT</span>
@@ -37,6 +50,7 @@
 
 <style>
 	.node-output {
+		position: relative;
 		background: rgba(0, 0, 0, 0.85);
 		border: 2px solid #660000;
 		padding: 8px 12px;
@@ -116,3 +130,5 @@
 		color: #660000;
 	}
 </style>
+
+

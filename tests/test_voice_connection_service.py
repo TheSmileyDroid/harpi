@@ -96,7 +96,7 @@ class TestConnectErrorPaths:
         new_vc.play = MagicMock()
         mock_channel.connect = AsyncMock(return_value=new_vc)
 
-        from src.harpi_lib.music.mixer import MixerSource
+        from src.harpi_lib.audio.mixer import MixerSource
 
         with patch.object(MixerSource, "add_observer", MagicMock()):
             # Should not raise despite existing disconnect failure
@@ -109,26 +109,6 @@ class TestDisconnectCleanup:
     async def test_disconnect_raises_when_not_connected(self, service):
         with pytest.raises(ValueError, match="não conectada"):
             await service.disconnect(999)
-
-    @pytest.mark.asyncio
-    async def test_disconnect_cleans_up_prepared_sources(
-        self, service, guilds
-    ):
-        mock_source = MagicMock()
-        mock_vc = MagicMock()
-        mock_vc.is_connected.return_value = True
-        mock_vc.disconnect = AsyncMock()
-
-        gc = _make_guild_config(
-            guild_id=1,
-            voice_client=mock_vc,
-            prepared_sources={"s1": mock_source},
-        )
-        guilds[1] = gc
-
-        await service.disconnect(1)
-        mock_source.cleanup.assert_called_once()
-        assert 1 not in guilds
 
     @pytest.mark.asyncio
     async def test_disconnect_handles_controller_cleanup_error(
@@ -158,27 +138,6 @@ class TestDisconnectCleanup:
 
         gc = _make_guild_config(guild_id=1, voice_client=mock_vc)
         gc.mixer.cleanup.side_effect = RuntimeError("mixer error")
-        guilds[1] = gc
-
-        # Should not raise
-        await service.disconnect(1)
-        assert 1 not in guilds
-
-    @pytest.mark.asyncio
-    async def test_disconnect_handles_prepared_source_cleanup_error(
-        self, service, guilds
-    ):
-        mock_source = MagicMock()
-        mock_source.cleanup.side_effect = RuntimeError("source error")
-        mock_vc = MagicMock()
-        mock_vc.is_connected.return_value = True
-        mock_vc.disconnect = AsyncMock()
-
-        gc = _make_guild_config(
-            guild_id=1,
-            voice_client=mock_vc,
-            prepared_sources={"s1": mock_source},
-        )
         guilds[1] = gc
 
         # Should not raise

@@ -2,20 +2,21 @@ import threading
 from unittest.mock import MagicMock
 
 
-from src.harpi_lib.music.soundboard import SoundboardController
+from src.harpi_lib.audio.controller import AudioController
 
 
-class TestSoundboardControllerInit:
-    def test_initial_state(self, soundboard_controller: SoundboardController):
+class TestAudioControllerInit:
+    def test_initial_state(self, soundboard_controller: AudioController):
         sounds = soundboard_controller.get_playing_sounds()
         assert sounds == []
 
 
 class TestAddRemoveLayer:
     def test_add_layer_returns_id(
-        self, soundboard_controller: SoundboardController
+        self, soundboard_controller: AudioController
     ):
         mock_source = MagicMock()
+        mock_source.id = "test_id"
         mock_source.read.return_value = b"\x00" * 3840
 
         layer_id = soundboard_controller.add_layer(mock_source)
@@ -23,7 +24,7 @@ class TestAddRemoveLayer:
         assert len(layer_id) > 0
 
     def test_add_layer_appears_in_playing_sounds(
-        self, soundboard_controller: SoundboardController
+        self, soundboard_controller: AudioController
     ):
         mock_source = MagicMock()
         mock_source.read.return_value = b"\x00" * 3840
@@ -36,7 +37,7 @@ class TestAddRemoveLayer:
         assert source_type == "track"
         assert source == mock_source
 
-    def test_remove_layer(self, soundboard_controller: SoundboardController):
+    def test_remove_layer(self, soundboard_controller: AudioController):
         mock_source = MagicMock()
         mock_source.read.return_value = b"\x00" * 3840
 
@@ -47,7 +48,7 @@ class TestAddRemoveLayer:
         assert sounds == []
 
     def test_remove_layer_calls_cleanup(
-        self, soundboard_controller: SoundboardController
+        self, soundboard_controller: AudioController
     ):
         mock_source = MagicMock()
         mock_source.read.return_value = b"\x00" * 3840
@@ -59,13 +60,11 @@ class TestAddRemoveLayer:
         mock_source.cleanup.assert_called_once()
 
     def test_remove_nonexistent_layer_no_error(
-        self, soundboard_controller: SoundboardController
+        self, soundboard_controller: AudioController
     ):
         soundboard_controller.remove_layer("nonexistent-id")
 
-    def test_multiple_layers(
-        self, soundboard_controller: SoundboardController
-    ):
+    def test_multiple_layers(self, soundboard_controller: AudioController):
         mock_source1 = MagicMock()
         mock_source1.read.return_value = b"\x00" * 3840
         mock_source2 = MagicMock()
@@ -80,9 +79,7 @@ class TestAddRemoveLayer:
 
 
 class TestSoundboardButton:
-    def test_add_button_sound(
-        self, soundboard_controller: SoundboardController
-    ):
+    def test_add_button_sound(self, soundboard_controller: AudioController):
         mock_source = MagicMock()
         mock_source.read.return_value = b"\x00" * 3840
 
@@ -94,9 +91,7 @@ class TestSoundboardButton:
         source_type, _ = sounds[0]
         assert source_type == "button"
 
-    def test_remove_button_sound(
-        self, soundboard_controller: SoundboardController
-    ):
+    def test_remove_button_sound(self, soundboard_controller: AudioController):
         mock_source = MagicMock()
         mock_source.read.return_value = b"\x00" * 3840
         mock_source.cleanup = MagicMock()
@@ -109,7 +104,7 @@ class TestSoundboardButton:
 
 
 class TestQueueManagement:
-    def test_add_to_queue(self, soundboard_controller: SoundboardController):
+    def test_add_to_queue(self, soundboard_controller: AudioController):
         mock_source = MagicMock()
         mock_source.read.return_value = b"\x00" * 3840
 
@@ -119,9 +114,7 @@ class TestQueueManagement:
         queue_sounds = [s for t, s in sounds if t == "queue"]
         assert len(queue_sounds) == 1
 
-    def test_queue_auto_advance(
-        self, soundboard_controller: SoundboardController
-    ):
+    def test_queue_auto_advance(self, soundboard_controller: AudioController):
         finished_source = MagicMock()
         finished_source.read.return_value = b""
         finished_source.cleanup = MagicMock()
@@ -140,7 +133,7 @@ class TestQueueManagement:
         assert queue_sounds[0] == next_source
 
     def test_queue_empty_notification(
-        self, soundboard_controller: SoundboardController
+        self, soundboard_controller: AudioController
     ):
         callback = MagicMock()
         soundboard_controller.on_queue_empty(callback)
@@ -153,7 +146,7 @@ class TestQueueManagement:
 
         callback.assert_called_once()
 
-    def test_clear_queue(self, soundboard_controller: SoundboardController):
+    def test_clear_queue(self, soundboard_controller: AudioController):
         mock_source1 = MagicMock()
         mock_source1.cleanup = MagicMock()
         mock_source2 = MagicMock()
@@ -169,7 +162,7 @@ class TestQueueManagement:
 
 
 class TestTTSTrack:
-    def test_set_tts_track(self, soundboard_controller: SoundboardController):
+    def test_set_tts_track(self, soundboard_controller: AudioController):
         mock_source = MagicMock()
         mock_source.read.return_value = b"\x00" * 3840
 
@@ -180,7 +173,7 @@ class TestTTSTrack:
         assert len(tts_sounds) == 1
 
     def test_set_tts_track_replaces_previous(
-        self, soundboard_controller: SoundboardController
+        self, soundboard_controller: AudioController
     ):
         old_source = MagicMock()
         old_source.read.return_value = b"\x00" * 3840
@@ -197,9 +190,7 @@ class TestTTSTrack:
         tts_sounds = [s for t, s in sounds if t == "tts"]
         assert tts_sounds[0] == new_source
 
-    def test_clear_tts_track(
-        self, soundboard_controller: SoundboardController
-    ):
+    def test_clear_tts_track(self, soundboard_controller: AudioController):
         mock_source = MagicMock()
         mock_source.read.return_value = b"\x00" * 3840
         mock_source.cleanup = MagicMock()
@@ -214,9 +205,7 @@ class TestTTSTrack:
 
 
 class TestGetPlayingSounds:
-    def test_returns_all_types(
-        self, soundboard_controller: SoundboardController
-    ):
+    def test_returns_all_types(self, soundboard_controller: AudioController):
         track = MagicMock()
         track.read.return_value = b"\x00" * 3840
         button = MagicMock()
@@ -240,14 +229,14 @@ class TestGetPlayingSounds:
 
 class TestThreadSafety:
     def test_concurrent_add_remove(
-        self, soundboard_controller: SoundboardController
+        self, soundboard_controller: AudioController
     ):
         errors = []
         added_ids = []
 
         def add_layers():
             try:
-                for i in range(100):
+                for _i in range(100):
                     mock_source = MagicMock()
                     mock_source.read.return_value = b"\x00" * 3840
                     layer_id = soundboard_controller.add_layer(mock_source)
@@ -257,7 +246,7 @@ class TestThreadSafety:
 
         def remove_layers():
             try:
-                for i in range(50):
+                for _i in range(50):
                     if added_ids:
                         soundboard_controller.remove_layer(added_ids.pop(0))
             except Exception as e:

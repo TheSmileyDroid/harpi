@@ -7,9 +7,8 @@ from discord import Embed, Member, VoiceChannel
 from discord.ext.commands import Cog, Context, command
 
 from src.harpi_lib.harpi_bot import HarpiBot
-from src.harpi_lib.music.soundboard import SoundboardController
-from src.harpi_lib.audio.test_tone_source import (
-    MultiFrequencyTestSource,
+from src.harpi_lib.audio.controller import AudioController
+from src.harpi_lib.audio.tone_source import (
     TestToneSource,
 )
 
@@ -128,9 +127,7 @@ class TestCog(Cog):
 
         await self._send_results(ctx, results)
 
-    async def _test_layers(
-        self, controller: SoundboardController
-    ) -> TestResult:
+    async def _test_layers(self, controller: AudioController) -> TestResult:
         try:
             source = TestToneSource(
                 frequency=440, duration_ms=500, name="Layer Test"
@@ -184,9 +181,7 @@ class TestCog(Cog):
                 message=f"Exception: {e}",
             )
 
-    async def _test_queue(
-        self, controller: SoundboardController
-    ) -> TestResult:
+    async def _test_queue(self, controller: AudioController) -> TestResult:
         try:
             source1 = TestToneSource(
                 frequency=523, duration_ms=300, name="Queue Test 1"
@@ -242,7 +237,7 @@ class TestCog(Cog):
                 message=f"Exception: {e}",
             )
 
-    async def _test_tts(self, controller: SoundboardController) -> TestResult:
+    async def _test_tts(self, controller: AudioController) -> TestResult:
         try:
             source = TestToneSource(
                 frequency=330, duration_ms=400, name="TTS Test"
@@ -291,7 +286,7 @@ class TestCog(Cog):
             )
 
     async def _test_button_sounds(
-        self, controller: SoundboardController
+        self, controller: AudioController
     ) -> TestResult:
         try:
             source = TestToneSource(
@@ -341,7 +336,7 @@ class TestCog(Cog):
             )
 
     async def _test_multiple_sources(
-        self, controller: SoundboardController
+        self, controller: AudioController
     ) -> TestResult:
         try:
             layer_source = TestToneSource(
@@ -398,9 +393,7 @@ class TestCog(Cog):
                 message=f"Exception: {e}",
             )
 
-    async def _test_cleanup(
-        self, controller: SoundboardController
-    ) -> TestResult:
+    async def _test_cleanup(self, controller: AudioController) -> TestResult:
         try:
             for freq in [261, 329, 392]:
                 source = TestToneSource(

@@ -1,4 +1,4 @@
-"""Soundboard controller that manages all audio sources for a guild.
+"""Audio controller that manages all audio sources for a guild.
 
 Thread safety
 -------------
@@ -7,7 +7,7 @@ via ``on_queue_empty`` are invoked **outside** the lock to prevent
 deadlocks if a callback needs to re-enter the controller.
 """
 
-from src.harpi_lib.musicdata.ytmusicdata import UniqueAudioSource
+from src.harpi_lib.music.ytmusicdata import UniqueAudioSource
 from typing import Callable
 from collections.abc import Iterable
 import threading
@@ -16,7 +16,7 @@ import uuid
 import discord
 
 
-class SoundboardController:
+class AudioController:
     """Manages all audio sources for a guild: queue tracks, layers, button sounds, and TTS."""
 
     def __init__(self) -> None:

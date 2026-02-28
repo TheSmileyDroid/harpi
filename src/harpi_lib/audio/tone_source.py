@@ -5,6 +5,7 @@ import numpy as np
 
 
 class TestToneSource(discord.AudioSource):
+    __test__ = False
     SAMPLE_RATE = 48000
     CHANNELS = 2
     SAMPLES_PER_FRAME = 960

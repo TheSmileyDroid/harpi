@@ -18,9 +18,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from discord.ext.commands import Bot, Context
-from loguru import logger
 
-from src.harpi_lib.musicdata.ytmusicdata import YoutubeDLSource, YTMusicData
+from src.harpi_lib.music.ytmusicdata import YoutubeDLSource, YTMusicData
 
 if TYPE_CHECKING:
     from src.harpi_lib.api import GuildConfig
@@ -109,17 +108,15 @@ class BackgroundAudioService:
                 if hasattr(source, "data")
                 else 0
             )
-            status.append(
-                {
-                    "layer_id": layer_id,
-                    "playing": True,
-                    "volume": source.volume * 100,
-                    "progress": getattr(source, "progress", 0.0),
-                    "duration": float(duration) if duration else 0.0,
-                    "title": getattr(source, "title", "Unknown"),
-                    "url": getattr(source, "url", ""),
-                }
-            )
+            status.append({
+                "layer_id": layer_id,
+                "playing": True,
+                "volume": source.volume * 100,
+                "progress": getattr(source, "progress", 0.0),
+                "duration": float(duration) if duration else 0.0,
+                "title": getattr(source, "title", "Unknown"),
+                "url": getattr(source, "url", ""),
+            })
         return status
 
     async def clean_all(self, guild_id: int) -> None:

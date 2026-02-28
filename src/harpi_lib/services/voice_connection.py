@@ -24,11 +24,11 @@ from discord.channel import VoiceChannel
 from discord.ext.commands import Bot, Context
 from loguru import logger
 
-from src.harpi_lib.music.mixer import MixerSource
-from src.harpi_lib.music.soundboard import SoundboardController
+from src.harpi_lib.audio.mixer import MixerSource
+from src.harpi_lib.audio.controller import AudioController
 
 if TYPE_CHECKING:
-    from src.harpi_lib.api import GuildConfig, SoundboardGraph
+    from src.harpi_lib.api import GuildConfig
 
 
 class VoiceConnectionService:
@@ -68,7 +68,7 @@ class VoiceConnectionService:
         self, guild_id: int, channel_id: int, ctx: Context | None = None
     ) -> GuildConfig:
         """Connect to a voice channel and create a guild config."""
-        from src.harpi_lib.api import GuildConfig, SoundboardGraph
+        from src.harpi_lib.api import GuildConfig
 
         guild = self.resolve_guild(self.bot, guild_id)
         channel = self.resolve_voice_channel(guild, channel_id)
@@ -91,7 +91,7 @@ class VoiceConnectionService:
         except asyncio.TimeoutError as e:
             raise ValueError("Voice connection timed out") from e
 
-        controller = SoundboardController()
+        controller = AudioController()
         mixer = MixerSource(controller)
         guild_config = GuildConfig(
             id=guild.id,
@@ -100,17 +100,6 @@ class VoiceConnectionService:
             ctx=ctx,
             voice_client=vc,
             channel=channel,
-            soundboard_graph=SoundboardGraph(
-                nodes=[
-                    {
-                        "id": "output-1",
-                        "type": "output",
-                        "data": {"volume": 100},
-                        "position": {"x": 400, "y": 300},
-                    }
-                ],
-                edges=[],
-            ),
         )
         callback = cast(
             Callable,
@@ -144,17 +133,6 @@ class VoiceConnectionService:
             logger.opt(exception=True).warning(
                 f"Error cleaning up controller for guild {guild_id}"
             )
-
-        # Clean up prepared sources (FFmpeg subprocesses)
-        for node_id, source in list(guild_config.prepared_sources.items()):
-            try:
-                if hasattr(source, "cleanup"):
-                    source.cleanup()
-            except Exception:
-                logger.opt(exception=True).warning(
-                    f"Error cleaning up prepared source {node_id}"
-                )
-        guild_config.prepared_sources.clear()
 
         # Clean up the mixer's thread pool
         try:

@@ -15,7 +15,7 @@ event loops.
   submitting work to a dead pool.
 """
 
-from src.harpi_lib.music.soundboard import SoundboardController
+from src.harpi_lib.audio.controller import AudioController
 import concurrent.futures
 import threading
 from typing import Callable, override
@@ -28,11 +28,11 @@ from loguru import logger
 class MixerSource(discord.AudioSource):
     """Read from multiple audio sources and mix them into a single PCM stream."""
 
-    def __init__(self, soundboard: SoundboardController) -> None:
+    def __init__(self, controller: AudioController) -> None:
         self._lock: threading.Lock = threading.Lock()
         self._shutdown: bool = False
         self.has_active_tracks: bool = False
-        self.soundboard: SoundboardController = soundboard
+        self.controller: AudioController = controller
         self._observers: dict[str, list[Callable]] = {}
 
         self.executor = concurrent.futures.ThreadPoolExecutor(
@@ -184,9 +184,9 @@ class MixerSource(discord.AudioSource):
             self._notify_observers("track_end", to_remove=[source_obj])
         elif source_type == "queue":
             self._notify_observers("queue_end")
-            self.soundboard._on_track_finished(source_obj)
+            self.controller._on_track_finished(source_obj)
         elif source_type == "tts":
-            self.soundboard.set_tts_track(None)
+            self.controller.set_tts_track(None)
         # "button" sources need no special handling
 
     @override
@@ -199,7 +199,7 @@ class MixerSource(discord.AudioSource):
             self.SAMPLES_PER_FRAME * self.CHANNELS, dtype=np.int32
         )
 
-        sources = self.soundboard.get_playing_sounds()
+        sources = self.controller.get_playing_sounds()
 
         self._submit_read_futures(sources)
         self._prune_stale_futures(sources)
@@ -208,7 +208,7 @@ class MixerSource(discord.AudioSource):
         to_remove, has_active = self._collect_and_mix(sources, mixed_audio)
 
         for source in to_remove:
-            self.soundboard.remove_finished_source(source)
+            self.controller.remove_finished_source(source)
 
         self.has_active_tracks = has_active
 

@@ -18,7 +18,6 @@ import asyncio
 from collections.abc import Coroutine
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from loguru import logger
 
 if TYPE_CHECKING:
     from src.harpi_lib.api import HarpiAPI

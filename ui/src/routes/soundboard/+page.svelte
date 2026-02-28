@@ -1,25 +1,12 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import { createQuery, createMutation } from '@tanstack/svelte-query';
 	import { guildStore } from '$lib/stores/guild.svelte';
-	import type { Node, Edge, NodeTypes } from '@xyflow/svelte';
 	import { soundboardStore, generateNodeId, generateEdgeId } from '$lib/stores/soundboard.svelte';
-	import type { SoundboardNode, SoundboardEdge } from '$lib/types/soundboard';
-	import SoundSourceNode from '$lib/components/soundboard/SoundSourceNode.svelte';
-	import PlaylistNode from '$lib/components/soundboard/PlaylistNode.svelte';
-	import MixerNode from '$lib/components/soundboard/MixerNode.svelte';
-	import OutputNode from '$lib/components/soundboard/OutputNode.svelte';
+	import type { SoundboardNode, SoundboardEdge, PlaylistItem } from '$lib/types/soundboard';
 	import SoundboardSidebar from '$lib/components/soundboard/SoundboardSidebar.svelte';
 	import SoundboardCanvas from '$lib/components/soundboard/SoundboardCanvas.svelte';
 
 	const guildId = $derived(guildStore.current?.id);
-
-	const nodeTypes: NodeTypes = {
-		'sound-source': SoundSourceNode as NodeTypes[string],
-		playlist: PlaylistNode as NodeTypes[string],
-		mixer: MixerNode as NodeTypes[string],
-		output: OutputNode as NodeTypes[string]
-	};
 
 	// --- Sidebar state ---
 
@@ -38,7 +25,10 @@
 
 	// --- Flow data mapping ---
 
-	function enrichNodeData(n: SoundboardNode, storeNodes: SoundboardNode[]): Record<string, unknown> {
+    // The store nodes are now directly used by the canvas
+    // We only need to ensure data is updated when store changes or active status changes
+
+	function enrichNodeData(n: SoundboardNode): SoundboardNode {
 		const extra: Record<string, unknown> = {};
 		if (guildId) extra.guildId = guildId;
 
@@ -52,7 +42,7 @@
 		if (n.type === 'mixer') {
 			const incomingEdges = soundboardStore.edges.filter((e) => e.target === n.id);
 			const inputs = incomingEdges.map((e) => {
-				const sourceNode = storeNodes.find((sn) => sn.id === e.source);
+				const sourceNode = soundboardStore.nodes.find((sn) => sn.id === e.source);
 				const sourceActive = soundboardStore.activeNodes.find((a) => a.nodeId === e.source);
 				return {
 					nodeId: e.source,
@@ -72,55 +62,14 @@
 			extra.activeCount = soundboardStore.activeNodes.length;
 		}
 
-		return extra;
+		return {
+            ...n,
+            data: { ...n.data, ...extra }
+        };
 	}
 
-	function storeNodesToFlow(storeNodes: SoundboardNode[]): Node[] {
-		return storeNodes.map((n): Node => ({
-			id: n.id,
-			type: n.type,
-			position: n.position,
-			data: { ...n.data, ...enrichNodeData(n, storeNodes) },
-			draggable: n.type !== 'output',
-			deletable: n.type !== 'output',
-			selectable: true
-		}));
-	}
-
-	function storeEdgesToFlow(storeEdges: SoundboardEdge[], existingEdges: Edge[]): Edge[] {
-		return storeEdges.map((e): Edge => {
-			const existing = existingEdges.find((ex) => ex.id === e.id);
-			return {
-				id: e.id,
-				source: e.source,
-				target: e.target,
-				type: 'smoothstep',
-				animated: true,
-				selectable: true,
-				deletable: true,
-				selected: existing?.selected ?? false,
-				style: 'stroke: var(--color-retro-dim); stroke-width: 2px;'
-			};
-		});
-	}
-
-	// --- Reactive flow state ---
-
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let nodes = $state<Node[]>(storeNodesToFlow(soundboardStore.nodes));
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let edges = $state<Edge[]>(storeEdgesToFlow(soundboardStore.edges, []));
-
-	$effect(() => {
-		nodes = storeNodesToFlow(soundboardStore.nodes);
-	});
-
-	$effect(() => {
-		edges = storeEdgesToFlow(
-			soundboardStore.edges,
-			untrack(() => edges)
-		);
-	});
+    // Reactive nodes enriched with active status
+    let displayNodes = $derived(soundboardStore.nodes.map(enrichNodeData));
 
 	// Ensure output node exists
 	$effect(() => {
@@ -282,11 +231,7 @@
 			const existingPlaylist = soundboardStore.nodes.find((n) => n.type === 'playlist');
 
 			if (existingPlaylist) {
-				const items = (existingPlaylist.data.items || []) as Array<{
-					title: string;
-					duration: number;
-					url: string;
-				}>;
+				const items = (existingPlaylist.data.items || []) as PlaylistItem[];
 				items.push({ title: meta.title, duration: meta.duration, url: playlistUrl.trim() });
 				soundboardStore.updateNode(existingPlaylist.id, { items });
 			} else {
@@ -341,7 +286,7 @@
 		debouncedSave();
 	}
 
-	function handleNodeDragStop(targetNode: Node) {
+	function handleNodeDragStop(targetNode: SoundboardNode) {
 		const updatedNodes = soundboardStore.nodes.map((n) =>
 			n.id === targetNode.id ? { ...n, position: targetNode.position } : n
 		);
@@ -349,7 +294,7 @@
 		debouncedSave();
 	}
 
-	function handleDelete({ nodes: deletedNodes, edges: deletedEdges }: { nodes: Node[]; edges: Edge[] }) {
+	function handleDelete({ nodes: deletedNodes, edges: deletedEdges }: { nodes: SoundboardNode[]; edges: SoundboardEdge[] }) {
 		for (const node of deletedNodes) {
 			if (node.id !== 'output-main') {
 				soundboardStore.removeNode(node.id);
@@ -393,9 +338,9 @@
 				</div>
 			{/if}
 			<SoundboardCanvas
-				bind:nodes
-				bind:edges
-				{nodeTypes}
+                nodes={displayNodes}
+                bind:edges={soundboardStore.edges}
+                nodeTypes={{}}
 				onNodeDragStop={handleNodeDragStop}
 				onConnect={handleConnect}
 				onDelete={handleDelete}

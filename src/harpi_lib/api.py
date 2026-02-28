@@ -21,20 +21,17 @@ This is an **accepted risk** documented here rather than papered over
 with locks that would add complexity without preventing real bugs.
 """
 
-from loguru import logger
 import enum
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from functools import partial
-from typing import Any, cast
+from typing import Any
 
 import discord
 from discord.channel import VoiceChannel
 from discord.ext.commands import Bot, Context
 
-from src.harpi_lib.music.mixer import MixerSource
-from src.harpi_lib.music.soundboard import SoundboardController
-from src.harpi_lib.musicdata.ytmusicdata import (
+from src.harpi_lib.audio.mixer import MixerSource
+from src.harpi_lib.audio.controller import AudioController
+from src.harpi_lib.music.ytmusicdata import (
     YoutubeDLSource,
     YTMusicData,
 )
@@ -49,14 +46,6 @@ class LoopMode(enum.Enum):
 
 
 @dataclass
-class SoundboardGraph:
-    """Data container for soundboard node-graph state."""
-
-    nodes: list[dict[str, Any]] = field(default_factory=list)
-    edges: list[dict[str, Any]] = field(default_factory=list)
-
-
-@dataclass
 class GuildConfig:
     """Per-guild audio configuration state.
 
@@ -66,61 +55,15 @@ class GuildConfig:
 
     id: int
     mixer: MixerSource
-    controller: SoundboardController
+    controller: AudioController
     ctx: Context | None = None
     voice_client: discord.VoiceClient | None = None
     queue: list[YTMusicData] | None = None
     background: dict[str, YoutubeDLSource] | None = None
-    prepared_sources: dict[str, YoutubeDLSource] = field(default_factory=dict)
     current_music: YTMusicData | None = None
     loop: LoopMode = LoopMode.OFF
     channel: VoiceChannel | None = None
     volume: float = 0.7
-    soundboard_graph: SoundboardGraph | None = None
-
-
-def _has_path_to_output(
-    node_id: str,
-    nodes: list[dict[str, Any]],
-    edges: list[dict[str, Any]],
-) -> bool:
-    """Check if a node has a path to any output node via edges using BFS."""
-    output_ids = {n["id"] for n in nodes if n.get("type") == "output"}
-
-    if node_id in output_ids:
-        return True
-
-    adjacency: dict[str, list[str]] = {n["id"]: [] for n in nodes}
-    for edge in edges:
-        source = edge.get("source")
-        target = edge.get("target")
-        if source and target and source in adjacency:
-            adjacency[source].append(target)
-
-    visited = {node_id}
-    queue = [node_id]
-    while queue:
-        current = queue.pop(0)
-        for neighbor in adjacency.get(current, []):
-            if neighbor in output_ids:
-                return True
-            if neighbor not in visited:
-                visited.add(neighbor)
-                queue.append(neighbor)
-
-    return False
-
-
-def _find_connected_source_nodes(
-    nodes: list[dict[str, Any]], edges: list[dict[str, Any]]
-) -> set[str]:
-    """Find all source nodes that have a path to an output node."""
-    connected = set()
-    for node in nodes:
-        if node.get("type") == "sound-source":
-            if _has_path_to_output(node["id"], nodes, edges):
-                connected.add(node["id"])
-    return connected
 
 
 class HarpiAPI:
@@ -134,9 +77,6 @@ class HarpiAPI:
             BackgroundAudioService,
         )
         from src.harpi_lib.services.music_queue import MusicQueueService
-        from src.harpi_lib.services.soundboard_graph import (
-            SoundboardGraphService,
-        )
         from src.harpi_lib.services.tts import TTSService
         from src.harpi_lib.services.voice_connection import (
             VoiceConnectionService,
@@ -160,7 +100,6 @@ class HarpiAPI:
         self._background = BackgroundAudioService(
             bot, self.guilds, self._voice
         )
-        self._soundboard = SoundboardGraphService(bot, self.guilds)
         self._tts = TTSService(bot, self.guilds, self._voice)
 
     # -- Helpers (kept for callers that import them or patch them) --
@@ -264,45 +203,6 @@ class HarpiAPI:
     async def clean_background_audios(self, guild_id: int) -> None:
         """Remove all background audio layers."""
         await self._background.clean_all(guild_id)
-
-    # -- Soundboard graph --
-
-    def get_soundboard_graph(self, guild_id: int) -> SoundboardGraph | None:
-        """Get the soundboard node graph for a guild."""
-        return self._soundboard.get_graph(guild_id)
-
-    async def update_soundboard_graph(
-        self,
-        guild_id: int,
-        nodes: list[dict[str, Any]],
-        edges: list[dict[str, Any]],
-    ) -> SoundboardGraph:
-        """Update the soundboard node graph for a guild."""
-        return await self._soundboard.update_graph(guild_id, nodes, edges)
-
-    async def prepare_source(
-        self,
-        guild_id: int,
-        node_id: str,
-        url: str,
-        volume: float = 100.0,
-    ) -> str:
-        """Prepare a soundboard source (load but don't play yet)."""
-        return await self._soundboard.prepare_source(
-            guild_id, node_id, url, volume
-        )
-
-    async def start_source_playback(self, guild_id: int, node_id: str) -> None:
-        """Start playing a prepared soundboard source."""
-        await self._soundboard.start_source_playback(guild_id, node_id)
-
-    async def stop_source_playback(self, guild_id: int, node_id: str) -> None:
-        """Stop playing a soundboard source but keep it prepared."""
-        await self._soundboard.stop_source_playback(guild_id, node_id)
-
-    def is_source_playing(self, guild_id: int, node_id: str) -> bool:
-        """Check if a soundboard source is currently playing."""
-        return self._soundboard.is_source_playing(guild_id, node_id)
 
     # -- TTS --
 
