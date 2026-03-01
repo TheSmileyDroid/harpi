@@ -102,7 +102,6 @@
 	<nav class="flex gap-6 text-xl">
 		<a href={resolve('/')} class="hover:underline">[ HOME ]</a>
 		<a href={resolve('/music')} class="hover:underline">[ MUSIC ]</a>
-		<a href={resolve('/soundboard')} class="hover:underline">[ SOUNDBOARD ]</a>
 	</nav>
 	<div class="text-retro-dim">
 		{guildStore.current ? `CONNECTED: ${guildStore.current.name.toUpperCase()}` : 'NO GUILD'}
