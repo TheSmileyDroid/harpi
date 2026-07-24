@@ -36,7 +36,7 @@ class MusicQueueService:
         self,
         bot: Bot,
         guilds: dict[int, GuildConfig],
-        voice_service: VoiceConnectionService,
+        voice_service: VoiceConnectionService | None = None,
     ) -> None:
         self.bot = bot
         self.guilds = guilds

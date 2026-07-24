@@ -24,15 +24,6 @@ bot_instance: HarpiBot | None = None
 
 
 def get_token() -> str:
-    """Retrieve the bot token from environment variables.
-
-    Raises:
-        ValueError: If the token is not defined.
-
-    Returns:
-        str: The bot token.
-
-    """
     token = os.getenv("DISCORD_TOKEN")
 
     if token:
@@ -42,14 +33,6 @@ def get_token() -> str:
 
 
 async def create_bot() -> HarpiBot:
-    """Start the bot.
-
-    Returns
-    -------
-    HarpiBot
-        Bot instance
-
-    """
     logger.info("Setting up Discord bot intents...")
     intents = discord.Intents.all()
 

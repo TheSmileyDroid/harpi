@@ -85,10 +85,7 @@ class HarpiAPI:
         self.bot: Bot = bot
         self.guilds: dict[int, GuildConfig] = {}
 
-        # Build the service graph — music_queue provides the callbacks
-        # that voice_connection needs, so we create music_queue first
-        # (with a placeholder voice_service) then wire them up.
-        self._music_queue = MusicQueueService(bot, self.guilds, None)  # type: ignore[arg-type]
+        self._music_queue = MusicQueueService(bot, self.guilds, None)
         self._voice = VoiceConnectionService(
             bot,
             self.guilds,

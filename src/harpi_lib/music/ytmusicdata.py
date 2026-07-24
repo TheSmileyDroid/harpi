@@ -232,113 +232,23 @@ class YTMusicData:
             list[YTMusicData], [cls(dict(cast(dict[str, str | int], video)))]
         )
 
-    def get_title(self) -> str:
-        """Return the title of the music.
-
-        Returns:
-            str: The title of the music.
-
-        """
-        return self._title
-
-    def get_metadata(self, key: str) -> Any:
-        return self._video.get(key, None)
-
     @property
     def title(self) -> str:
-        """Return the title of the music.
-
-        Returns:
-            str: The title of the music.
-
-        """
         return self._title
 
     def get_url(self) -> str:
-        """Return the URL of the music.
-
-        Returns:
-            str: The URL of the music.
-
-        """
         return self._url
 
     @property
     def url(self) -> str:
-        """Return the URL of the music.
-
-        Returns:
-            str: The URL of the music.
-
-        """
         return self._url
-
-    def get_artist(self) -> str:
-        """Return the artist of the music.
-
-        Returns:
-            str: The artist of the music.
-
-        """
-        return cast(str, self._video.get("artist", "Unknown"))
-
-    @property
-    def artist(self) -> str:
-        """Return the artist of the music.
-
-        Returns:
-            str: The artist of the music.
-
-        """
-        return cast(str, self._video.get("artist", "Unknown"))
-
-    def get_thumbnail(self) -> str:
-        """Return the thumbnail URL of the music.
-
-        Returns:
-            str: The URL of the thumbnail.
-
-        """
-        return cast(str, self._video.get("thumbnail", "Unknown"))
-
-    @property
-    def thumbnail(self) -> str:
-        """Return the thumbnail URL of the music.
-
-        Returns:
-            str: The URL of the thumbnail.
-
-        """
-        return cast(str, self._video.get("thumbnail", "Unknown"))
 
     @property
     def duration(self) -> int:
-        """Return the duration of the music.
-
-        Returns:
-            int: The duration of the music.
-
-        """
         return cast(int, self._video.get("duration", 0))
 
 
 class FFmpegPCMAudio(discord.AudioSource):
-    """Audio streaming source via FFmpeg with strict typing.
-
-    Thread safety
-    -------------
-    ``read()`` is called from the mixer's thread pool, while ``cleanup()``
-    can be called from any thread (mixer pool on EOF, or bot/Quart loops
-    on disconnect).  A ``threading.Lock`` protects the ``_process``
-    lifecycle to prevent double-terminate / double-kill races.
-
-    Improvements applied:
-    1. Lazy Loading: The process only starts on the first read (saves resources).
-    2. Deadlock Fix: Stderr is redirected to DEVNULL if not provided.
-    3. Type Hints: Full typing for static validation (Mypy/Pyright).
-    4. Auto-Reconnection: Reconnection flags applied only for HTTP(S) URLs.
-    """
-
     def __init__(
         self,
         source: str | io.BufferedIOBase,
@@ -349,16 +259,6 @@ class FFmpegPCMAudio(discord.AudioSource):
         before_options: str | None = None,
         options: str | None = None,
     ) -> None:
-        """Initialize FFmpegPCMAudio.
-
-        Args:
-            source: URL (str) or file object (buffer) to read from.
-            executable: Name or path of the ffmpeg executable.
-            pipe: If True, source will be passed via stdin.
-            stderr: File/Pipe for error logging.
-            before_options: FFmpeg arguments before the input (-i).
-            options: FFmpeg arguments after the input.
-        """
         self.source: str | io.BufferedIOBase = source
         self.executable: str = executable
         self.pipe: bool = pipe
@@ -367,82 +267,60 @@ class FFmpegPCMAudio(discord.AudioSource):
         self.options: str | None = options
 
         self._proc_lock: threading.Lock = threading.Lock()
-        # The process is typed as Popen that returns bytes on stdout
         self._process: subprocess.Popen[bytes] | None = None
 
     def _spawn_process(self) -> None:
-        """Spawn the FFmpeg subprocess (lazy loading)."""
         args: list[str] = [self.executable]
 
-        # 1. Before Options
         if self.before_options:
             args.extend(shlex.split(self.before_options))
 
-        # 2. Reconnection Flags (HTTP/HTTPS URLs only)
-        # Avoids errors on local files where these flags do not exist.
-        if isinstance(self.source, str) and self.source.startswith(
-            ("http:", "https:")
-        ):
-            # Check if the user has not already passed these flags manually
+        if isinstance(self.source, str) and self.source.startswith((
+            "http:",
+            "https:",
+        )):
             if (
                 not self.before_options
                 or "-reconnect" not in self.before_options
             ):
-                args.extend(
-                    [
-                        "-reconnect",
-                        "1",
-                        "-reconnect_streamed",
-                        "1",
-                        "-reconnect_delay_max",
-                        "5",
-                    ]
-                )
+                args.extend([
+                    "-reconnect",
+                    "1",
+                    "-reconnect_streamed",
+                    "1",
+                    "-reconnect_delay_max",
+                    "5",
+                ])
 
-        # 3. Input (-i)
         args.append("-i")
         args.append("-" if self.pipe else str(self.source))
+        args.extend([
+            "-f",
+            "s16le",
+            "-ar",
+            "48000",
+            "-ac",
+            "2",
+            "-loglevel",
+            "warning",
+        ])
 
-        # 4. Codec Options (Discord default: PCM 16-bit Little Endian, 48kHz, Stereo)
-        args.extend(
-            [
-                "-f",
-                "s16le",
-                "-ar",
-                "48000",
-                "-ac",
-                "2",
-                "-loglevel",
-                "warning",
-            ]
-        )
-
-        # 5. After Options
         if self.options:
             args.extend(shlex.split(self.options))
 
-        # 6. Output Pipe
         args.append("pipe:1")
 
         logger.debug(f"Starting FFmpeg with command: {shlex.join(args)}")
 
-        # Stdin Configuration
-        # If pipe=True, we use self.source as stdin. Otherwise, we use DEVNULL.
-        # We need to ensure that stdin is a valid file or None/DEVNULL.
         input_stream: IO[bytes] | int | None = None
         if self.pipe:
             if isinstance(self.source, (str, bytes)):
-                # If source is a string but pipe=True, this is usually a usage error,
-                # unless the string is raw data (which str should not be).
-                # We assume here that source is a valid Buffer if pipe=True.
                 pass
             input_stream = cast(IO[bytes], cast(object, self.source))
         else:
             input_stream = subprocess.DEVNULL
 
         try:
-            # FIX DEADLOCK: Use DEVNULL if stderr is not set by the user.
-            # Never leave stderr=subprocess.PIPE without reading the data, as it blocks the process.
             stderr_dest = self.stderr if self.stderr else subprocess.DEVNULL
 
             self._process = subprocess.Popen(
@@ -462,29 +340,18 @@ class FFmpegPCMAudio(discord.AudioSource):
 
     @override
     def read(self) -> bytes:
-        """Read 20ms of PCM audio.
-
-        Thread-safe: acquires ``_proc_lock`` for process spawning and
-        delegates to ``cleanup()`` (which also acquires the lock) on EOF.
-        The actual ``stdout.read()`` is performed without the lock held
-        so that long reads don't block cleanup from another thread.
-        """
-        # Lazy initialization under lock
         with self._proc_lock:
             if self._process is None:
                 self._spawn_process()
             proc = self._process
 
-        # Safety check after spawn
         if proc is None or proc.stdout is None:
             return b""
 
         ret: bytes = b""
         try:
-            # Read the exact frame size (usually 3840 bytes for stereo/48k)
             ret = proc.stdout.read(Encoder.FRAME_SIZE)
 
-            # If the read size is less than the frame, we reached end of stream or error.
             if len(ret) != Encoder.FRAME_SIZE:
                 self.cleanup()
                 return b""
@@ -497,11 +364,6 @@ class FFmpegPCMAudio(discord.AudioSource):
 
     @override
     def cleanup(self) -> None:
-        """Terminate the process cleanly.
-
-        Thread-safe: acquires ``_proc_lock`` to prevent double-terminate
-        if ``read()`` (mixer thread) and disconnect (bot thread) race.
-        """
         with self._proc_lock:
             proc = self._process
             if proc is None:
@@ -509,17 +371,13 @@ class FFmpegPCMAudio(discord.AudioSource):
             self._process = None
 
         try:
-            # Try to terminate gracefully (SIGTERM)
             proc.terminate()
             try:
-                # Wait briefly to avoid zombie processes
                 _ = proc.wait(timeout=0.1)
             except subprocess.TimeoutExpired:
-                # If it doesn't close, force kill (SIGKILL)
                 proc.kill()
                 _ = proc.communicate()
         except Exception:
-            # Log but don't crash — cleanup must be best-effort
             logger.debug(
                 "FFmpegPCMAudio cleanup error (suppressed)", exc_info=True
             )
