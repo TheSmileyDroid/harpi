@@ -1,44 +1,20 @@
 #!make
 
-include .env
-export $(shell sed 's/=.*//' .env)
+-include .env
+export $(shell sed 's/=.*//' .env 2>/dev/null || true)
 
-start: types build
-	uvicorn app:asgi_app
+.PHONY: dev start lint check
 
 dev:
-	uvicorn app:asgi_app --reload &
-	cd ui; \
-	$(JS_RUNNER) run dev;
+	uv run python -m src --reload
 
-build: types
-	cd ui; \
-	$(JS_RUNNER) run build;
+start:
+	uv run python -m src
 
-types:
-	python export.py
-	cd ui; \
-	$(JS_RUNNER) run types;
+lint:
+	uv run ruff check src/
 
-test:
-	uv run pytest tests/ -v --ignore=tests/integration
-
-test-integration:
-	uv run uvicorn app:asgi_app --port 5000 & \
-	SERVER_PID=$$!; \
-	sleep 5; \
-	uv run pytest tests/integration/ -v; \
-	TEST_EXIT_CODE=$$?; \
-	kill $$SERVER_PID || true; \
-	exit $$TEST_EXIT_CODE
-
-test-cov:
-	uv run pytest tests/ -v --cov=src --cov-report=term-missing --ignore=tests/integration
-
-test-e2e:
-	cd ui; \
-	bunx playwright test;
-
-test-all: test test-integration
-
-.PHONY: start types dev build test test-integration test-cov test-e2e test-all
+check:
+	uv run ruff check src/
+	uv run ruff format --check src/
+	uv run vulture src/ app.py --min-confidence 50 --sort-by-size

@@ -55,12 +55,6 @@ class MixerSource(discord.AudioSource):
                 self._observers[event] = []
             self._observers[event].append(callback)
 
-    def remove_observer(self, event: str, callback: Callable) -> None:
-        """Unregister an event callback."""
-        with self._lock:
-            if event in self._observers and callback in self._observers[event]:
-                self._observers[event].remove(callback)
-
     def _notify_observers(self, event: str, **kwargs: object) -> None:
         """Invoke all callbacks registered for an event.
 

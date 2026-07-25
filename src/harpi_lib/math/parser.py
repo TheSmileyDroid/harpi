@@ -269,18 +269,6 @@ class DiceParser:
 
         return "\n".join(lines)
 
-    def _safe_eval(self, expression: str) -> int | float:
-        """Safely evaluate a pure arithmetic expression using the parser.
-
-        This avoids using Python's built-in eval() which can execute
-        arbitrary code. Only supports the operators defined in self.operators.
-
-        Raises:
-            ValueError: If the expression contains invalid tokens.
-        """
-        result = self.parse(expression)
-        return result.value
-
     # ------------------------------------------------------------------
     # Formatting
     # ------------------------------------------------------------------

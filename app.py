@@ -7,7 +7,6 @@ import os
 import sys
 
 import psutil
-from dotenv import load_dotenv
 from loguru import logger
 from quart import Quart
 from quart_cors import cors
@@ -15,7 +14,6 @@ from quart_schema import QuartSchema, validate_response
 from src.api import guild, music
 from src.discord_bot import run_bot_in_background
 
-assert load_dotenv(), "dot env not loaded"
 logger.remove()
 logger.add("spam.log", level="DEBUG")
 logger.add(sys.stdout, level="INFO")

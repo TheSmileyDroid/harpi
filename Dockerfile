@@ -8,9 +8,6 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 
-ENV DENO_INSTALL=/usr/local
-RUN curl -fSL https://deno.land/install.sh |  sh -s -- --yes
-
 WORKDIR /app
 
 ENV UV_COMPILE_BYTECODE=1

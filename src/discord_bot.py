@@ -7,7 +7,6 @@ import os
 import threading
 
 import discord
-from dotenv import load_dotenv
 from loguru import logger
 
 from src.cogs.basic import BasicCog
@@ -18,10 +17,6 @@ from src.cogs.tts import TTSCog
 from src.api.deps import init_bot
 from src.harpi_lib.harpi_bot import HarpiBot
 
-assert load_dotenv(), "dot env not loaded"
-
-bot_instance: HarpiBot | None = None
-
 
 def get_token() -> str:
     token = os.getenv("DISCORD_TOKEN")
@@ -29,7 +24,7 @@ def get_token() -> str:
     if token:
         return token
 
-    raise ValueError
+    raise ValueError("DISCORD_TOKEN not found in environment variables")
 
 
 async def create_bot() -> HarpiBot:
@@ -58,11 +53,9 @@ async def create_bot() -> HarpiBot:
 
 def run_bot_in_background() -> None:
     """Run the Discord bot in a background thread."""
-    global bot_instance
 
     def run_bot():
         """Function to run in the background thread."""
-        global bot_instance
         # Create a new event loop for this thread
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -73,10 +66,9 @@ def run_bot_in_background() -> None:
             client = loop.run_until_complete(create_bot())
             logger.info("Discord bot instance created successfully")
 
-            # Store bot reference globally
-            bot_instance = client
+            # Store bot reference in deps (single source of truth)
             init_bot(client)
-            logger.info("Bot instance stored globally")
+            logger.info("Bot instance stored in deps")
 
             # Run the bot
             logger.info("Starting Discord bot connection...")
@@ -90,9 +82,15 @@ def run_bot_in_background() -> None:
     if not token or type(token) is not str:
         raise ValueError("DISCORD_TOKEN not found in environment variables")
 
-    if bot_instance:
+    # Check if bot is already initialized in deps
+    from src.api.deps import get_bot
+
+    try:
+        get_bot()
         logger.info("Bot already running, skipping initialization")
         return
+    except AssertionError:
+        pass  # Bot not initialized yet, continue
 
     # Start the bot in a daemon thread
     logger.info("Creating background thread for Discord bot...")
@@ -101,13 +99,3 @@ def run_bot_in_background() -> None:
     bot_thread.start()
 
     logger.info("Discord bot started in background thread")
-
-
-def get_bot_instance() -> HarpiBot:
-    """Get the global bot instance.
-
-    .. deprecated::
-        Use ``src.api.deps.get_bot()`` instead.
-    """
-    assert bot_instance, "Bot does not exists!"
-    return bot_instance

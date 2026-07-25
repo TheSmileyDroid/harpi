@@ -114,9 +114,3 @@ class MultiFrequencyTestSource(discord.AudioSource):
     @property
     def name(self) -> str:
         return self._name
-
-    @property
-    def current_frequency(self) -> int | None:
-        if self._current_freq_index < len(self._frequencies):
-            return self._frequencies[self._current_freq_index]
-        return None

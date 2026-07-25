@@ -15,7 +15,7 @@ CPython's GIL.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from discord.ext.commands import Bot, Context
 
@@ -94,30 +94,6 @@ class BackgroundAudioService:
             )
 
         guild_config.background[layer_id].volume = max(0.0, min(2.0, volume))
-
-    def get_status(self, guild_id: int) -> list[dict[str, Any]]:
-        """Get status info for all background audio layers."""
-        guild_config = self.guilds.get(guild_id)
-        if not guild_config or not guild_config.background:
-            return []
-
-        status = []
-        for layer_id, source in guild_config.background.items():
-            duration = (
-                source.data.get("duration", 0)
-                if hasattr(source, "data")
-                else 0
-            )
-            status.append({
-                "layer_id": layer_id,
-                "playing": True,
-                "volume": source.volume * 100,
-                "progress": getattr(source, "progress", 0.0),
-                "duration": float(duration) if duration else 0.0,
-                "title": getattr(source, "title", "Unknown"),
-                "url": getattr(source, "url", ""),
-            })
-        return status
 
     async def clean_all(self, guild_id: int) -> None:
         """Remove all background audio layers."""

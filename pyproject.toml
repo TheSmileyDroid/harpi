@@ -1,35 +1,38 @@
 [project]
 name = "harpi"
 version = "0.1.0"
-authors = [{ name = "TheSmileyDroid", email = "ghsilha@gmail.com" }]
 requires-python = ">=3.13"
+authors = [{ name = "TheSmileyDroid", email = "ghsilha@gmail.com" }]
 dependencies = [
     "cryptography>=45.0.3",
+    "discord.py[voice]>=2.5.2",
     "gtts>=2.5.4",
+    "hypercorn>=0.18.0",
+    "jinja2>=3.1.6",
+    "loguru>=0.7.3",
+    "numpy>=2.4.0",
     "pillow>=11.2.1",
     "psutil>=7.0.0",
-    "discord.py[voice]>=2.5.2",
+    "pydub>=0.25.1",
     "pytest>=8.4.0",
     "python-dotenv>=1.1.0",
+    "python-socketio>=5.11.0",
     "pytz>=2025.2",
+    "quart>=0.20.0",
+    "quart-cors>=0.8.0",
+    "quart-schema>=0.23.0",
     "safebag>=0.2.0",
     "strawberry-graphql[fastapi]>=0.271.1",
     "uvicorn[standard]>=0.34.3",
+    "vulture>=2.16",
     "websockets>=15.0.1",
     "wikipedia-api>=0.8.1",
     "yt-dlp>=2025.10.22",
-    "jinja2>=3.1.6",
     "yt-dlp-ejs>=0.3.2",
-    "pydub>=0.25.1",
-    "numpy>=2.4.0",
-    "loguru>=0.7.3",
-    "quart>=0.20.0",
-    "quart-cors>=0.8.0",
-    "hypercorn>=0.18.0",
-    "python-socketio>=5.11.0",
-    "quart-schema>=0.23.0",
-    "vulture>=2.16",
 ]
+
+[dependency-groups]
+dev = ["httpx>=0.28.0", "pytest-asyncio>=1.3.0", "pytest-cov>=7.0.0"]
 
 [tool.pyright]
 reportMissingTypeArgument = false
@@ -42,41 +45,6 @@ reportUnknownLambdaType = false
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-
-
-[dependency-groups]
-dev = [
-    "pytest-asyncio>=1.3.0",
-    "httpx>=0.28.0",
-    "pytest-cov>=7.0.0",
-]
-
-[tool.ruff.lint]
-preview = true
-
-select = ["E4", "E7", "E9", "F", "B"]
-
-fixable = ["ALL"]
-unfixable = []
-
-ignore = [
-    "EM",
-    "CPY001",
-    "G",
-    "UP007",
-    "D",
-    "S101",
-    "E501",
-    "DTZ005",
-]
-
-
-[tool.ruff.format]
-preview = true
-
-docstring-code-format = true
-docstring-code-line-length = 20
-
 
 [tool.ruff]
 line-length = 79
@@ -104,4 +72,32 @@ exclude = [
     "node_modules",
     "venv",
     "env",
+]
+
+[tool.ruff.lint]
+preview = true
+
+select = ["E4", "E7", "E9", "F", "B"]
+
+fixable = ["ALL"]
+unfixable = []
+
+ignore = ["EM", "CPY001", "G", "UP007", "D", "S101", "E501", "DTZ005"]
+
+[tool.ruff.format]
+preview = true
+
+docstring-code-format = true
+docstring-code-line-length = 20
+
+[tool.vulture]
+min_confidence = 50
+sort_by_size = true
+ignore_decorators = [
+    "@app.route",
+    "@commands.command",
+    "@bp.route",
+    "@command",
+    "@Cog.listener",
+    "@app.before_serving",
 ]

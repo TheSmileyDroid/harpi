@@ -22,8 +22,7 @@ with locks that would add complexity without preventing real bugs.
 """
 
 import enum
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 import discord
 from discord.channel import VoiceChannel
@@ -105,12 +104,6 @@ class HarpiAPI:
         """Get the discord.py Guild object for a guild ID."""
         return self._voice.resolve_guild(self.bot, guild_id)
 
-    def _voice_channel(
-        self, guild: discord.Guild, channel_id: int
-    ) -> discord.VoiceChannel:
-        """Get the voice channel for a guild and channel ID."""
-        return self._voice.resolve_voice_channel(guild, channel_id)
-
     # -- Voice connection --
 
     async def connect_to_voice(
@@ -128,12 +121,6 @@ class HarpiAPI:
     def _mixer_callback(self, guild_config: GuildConfig) -> None:
         """Forward mixer queue-end events to the music queue service."""
         self._music_queue.on_queue_end(guild_config)
-
-    def _background_callback(
-        self, guild_config: GuildConfig, to_remove: list[discord.AudioSource]
-    ) -> None:
-        """Forward background track-end events to the music queue service."""
-        self._music_queue.on_track_end(guild_config, to_remove)
 
     async def next_music(
         self, guild_config: GuildConfig, force_next: bool = False
@@ -190,12 +177,6 @@ class HarpiAPI:
     ) -> None:
         """Set the volume for a specific background audio layer."""
         await self._background.set_volume(guild_id, layer_id, volume)
-
-    def get_background_audio_status(
-        self, guild_id: int
-    ) -> list[dict[str, Any]]:
-        """Get status info for all background audio layers."""
-        return self._background.get_status(guild_id)
 
     async def clean_background_audios(self, guild_id: int) -> None:
         """Remove all background audio layers."""
