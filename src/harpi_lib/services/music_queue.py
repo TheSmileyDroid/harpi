@@ -149,9 +149,12 @@ class MusicQueueService:
             raise ValueError(f"No audio found for URL: {link}")
         guild_config = self.guilds.get(guild_id)
         if not guild_config:
-            guild_config = await self.voice_service.connect(
-                guild_id, channel_id, ctx
+            guild_config = (
+                await self.voice_service.connect(guild_id, channel_id, ctx)
+                if self.voice_service
+                else None
             )
+        assert guild_config, "Guild config not found"
         if not guild_config.queue:
             guild_config.queue = []
         guild_config.queue.extend(music_data_list)
