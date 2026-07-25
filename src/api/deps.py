@@ -63,5 +63,5 @@ async def run_on_bot_loop(
         raise RuntimeError("Bot event loop is closed or unavailable")
 
     future = asyncio.run_coroutine_threadsafe(coro, loop)
-    # Await the concurrent.futures.Future from the current (Quart) loop
-    return await asyncio.wrap_future(future)
+    # Await the concurrent.futures.Future from the current (Quart) loop with timeout
+    return await asyncio.wait_for(asyncio.wrap_future(future), timeout=timeout)

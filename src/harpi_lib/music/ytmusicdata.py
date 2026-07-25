@@ -54,17 +54,9 @@ ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
 class AudioSourceTracked(discord.AudioSource):
     def __init__(self, source: discord.AudioSource) -> None:
         self._source: discord.AudioSource = source
-        self.count_20ms: int = 0
 
     def read(self) -> bytes:
-        data = self._source.read()
-        if data:
-            self.count_20ms += 1
-        return data
-
-    @property
-    def progress(self) -> float:
-        return self.count_20ms * 0.02  # count_20ms * 20ms
+        return self._source.read()
 
 
 class UniqueAudioSource(discord.PCMVolumeTransformer):

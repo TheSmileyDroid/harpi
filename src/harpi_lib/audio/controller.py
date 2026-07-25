@@ -2,16 +2,13 @@
 
 Thread safety
 -------------
-All mutable state is protected by ``self._lock``.  Callbacks registered
-via ``on_queue_empty`` are invoked **outside** the lock to prevent
-deadlocks if a callback needs to re-enter the controller.
+All mutable state is protected by ``self._lock``.
 """
 
 from src.harpi_lib.music.ytmusicdata import UniqueAudioSource
 from typing import Callable
 from collections.abc import Iterable
 import threading
-import uuid
 
 import discord
 
@@ -22,7 +19,6 @@ class AudioController:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._layers: dict[str, discord.AudioSource] = {}
-        self._button_sounds: dict[str, discord.AudioSource] = {}
         self._queue: list[discord.AudioSource] = []
         self._current_queue_source: discord.AudioSource | None = None
         self._tts_track: discord.AudioSource | None = None
@@ -74,8 +70,6 @@ class AudioController:
             sounds: list[tuple[str, discord.AudioSource]] = []
             for source in self._layers.values():
                 sounds.append(("track", source))
-            for source in self._button_sounds.values():
-                sounds.append(("button", source))
             if self._current_queue_source:
                 sounds.append(("queue", self._current_queue_source))
             if self._tts_track:
@@ -103,20 +97,6 @@ class AudioController:
                     return layer_id
         return None
 
-    def add_button_sound(self, source: discord.AudioSource) -> str:
-        """Add a short button sound effect and return its generated ID."""
-        button_id = str(uuid.uuid4())
-        with self._lock:
-            self._button_sounds[button_id] = source
-        return button_id
-
-    def remove_button_sound(self, button_id: str) -> None:
-        """Remove a button sound effect by its ID."""
-        with self._lock:
-            if button_id in self._button_sounds:
-                source = self._button_sounds.pop(button_id)
-                self._safe_cleanup(source)
-
     def set_queue_source(self, source: discord.AudioSource | None) -> None:
         """Set the current queue track, cleaning up any previous one."""
         with self._lock:
@@ -140,18 +120,6 @@ class AudioController:
                 self._current_queue_source = source
             else:
                 self._queue.append(source)
-
-    def clear_queue(self) -> None:
-        """Clear all queued tracks and the current queue source with cleanup."""
-        with self._lock:
-            self._cleanup_collection(self._queue)
-            self._queue.clear()
-            self._clear_queue_source()
-
-    def on_queue_empty(self, callback: Callable) -> None:
-        """Register a callback to be invoked when the queue becomes empty."""
-        with self._lock:
-            self._on_queue_empty_callbacks.append(callback)
 
     def _on_track_finished(self, source: discord.AudioSource) -> None:
         """Handle track completion by cleaning up the source and advancing the queue.
@@ -184,11 +152,6 @@ class AudioController:
                     del self._layers[layer_id]
                     self._safe_cleanup(source)
                     return
-            for button_id, src in list(self._button_sounds.items()):
-                if src == source:
-                    del self._button_sounds[button_id]
-                    self._safe_cleanup(source)
-                    return
             if source in self._queue:
                 self._queue.remove(source)
                 self._safe_cleanup(source)
@@ -207,9 +170,6 @@ class AudioController:
         with self._lock:
             self._cleanup_collection(self._layers.values())
             self._layers.clear()
-
-            self._cleanup_collection(self._button_sounds.values())
-            self._button_sounds.clear()
 
             self._cleanup_collection(self._queue)
             self._queue.clear()

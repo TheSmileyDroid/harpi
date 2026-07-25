@@ -15,6 +15,7 @@ lint:
 	uv run ruff check src/
 
 check:
-	uv run ruff check src/
-	uv run ruff format --check src/
+	uv run ruff check src/ app.py
+	uv run ruff format --check src/ app.py
+	uv run ty check src/ app.py
 	uv run vulture src/ app.py --min-confidence 50 --sort-by-size

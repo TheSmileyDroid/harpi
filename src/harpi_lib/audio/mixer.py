@@ -31,7 +31,6 @@ class MixerSource(discord.AudioSource):
     def __init__(self, controller: AudioController) -> None:
         self._lock: threading.Lock = threading.Lock()
         self._shutdown: bool = False
-        self.has_active_tracks: bool = False
         self.controller: AudioController = controller
         self._observers: dict[str, list[Callable]] = {}
 
@@ -203,8 +202,6 @@ class MixerSource(discord.AudioSource):
 
         for source in to_remove:
             self.controller.remove_finished_source(source)
-
-        self.has_active_tracks = has_active
 
         np.clip(mixed_audio, -32768, 32767, out=mixed_audio)
         return mixed_audio.astype(np.int16).tobytes()

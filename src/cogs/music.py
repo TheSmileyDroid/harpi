@@ -11,8 +11,6 @@ from discord.ext.commands import Cog, CommandError, Context, command
 from src.harpi_lib.api import HarpiAPI, LoopMode
 from src.harpi_lib.harpi_bot import HarpiBot
 
-idx_count = 0
-
 
 class MusicCog(Cog):
     """Discord cog for music playback commands."""

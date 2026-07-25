@@ -73,9 +73,10 @@ class BasicCog(commands.Cog):
 
         result = await asyncio.to_thread(
             subprocess.check_output,
-            ["top", "-b", "-n", "1"],  # type: ignore
+            ["top", "-b", "-n", "1"],
         )
-        result = result.decode("utf-8")
+        if isinstance(result, bytes):
+            result = result.decode("utf-8")
 
         # Limit the number of lines to a reasonable size
         lines = result.split("\n")[:20]  # Limit to 20 lines
