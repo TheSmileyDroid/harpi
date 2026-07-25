@@ -98,12 +98,6 @@ class HarpiAPI:
         )
         self._tts = TTSService(bot, self.guilds, self._voice)
 
-    # -- Helpers (kept for callers that import them or patch them) --
-
-    def _guild(self, guild_id: int) -> discord.Guild:
-        """Get the discord.py Guild object for a guild ID."""
-        return self._voice.resolve_guild(self.bot, guild_id)
-
     # -- Voice connection --
 
     async def connect_to_voice(
@@ -117,10 +111,6 @@ class HarpiAPI:
         await self._voice.disconnect(guild_id)
 
     # -- Music queue --
-
-    def _mixer_callback(self, guild_config: GuildConfig) -> None:
-        """Forward mixer queue-end events to the music queue service."""
-        self._music_queue.on_queue_end(guild_config)
 
     async def next_music(
         self, guild_config: GuildConfig, force_next: bool = False

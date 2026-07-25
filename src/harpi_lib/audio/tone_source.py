@@ -55,10 +55,6 @@ class TestToneSource(discord.AudioSource):
     def name(self) -> str:
         return self._name
 
-    @property
-    def is_finished(self) -> bool:
-        return self._current_frame >= self._frames_total
-
 
 class MultiFrequencyTestSource(discord.AudioSource):
     SAMPLE_RATE = 48000

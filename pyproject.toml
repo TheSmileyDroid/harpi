@@ -101,3 +101,13 @@ ignore_decorators = [
     "@Cog.listener",
     "@app.before_serving",
 ]
+ignore_names = [
+    # Pydantic model fields (serialized by framework)
+    "channels", "current_channel", "success", "progress", "layers", "status",
+    # Quart config (used by framework internally)
+    "secret_key",
+    # Pydantic model fields in app.py ServerStatusModel
+    "memory_total", "memory_available", "memory_percent", "memory_used", "memory_free",
+    # ASGI entry point (used by uvicorn)
+    "asgi_app",
+]
