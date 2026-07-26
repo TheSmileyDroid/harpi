@@ -1,0 +1,63 @@
+{# templates/pages/settings.html #}
+{% extends "base.html" %}
+
+{% block title %}Settings - Harpi{% endblock %}
+
+{% block content %}
+<div class="page-transition settings-layout">
+    <!-- Settings Navigation -->
+    <nav class="settings-nav" aria-label="Settings sections">
+        <ul class="settings-nav-list" role="list">
+            <li>
+                <button class="settings-nav-item active" 
+                        hx-get="{{ url_for('htmx_routes.htmx_settings_section', section='general') }}"
+                        hx-target="#settings-content"
+                        hx-swap="innerHTML"
+                        hx-push-url="false"
+                        aria-label="General settings">
+                    <span class="settings-nav-icon">⚙</span>
+                    <span>GENERAL</span>
+                </button>
+            </li>
+            <li>
+                <button class="settings-nav-item"
+                        hx-get="{{ url_for('htmx_routes.htmx_settings_section', section='music') }}"
+                        hx-target="#settings-content"
+                        hx-swap="innerHTML"
+                        hx-push-url="false"
+                        aria-label="Music settings">
+                    <span class="settings-nav-icon">♪</span>
+                    <span>MUSIC</span>
+                </button>
+            </li>
+            <li>
+                <button class="settings-nav-item"
+                        hx-get="{{ url_for('htmx_routes.htmx_settings_section', section='tts') }}"
+                        hx-target="#settings-content"
+                        hx-swap="innerHTML"
+                        hx-push-url="false"
+                        aria-label="TTS settings">
+                    <span class="settings-nav-icon">≡</span>
+                    <span>TTS</span>
+                </button>
+            </li>
+            <li>
+                <button class="settings-nav-item"
+                        hx-get="{{ url_for('htmx_routes.htmx_settings_section', section='dice') }}"
+                        hx-target="#settings-content"
+                        hx-swap="innerHTML"
+                        hx-push-url="false"
+                        aria-label="Dice settings">
+                    <span class="settings-nav-icon">◆</span>
+                    <span>DICE</span>
+                </button>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Settings Content -->
+    <div class="settings-content" id="settings-content">
+        {% include "partials/_settings_general.html" %}
+    </div>
+</div>
+{% endblock %}
