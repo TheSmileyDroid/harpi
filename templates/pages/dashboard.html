@@ -1,0 +1,95 @@
+{# templates/pages/dashboard.html #}
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Harpi{% endblock %}
+
+{% block content %}
+<div class="page-transition">
+    <!-- Page Header -->
+    <header class="page-header" style="margin-bottom: var(--space-lg);">
+        <h1 class="page-title" style="font-family: var(--font-mono); font-size: 1.5rem; letter-spacing: 2px; color: var(--color-amber);">
+            <span class="page-title-icon">◢</span>
+            DASHBOARD
+        </h1>
+        <p class="page-subtitle" style="color: var(--color-text-dim); margin-top: var(--space-xs);">
+            System overview and bot status
+        </p>
+    </header>
+
+    <!-- Server Status Grid -->
+    <section aria-labelledby="status-heading" style="margin-bottom: var(--space-xl);">
+        <h2 id="status-heading" class="sr-only">Server Status</h2>
+        {% include "partials/_server_status.html" %}
+    </section>
+
+    <!-- Quick Actions -->
+    <section aria-labelledby="actions-heading" style="margin-bottom: var(--space-xl);">
+        <h2 id="actions-heading" class="panel-title" style="margin-bottom: var(--space-md);">
+            QUICK ACTIONS
+        </h2>
+        <div class="panel" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
+            <a class="btn btn-primary" 
+               style="justify-content: center; padding: var(--space-lg); font-size: 1rem;"
+               hx-get="{{ url_for('html_routes.music_page') }}"
+               hx-target="#main-content"
+               hx-push-url="true"
+               hx-swap="innerHTML show:window:top"
+               hx-select="#main-content > *">
+                <span style="font-size: 1.5rem;">♪</span>
+                <span>MUSIC CONTROL</span>
+            </a>
+            <a class="btn btn-secondary" 
+               style="justify-content: center; padding: var(--space-lg); font-size: 1rem;"
+               hx-get="{{ url_for('html_routes.settings_page') }}"
+               hx-target="#main-content"
+               hx-push-url="true"
+               hx-swap="innerHTML show:window:top"
+               hx-select="#main-content > *">
+                <span style="font-size: 1.5rem;">⚙</span>
+                <span>SETTINGS</span>
+            </a>
+            <button class="btn btn-secondary" 
+                    hx-post="{{ url_for('htmx_routes.api_bot_restart') }}"
+                    hx-target="#toast-container"
+                    hx-swap="beforeend"
+                    hx-confirm="Restart the bot?"
+                    style="justify-content: center; padding: var(--space-lg); font-size: 1rem;">
+                <span>RESTART BOT</span>
+            </button>
+            <button class="btn btn-danger" 
+                    hx-post="{{ url_for('htmx_routes.api_bot_shutdown') }}"
+                    hx-target="#toast-container"
+                    hx-swap="beforeend"
+                    hx-confirm="Shutdown the bot completely?"
+                    style="justify-content: center; padding: var(--space-lg); font-size: 1rem;">
+                <span>SHUTDOWN</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- Bot Info -->
+    <section aria-labelledby="bot-info-heading">
+        <h2 id="bot-info-heading" class="panel-title" style="margin-bottom: var(--space-md);">
+            BOT INFORMATION
+        </h2>
+        <div class="panel" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-md);">
+            <div>
+                <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-dim); text-transform: uppercase; margin-bottom: var(--space-xs);">BOT USER</div>
+                <div style="font-family: var(--font-mono); font-size: 1rem; color: var(--color-text);">{{ bot_user }}</div>
+            </div>
+            <div>
+                <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-dim); text-transform: uppercase; margin-bottom: var(--space-xs);">BOT ID</div>
+                <div style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--color-text);">{{ bot_id }}</div>
+            </div>
+            <div>
+                <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-dim); text-transform: uppercase; margin-bottom: var(--space-xs);">DISCORD.PY VERSION</div>
+                <div style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--color-text);">{{ discord_version }}</div>
+            </div>
+            <div>
+                <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-dim); text-transform: uppercase; margin-bottom: var(--space-xs);">PYTHON VERSION</div>
+                <div style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--color-text);">{{ python_version }}</div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,140 @@
+{# templates/partials/_playback_controls.html #}
+<div class="playback-panel" id="playback-controls"
+     hx-get="{{ url_for('htmx_routes.htmx_playback_controls', guild_id=guild_id) }}"
+      hx-trigger="every 2s, playbackUpdated from:body"
+     hx-swap="outerHTML"
+     hx-indicator="#playback-loading">
+
+    <div class="playback-main">
+        <button class="playback-btn btn-prev"
+                hx-post="{{ url_for('htmx_routes.api_music_previous', guild_id=guild_id) }}"
+                hx-target="#playback-controls"
+                hx-swap="outerHTML"
+                aria-label="Previous track"
+                title="Previous">
+            ⏮
+        </button>
+
+        <button class="playback-btn btn-rewind"
+                hx-post="{{ url_for('htmx_routes.api_music_seek', guild_id=guild_id) }}"
+                hx-vals='{"position": -10}'
+                hx-target="#playback-controls"
+                hx-swap="outerHTML"
+                aria-label="Rewind 10 seconds"
+                title="Rewind 10s">
+            ⏪
+        </button>
+
+        <button class="playback-btn play {% if paused %}paused{% endif %}"
+                hx-post="{{ url_for('htmx_routes.api_music_toggle_pause', guild_id=guild_id) }}"
+                hx-target="#playback-controls"
+                hx-swap="outerHTML"
+                aria-label="{% if paused %}Resume{% else %}Pause{% endif %}"
+                title="{% if paused %}Resume{% else %}Pause{% endif %}">
+            {% if paused %}▶{% else %}⏸{% endif %}
+        </button>
+
+        <button class="playback-btn btn-forward"
+                hx-post="{{ url_for('htmx_routes.api_music_seek', guild_id=guild_id) }}"
+                hx-vals='{"position": 10}'
+                hx-target="#playback-controls"
+                hx-swap="outerHTML"
+                aria-label="Forward 10 seconds"
+                title="Forward 10s">
+            ⏩
+        </button>
+
+        <button class="playback-btn btn-next"
+                hx-post="{{ url_for('htmx_routes.api_music_skip', guild_id=guild_id) }}"
+                hx-target="#playback-controls"
+                hx-swap="outerHTML"
+                aria-label="Next track"
+                title="Next">
+            ⏭
+        </button>
+
+        <button class="playback-btn btn-stop"
+                hx-post="{{ url_for('htmx_routes.api_music_stop', guild_id=guild_id) }}"
+                hx-target="#playback-controls"
+                hx-swap="outerHTML"
+                aria-label="Stop playback"
+                title="Stop">
+            ⏹
+        </button>
+    </div>
+
+    <div class="playback-progress">
+        <div class="playback-time">
+            <span class="playback-current-time">{{ current_position_formatted }}</span>
+            <span class="playback-total-time">{{ current_track.duration | format_duration if current_track else '0:00' }}</span>
+        </div>
+        <div class="progress"
+             hx-post="{{ url_for('htmx_routes.api_music_seek', guild_id=guild_id) }}"
+             hx-vals='js:{position: Math.round(event.offsetX / this.offsetWidth * 100)}'
+             hx-trigger="click"
+             hx-target="#playback-controls"
+             hx-swap="outerHTML"
+             role="slider"
+             aria-label="Playback progress"
+             aria-valuemin="0"
+             aria-valuemax="100"
+             aria-valuenow="{{ (current_position / 1000 / (current_track.duration if current_track else 1) * 100) | round if current_track and current_track.duration else 0 }}">
+            <div class="progress-bar" style="width: {{ (current_position / 1000 / (current_track.duration if current_track else 1) * 100) | round if current_track and current_track.duration else 0 }}%"></div>
+        </div>
+    </div>
+
+    <div class="playback-volume">
+        <label for="master-volume" class="sr-only">Master volume</label>
+        <span class="volume-icon">VOL</span>
+        <input type="range"
+               id="master-volume"
+               class="volume-slider"
+               min="0" max="1" step="0.05"
+               value="{{ volume | default(0.5) }}"
+               hx-post="{{ url_for('htmx_routes.api_music_volume', guild_id=guild_id) }}"
+               hx-vals='js:{volume: this.value}'
+               hx-trigger="change"
+               hx-target="#playback-controls"
+               hx-swap="outerHTML"
+               aria-label="Master volume">
+        <span class="volume-text">{{ (volume | default(0.5) * 100) | round }}%</span>
+    </div>
+
+    <div class="playback-secondary">
+        <div class="playback-mode">
+            <span class="mode-label">LOOP:</span>
+            <button class="playback-mode-btn {% if loop_mode == 'off' %}active{% endif %}"
+                    hx-post="{{ url_for('htmx_routes.api_music_loop', guild_id=guild_id, mode='off') }}"
+                    hx-target="#playback-controls"
+                    hx-swap="outerHTML"
+                    aria-label="Loop off"
+                    title="Off">OFF</button>
+            <button class="playback-mode-btn {% if loop_mode == 'track' %}active{% endif %}"
+                    hx-post="{{ url_for('htmx_routes.api_music_loop', guild_id=guild_id, mode='track') }}"
+                    hx-target="#playback-controls"
+                    hx-swap="outerHTML"
+                    aria-label="Loop track"
+                    title="Track">TRACK</button>
+            <button class="playback-mode-btn {% if loop_mode == 'queue' %}active{% endif %}"
+                    hx-post="{{ url_for('htmx_routes.api_music_loop', guild_id=guild_id, mode='queue') }}"
+                    hx-target="#playback-controls"
+                    hx-swap="outerHTML"
+                    aria-label="Loop queue"
+                    title="Queue">QUEUE</button>
+        </div>
+
+        <div class="playback-info">
+            {% if current_track %}
+            <div class="playback-info-item">
+                <span class="info-label">VOL:</span>
+                <span class="info-value">{{ (volume | default(0.5) * 100) | round }}%</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="playback-loading" class="htmx-indicator" style="display:flex;justify-content:center;padding:16px;">
+        <div class="spinner"></div>
+    </div>
+</div>
