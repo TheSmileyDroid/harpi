@@ -8,16 +8,15 @@ application.
 from __future__ import annotations
 
 import time
-from typing import Any, cast
+from typing import Any
 
 import psutil
-from discord import VoiceClient
 from loguru import logger
 from quart import Blueprint, render_template, request, session
 
 from src.api.deps import get_bot, get_api, run_on_bot_loop
 from src.api.guild import _get_guilds
-from src.api.music import get_music_data, DEFAULT_VOLUME
+from src.api.music import get_music_data, _get_voice_client, DEFAULT_VOLUME
 
 
 bp = Blueprint("htmx_routes", __name__)
@@ -26,17 +25,6 @@ bp = Blueprint("htmx_routes", __name__)
 # ==========================================================================
 # Helpers
 # ==========================================================================
-
-
-def _get_voice_client(guild_id: int) -> VoiceClient | None:
-    """Get the voice client for a guild, or None."""
-    bot = get_bot()
-    if not bot:
-        return None
-    guild = bot.get_guild(guild_id)
-    if guild and guild.voice_client:
-        return cast(VoiceClient, guild.voice_client)
-    return None
 
 
 async def _parse_json_or_form() -> dict[str, Any]:
