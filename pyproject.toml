@@ -9,6 +9,7 @@ dependencies = [
     "gtts>=2.5.4",
     "hypercorn>=0.18.0",
     "jinja2>=3.1.6",
+    "jinja2-fragments>=0.10.0",
     "loguru>=0.7.3",
     "numpy>=2.4.0",
     "pillow>=11.2.1",
@@ -95,6 +96,8 @@ min_confidence = 50
 sort_by_size = true
 ignore_decorators = [
     "@app.route",
+    "@app.add_template_filter",
+    "@app.template_filter",
     "@commands.command",
     "@bp.route",
     "@command",
@@ -110,4 +113,8 @@ ignore_names = [
     "memory_total", "memory_available", "memory_percent", "memory_used", "memory_free",
     # ASGI entry point (used by uvicorn)
     "asgi_app",
+    # Jinja2 template filters (called from templates, not Python)
+    "format_duration", "format_bytes", "format_percent",
+    # Flask/Quart session.permanent attribute (set but not read in Python)
+    "permanent",
 ]

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harpi - Guild Selector Test</title>
+    <style>
+        body { font-family: monospace; background: #1a1a2e; color: #e0d8c8; padding: 20px; }
+        .select-wrapper { margin: 8px 0; }
+        select { background: #2a2a3e; color: #e0d8c8; border: 1px solid #f0c040; padding: 8px; font-family: monospace; width: 100%; }
+        button { background: #f0c040; color: #1a1a2e; border: none; padding: 8px 16px; font-family: monospace; cursor: pointer; }
+        button:disabled { background: #555; color: #999; cursor: not-allowed; }
+        .guild-channel-selector { max-width: 400px; padding: 16px; background: #222; border: 1px solid #f0c040; }
+        #status { margin-top: 16px; padding: 8px; background: #2a2a3e; border: 1px solid #555; }
+        .pass { color: #0f0; }
+        .fail { color: #f00; }
+    </style>
+</head>
+<body>
+    <h1>Harpi - Guild Selector Test</h1>
+    <div id="status">Ready</div>
+
+    <!-- Simulated Guild Selector (same structure as the real one) -->
+    <div class="guild-channel-selector" id="guild-channel-selector">
+        <form id="guild-channel-form" hx-post="/api/guild/select-channel" hx-target="#bot-status" hx-swap="outerHTML" hx-indicator="#connect-spinner">
+            <div class="select-wrapper">
+                <select id="guild-select" name="guild_id"
+                    hx-get="/htmx/channels"
+                    hx-trigger="change"
+                    hx-target="#channel-selector-container"
+                    hx-swap="innerHTML"
+                    aria-label="Select Discord server">
+                    <option value="">SELECT GUILD</option>
+                    <option value="111">Test Guild 1 (3 members)</option>
+                    <option value="222">Test Guild 2 (8 members)</option>
+                    <option value="333">Test Guild 3 (5 members)</option>
+                </select>
+            </div>
+            <div id="channel-selector-container" class="select-wrapper">
+                <select id="channel-select" name="channel_id" disabled aria-label="Select voice channel">
+                    <option value="">SELECT GUILD FIRST</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" disabled aria-label="Connect to voice channel">
+                <span>CONNECT</span>
+                <span class="htmx-indicator spinner spinner-sm" id="connect-spinner"></span>
+            </button>
+        </form>
+    </div>
+
+    <div id="bot-status">Bot status</div>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+
+    <!-- Harpi JS (test version) -->
+    <script>
+        (function() {
+            'use strict';
+
+            window.Harpi = {
+                version: '0.1.0',
+                config: {
+                    toastDuration: 5000,
+                },
+                state: {
+                    selectedGuildId: null,
+                    selectedChannelId: null,
+                    botConnected: false,
+                },
+                components: {}
+            };
+
+            Harpi.components.toast = {
+                show: function(msg, type) {
+                    var t = document.createElement('div');
+                    t.textContent = type + ': ' + msg;
+                    document.body.appendChild(t);
+                },
+                error: function(msg) { this.show(msg, 'error'); },
+                info: function(msg) { this.show(msg, 'info'); },
+                success: function(msg) { this.show(msg, 'success'); },
+            };
+
+            Harpi.components.guildSelector = {
+                _listenersAttached: false,
+                _pollInterval: null,
+
+                init: function(firstInit) {
+                    if (firstInit) {
+                        // Skip localStorage restore in test
+                        if (!this._listenersAttached) {
+                            this._listenersAttached = true;
+
+                            document.addEventListener('change', function(e) {
+                                if (e.target.id === 'guild-select') {
+                                    Harpi.state.selectedGuildId = e.target.value;
+                                    localStorage.setItem('harpi_selected_guild', e.target.value);
+                                    localStorage.removeItem('harpi_selected_channel');
+                                    Harpi.state.selectedChannelId = null;
+                                    Harpi.components.guildSelector.updateConnectButton();
+                                }
+                            });
+
+                            document.addEventListener('change', function(e) {
+                                if (e.target.id === 'channel-select') {
+                                    Harpi.state.selectedChannelId = e.target.value;
+                                    localStorage.setItem('harpi_selected_channel', e.target.value);
+                                    Harpi.components.guildSelector.updateConnectButton();
+                                }
+                            });
+
+                            document.addEventListener('input', function(e) {
+                                if (e.target.id === 'channel-select') {
+                                    Harpi.components.guildSelector.updateConnectButton();
+                                }
+                            });
+
+                            this.startPolling();
+                        }
+                    }
+
+                    this.attachDirectListener();
+                    this.updateConnectButton();
+                },
+
+                attachDirectListener: function() {
+                    var el = document.getElementById('channel-select');
+                    if (el && !el._harpiListener) {
+                        el._harpiListener = true;
+                        el.addEventListener('change', function() {
+                            Harpi.components.guildSelector.updateConnectButton();
+                        });
+                    }
+                },
+
+                startPolling: function() {
+                    if (this._pollInterval) return;
+                    this._pollInterval = setInterval(function() {
+                        Harpi.components.guildSelector.updateConnectButton();
+                    }, 500);
+                },
+
+                updateConnectButton: function() {
+                    var btn = document.querySelector('#guild-channel-selector button[type="submit"]');
+                    var guildSelect = document.getElementById('guild-select');
+                    var channelSelect = document.getElementById('channel-select');
+                    if (btn) {
+                        var guildValue = guildSelect && guildSelect.value;
+                        var channelValue = channelSelect && channelSelect.value;
+                        var shouldDisable = !(guildValue && channelValue);
+                        btn.disabled = shouldDisable;
+                        document.getElementById('status').textContent =
+                            'guildValue=' + JSON.stringify(guildValue) +
+                            ' channelValue=' + JSON.stringify(channelValue) +
+                            ' disabled=' + btn.disabled;
+                    }
+                },
+
+                getSelectedGuild: function() {
+                    return Harpi.state.selectedGuildId;
+                },
+
+                getSelectedChannel: function() {
+                    return Harpi.state.selectedChannelId;
+                }
+            };
+
+            Harpi.components.guildSelector.init(true);
+        })();
+    </script>
+</body>
+</html>
