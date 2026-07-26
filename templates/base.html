@@ -112,7 +112,7 @@
     </div>
     
     <!-- Modal Container (Alpine.js) -->
-    <div x-data="{ modalOpen: false, modalContent: '' }" 
+    <div x-data="{ modalOpen: false, modalContent: '', modalTitle: 'Modal' }" 
          x-init="window.harpiModal = $refs.modal"
          class="modal-container" 
          role="dialog" 
@@ -179,11 +179,23 @@
             const toast = document.createElement('div');
             toast.className = `toast toast-${type}`;
             toast.setAttribute('role', 'alert');
-            toast.innerHTML = `
-                <span class="toast-icon">${type === 'error' ? '✕' : type === 'success' ? '✓' : 'ℹ'}</span>
-                <span class="toast-message">${message}</span>
-                <button class="toast-close" aria-label="Dismiss">✕</button>
-            `;
+            
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'toast-icon';
+            iconSpan.textContent = type === 'error' ? '✕' : type === 'success' ? '✓' : 'ℹ';
+            toast.appendChild(iconSpan);
+            
+            const msgSpan = document.createElement('span');
+            msgSpan.className = 'toast-message';
+            msgSpan.textContent = message;
+            toast.appendChild(msgSpan);
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'toast-close';
+            closeBtn.setAttribute('aria-label', 'Dismiss');
+            closeBtn.textContent = '✕';
+            toast.appendChild(closeBtn);
+            
             container.appendChild(toast);
             
             // Animate in

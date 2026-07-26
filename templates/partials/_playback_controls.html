@@ -126,8 +126,8 @@
         <div class="playback-info">
             {% if current_track %}
             <div class="playback-info-item">
-                <span class="info-label">VOL:</span>
-                <span class="info-value">{{ (volume | default(0.5) * 100) | round }}%</span>
+                <span class="info-label">TRACK:</span>
+                <span class="info-value">{{ current_track.title | truncate(30) }}</span>
             </div>
             {% endif %}
         </div>
