@@ -1,0 +1,83 @@
+{# templates/pages/music.html #}
+{% extends "base.html" %}
+
+{% block title %}Music - Harpi{% endblock %}
+
+{% block content %}
+<div class="page-transition">
+    <!-- Page Header -->
+    <header class="page-header" style="margin-bottom: var(--space-lg); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);">
+        <div>
+            <h1 class="page-title" style="font-family: var(--font-mono); font-size: 1.5rem; letter-spacing: 2px; color: var(--color-amber);">
+                <span class="page-title-icon">♪</span>
+                MUSIC CONTROL
+            </h1>
+            <p class="page-subtitle" style="color: var(--color-text-dim); margin-top: var(--space-xs);">
+                Queue management, background layers, and playback control
+            </p>
+        </div>
+        <div style="display: flex; gap: var(--space-sm);">
+            <span class="polling-indicator" id="queue-polling-status">
+                <span class="pulse-dot"></span>
+                <span>LIVE</span>
+            </span>
+        </div>
+    </header>
+
+    <!-- Guild/Channel Context Bar -->
+    <div class="panel" style="margin-bottom: var(--space-lg); padding: var(--space-md);">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);">
+            <div style="display: flex; align-items: center; gap: var(--space-md);">
+                <span style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-dim);">GUILD:</span>
+                <strong style="color: var(--color-amber);">{{ selected_guild.name if selected_guild else 'NONE SELECTED' }}</strong>
+                {% if selected_channel %}
+                <span style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-dim);">CHANNEL:</span>
+                <strong style="color: var(--color-text);">{{ selected_channel.name }}</strong>
+                {% endif %}
+            </div>
+            <div style="display: flex; gap: var(--space-sm);">
+                {% if guild_id %}
+                <button class="btn btn-danger btn-sm"
+                        hx-post="{{ url_for('htmx_routes.api_music_disconnect', guild_id=guild_id) }}"
+                        hx-target="#main-content"
+                        hx-swap="innerHTML"
+                        hx-confirm="Disconnect from voice channel?">
+                    DISCONNECT
+                </button>
+                {% else %}
+                <span class="badge badge-warning">SELECT A GUILD TO BEGIN</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Music Layout -->
+    {% if guild_id %}
+    <div class="music-layout">
+        <!-- Left Column: Queue & Playback -->
+        <div class="music-main">
+            {% include "partials/_music_queue.html" %}
+            {% include "partials/_playback_controls.html" %}
+        </div>
+
+        <!-- Right Column: Layers -->
+        <aside aria-labelledby="layers-heading" style="position: sticky; top: 80px;">
+            {% include "partials/_music_layers.html" %}
+        </aside>
+    </div>
+    {% else %}
+    <div class="panel" style="text-align: center; padding: var(--space-xxl);">
+        <div style="font-size: 3rem; margin-bottom: var(--space-md);">♪</div>
+        <h2 style="color: var(--color-text-dim); font-family: var(--font-mono); letter-spacing: 2px;">
+            NO GUILD SELECTED
+        </h2>
+        <p style="color: var(--color-text-dim); margin-top: var(--space-sm);">
+            Select a guild from the top bar to access music controls.
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- Modal Container -->
+    <div id="modal-container"></div>
+</div>
+{% endblock %}

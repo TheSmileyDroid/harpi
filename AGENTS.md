@@ -39,3 +39,4 @@ When one of us prompts you, never hesitate to push back and suggest ways we coul
 - When making a new feature make tests for it.
 - Always use "make check" bash command at the root to check for lint, format, type, vulture errors.
 - Use modern tools like uv.
+- Do not add emojis it makes it less immersive. If you do use some font to make them more in the theme.

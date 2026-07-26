@@ -1,0 +1,90 @@
+{# templates/partials/_music_queue.html #}
+{# Standalone for HTMX polling #}
+<div class="queue-panel" id="music-queue-panel"
+     hx-get="{{ url_for('htmx_routes.htmx_music_queue', guild_id=guild_id) }}"
+     hx-trigger="every 3s, queueUpdated from:body"
+     hx-swap="outerHTML"
+     hx-indicator="#queue-loading">
+
+    <div class="panel-header queue-header">
+        <h3 class="panel-title queue-title">
+            <span class="panel-title-icon">♪</span>
+            QUEUE
+            <span class="queue-count">{{ queue|length }}</span>
+        </h3>
+        <div class="queue-actions">
+            <button class="btn btn-secondary btn-sm"
+                    hx-get="{{ url_for('htmx_routes.htmx_music_search_modal', guild_id=guild_id) }}"
+                    hx-target="#modal-container"
+                    hx-swap="innerHTML"
+                    aria-label="Search and add music">
+                + ADD
+            </button>
+            <button class="btn btn-danger btn-sm"
+                    hx-post="{{ url_for('htmx_routes.api_music_queue_clear', guild_id=guild_id) }}"
+                    hx-target="#music-queue-panel"
+                    hx-swap="outerHTML"
+                    hx-confirm="Clear entire queue?"
+                    aria-label="Clear queue">
+                CLEAR
+            </button>
+        </div>
+    </div>
+
+    {% if queue %}
+    <div class="queue-list" id="queue-list" role="list" aria-label="Music queue">
+        {% for track in queue %}
+        <div class="queue-item {% if loop.first and not paused %}playing{% endif %}" 
+             data-track-url="{{ track.url }}"
+             role="listitem">
+            <span class="queue-item-index">{{ loop.index }}</span>
+            <div class="queue-item-info">
+                <div class="queue-item-title">{{ track.title }}</div>
+                <div class="queue-item-meta">
+                    <span class="queue-item-duration">{{ track.duration | format_duration }}</span>
+                    {% if loop.first and not paused %}
+                    <span class="badge badge-success">NOW PLAYING</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="queue-item-actions">
+                {% if not loop.first %}
+                <button class="btn btn-ghost btn-sm"
+                        hx-post="{{ url_for('htmx_routes.api_music_queue_move', guild_id=guild_id, track_id=track.url, position=0) }}"
+                        hx-target="#music-queue-panel"
+                        hx-swap="outerHTML"
+                        aria-label="Move to top">
+                    ⬆
+                </button>
+                {% endif %}
+                <button class="btn btn-ghost btn-sm"
+                        hx-delete="{{ url_for('htmx_routes.api_music_queue_remove', guild_id=guild_id, track_id=track.url) }}"
+                        hx-target="#music-queue-panel"
+                        hx-swap="outerHTML"
+                        aria-label="Remove from queue">
+                    ✕
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="queue-empty" role="status">
+        <div class="queue-empty-icon">♪</div>
+        <p class="empty-state-title">QUEUE IS EMPTY</p>
+        <p class="empty-state-message">Add tracks to start playing music</p>
+        <button class="btn btn-primary empty-state-action"
+                hx-get="{{ url_for('htmx_routes.htmx_music_search_modal', guild_id=guild_id) }}"
+                hx-target="#modal-container"
+                hx-swap="innerHTML">
+            SEARCH & ADD
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Loading indicator -->
+    <div id="queue-loading" class="htmx-indicator" style="display:flex;justify-content:center;padding:16px;">
+        <div class="spinner"></div>
+        <span>Loading queue...</span>
+    </div>
+</div>

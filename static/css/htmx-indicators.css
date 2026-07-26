@@ -1,0 +1,710 @@
+/* ==========================================================================
+   HTMX INDICATORS & LOADING STATES
+   ========================================================================== */
+
+/* Base indicator styles */
+.htmx-indicator {
+    opacity: 0;
+    transition: opacity 150ms ease-out;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.htmx-request .htmx-indicator {
+    opacity: 1;
+}
+
+.htmx-request.htmx-indicator {
+    opacity: 1;
+}
+
+/* Request in progress - element that triggered request */
+.htmx-request {
+    /* Optional: add subtle indication on requesting element */
+}
+
+/* Target element during swap */
+/* Swapping content */
+.htmx-swapping {
+    opacity: 1;
+    transition: none;
+}
+
+/* Added content during swap — page handles its own transition via .page-transition */
+.htmx-added {
+    animation: none;
+}
+
+@keyframes htmx-fade-in {
+    from {
+    }
+    to {
+    }
+}
+
+/* Removed content during swap */
+.htmx-removed {
+    animation: htmx-fade-out 150ms ease-in;
+}
+
+@keyframes htmx-fade-out {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+/* ==========================================================================
+   Spinner Variants
+   ========================================================================== */
+
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-amber);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.spinner-sm {
+    width: 12px;
+    height: 12px;
+    border-width: 1.5px;
+}
+
+.spinner-lg {
+    width: 24px;
+    height: 24px;
+    border-width: 3px;
+}
+
+.spinner-inline {
+    vertical-align: middle;
+    margin-right: var(--space-sm);
+}
+
+/* Button spinner */
+.btn-loading .btn-text {
+    opacity: 0;
+}
+
+.btn-loading .spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 1;
+}
+
+/* ==========================================================================
+   Skeleton Loaders
+   ========================================================================== */
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--color-bg-elevated) 25%,
+        var(--color-border) 50%,
+        var(--color-bg-elevated) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.skeleton-text {
+    height: 1rem;
+    margin-bottom: var(--space-sm);
+}
+
+.skeleton-text:last-child {
+    width: 60%;
+}
+
+.skeleton-title {
+    height: 1.5rem;
+    width: 40%;
+    margin-bottom: var(--space-md);
+}
+
+.skeleton-card {
+    padding: var(--space-md);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.skeleton-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+
+.skeleton-button {
+    height: 36px;
+    width: 120px;
+    border-radius: var(--radius-sm);
+}
+
+/* Skeleton for queue items */
+.skeleton-queue-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: var(--space-md);
+    align-items: center;
+    padding: var(--space-sm) var(--space-md);
+}
+
+.skeleton-queue-index {
+    width: 2.5em;
+    height: 1rem;
+}
+
+.skeleton-queue-title {
+    height: 1.25rem;
+    width: 100%;
+}
+
+.skeleton-queue-meta {
+    height: 0.875rem;
+    width: 80px;
+}
+
+.skeleton-queue-actions {
+    width: 60px;
+    height: 24px;
+}
+
+/* Skeleton for layer items */
+.skeleton-layer-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-md);
+    align-items: center;
+    padding: var(--space-sm) var(--space-md);
+}
+
+.skeleton-layer-title {
+    height: 1.25rem;
+    width: 100%;
+}
+
+.skeleton-layer-volume {
+    width: 140px;
+    height: 24px;
+}
+
+/* Skeleton for status cards */
+.skeleton-status-card {
+    padding: var(--space-lg);
+}
+
+.skeleton-status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-md);
+}
+
+.skeleton-status-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+}
+
+.skeleton-status-title {
+    height: 0.875rem;
+    width: 100px;
+}
+
+.skeleton-status-value {
+    height: 3rem;
+    width: 80px;
+}
+
+.skeleton-status-bar {
+    height: 8px;
+    border-radius: 4px;
+}
+
+/* ==========================================================================
+   Page Transition
+   ========================================================================== */
+.page-transition {
+    animation: page-enter 60ms ease-out;
+}
+
+@keyframes page-enter {
+    from {
+        opacity: 0.99;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.page-exit {
+    animation: page-exit 40ms ease-in;
+}
+
+@keyframes page-exit {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0.99;
+        transform: translateY(-4px);
+    }
+}
+
+/* ==========================================================================
+   Content Loading States
+   ========================================================================== */
+
+.content-loading {
+    position: relative;
+    min-height: 200px;
+}
+
+.content-loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    z-index: 1;
+}
+
+.content-loading .skeleton {
+    position: relative;
+    z-index: 2;
+}
+
+/* ==========================================================================
+   Form Validation States (HTMX)
+   ========================================================================== */
+
+.htmx-validation-error {
+    border-color: var(--color-error) !important;
+    box-shadow: 0 0 0 2px var(--color-error-glow) !important;
+}
+
+.htmx-validation-success {
+    border-color: var(--color-success) !important;
+    box-shadow: 0 0 0 2px var(--color-success-glow) !important;
+}
+
+/* ==========================================================================
+   Polling Indicators
+   ========================================================================== */
+
+.polling-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+    padding: 2px 6px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+}
+
+.polling-indicator.active {
+    color: var(--color-amber);
+    border-color: var(--color-amber);
+    background: rgba(255, 176, 0, 0.1);
+}
+
+.polling-indicator .pulse-dot {
+    width: 6px;
+    height: 6px;
+    background: currentColor;
+    border-radius: 50%;
+    animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* ==========================================================================
+   WebSocket Connection Status
+   ========================================================================== */
+
+.ws-status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid;
+}
+
+.ws-status.connected {
+    color: var(--color-success);
+    border-color: var(--color-success);
+    background: rgba(74, 222, 128, 0.1);
+}
+
+.ws-status.disconnected {
+    color: var(--color-error);
+    border-color: var(--color-error);
+    background: rgba(248, 113, 113, 0.1);
+}
+
+.ws-status.connecting {
+    color: var(--color-warning);
+    border-color: var(--color-warning);
+    background: rgba(251, 191, 36, 0.1);
+}
+
+.ws-status .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.ws-status.connected .status-dot {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   Progress Indicators for HTMX
+   ========================================================================== */
+
+.htmx-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-amber-dim), var(--color-amber));
+    transform-origin: 0% 50%;
+    transform: scaleX(0);
+    z-index: 9999;
+    transition: transform 200ms ease-out, opacity 200ms ease-out;
+    box-shadow: 0 0 10px var(--color-amber-glow);
+}
+
+.htmx-progress.active {
+    transform: scaleX(1);
+}
+
+/* ==========================================================================
+   Error States
+   ========================================================================== */
+
+.htmx-error {
+    position: relative;
+}
+
+.htmx-error::after {
+    content: '⚠';
+    position: absolute;
+    top: var(--space-sm);
+    right: var(--space-sm);
+    color: var(--color-error);
+    font-size: 1rem;
+    animation: error-pulse 1s ease-in-out infinite;
+}
+
+@keyframes error-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+.error-toast {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-error);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    box-shadow: var(--shadow-lg), 0 0 20px var(--color-error-glow);
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.error-toast-icon {
+    color: var(--color-error);
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.error-toast-content {
+    flex: 1;
+}
+
+.error-toast-title {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    color: var(--color-error);
+    text-transform: uppercase;
+    margin-bottom: var(--space-xs);
+}
+
+.error-toast-message {
+    font-size: 0.85rem;
+    color: var(--color-text);
+}
+
+.error-toast-close {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: var(--space-xs);
+    font-size: 1rem;
+    line-height: 1;
+    transition: color var(--transition-fast);
+}
+
+.error-toast-close:hover {
+    color: var(--color-error);
+}
+
+/* ==========================================================================
+   Success States
+   ========================================================================== */
+
+.success-toast {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-success);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    box-shadow: var(--shadow-lg), 0 0 20px var(--color-success-glow);
+    animation: slideInRight 0.3s ease-out;
+}
+
+.success-toast-icon {
+    color: var(--color-success);
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.success-toast-title {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    color: var(--color-success);
+    text-transform: uppercase;
+    margin-bottom: var(--space-xs);
+}
+
+.success-toast-message {
+    font-size: 0.85rem;
+    color: var(--color-text);
+}
+
+/* ==========================================================================
+   Utility Classes for HTMX
+   ========================================================================== */
+
+/* Hide during request */
+.htmx-request .hide-during-request {
+    display: none !important;
+}
+
+/* Show only during request */
+.show-during-request {
+    display: none !important;
+}
+
+.htmx-request .show-during-request {
+    display: inline-flex !important;
+}
+
+/* Disable during request */
+.htmx-request .disable-during-request {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+/* Swap transition helpers */
+.swap-fade {
+    transition: opacity 150ms ease-out;
+}
+
+.swap-slide-up {
+    transition: opacity 150ms ease-out, transform 150ms ease-out;
+}
+
+.swap-slide-down {
+    transition: opacity 150ms ease-out, transform 150ms ease-out;
+}
+
+.htmx-swapping.swap-fade {
+    opacity: 0;
+}
+
+.htmx-swapping.swap-slide-up {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.htmx-swapping.swap-slide-down {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.htmx-added.swap-fade {
+    animation: htmx-fade-in 200ms ease-out;
+}
+
+.htmx-added.swap-slide-up {
+    animation: htmx-slide-up-in 200ms ease-out;
+}
+
+.htmx-added.swap-slide-down {
+    animation: htmx-slide-down-in 200ms ease-out;
+}
+
+@keyframes htmx-slide-up-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes htmx-slide-down-in {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================================================
+   Focus Management for Accessibility
+   ========================================================================== */
+
+/* Announce dynamic content changes to screen readers */
+[aria-live="polite"],
+[aria-live="assertive"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Focus trap for modals */
+.focus-trap:focus {
+    outline: 2px solid var(--color-amber);
+    outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    
+    .crt-scanlines {
+        animation: none;
+        opacity: 0.3;
+    }
+    
+    .status-dot.connected {
+        animation: none;
+    }
+    
+    .notification-badge {
+        animation: none;
+    }
+    
+    .spinner {
+        animation: none;
+        border-top-color: var(--color-amber);
+    }
+    
+    .skeleton {
+        animation: none;
+        background: var(--color-border);
+    }
+    
+    .page-transition,
+    .page-exit {
+        animation: none;
+    }
+    
+    .htmx-added,
+    .htmx-removed {
+        animation: none;
+    }
+    
+    .error-toast,
+    .success-toast {
+        animation: none;
+    }
+    
+    .notification-dropdown.open {
+        animation: none;
+    }
+}
