@@ -1,25 +1,8 @@
 {# templates/partials/_channel_selector.html #}
-{% macro channel_selector(channels=channels, selected_channel_id=selected_channel_id) %}
 <select 
     id="channel-select" 
     name="channel_id"
-    {% if channels %}{% else %}disabled{% endif %}
-    aria-label="Select voice channel">
-    <option value="">SELECT CHANNEL</option>
-    {% for channel in channels %}
-    <option value="{{ channel.id }}" {% if channel.id == selected_channel_id %}selected{% endif %}>
-        {{ channel.name }}
-        {% if channel.user_limit > 0 %}({{ channel.voice_states|length }}/{{ channel.user_limit }}){% else %}({{ channel.voice_states|length }}){% endif %}
-    </option>
-    {% endfor %}
-</select>
-{% endmacro %}
-
-{# Standalone channel selector for HTMX inclusion #}
-<select 
-    id="channel-select" 
-    name="channel_id"
-    {% if channels %}{% else %}disabled{% endif %}
+    {% if not channels %}disabled{% endif %}
     aria-label="Select voice channel">
     <option value="">SELECT CHANNEL</option>
     {% for channel in channels %}

@@ -84,7 +84,6 @@
 
             Harpi.components.guildSelector = {
                 _listenersAttached: false,
-                _pollInterval: null,
 
                 init: function(firstInit) {
                     if (firstInit) {
@@ -109,36 +108,10 @@
                                     Harpi.components.guildSelector.updateConnectButton();
                                 }
                             });
-
-                            document.addEventListener('input', function(e) {
-                                if (e.target.id === 'channel-select') {
-                                    Harpi.components.guildSelector.updateConnectButton();
-                                }
-                            });
-
-                            this.startPolling();
                         }
                     }
 
-                    this.attachDirectListener();
                     this.updateConnectButton();
-                },
-
-                attachDirectListener: function() {
-                    var el = document.getElementById('channel-select');
-                    if (el && !el._harpiListener) {
-                        el._harpiListener = true;
-                        el.addEventListener('change', function() {
-                            Harpi.components.guildSelector.updateConnectButton();
-                        });
-                    }
-                },
-
-                startPolling: function() {
-                    if (this._pollInterval) return;
-                    this._pollInterval = setInterval(function() {
-                        Harpi.components.guildSelector.updateConnectButton();
-                    }, 500);
                 },
 
                 updateConnectButton: function() {

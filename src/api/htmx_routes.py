@@ -15,7 +15,7 @@ from discord import VoiceClient
 from loguru import logger
 from quart import Blueprint, render_template, request, session
 
-from src.api.deps import get_bot, get_api
+from src.api.deps import get_bot, get_api, run_on_bot_loop
 from src.api.guild import _get_guilds
 from src.api.music import get_music_data, DEFAULT_VOLUME
 
@@ -534,12 +534,9 @@ async def guild_select_channel():
 
     # Actually connect to voice
     try:
-        from src.api.guild import run_async
-
         bot = get_bot()
         if bot and bot.is_ready():
-            result = run_async(
-                bot,
+            result = await run_on_bot_loop(
                 get_api().connect_to_voice(int(guild_id), int(channel_id)),
             )
             if result is None:

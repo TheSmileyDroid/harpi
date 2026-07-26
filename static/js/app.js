@@ -263,7 +263,6 @@
 
     Harpi.components.guildSelector = {
         _listenersAttached: false,
-        _pollInterval: null,
 
         init: function(firstInit) {
             // On first initialization, restore from localStorage and attach listeners
@@ -312,39 +311,10 @@
                             Harpi.components.guildSelector.updateConnectButton();
                         }
                     });
-
-                    // Listen for channel changes directly (catches any event source)
-                    document.addEventListener('input', (e) => {
-                        if (e.target.id === 'channel-select') {
-                            Harpi.components.guildSelector.updateConnectButton();
-                        }
-                    });
-
-                    // Start polling as safety net (every 500ms)
-                    this.startPolling();
                 }
             }
 
-            // Also attach direct listener to the current channel select element
-            this.attachDirectListener();
             this.updateConnectButton();
-        },
-
-        attachDirectListener: function() {
-            const channelSelect = document.getElementById('channel-select');
-            if (channelSelect && !channelSelect._harpiListener) {
-                channelSelect._harpiListener = true;
-                channelSelect.addEventListener('change', () => {
-                    Harpi.components.guildSelector.updateConnectButton();
-                });
-            }
-        },
-
-        startPolling: function() {
-            if (this._pollInterval) return;
-            this._pollInterval = setInterval(() => {
-                Harpi.components.guildSelector.updateConnectButton();
-            }, 500);
         },
 
         updateConnectButton: function() {
@@ -549,7 +519,7 @@
             
             // Re-initialize guild selector if it or channel selector was swapped
             if (evt.detail.target.querySelector('#guild-select') || evt.detail.target.querySelector('#channel-select')) {
-                Harpi.components.guildSelector.init(); // refresh references, no localStorage restore
+                Harpi.components.guildSelector.init(false); // refresh button state, no localStorage restore
             }
             
             // Focus management for accessibility
@@ -689,7 +659,7 @@
     function init() {
         // Initialize components
         Harpi.components.toast.init();
-        Harpi.components.guildSelector.init();
+        Harpi.components.guildSelector.init(true);
         Harpi.components.wsStatus.init();
         Harpi.components.latency.init();
         Harpi.components.clock.init();
