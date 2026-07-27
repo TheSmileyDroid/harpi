@@ -4,7 +4,29 @@ This is the repository for Harpi, the most complete Discord Bot out there to use
 
 ## Current status
 
-Most of the basics of the bot are complete (music playing, dice rows, etc.), but we need to implment the more complex stuff. However, it needs a greate refactor to change from a svelte ui to a htmx ui. There is no current tests.
+The backend is functional: music playback (including layered background
+audio), text-to-speech, dice rolling with recursive-descent expression
+parsing, and a full REST API. The web UI uses HTMX with a CRT/Tempad
+retro theme — the legacy SvelteKit frontend has been removed.
+
+What is implemented:
+- Music: play, skip, stop, pause/resume, loop (off/track/queue), volume,
+  queue management, multi-layer ambient audio
+- Dice: NdX, NdXkhY, NdXklY, Fudge dice, arithmetic expressions, repeat
+  operator, Monte Carlo simulation
+- TTS: Google Translate TTS playback in voice channels
+- Web UI: Dashboard (server stats), Music (queue, layers, playback
+  controls, YouTube search), Settings (stub)
+- API: Full REST API with HTMX fragment endpoints, guild/channel
+  selection
+
+What needs work:
+- **Tests**
+- **Incomplete features**: Previous track, seek, per-layer pause/resume
+  are stubs. Settings are not persisted. Bot restart/shutdown is not
+  implemented.
+- **Maps, Obsidian integration, character sheet management, soundboard,
+  preset system**: Not yet started.
 
 ## Some thoughts from the author (SmileyDroid/Sorriso/Gabriel)
 
