@@ -9,17 +9,25 @@ in a simplier way with features like:
 
 ## Running
 
-To run Harpi at local environment you will need to install the
-dependencies from the pyproject into your virtual environment.
-To do that I recommend you to use the `uv` package manager.
+To run Harpi locally you will need to install the dependencies from
+the pyproject into your virtual environment. Use the `uv` package
+manager:
 
-After installing some package manager and installing the dependencies.
-You can run the `./run.sh` file in the root to startup the backend of the
-bot and run the `./ui/run.sh` to start the svelte frontend. You will need
-bun if you and to start the frontend.
+    uv sync
 
-To run at prod, or if you have a better understanding of Docker
-files, you can start the docker compose file from the root to start
-both backend and frontend containers with everything configured.
+Then run the bot:
+
+    uv run python -m src
+
+For development with auto-reload:
+
+    make dev
+
+The web UI (HTMX/CRT retro theme) is served directly by the backend
+at http://localhost:8000.
+
+To run in production, use Docker Compose:
+
+    docker compose up
 
 

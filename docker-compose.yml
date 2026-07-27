@@ -33,7 +33,6 @@ services:
           target: /app
           ignore:
             - .venv/
-            - ui/
 
         - action: rebuild
           path: ./uv.lock
