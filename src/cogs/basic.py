@@ -14,7 +14,7 @@ from discord import Embed, File
 from discord.ext import commands
 
 
-class BasicCog(commands.Cog):
+class GeneralCog(commands.Cog):
     """General-purpose Discord commands (ping, echo, status, shutdown)."""
 
     @commands.command()

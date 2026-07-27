@@ -154,23 +154,25 @@ class HarpiAPI:
         ctx: Context | None = None,
     ) -> str:
         """Add a background audio layer from a URL."""
-        return await self._background.add(guild_id, channel_id, link, ctx)
+        return await self._background.add_layer(
+            guild_id, channel_id, link, ctx
+        )
 
     async def remove_background_audio(
         self, guild_id: int, layer_id: str
     ) -> YoutubeDLSource:
         """Remove a background audio layer by ID."""
-        return await self._background.remove(guild_id, layer_id)
+        return await self._background.remove_layer(guild_id, layer_id)
 
     async def set_background_volume(
         self, guild_id: int, layer_id: str, volume: float
     ) -> None:
         """Set the volume for a specific background audio layer."""
-        await self._background.set_volume(guild_id, layer_id, volume)
+        await self._background.set_layer_volume(guild_id, layer_id, volume)
 
     async def clean_background_audios(self, guild_id: int) -> None:
         """Remove all background audio layers."""
-        await self._background.clean_all(guild_id)
+        await self._background.remove_all_layers(guild_id)
 
     # -- TTS --
 

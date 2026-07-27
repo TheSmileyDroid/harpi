@@ -28,24 +28,22 @@ class AudioController:
 
     @staticmethod
     def _safe_cleanup(source: discord.AudioSource | None) -> None:
-        """Call cleanup() on a source if it exists and the source is not None."""
         if source is not None and hasattr(source, "cleanup"):
             source.cleanup()
 
     def _cleanup_collection(
         self, sources: Iterable[discord.AudioSource]
     ) -> None:
-        """Cleanup every source in an iterable."""
         for source in sources:
             self._safe_cleanup(source)
 
     def _clear_queue_source(self) -> None:
-        """Cleanup and nullify the current queue source. Caller must hold lock."""
+        # Caller must hold lock.
         self._safe_cleanup(self._current_queue_source)
         self._current_queue_source = None
 
     def _clear_tts_track(self) -> None:
-        """Cleanup and nullify the TTS track. Caller must hold lock."""
+        # Caller must hold lock.
         self._safe_cleanup(self._tts_track)
         self._tts_track = None
 

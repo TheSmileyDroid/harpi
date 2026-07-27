@@ -9,7 +9,7 @@ schedules dict mutation via ``bot.loop.call_soon_threadsafe`` rather than
 mutating directly (see ``MusicQueueService``).
 
 Volume adjustments (``set_background_volume``) write to
-``YoutubeDLSource.volume``, a simple float attribute — atomic under
+``YoutubeDLSource.volume``, a simple float attribute - atomic under
 CPython's GIL.
 """
 
@@ -39,7 +39,7 @@ class BackgroundAudioService:
         self.guilds = guilds
         self.voice_service = voice_service
 
-    async def add(
+    async def add_layer(
         self,
         guild_id: int,
         channel_id: int,
@@ -63,7 +63,9 @@ class BackgroundAudioService:
         guild_config.background[layer_id] = source
         return layer_id
 
-    async def remove(self, guild_id: int, layer_id: str) -> YoutubeDLSource:
+    async def remove_layer(
+        self, guild_id: int, layer_id: str
+    ) -> YoutubeDLSource:
         """Remove a background audio layer by ID."""
         guild_config = self.guilds.get(guild_id)
         if not guild_config:
@@ -78,7 +80,7 @@ class BackgroundAudioService:
         guild_config.controller.remove_layer(layer_id)
         return found_layer
 
-    async def set_volume(
+    async def set_layer_volume(
         self, guild_id: int, layer_id: str, volume: float
     ) -> None:
         """Set the volume for a specific background audio layer."""
@@ -95,7 +97,7 @@ class BackgroundAudioService:
 
         guild_config.background[layer_id].volume = max(0.0, min(2.0, volume))
 
-    async def clean_all(self, guild_id: int) -> None:
+    async def remove_all_layers(self, guild_id: int) -> None:
         """Remove all background audio layers."""
         guild_config = self.guilds.get(guild_id)
         if not guild_config:

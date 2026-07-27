@@ -40,12 +40,11 @@ class MixerSource(discord.AudioSource):
         self.pending_futures: dict[
             discord.AudioSource, concurrent.futures.Future
         ] = {}
-        self.READ_TIMEOUT = 0.05
+        self.read_timeout = 0.05
 
-        self.SAMPLE_RATE: int = 48000
-        self.CHANNELS: int = 2
-        self.SAMPLES_PER_FRAME: int = 960
-        self.FRAME_SIZE: int = self.SAMPLES_PER_FRAME * self.CHANNELS * 2
+        self.channels: int = 2
+        self.samples_per_frame: int = 960
+        self.frame_size: int = self.samples_per_frame * self.channels * 2
 
     def add_observer(self, event: str, callback: Callable) -> None:
         """Register a callback for an event (e.g. 'track_end', 'queue_end')."""
@@ -95,7 +94,7 @@ class MixerSource(discord.AudioSource):
                         self._read_track, source
                     )
                 except RuntimeError:
-                    # Executor already shut down — race with cleanup()
+                    # Executor already shut down - race with cleanup()
                     return
 
     def _prune_stale_futures(
@@ -118,7 +117,7 @@ class MixerSource(discord.AudioSource):
             if s in self.pending_futures
         ]
         if current_futures:
-            concurrent.futures.wait(current_futures, timeout=self.READ_TIMEOUT)
+            concurrent.futures.wait(current_futures, timeout=self.read_timeout)
 
     def _collect_and_mix(
         self,
@@ -186,10 +185,10 @@ class MixerSource(discord.AudioSource):
     def read(self) -> bytes:
         """Read and mix one frame from all active sources."""
         if self._shutdown:
-            return b"\x00" * self.FRAME_SIZE
+            return b"\x00" * self.frame_size
 
         mixed_audio = np.zeros(
-            self.SAMPLES_PER_FRAME * self.CHANNELS, dtype=np.int32
+            self.samples_per_frame * self.channels, dtype=np.int32
         )
 
         sources = self.controller.get_playing_sounds()

@@ -1,4 +1,4 @@
-"""HTMX fragment routes — partial HTML fragments for dynamic UI updates.
+"""HTMX fragment routes - partial HTML fragments for dynamic UI updates.
 
 These routes return HTML fragments that HTMX uses to update parts of
 the page without a full reload. They are the "partials" of the HTMX
@@ -42,7 +42,7 @@ async def _parse_json_or_form() -> dict[str, Any]:
 
 @bp.route("/htmx/server/status")
 async def htmx_server_status():
-    """Server status cards fragment — polled every 5s."""
+    """Server status cards fragment - polled every 5s."""
     cpu_percent = psutil.cpu_percent()
     mem = psutil.virtual_memory()
     bot = get_bot()
@@ -92,7 +92,7 @@ async def htmx_server_status():
 
 @bp.route("/htmx/channels")
 async def htmx_channels():
-    """Channel selector fragment — triggered when guild changes.
+    """Channel selector fragment - triggered when guild changes.
 
     Accepts guild_id as query param (sent by HTMX via hx-include).
     """
@@ -116,7 +116,7 @@ async def htmx_channels():
 
 @bp.route("/htmx/music/<guild_id>/queue")
 async def htmx_music_queue(guild_id: str):
-    """Music queue fragment — polled every 3s."""
+    """Music queue fragment - polled every 3s."""
     queue = []
     current_track = None
     paused = False
@@ -147,7 +147,7 @@ async def htmx_music_queue(guild_id: str):
 
 @bp.route("/htmx/music/<guild_id>/layers")
 async def htmx_music_layers(guild_id: str):
-    """Background layers fragment — polled every 3s."""
+    """Background layers fragment - polled every 3s."""
     layers = []
 
     try:
@@ -172,7 +172,7 @@ async def htmx_music_layers(guild_id: str):
 
 @bp.route("/htmx/music/<guild_id>/playback")
 async def htmx_playback_controls(guild_id: str):
-    """Playback controls fragment — polled every 2s."""
+    """Playback controls fragment - polled every 2s."""
     current_track = None
     paused = False
     volume = DEFAULT_VOLUME
@@ -267,7 +267,7 @@ async def htmx_settings_section(section: str):
 
 
 # ==========================================================================
-# Music Control Actions (POST) — Return updated HTML fragments
+# Music Control Actions (POST) - Return updated HTML fragments
 # ==========================================================================
 
 
@@ -383,7 +383,7 @@ async def api_music_disconnect(guild_id: str):
 
 
 # ==========================================================================
-# Queue Management Actions (POST/DELETE) — Return updated queue HTML
+# Queue Management Actions (POST/DELETE) - Return updated queue HTML
 # ==========================================================================
 
 
@@ -434,7 +434,7 @@ async def api_music_queue_clear(guild_id: str):
 
 
 # ==========================================================================
-# Layer Management Actions (POST/DELETE) — Return updated layers HTML
+# Layer Management Actions (POST/DELETE) - Return updated layers HTML
 # ==========================================================================
 
 

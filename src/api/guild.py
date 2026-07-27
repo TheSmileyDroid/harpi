@@ -1,12 +1,12 @@
-"""Guild API — guild listing, voice channel info, and guild selection.
+"""Guild API - guild listing, voice channel info, and guild selection.
 
 Thread safety
 -------------
-The module-level ``guilds`` cache is populated and read exclusively from
-Quart's event loop (single-threaded async).  ``run_async`` is used to
+The module-level guilds cache is populated and read exclusively from
+Quart's event loop (single-threaded async). run_async is used to
 schedule coroutines on the bot's event loop when cross-loop access is
-needed.  No lock is required for the cache itself (MEDIUM-1 accepted
-risk — only one event loop serves HTTP requests).
+needed. No lock is required for the cache itself (MEDIUM-1 accepted
+risk - only one event loop serves HTTP requests).
 """
 
 from __future__ import annotations

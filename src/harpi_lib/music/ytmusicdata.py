@@ -51,7 +51,7 @@ ffmpeg_options = {
 ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
 
 
-class AudioSourceTracked(discord.AudioSource):
+class AudioSourceWrapper(discord.AudioSource):
     def __init__(self, source: discord.AudioSource) -> None:
         self._source: discord.AudioSource = source
 
@@ -71,7 +71,6 @@ class YoutubeDLSource(UniqueAudioSource):
     def __init__(
         self, source: discord.AudioSource, data: dict[str, Any], **kwargs: Any
     ) -> None:
-        """Create a YoutubeDLSource instance."""
         super().__init__(original=source, **kwargs)
 
         self.data: dict[str, str | int] = data
@@ -85,19 +84,7 @@ class YoutubeDLSource(UniqueAudioSource):
         musicdata: YTMusicData,
         volume: float = 0.3,
     ) -> YoutubeDLSource:
-        """Create a YoutubeDLSource instance from a YTMusicData.
-
-        Args:
-            musicdata (YTMusicData): Music data to use.
-            volume (float, optional): Volume to be set. Defaults to 0.3.
-
-        Raises:
-            BadLink: If the link is invalid.
-
-        Returns:
-            YoutubeDLSource: The created YoutubeDLSource instance.
-
-        """
+        """Create a YoutubeDLSource instance from a YTMusicData."""
         loop = asyncio.get_event_loop()
         data = await loop.run_in_executor(
             None,
@@ -127,18 +114,7 @@ class YoutubeDLSource(UniqueAudioSource):
 
 
 def search(arg: str) -> dict[str, Any]:
-    """Search YouTube and return the music information.
-
-    Args:
-        arg (str): A string representing the search query.
-
-    Raises:
-        NothingFoundError: If no music is found.
-
-    Returns:
-        dict[str, Any]: A dictionary containing the information of the music.
-
-    """
+    """Search YouTube and return the music information."""
     _start_time = time.time()
 
     URL_REGEX = re.compile(
@@ -180,13 +156,6 @@ class YTMusicData:
     """Data container for a YouTube music track's metadata."""
 
     def __init__(self, video: dict[str, str | int]) -> None:
-        """Create a YTMusicData instance.
-
-        Args:
-            video (dict[str, Any]):
-                A dictionary containing the information of the music.
-
-        """
         self._title: str = cast(str, video.get("title", "Unknown"))
         self._url: str = cast(
             str,
@@ -200,15 +169,7 @@ class YTMusicData:
 
     @classmethod
     async def from_url(cls, url: str) -> list[YTMusicData]:
-        """Create a YTMusicData instance from a URL.
-
-        Args:
-            url (str): A string representing the URL.
-
-        Returns:
-            list[YTMusicData]: A list of YTMusicData instances.
-
-        """
+        """Create a YTMusicData instance from a URL."""
         logger.info(f"Searching for {url}")
         result = search(url)
         if result.get("entries"):
@@ -388,7 +349,6 @@ class FastStartFFmpegPCMAudio(discord.FFmpegPCMAudio):
         before_options: str | None = None,
         options: str | None = None,
     ) -> None:
-        """Create a FFmpegPCMAudio instance."""
         if isinstance(before_options, str):
             before_options = (
                 f"{before_options} -analyzeduration 1000000 -probesize 1000000"

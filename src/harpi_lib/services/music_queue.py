@@ -45,8 +45,8 @@ class MusicQueueService:
     def on_queue_end(self, guild_config: GuildConfig) -> None:
         """Callback when the current track ends.
 
-        Called from the voice-sending thread — uses
-        ``run_coroutine_threadsafe`` instead of ``create_task``.
+        Called from the voice-sending thread - uses
+        run_coroutine_threadsafe instead of create_task.
         """
         asyncio.run_coroutine_threadsafe(
             self.next_music(guild_config), self.bot.loop
@@ -59,8 +59,8 @@ class MusicQueueService:
     ) -> None:
         """Callback when a background track ends.
 
-        Called from the voice-sending thread — schedules dict mutation on
-        the bot's event loop via ``call_soon_threadsafe``.
+        Called from the voice-sending thread - schedules dict mutation on
+        the bot's event loop via call_soon_threadsafe.
         """
         for source in to_remove:
             layer_id = guild_config.controller.get_layer_id(source)

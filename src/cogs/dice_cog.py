@@ -14,17 +14,10 @@ class DiceCog(Cog):
     """Cog for handling dice."""
 
     def __init__(self, bot: Bot) -> None:
-        """Initialize the cog.
-
-        Args:
-            bot (discord.ext.commands.Bot): The bot.
-
-        """
         self.bot = bot
 
     @Cog.listener()
     async def on_message(self, message: Message) -> None:
-        """Listen for messages and roll the dice."""
         if message.author == self.bot.user:
             return
         parser = DiceParser()
@@ -37,14 +30,7 @@ class DiceCog(Cog):
         name="d", aliases=["dado", "rolar", "roll", "r", "math", "calc", "m"]
     )
     async def roll(self, ctx: Context, *, args: str) -> None:
-        """Roll dice command.
-
-        Args:
-            ctx (Context)
-            args (str): String with the number and type of dice to roll
-            (e.g. 2d6 or 1d20+5)
-
-        """
+        """Roll dice (e.g., 2d6 or 1d20+5)."""
         parser = DiceParser()
         response = parser.roll(args)
         await ctx.reply(response)
@@ -53,13 +39,7 @@ class DiceCog(Cog):
     async def monte_carlo(
         self, ctx: Context, n: int, *, roll_expression: str
     ) -> None:
-        """Run a Monte Carlo simulation with n iterations of a dice expression.
-
-        Args:
-            n (int): Number of iterations for the simulation
-            roll_expression (str): Dice expression to simulate (e.g. 2d6+3)
-
-        """
+        """Run n iterations of a dice expression and return statistics."""
         assert n > 0, "O número de iterações deve ser positivo"
         assert n <= 10000, "Número máximo de iterações é 10000"
 
@@ -79,16 +59,6 @@ class DiceCog(Cog):
     def _run_monte_carlo_simulation(
         self, n: int, roll_expression: str
     ) -> List[int]:
-        """Run the Monte Carlo simulation.
-
-        Args:
-            n (int): Number of iterations
-            roll_expression (str): Dice expression
-
-        Returns:
-            List[int]: List with the results of each iteration
-
-        """
 
         results: List[int] = []
 
@@ -102,17 +72,7 @@ class DiceCog(Cog):
     def _format_monte_carlo_results(
         self, results: List[int], n: int, expression: str
     ) -> str:
-        """Format the Monte Carlo simulation results.
-
-        Args:
-            results (List[int]): Simulation results
-            n (int): Number of iterations
-            expression (str): Original expression
-
-        Returns:
-            str: Formatted message with the results
-
-        """
+        """Format the Monte Carlo simulation results."""
         stats = self._calculate_statistics(results)
 
         response_lines = [
@@ -139,15 +99,6 @@ class DiceCog(Cog):
     def _calculate_statistics(
         self, results: List[int]
     ) -> Dict[str, float | int | List[tuple]]:
-        """Calculate statistics from the results.
-
-        Args:
-            results (List[int]): List of results
-
-        Returns:
-            Dict: Dictionary with the calculated statistics
-
-        """
         import statistics
         from collections import Counter
 

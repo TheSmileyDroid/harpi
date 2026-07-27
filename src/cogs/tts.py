@@ -9,7 +9,7 @@ from gtts import gTTS
 from src.harpi_lib.api import HarpiAPI
 from src.harpi_lib.harpi_bot import HarpiBot
 from src.harpi_lib.music.ytmusicdata import (
-    AudioSourceTracked,
+    AudioSourceWrapper,
     FastStartFFmpegPCMAudio,
 )
 
@@ -47,7 +47,7 @@ class TTSCog(commands.Cog):
         tts.write_to_fp(fp)
         _ = fp.seek(0)
 
-        source = AudioSourceTracked(FastStartFFmpegPCMAudio(fp, pipe=True))
+        source = AudioSourceWrapper(FastStartFFmpegPCMAudio(fp, pipe=True))
 
         _ = await self.api.play_tts_source(
             ctx.guild.id, member.voice.channel.id, source, ctx

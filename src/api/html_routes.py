@@ -1,6 +1,6 @@
-"""HTML page routes — full Jinja2 templates for HTMX UI.
+"""HTML page routes - full Jinja2 templates for HTMX UI.
 
-These routes return complete HTML pages that extend ``base.html``.
+These routes return complete HTML pages that extend base.html.
 They are the entry points for the HTMX-based frontend.
 """
 
@@ -40,7 +40,7 @@ async def _get_base_context():
 
 @bp.route("/dashboard")
 async def dashboard():
-    """Dashboard page — server status, quick actions, bot info."""
+    """Dashboard page - server status, quick actions, bot info."""
     ctx = await _get_base_context()
     bot = get_discord_bot()
 
@@ -70,7 +70,7 @@ async def dashboard():
 
 @bp.route("/music")
 async def music_page():
-    """Music control page — queue, layers, playback."""
+    """Music control page - queue, layers, playback."""
     ctx = await _get_base_context()
     guild_id = session.get("guild_id")
 
@@ -117,7 +117,7 @@ async def music_page():
 
 @bp.route("/settings")
 async def settings_page():
-    """Settings page — general, music, TTS, dice config."""
+    """Settings page - general, music, TTS, dice config."""
     ctx = await _get_base_context()
 
     ctx.update({

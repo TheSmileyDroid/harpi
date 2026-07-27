@@ -22,7 +22,7 @@ class MusicCog(Cog):
         self.bot: HarpiBot = bot
         self.api: HarpiAPI = bot.api
 
-    async def _guild_ctx(
+    async def _resolve_voice_context(
         self, ctx: Context
     ) -> tuple[Guild, discord.VoiceChannel, Member]:
         member: Member = cast(Member, ctx.author)
@@ -52,7 +52,7 @@ class MusicCog(Cog):
              ctx (Context): Command context.
 
         """
-        guild, voice_channel, _ = await self._guild_ctx(ctx)
+        guild, voice_channel, _ = await self._resolve_voice_context(ctx)
 
         try:
             _ = await self.api.connect_to_voice(
@@ -74,7 +74,7 @@ class MusicCog(Cog):
             link (str): Link of the song to play.
 
         """
-        guild, voice_channel, _ = await self._guild_ctx(ctx)
+        guild, voice_channel, _ = await self._resolve_voice_context(ctx)
 
         await self.api.add_music_to_queue(
             guild.id, voice_channel.id, link, ctx
@@ -92,7 +92,7 @@ class MusicCog(Cog):
 
         """
         async with ctx.typing():
-            guild, _, _ = await self._guild_ctx(ctx)
+            guild, _, _ = await self._resolve_voice_context(ctx)
             await self.api.stop_music(guild.id)
             _ = await ctx.send("Música parada")
 
@@ -108,7 +108,7 @@ class MusicCog(Cog):
 
         """
         async with ctx.typing():
-            guild, _, _ = await self._guild_ctx(ctx)
+            guild, _, _ = await self._resolve_voice_context(ctx)
             await self.api.skip_music(guild.id)
             _ = await ctx.send("Música pulada")
 
@@ -123,7 +123,7 @@ class MusicCog(Cog):
             CommandError: If the bot is not in a voice channel.
         """
         async with ctx.typing():
-            guild, _, _ = await self._guild_ctx(ctx)
+            guild, _, _ = await self._resolve_voice_context(ctx)
             await self.api.disconnect_voice(guild.id)
             _ = await ctx.send("Desconectado do canal de voz")
 
@@ -157,7 +157,7 @@ class MusicCog(Cog):
                 )
 
     @command("list", aliases=["queue", "q"])
-    async def list_musics(self, ctx: Context) -> None:
+    async def list_queue(self, ctx: Context) -> None:
         """List the current music queue.
 
         Args:
@@ -169,7 +169,7 @@ class MusicCog(Cog):
 
         """
         async with ctx.typing():
-            guild, _, _ = await self._guild_ctx(ctx)
+            guild, _, _ = await self._resolve_voice_context(ctx)
             guild_config = self.api.get_guild_config(guild.id)
             if not guild_config:
                 raise CommandError("Guild config not found")
@@ -201,7 +201,7 @@ class MusicCog(Cog):
             link (str): Link of the audio to play.
 
         """
-        guild, voice_channel, _ = await self._guild_ctx(ctx)
+        guild, voice_channel, _ = await self._resolve_voice_context(ctx)
 
         try:
             await self.api.add_background_audio(
@@ -221,7 +221,7 @@ class MusicCog(Cog):
             index (int): Index of the layer to remove (based on list_layers).
 
         """
-        guild, _, _ = await self._guild_ctx(ctx)
+        guild, _, _ = await self._resolve_voice_context(ctx)
 
         try:
             guild_config = self.api.get_guild_config(guild.id)
@@ -251,7 +251,7 @@ class MusicCog(Cog):
             ctx (Context): Command context.
 
         """
-        guild, _, _ = await self._guild_ctx(ctx)
+        guild, _, _ = await self._resolve_voice_context(ctx)
 
         try:
             await self.api.clean_background_audios(guild.id)
@@ -268,7 +268,7 @@ class MusicCog(Cog):
             ctx (Context): Command context.
 
         """
-        guild, _, _ = await self._guild_ctx(ctx)
+        guild, _, _ = await self._resolve_voice_context(ctx)
 
         try:
             guild_config = self.api.get_guild_config(guild.id)

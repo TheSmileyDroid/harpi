@@ -1,4 +1,4 @@
-"""O executável do bot."""
+"""The bot executable."""
 
 from __future__ import annotations
 
@@ -84,7 +84,7 @@ class ServerStatusModel(BaseModel):
 
 @app.route("/api/serverstatus")
 @validate_response(ServerStatusModel)
-def api_serverstatus():
+def api_server_status():
     cpu_percent = psutil.cpu_percent()
     mem = psutil.virtual_memory()
     return ServerStatusModel(

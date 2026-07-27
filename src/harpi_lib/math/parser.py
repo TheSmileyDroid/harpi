@@ -18,7 +18,7 @@ from collections import namedtuple
 
 # ``rolls`` is a list of ``(individual_values, notation, kept_mask | None)``
 # tuples.  ``kept_mask`` is a list[bool] the same length as
-# ``individual_values`` indicating which dice were kept (for kh/kl);
+# ``individual_values`` indicating which dice were kept (for kh/kl).
 # ``None`` means all dice were kept.
 RollResult = namedtuple("RollResult", ["value", "rolls", "expression"])
 
@@ -286,7 +286,7 @@ class DiceParser:
         # left-to-right with its individual roll values.
         # We use placeholder tokens to prevent already-replaced text from
         # being matched again when the same notation appears multiple times
-        # (e.g. "1d6-1d6" — each 1d6 must get its own roll values).
+        # (e.g. "1d6-1d6" - each 1d6 must get its own roll values).
         placeholders: list[tuple[str, str]] = []
         formatted_expr = original_expression
         for i, (rolls, notation, kept_mask) in enumerate(result.rolls):

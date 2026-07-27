@@ -9,7 +9,7 @@ import threading
 import discord
 from loguru import logger
 
-from src.cogs.basic import BasicCog
+from src.cogs.basic import GeneralCog
 from src.cogs.dice_cog import DiceCog
 from src.cogs.music import MusicCog
 from src.cogs.tts import TTSCog
@@ -39,7 +39,7 @@ async def create_bot() -> HarpiBot:
     logger.info("Added TTSCog")
     await client.add_cog(MusicCog(client))
     logger.info("Added MusicCog")
-    await client.add_cog(BasicCog())
+    await client.add_cog(GeneralCog())
     logger.info("Added BasicCog")
     await client.add_cog(DiceCog(client))
     logger.info("Added DiceCog")
