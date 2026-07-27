@@ -33,25 +33,12 @@ services:
           target: /app
           ignore:
             - .venv/
-            - frontend/
+            - ui/
 
         - action: rebuild
           path: ./uv.lock
         - action: rebuild
           path: ./pyproject.toml
-
-  frontend:
-    environment:
-      - NODE_ENV=production
-      - BACKEND_URL=http://harpi-backend:8000
-    container_name: harpi-frontend
-    build: ./ui
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    command: /usr/local/bin/bun ./build/index.js
-    networks:
-      - harpi-net
 
 networks:
   harpi-net:

@@ -332,8 +332,12 @@ async def api_music_skip(guild_id: str):
 
 @bp.route("/api/music/<guild_id>/previous", methods=["POST"])
 async def api_music_previous(guild_id: str):
-    """Go to previous track and return updated controls."""
-    # TODO: Implement previous track in the API
+    """Go to previous track and return updated controls.
+
+    TODO(SMI-38): Implement previous track. Currently no-ops — the API
+    has no notion of a track history, so 'previous' cannot navigate back.
+    Needs either a history stack or a playlist-level previous support.
+    """
     return await htmx_playback_controls(guild_id)
 
 
@@ -351,8 +355,12 @@ async def api_music_volume(guild_id: str):
 
 @bp.route("/api/music/<guild_id>/seek", methods=["POST"])
 async def api_music_seek(guild_id: str):
-    """Seek to position and return updated controls."""
-    # TODO: Implement seek
+    """Seek to position and return updated controls.
+
+    TODO(SMI-38): Implement seek in the audio pipeline. The current
+    FFmpeg-based playback does not support seeking mid-stream. Needs
+    either FFmpeg seek support or a different audio source approach.
+    """
     return await htmx_playback_controls(guild_id)
 
 
@@ -474,15 +482,22 @@ async def api_music_layer_volume(guild_id: str, layer_id: str):
 
 @bp.route("/api/music/<guild_id>/layer/<layer_id>/pause", methods=["POST"])
 async def api_music_layer_pause(guild_id: str, layer_id: str):
-    """Pause a background layer."""
-    # TODO: Implement per-layer pause
+    """Pause a background layer.
+
+    TODO(SMI-38): Implement per-layer pause in BackgroundAudioService.
+    The mixer currently handles all layers as one stream, so individual
+    layer pausing requires separate per-layer volume/gain control.
+    """
     return await htmx_music_layers(guild_id)
 
 
 @bp.route("/api/music/<guild_id>/layer/<layer_id>/resume", methods=["POST"])
 async def api_music_layer_resume(guild_id: str, layer_id: str):
-    """Resume a background layer."""
-    # TODO: Implement per-layer resume
+    """Resume a background layer.
+
+    TODO(SMI-38): Implement per-layer resume in BackgroundAudioService.
+    See layer/pause — same underlying limitation applies.
+    """
     return await htmx_music_layers(guild_id)
 
 
@@ -493,10 +508,14 @@ async def api_music_layer_resume(guild_id: str, layer_id: str):
 
 @bp.route("/api/settings/<section>", methods=["POST"])
 async def api_settings_update(section: str):
-    """Update a setting and return a toast notification."""
+    """Update a setting and return a toast notification.
+
+    TODO(SMI-38): Persist settings to a config file or database.
+    Currently logs the update but does not save it anywhere, so all
+    settings are lost on restart.
+    """
     data = await _parse_json_or_form()
     logger.debug(f"Settings update for '{section}': {data}")
-    # TODO: Persist settings to database/config
     return '<div class="toast toast-success">Settings updated</div>'
 
 
@@ -549,8 +568,12 @@ async def guild_select_channel():
 
 @bp.route("/api/bot/restart", methods=["POST"])
 async def api_bot_restart():
-    """Restart the bot."""
-    # TODO: Implement bot restart
+    """Restart the bot.
+
+    TODO(SMI-38): Implement bot restart. Needs the ability to shut down
+    the current bot process and spawn a new one, or use a process
+    manager (e.g., systemd, docker) to handle restarts externally.
+    """
     return (
         '<div class="toast toast-info">Bot restart not yet implemented</div>'
     )
@@ -558,8 +581,11 @@ async def api_bot_restart():
 
 @bp.route("/api/bot/shutdown", methods=["POST"])
 async def api_bot_shutdown():
-    """Shutdown the bot."""
-    # TODO: Implement bot shutdown
+    """Shutdown the bot.
+
+    TODO(SMI-38): Implement bot shutdown. Needs graceful teardown:
+    disconnect from voice channels, save state, then exit the process.
+    """
     return (
         '<div class="toast toast-info">Bot shutdown not yet implemented</div>'
     )
