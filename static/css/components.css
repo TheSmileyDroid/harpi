@@ -394,9 +394,13 @@
 }
 
 .playback-progress {
-    flex: 1;
-    max-width: 400px;
-    margin: 0 var(--space-lg);
+    width: 100%;
+    margin-bottom: var(--space-lg);
+}
+
+.playback-progress .progress {
+    cursor: pointer;
+    height: 10px;
 }
 
 .playback-time {
@@ -410,9 +414,12 @@
 
 .playback-volume {
     display: flex;
-    align-items center;
+    align-items: center;
     gap: var(--space-sm);
     min-width: 160px;
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border);
+    margin-top: var(--space-sm);
 }
 
 .playback-volume label {

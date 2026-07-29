@@ -279,6 +279,8 @@ body {
     padding: var(--space-xs) var(--space-sm);
     border: 1px solid transparent;
     transition: all var(--transition-fast);
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .logo:hover {
@@ -288,9 +290,9 @@ body {
 }
 
 .logo-icon {
-    font-size: 1.5rem;
-    font-weight: bold;
-    text-shadow: 0 0 10px var(--color-amber-glow);
+    width: 1.5rem;
+    height: 1.5rem;
+    filter: drop-shadow(0 0 10px var(--color-amber-glow));
 }
 
 .logo-text {
@@ -325,12 +327,18 @@ body {
     font-family: var(--font-ui);
     font-size: 0.85rem;
     letter-spacing: 1px;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .nav-link:hover {
     color: var(--color-amber);
     border-color: var(--color-border-bright);
     background: rgba(255, 176, 0, 0.05);
+}
+
+.nav-link:hover .nav-icon {
+    color: var(--color-amber);
 }
 
 .nav-link.active {
@@ -341,9 +349,33 @@ body {
 }
 
 .nav-icon {
-    font-size: 1rem;
-    width: 1.25em;
-    text-align: center;
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+}
+
+.panel-title-icon {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex-shrink: 0;
+    opacity: 0.7;
+    margin-right: var(--space-sm);
+}
+
+.page-title-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.queue-empty-icon {
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: var(--space-md);
+    opacity: 0.3;
+}
+
+.playback-btn .lucide {
+    stroke-width: 1.5;
 }
 
 /* Guild/Channel Selector */
@@ -507,11 +539,6 @@ body {
     letter-spacing: 1px;
     color: var(--color-amber);
     text-transform: uppercase;
-}
-
-.panel-title-icon {
-    margin-right: var(--space-sm);
-    opacity: 0.7;
 }
 
 /* ==========================================================================

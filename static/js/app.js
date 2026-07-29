@@ -517,6 +517,11 @@
                 Alpine.initTree(evt.detail.target);
             }
             
+            // Re-initialize Lucide icons in swapped content
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+            
             // Re-initialize guild selector if it or channel selector was swapped
             if (evt.detail.target.querySelector('#guild-select') || evt.detail.target.querySelector('#channel-select')) {
                 Harpi.components.guildSelector.init(false); // refresh button state, no localStorage restore
@@ -663,6 +668,11 @@
         Harpi.components.wsStatus.init();
         Harpi.components.latency.init();
         Harpi.components.clock.init();
+        
+        // Initialize Lucide icons
+        if (window.lucide) {
+            lucide.createIcons();
+        }
 
         // HTMX event listeners
         document.body.addEventListener('htmx:configRequest', Harpi.htmx.configRequest);

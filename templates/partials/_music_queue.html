@@ -3,12 +3,11 @@
 <div class="queue-panel" id="music-queue-panel"
      hx-get="{{ url_for('htmx_routes.htmx_music_queue', guild_id=guild_id) }}"
      hx-trigger="every 3s, queueUpdated from:body"
-     hx-swap="outerHTML"
-     hx-indicator="#queue-loading">
+     hx-swap="outerHTML">
 
     <div class="panel-header queue-header">
         <h3 class="panel-title queue-title">
-            <span class="panel-title-icon">♪</span>
+            <i data-lucide="music" class="panel-title-icon" style="width:0.85rem;height:0.85rem;"></i>
             QUEUE
             <span class="queue-count">{{ queue|length }}</span>
         </h3>
@@ -54,7 +53,7 @@
                         hx-target="#music-queue-panel"
                         hx-swap="outerHTML"
                         aria-label="Move to top">
-                    ⬆
+                    <i data-lucide="chevron-up" style="width:0.85rem;height:0.85rem;"></i>
                 </button>
                 {% endif %}
                 <button class="btn btn-ghost btn-sm"
@@ -62,7 +61,7 @@
                         hx-target="#music-queue-panel"
                         hx-swap="outerHTML"
                         aria-label="Remove from queue">
-                    ✕
+                    <i data-lucide="x" style="width:0.85rem;height:0.85rem;"></i>
                 </button>
             </div>
         </div>
@@ -70,7 +69,7 @@
     </div>
     {% else %}
     <div class="queue-empty" role="status">
-        <div class="queue-empty-icon">♪</div>
+        <i data-lucide="music" class="queue-empty-icon" style="width:3rem;height:3rem;"></i>
         <p class="empty-state-title">QUEUE IS EMPTY</p>
         <p class="empty-state-message">Add tracks to start playing music</p>
         <button class="btn btn-primary empty-state-action"
@@ -82,9 +81,4 @@
     </div>
     {% endif %}
 
-    <!-- Loading indicator -->
-    <div id="queue-loading" class="htmx-indicator" style="display:flex;justify-content:center;padding:16px;">
-        <div class="spinner"></div>
-        <span>Loading queue...</span>
-    </div>
 </div>
