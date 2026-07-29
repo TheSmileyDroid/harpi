@@ -7,7 +7,7 @@
 
     <div class="panel-header">
         <h3 class="panel-title">
-            <i data-lucide="layers" class="panel-title-icon" style="width:0.85rem;height:0.85rem;"></i>
+            <i data-lucide="layers" class="panel-title-icon"></i>
             BACKGROUND LAYERS
             <span class="queue-count">{{ layers|length }}</span>
         </h3>
@@ -56,7 +56,7 @@
                             hx-swap="outerHTML"
                             hx-confirm="Remove this layer?"
                             aria-label="Remove layer">
-                        <i data-lucide="x" style="width:0.85rem;height:0.85rem;"></i>
+                        <i data-lucide="x" class="icon-xs"></i>
                     </button>
                 </div>
             </div>
@@ -78,7 +78,7 @@
     </div>
     {% else %}
     <div class="empty-state" role="status" style="padding: 24px; text-align: center;">
-        <i data-lucide="layers" style="width:2rem;height:2rem;margin-bottom:8px;opacity:0.3;"></i>
+        <i data-lucide="layers" class="icon-xl" style="margin-bottom:8px;opacity:0.3;"></i>
         <p class="empty-state-title" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--color-text-dim);">NO BACKGROUND LAYERS</p>
         <p class="empty-state-message" style="font-size: 0.75rem; color: var(--color-text-muted);">Add ambient tracks, soundscapes, or background music</p>
         {% if guild_id %}

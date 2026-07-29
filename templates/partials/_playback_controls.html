@@ -2,8 +2,7 @@
 <div class="playback-panel" id="playback-controls"
      hx-get="{{ url_for('htmx_routes.htmx_playback_controls', guild_id=guild_id) }}"
       hx-trigger="every 2s, playbackUpdated from:body"
-     hx-swap="outerHTML"
-     hx-indicator="#playback-loading">
+     hx-swap="outerHTML">
 
     <div class="playback-main">
         <button class="playback-btn btn-prev"
@@ -12,7 +11,7 @@
                 hx-swap="outerHTML"
                 aria-label="Previous track"
                 title="Previous">
-            <i data-lucide="skip-back" style="width:1.25rem;height:1.25rem;"></i>
+            <i data-lucide="skip-back" class="icon-md"></i>
         </button>
 
         <button class="playback-btn btn-rewind"
@@ -22,7 +21,7 @@
                 hx-swap="outerHTML"
                 aria-label="Rewind 10 seconds"
                 title="Rewind 10s">
-            <i data-lucide="rewind" style="width:1.25rem;height:1.25rem;"></i>
+            <i data-lucide="rewind" class="icon-md"></i>
         </button>
 
         <button class="playback-btn play {% if paused %}paused{% endif %}"
@@ -31,7 +30,7 @@
                 hx-swap="outerHTML"
                 aria-label="{% if paused %}Resume{% else %}Pause{% endif %}"
                 title="{% if paused %}Resume{% else %}Pause{% endif %}">
-            {% if paused %}<i data-lucide="play" style="width:1.5rem;height:1.5rem;"></i>{% else %}<i data-lucide="pause" style="width:1.5rem;height:1.5rem;"></i>{% endif %}
+            {% if paused %}<i data-lucide="play" class="icon-lg"></i>{% else %}<i data-lucide="pause" class="icon-lg"></i>{% endif %}
         </button>
 
         <button class="playback-btn btn-forward"
@@ -41,7 +40,7 @@
                 hx-swap="outerHTML"
                 aria-label="Forward 10 seconds"
                 title="Forward 10s">
-            <i data-lucide="fast-forward" style="width:1.25rem;height:1.25rem;"></i>
+            <i data-lucide="fast-forward" class="icon-md"></i>
         </button>
 
         <button class="playback-btn btn-next"
@@ -50,7 +49,7 @@
                 hx-swap="outerHTML"
                 aria-label="Next track"
                 title="Next">
-            <i data-lucide="skip-forward" style="width:1.25rem;height:1.25rem;"></i>
+            <i data-lucide="skip-forward" class="icon-md"></i>
         </button>
 
         <button class="playback-btn btn-stop"
@@ -59,7 +58,7 @@
                 hx-swap="outerHTML"
                 aria-label="Stop playback"
                 title="Stop">
-            <i data-lucide="square" style="width:1.25rem;height:1.25rem;"></i>
+            <i data-lucide="square" class="icon-md"></i>
         </button>
     </div>
 
@@ -133,8 +132,4 @@
         </div>
     </div>
 
-    <!-- Loading indicator -->
-    <div id="playback-loading" class="htmx-indicator" style="display:flex;justify-content:center;padding:16px;">
-        <div class="spinner"></div>
-    </div>
 </div>

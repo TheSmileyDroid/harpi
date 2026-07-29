@@ -517,9 +517,9 @@
                 Alpine.initTree(evt.detail.target);
             }
             
-            // Re-initialize Lucide icons in swapped content
+            // Re-initialize Lucide icons in swapped content only
             if (window.lucide) {
-                lucide.createIcons();
+                lucide.createIcons({ root: evt.detail.target });
             }
             
             // Re-initialize guild selector if it or channel selector was swapped

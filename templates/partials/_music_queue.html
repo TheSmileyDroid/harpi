@@ -7,7 +7,7 @@
 
     <div class="panel-header queue-header">
         <h3 class="panel-title queue-title">
-            <i data-lucide="music" class="panel-title-icon" style="width:0.85rem;height:0.85rem;"></i>
+            <i data-lucide="music" class="panel-title-icon"></i>
             QUEUE
             <span class="queue-count">{{ queue|length }}</span>
         </h3>
@@ -53,7 +53,7 @@
                         hx-target="#music-queue-panel"
                         hx-swap="outerHTML"
                         aria-label="Move to top">
-                    <i data-lucide="chevron-up" style="width:0.85rem;height:0.85rem;"></i>
+                    <i data-lucide="chevron-up" class="icon-xs"></i>
                 </button>
                 {% endif %}
                 <button class="btn btn-ghost btn-sm"
@@ -61,7 +61,7 @@
                         hx-target="#music-queue-panel"
                         hx-swap="outerHTML"
                         aria-label="Remove from queue">
-                    <i data-lucide="x" style="width:0.85rem;height:0.85rem;"></i>
+                    <i data-lucide="x" class="icon-xs"></i>
                 </button>
             </div>
         </div>
@@ -69,7 +69,7 @@
     </div>
     {% else %}
     <div class="queue-empty" role="status">
-        <i data-lucide="music" class="queue-empty-icon" style="width:3rem;height:3rem;"></i>
+        <i data-lucide="music" class="queue-empty-icon"></i>
         <p class="empty-state-title">QUEUE IS EMPTY</p>
         <p class="empty-state-message">Add tracks to start playing music</p>
         <button class="btn btn-primary empty-state-action"
