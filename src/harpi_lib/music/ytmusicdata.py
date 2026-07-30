@@ -128,7 +128,7 @@ def search(arg: str) -> dict[str, Any]:
                 cast(
                     object,
                     ytdl.extract_info(
-                        f"ytsearch:{arg}",
+                        f"ytsearch10:{arg}",
                         download=True,
                         process=False,
                     ),

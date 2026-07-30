@@ -24,31 +24,56 @@
         </div>
     </header>
 
-    <!-- Guild/Channel Context Bar -->
+    <!-- Guild/Channel Selection Panel -->
     <div class="panel" style="margin-bottom: var(--space-lg); padding: var(--space-md);">
-        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);">
-            <div style="display: flex; align-items: center; gap: var(--space-md);">
-                <span style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-dim);">GUILD:</span>
-                <strong style="color: var(--color-amber);">{{ selected_guild.name if selected_guild else 'NONE SELECTED' }}</strong>
-                {% if selected_channel %}
-                <span style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-dim);">CHANNEL:</span>
-                <strong style="color: var(--color-text);">{{ selected_channel.name }}</strong>
-                {% endif %}
+        <form id="guild-channel-form"
+              hx-post="{{ url_for('htmx_routes.guild_select_channel') }}"
+              hx-swap="none"
+              hx-on::after-request="if(event.detail.successful) htmx.ajax('GET','{{ url_for('html_routes.music_page') }}',{target:'#main-content',swap:'innerHTML show:window:top',select:'#main-content > *'})">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);">
+                <div style="display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap;">
+                    <div class="select-wrapper">
+                        <select id="guild-select"
+                                name="guild_id"
+                                hx-get="{{ url_for('htmx_routes.htmx_channels') }}"
+                                hx-trigger="change"
+                                hx-target="#channel-selector-container"
+                                hx-swap="innerHTML"
+                                aria-label="Select Discord server">
+                            <option value="">SELECT GUILD</option>
+                            {% for guild in guilds %}
+                            <option value="{{ guild.id }}" {% if guild.id == selected_guild_id %}selected{% endif %}>
+                                {{ guild.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div id="channel-selector-container" class="select-wrapper">
+                        {% if selected_guild_id %}
+                            {% include "partials/_channel_selector.html" with context %}
+                        {% else %}
+                            <select id="channel-select" name="channel_id" disabled aria-label="Select voice channel">
+                                <option value="">SELECT GUILD FIRST</option>
+                            </select>
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="display: flex; gap: var(--space-sm); align-items: center;">
+                    {% if guild_id %}
+                    <button class="btn btn-danger btn-sm"
+                            hx-post="{{ url_for('htmx_routes.api_music_disconnect', guild_id=guild_id) }}"
+                            hx-swap="none"
+                            hx-on::after-request="if(event.detail.successful) htmx.ajax('GET','{{ url_for('html_routes.music_page') }}',{target:'#main-content',swap:'innerHTML show:window:top',select:'#main-content > *'})"
+                            hx-confirm="Disconnect from voice channel?">
+                        DISCONNECT
+                    </button>
+                    {% else %}
+                    <span class="badge badge-warning">SELECT A GUILD AND CHANNEL</span>
+                    {% endif %}
+                </div>
             </div>
-            <div style="display: flex; gap: var(--space-sm);">
-                {% if guild_id %}
-                <button class="btn btn-danger btn-sm"
-                        hx-post="{{ url_for('htmx_routes.api_music_disconnect', guild_id=guild_id) }}"
-                        hx-target="#main-content"
-                        hx-swap="innerHTML"
-                        hx-confirm="Disconnect from voice channel?">
-                    DISCONNECT
-                </button>
-                {% else %}
-                <span class="badge badge-warning">SELECT A GUILD TO BEGIN</span>
-                {% endif %}
-            </div>
-        </div>
+        </form>
     </div>
 
     <!-- Main Music Layout -->
@@ -72,7 +97,7 @@
             NO GUILD SELECTED
         </h2>
         <p style="color: var(--color-text-dim); margin-top: var(--space-sm);">
-            Select a guild from the top bar to access music controls.
+            Select a guild and channel above to access music controls.
         </p>
     </div>
     {% endif %}

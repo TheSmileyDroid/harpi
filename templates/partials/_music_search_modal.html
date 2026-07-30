@@ -4,7 +4,6 @@
     Loaded into #modal-container by HTMX.
     All functions are Alpine methods so they work without <script> execution
     (scripts inside innerHTML swaps do not run).
-    Supports multi-select: check tracks, then add all at once.
 #}
 <div x-data="{ 
     query: '', 
@@ -12,14 +11,13 @@
     loading: false, 
     selectedGuild: '{{ guild_id }}',
     searchTimeout: null,
-    selected: {},
 
-    formatDuration(ms) {
-        if (!ms || ms < 0) return '--:--';
-        const totalSeconds = Math.floor(ms / 1000);
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        return minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+    formatDuration(seconds) {
+        if (!seconds || seconds < 0) return '--:--';
+        const total = Math.floor(seconds);
+        const minutes = Math.floor(total / 60);
+        const secs = total % 60;
+        return minutes + ':' + (secs < 10 ? '0' : '') + secs;
     },
 
     async doSearch() {
@@ -39,78 +37,40 @@
         }, 350);
     },
 
-    toggleSelect(url) {
-        if (this.selected[url]) {
-            delete this.selected[url];
-        } else {
-            this.selected[url] = true;
-        }
-    },
-
-    isSelected(url) {
-        return !!this.selected[url];
-    },
-
-    selectedCount() {
-        return Object.keys(this.selected).length;
-    },
-
-    async addSelected(type) {
-        const urls = Object.keys(this.selected);
-        if (urls.length === 0) return;
-        
-        let added = 0;
-        let errors = 0;
-        
-        for (const url of urls) {
-            try {
-                const resp = await fetch('/api/music/add', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({guild_id: this.selectedGuild, link: url, type: type})
-                });
-                const data = await resp.json();
-                if (data.status === 'ok') {
-                    added++;
-                } else {
-                    errors++;
-                }
-            } catch(e) {
-                errors++;
-            }
-        }
-        
-        this.selected = {};
-        document.getElementById('modal-container').innerHTML = '';
-        
-        if (type === 'queue') {
-            document.body.dispatchEvent(new CustomEvent('queueUpdated'));
-        } else {
-            document.body.dispatchEvent(new CustomEvent('layersUpdated'));
-        }
-        
-        if (added > 0) {
-            window.showToast(added + ' track(s) added to ' + type, 'success');
-        }
-        if (errors > 0) {
-            window.showToast(errors + ' track(s) failed to add', 'error');
-        }
-    },
-
-    async addSingle(url, type) {
+    async addTrack(url) {
         try {
             const resp = await fetch('/api/music/add', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({guild_id: this.selectedGuild, link: url, type: type})
+                body: JSON.stringify({guild_id: this.selectedGuild, link: url, type: 'queue'})
             });
             const data = await resp.json();
             if (data.status === 'ok') {
-                delete this.selected[url];
-                document.body.dispatchEvent(new CustomEvent(type === 'queue' ? 'queueUpdated' : 'layersUpdated'));
-                window.showToast(type === 'queue' ? 'Track added to queue' : 'Layer added', 'success');
+                document.getElementById('modal-container').innerHTML = '';
+                document.body.dispatchEvent(new CustomEvent('queueUpdated'));
+                window.showToast('Track added to queue', 'success');
             } else {
                 window.showToast(data.error || 'Failed to add track', 'error');
+            }
+        } catch(e) {
+            window.showToast('Network error', 'error');
+        }
+    },
+
+    async addLayer(url) {
+        try {
+            const resp = await fetch('/api/music/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({guild_id: this.selectedGuild, link: url, type: 'layer'})
+            });
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                document.getElementById('modal-container').innerHTML = '';
+                document.body.dispatchEvent(new CustomEvent('layersUpdated'));
+                window.showToast('Layer added', 'success');
+            } else {
+                window.showToast(data.error || 'Failed to add layer', 'error');
             }
         } catch(e) {
             window.showToast('Network error', 'error');
@@ -125,7 +85,7 @@ style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;">
     <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(10,8,6,0.8);backdrop-filter:blur(4px);"
          @click="close()"></div>
 
-    <div class="modal-window" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:650px;">
+    <div class="modal-window" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:600px;">
         <div class="modal-header">
             <h2 style="font-family:var(--font-mono);font-size:0.9rem;letter-spacing:1px;color:var(--color-amber);">SEARCH & ADD MUSIC</h2>
             <button class="modal-close" @click="close()" style="background:none;border:none;color:var(--color-text-dim);font-size:1.25rem;cursor:pointer;">&times;</button>
@@ -163,21 +123,7 @@ style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;">
 
                 <!-- Results -->
                 <template x-for="result in results" :key="result.id">
-                    <div class="search-result-item" 
-                         role="listitem" 
-                         @click="toggleSelect(result.url)"
-                         :style="isSelected(result.url) ? 'border-color:var(--color-amber);background:rgba(255,176,0,0.05);' : ''"
-                         style="display:grid;grid-template-columns:auto auto 1fr auto;gap:var(--space-md);align-items:center;padding:var(--space-sm) var(--space-md);border:1px solid var(--color-border);border-radius:var(--radius-sm);cursor:pointer;margin-bottom:var(--space-xs);transition:border-color 0.15s,background 0.15s;">
-                        <div style="width:20px;display:flex;align-items:center;justify-content:center;">
-                            <div style="width:16px;height:16px;border:2px solid var(--color-border);border-radius:3px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;"
-                                 :style="isSelected(result.url) ? 'border-color:var(--color-amber);background:var(--color-amber);' : ''">
-                                <template x-if="isSelected(result.url)">
-                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M2 5L4.5 7.5L8 3" stroke="var(--color-bg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
-                                </template>
-                            </div>
-                        </div>
+                    <div class="search-result-item" role="listitem" style="display:grid;grid-template-columns:auto 1fr auto;gap:var(--space-md);align-items:center;padding:var(--space-sm) var(--space-md);border:1px solid transparent;border-radius:var(--radius-sm);cursor:pointer;margin-bottom:var(--space-xs);">
                         <div style="width:60px;height:45px;background:var(--color-bg-elevated);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;overflow:hidden;">
                             <template x-if="result.thumbnail">
                                 <img :src="result.thumbnail" :alt="result.title" style="width:100%;height:100%;object-fit:cover;" loading="lazy" @error="$el.style.display='none';$el.nextElementSibling.style.display='flex';">
@@ -193,25 +139,12 @@ style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;">
                                 </template>
                             </div>
                         </div>
-                        <div style="display:flex;gap:var(--space-xs);" @click.stop>
-                            <button class="btn btn-primary btn-sm" @click.stop="addSingle(result.url, 'queue')" aria-label="Add to queue">+ QUEUE</button>
-                            <button class="btn btn-secondary btn-sm" @click.stop="addSingle(result.url, 'layer')" aria-label="Add as background layer">+ LAYER</button>
+                        <div style="display:flex;gap:var(--space-xs);">
+                            <button class="btn btn-primary btn-sm" @click.stop="addTrack(result.url)" aria-label="Add to queue">+ QUEUE</button>
+                            <button class="btn btn-secondary btn-sm" @click.stop="addLayer(result.url)" aria-label="Add as background layer">+ LAYER</button>
                         </div>
                     </div>
                 </template>
-            </div>
-
-            <!-- Multi-select action bar -->
-            <div x-show="selectedCount() > 0" x-transition
-                 style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-md);margin-top:var(--space-md);padding:var(--space-sm) var(--space-md);background:var(--color-bg-elevated);border:1px solid var(--color-amber);border-radius:var(--radius-sm);">
-                <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--color-amber);">
-                    <span x-text="selectedCount()"></span> TRACK(S) SELECTED
-                </span>
-                <div style="display:flex;gap:var(--space-xs);">
-                    <button class="btn btn-primary btn-sm" @click="addSelected('queue')">ADD ALL TO QUEUE</button>
-                    <button class="btn btn-secondary btn-sm" @click="addSelected('layer')">ADD ALL AS LAYERS</button>
-                    <button class="btn btn-ghost btn-sm" @click="selected = {}">CLEAR</button>
-                </div>
             </div>
 
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--color-border);">

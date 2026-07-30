@@ -3,7 +3,8 @@
     id="channel-select" 
     name="channel_id"
     {% if not channels %}disabled{% endif %}
-    aria-label="Select voice channel">
+    aria-label="Select voice channel"
+    onchange="if(this.value) this.closest('form').requestSubmit()">
     <option value="">SELECT CHANNEL</option>
     {% for channel in channels %}
     <option value="{{ channel.id }}" {% if channel.id == selected_channel_id %}selected{% endif %}>
