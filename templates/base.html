@@ -145,30 +145,11 @@
     
     <!-- HTMX Configuration -->
     <script>
-        // Disable HTMX history cache — prevents flicker from cached page restoration
-        htmx.config.historyEnabled = false;
-        
-        // Configure HTMX
-        document.body.addEventListener('htmx:configRequest', (evt) => {
-            // Add CSRF token if needed
+        // Disable HTMX history cache via the proper config event (before HTMX starts)
+        document.body.addEventListener('htmx:config', (evt) => {
+            evt.detail.historyEnabled = false;
         });
-        
-        // Global HTMX event handlers
-        document.body.addEventListener('htmx:beforeSwap', (evt) => {
-            // Handle error responses
-            if (evt.detail.xhr.status >= 400) {
-                evt.detail.shouldSwap = true;
-                evt.detail.isError = true;
-            }
-        });
-        
-        document.body.addEventListener('htmx:afterSwap', (evt) => {
-            // Re-initialize Alpine.js components in swapped content
-            if (window.Alpine) {
-                window.Alpine.initTree(evt.detail.target);
-            }
-        });
-        
+
         // Handle modal opening via HTMX
         document.body.addEventListener('harpi:open-modal', (evt) => {
             const modal = document.querySelector('[x-data*="modalOpen"]');

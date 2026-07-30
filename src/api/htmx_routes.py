@@ -44,12 +44,10 @@ async def htmx_server_status():
     """Server status cards fragment - polled every 5s."""
     bot = get_bot()
     guilds = await _get_guilds()
-    status = get_server_status(guilds)
+    status = get_server_status(guilds, bot=bot)
 
     context = {
         **status,
-        "bot_connected": bot.is_ready() if bot else False,
-        "bot_latency": bot.latency * 1000 if bot and bot.latency else 0,
         "guild_count": len(guilds),
         "user_count": sum(g.member_count or 0 for g in guilds)
         if guilds

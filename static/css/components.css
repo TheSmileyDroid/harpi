@@ -255,12 +255,6 @@
     color: var(--color-text-muted);
 }
 
-.queue-empty-icon {
-    font-size: 3rem;
-    margin-bottom: var(--space-md);
-    opacity: 0.3;
-}
-
 /* Layers Panel */
 .layers-panel {
     position: sticky;

@@ -46,21 +46,14 @@ async def dashboard():
     bot = get_discord_bot()
 
     # Real server status data
-    status = get_server_status(ctx["guilds"])
+    status = get_server_status(ctx["guilds"], bot=bot)
 
     ctx.update({
-        "cpu_percent": status["cpu_percent"],
-        "memory_percent": status["memory_percent"],
-        "memory_total": status["memory_total"],
-        "memory_used": status["memory_used"],
+        **status,
         "guild_count": len(ctx["guilds"]) if ctx["guilds"] else 0,
         "user_count": sum(g.member_count or 0 for g in ctx["guilds"])
         if ctx["guilds"]
         else 0,
-        "queue_total": status["queue_total"],
-        "music_guilds": status["music_guilds"],
-        "uptime_formatted": status["uptime_formatted"],
-        "bot_latency": bot.latency * 1000 if bot and bot.latency else 0,
         "bot_user": str(bot.user) if bot and bot.user else "Unknown",
         "bot_id": str(bot.user.id) if bot and bot.user else "Unknown",
         "discord_version": "2.5.2",
