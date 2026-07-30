@@ -29,7 +29,7 @@
         <form id="guild-channel-form"
               hx-post="{{ url_for('htmx_routes.guild_select_channel') }}"
               hx-swap="none"
-              hx-on::after-request="if(event.detail.successful) htmx.ajax('GET','{{ url_for('html_routes.music_page') }}',{target:'#main-content',swap:'innerHTML show:window:top',select:'#main-content > *'})">
+              hx-on::after-request="if(event.detail.successful && event.target === this) htmx.ajax('GET','{{ url_for('html_routes/music_page') }}',{target:'#main-content',swap:'innerHTML show:window:top',select:'#main-content > *'})">
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);">
                 <div style="display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap;">
                     <div class="select-wrapper">
