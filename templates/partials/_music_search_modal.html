@@ -1,26 +1,33 @@
 {# templates/partials/_music_search_modal.html #}
 {# 
     Search modal for adding music.
-    This is loaded into #modal-container by HTMX.
-    It shows a search input and results using Alpine.js.
-    When Alpine re-inits after HTMX swap, the search becomes interactive.
+    Loaded into #modal-container by HTMX.
+    All functions are Alpine methods so they work without <script> execution
+    (scripts inside innerHTML swaps do not run).
 #}
 <div x-data="{ 
     query: '', 
     results: [], 
     loading: false, 
     selectedGuild: '{{ guild_id }}',
-    searchTimeout: null
-}" 
-x-init="
-    $watch('query', (value) => {
+    searchTimeout: null,
+
+    formatDuration(ms) {
+        if (!ms || ms < 0) return '--:--';
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+    },
+
+    async doSearch() {
         clearTimeout(this.searchTimeout);
-        if (value.length < 2) { this.results = []; this.loading = false; return; }
+        if (this.query.length < 2) { this.results = []; this.loading = false; return; }
         this.searchTimeout = setTimeout(async () => {
             this.loading = true;
             try {
-                let r = await fetch('/api/music/search?q=' + encodeURIComponent(value));
-                let d = await r.json();
+                const r = await fetch('/api/music/search?q=' + encodeURIComponent(this.query));
+                const d = await r.json();
                 this.results = d.results || [];
             } catch(e) {
                 this.results = [];
@@ -28,16 +35,60 @@ x-init="
                 this.loading = false;
             }
         }, 350);
-    });
-"
+    },
+
+    async addTrack(url) {
+        try {
+            const resp = await fetch('/api/music/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({guild_id: this.selectedGuild, link: url, type: 'queue'})
+            });
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                document.getElementById('modal-container').innerHTML = '';
+                document.body.dispatchEvent(new CustomEvent('queueUpdated'));
+                window.showToast('Track added to queue', 'success');
+            } else {
+                window.showToast(data.error || 'Failed to add track', 'error');
+            }
+        } catch(e) {
+            window.showToast('Network error', 'error');
+        }
+    },
+
+    async addLayer(url) {
+        try {
+            const resp = await fetch('/api/music/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({guild_id: this.selectedGuild, link: url, type: 'layer'})
+            });
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                document.getElementById('modal-container').innerHTML = '';
+                document.body.dispatchEvent(new CustomEvent('layersUpdated'));
+                window.showToast('Layer added', 'success');
+            } else {
+                window.showToast(data.error || 'Failed to add layer', 'error');
+            }
+        } catch(e) {
+            window.showToast('Network error', 'error');
+        }
+    },
+
+    close() {
+        document.getElementById('modal-container').innerHTML = '';
+    }
+}" 
 style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;">
     <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(10,8,6,0.8);backdrop-filter:blur(4px);"
-         @click="document.getElementById('modal-container').innerHTML = ''"></div>
+         @click="close()"></div>
 
     <div class="modal-window" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:600px;">
         <div class="modal-header">
             <h2 style="font-family:var(--font-mono);font-size:0.9rem;letter-spacing:1px;color:var(--color-amber);">SEARCH & ADD MUSIC</h2>
-            <button class="modal-close" @click="document.getElementById('modal-container').innerHTML = ''" style="background:none;border:none;color:var(--color-text-dim);font-size:1.25rem;cursor:pointer;">&times;</button>
+            <button class="modal-close" @click="close()" style="background:none;border:none;color:var(--color-text-dim);font-size:1.25rem;cursor:pointer;">&times;</button>
         </div>
 
         <div class="modal-body" style="padding:var(--space-lg);max-height:70vh;overflow-y:auto;">
@@ -48,6 +99,7 @@ style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;">
                        class="form-input"
                        placeholder="Enter song name, artist, or URL..."
                        x-model="query"
+                       @input="doSearch()"
                        autocomplete="off"
                        autofocus
                        aria-label="Search query">
@@ -71,8 +123,7 @@ style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;">
 
                 <!-- Results -->
                 <template x-for="result in results" :key="result.id">
-                    <div class="search-result-item" role="listitem" style="display:grid;grid-template-columns:auto 1fr auto;gap:var(--space-md);align-items:center;padding:var(--space-sm) var(--space-md);border:1px solid transparent;border-radius:var(--radius-sm);cursor:pointer;margin-bottom:var(--space-xs);"
-                         :style="$hover ? 'border-color:var(--color-border);background:var(--color-bg-elevated);' : ''">
+                    <div class="search-result-item" role="listitem" style="display:grid;grid-template-columns:auto 1fr auto;gap:var(--space-md);align-items:center;padding:var(--space-sm) var(--space-md);border:1px solid transparent;border-radius:var(--radius-sm);cursor:pointer;margin-bottom:var(--space-xs);">
                         <div style="width:60px;height:45px;background:var(--color-bg-elevated);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;overflow:hidden;">
                             <img :src="result.thumbnail" :alt="result.title" style="width:100%;height:100%;object-fit:cover;" loading="lazy" @error="$el.style.display='none';$el.parentElement.textContent='♪'">
                         </div>
@@ -92,58 +143,8 @@ style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;">
             </div>
 
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--color-border);">
-                <button class="btn btn-secondary" @click="document.getElementById('modal-container').innerHTML = ''">CANCEL</button>
+                <button class="btn btn-secondary" @click="close()">CANCEL</button>
             </div>
         </div>
     </div>
-
-    <script>
-        function formatDuration(ms) {
-            if (!ms || ms < 0) return '--:--';
-            const totalSeconds = Math.floor(ms / 1000);
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            return minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
-        }
-
-        async function addTrack(url) {
-            try {
-                const resp = await fetch('/api/music/add', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({guild_id: '{{ guild_id }}', link: url, type: 'queue'})
-                });
-                const data = await resp.json();
-                if (data.status === 'ok') {
-                    document.getElementById('modal-container').innerHTML = '';
-                    document.body.dispatchEvent(new CustomEvent('queueUpdated'));
-                    window.showToast('Track added to queue', 'success');
-                } else {
-                    window.showToast(data.error || 'Failed to add track', 'error');
-                }
-            } catch(e) {
-                window.showToast('Network error', 'error');
-            }
-        }
-
-        async function addLayer(url) {
-            try {
-                const resp = await fetch('/api/music/add', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({guild_id: '{{ guild_id }}', link: url, type: 'layer'})
-                });
-                const data = await resp.json();
-                if (data.status === 'ok') {
-                    document.getElementById('modal-container').innerHTML = '';
-                    document.body.dispatchEvent(new CustomEvent('layersUpdated'));
-                    window.showToast('Layer added', 'success');
-                } else {
-                    window.showToast(data.error || 'Failed to add layer', 'error');
-                }
-            } catch(e) {
-                window.showToast('Network error', 'error');
-            }
-        }
-    </script>
 </div>

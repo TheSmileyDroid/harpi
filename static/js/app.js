@@ -517,9 +517,12 @@
                 Alpine.initTree(evt.detail.target);
             }
             
-            // Re-initialize Lucide icons in swapped content only
+            // Re-initialize Lucide icons across the document.
+            // For outerHTML swaps, evt.detail.target is the OLD (detached) element,
+            // so scoping to it would find nothing. Lucide skips already-processed
+            // elements, so a full-document scan is safe and correct.
             if (window.lucide) {
-                lucide.createIcons({ root: evt.detail.target });
+                lucide.createIcons();
             }
             
             // Re-initialize guild selector if it or channel selector was swapped
