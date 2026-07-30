@@ -7,16 +7,15 @@ application.
 
 from __future__ import annotations
 
-import time
 from typing import Any
 
-import psutil
 from loguru import logger
 from quart import Blueprint, render_template, request, session
 
 from src.api.deps import get_bot, get_api, run_on_bot_loop
 from src.api.guild import _get_guilds
 from src.api.music import get_music_data, _get_voice_client, DEFAULT_VOLUME
+from src.api.server_status import get_server_status
 
 
 bp = Blueprint("htmx_routes", __name__)
@@ -43,43 +42,18 @@ async def _parse_json_or_form() -> dict[str, Any]:
 @bp.route("/htmx/server/status")
 async def htmx_server_status():
     """Server status cards fragment - polled every 5s."""
-    cpu_percent = psutil.cpu_percent()
-    mem = psutil.virtual_memory()
     bot = get_bot()
     guilds = await _get_guilds()
-
-    # Calculate uptime
-    uptime_seconds = int(time.time() - psutil.boot_time())
-    uptime_hours = uptime_seconds // 3600
-    uptime_minutes = (uptime_seconds % 3600) // 60
-    uptime_formatted = f"{uptime_hours}h {uptime_minutes}m"
-
-    # Count active music guilds
-    music_guilds = 0
-    queue_total = 0
-    for g in guilds:
-        try:
-            gc = get_api().get_guild_config(int(g.id))
-            if gc and gc.queue:
-                music_guilds += 1
-                queue_total += len(gc.queue)
-        except Exception:
-            pass
+    status = get_server_status(guilds)
 
     context = {
-        "cpu_percent": cpu_percent,
-        "memory_percent": mem.percent,
-        "memory_total": mem.total,
-        "memory_used": mem.used,
+        **status,
         "bot_connected": bot.is_ready() if bot else False,
         "bot_latency": bot.latency * 1000 if bot and bot.latency else 0,
         "guild_count": len(guilds),
         "user_count": sum(g.member_count or 0 for g in guilds)
         if guilds
         else 0,
-        "music_guilds": music_guilds,
-        "queue_total": queue_total,
-        "uptime_formatted": uptime_formatted,
     }
 
     return await render_template("partials/_server_status.html", **context)

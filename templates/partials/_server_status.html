@@ -1,10 +1,7 @@
 {# templates/partials/_server_status.html #}
 {# Standalone server status grid for HTMX polling #}
-<div class="status-grid" id="server-status-grid"
-     hx-get="{{ url_for('htmx_routes.htmx_server_status') }}"
-      hx-trigger="every 5s"
-     hx-swap="outerHTML"
-     hx-indicator="#status-loading">
+<div class="status-grid" id="server-status-grid" hx-get="{{ url_for('htmx_routes.htmx_server_status') }}"
+    hx-trigger="every 5s" hx-swap="outerHTML">
 
     <div class="status-card">
         <div class="status-card-header">
@@ -17,7 +14,7 @@
         <div class="status-card-bar">
             <div class="progress">
                 <div class="progress-bar {% if cpu_percent > 80 %}error{% elif cpu_percent > 60 %}warning{% endif %}"
-                     style="width: {{ cpu_percent | round }}%"></div>
+                    style="width: {{ cpu_percent | round }}%"></div>
             </div>
         </div>
     </div>
@@ -33,10 +30,11 @@
         <div class="status-card-bar">
             <div class="progress">
                 <div class="progress-bar {% if memory_percent > 85 %}error{% elif memory_percent > 70 %}warning{% endif %}"
-                     style="width: {{ memory_percent | round }}%"></div>
+                    style="width: {{ memory_percent | round }}%"></div>
             </div>
         </div>
-        <div class="status-card-detail" style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: var(--space-sm);">
+        <div class="status-card-detail"
+            style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: var(--space-sm);">
             {{ memory_used | format_bytes }} / {{ memory_total | format_bytes }}
         </div>
     </div>
@@ -46,11 +44,13 @@
             <div class="status-card-title">BOT STATUS</div>
         </div>
         <div class="status-card-value">
-            <span class="value status-text" style="font-size: 1.5rem; {% if bot_connected %}color: var(--color-success);{% else %}color: var(--color-error);{% endif %}">
+            <span class="value status-text"
+                style="font-size: 1.5rem; {% if bot_connected %}color: var(--color-success);{% else %}color: var(--color-error);{% endif %}">
                 {% if bot_connected %}ONLINE{% else %}OFFLINE{% endif %}
             </span>
         </div>
-        <div class="status-card-detail" style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: var(--space-sm);">
+        <div class="status-card-detail"
+            style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: var(--space-sm);">
             Latency: <span style="color: var(--color-amber);">{{ "%.0f" | format(bot_latency) }}ms</span>
         </div>
     </div>
@@ -62,7 +62,8 @@
         <div class="status-card-value">
             <span class="value">{{ guild_count }}</span>
         </div>
-        <div class="status-card-detail" style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: var(--space-sm);">
+        <div class="status-card-detail"
+            style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: var(--space-sm);">
             Users: {{ user_count }}
         </div>
     </div>
@@ -75,7 +76,8 @@
             <span class="value">{{ music_guilds }}</span>
             <span class="unit">ACTIVE</span>
         </div>
-        <div class="status-card-detail" style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: var(--space-sm);">
+        <div class="status-card-detail"
+            style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: var(--space-sm);">
             Queue: {{ queue_total }} tracks
         </div>
     </div>
@@ -87,10 +89,5 @@
         <div class="status-card-value">
             <span class="value" style="font-size: 1.5rem;">{{ uptime_formatted }}</span>
         </div>
-    </div>
-
-    <!-- Loading indicator -->
-    <div id="status-loading" class="htmx-indicator" style="display:flex;justify-content:center;padding:16px;">
-        <div class="spinner spinner-lg"></div>
     </div>
 </div>

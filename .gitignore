@@ -152,3 +152,8 @@ tailwindcss
 # Editor/IDE config
 .idea/
 .vscode/
+
+
+# Playwright
+.playwright/
+.playwright-cli/

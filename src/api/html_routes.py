@@ -11,6 +11,7 @@ from quart import Blueprint, render_template, session
 from src.api.deps import get_bot as get_discord_bot
 from src.api.guild import _get_guilds
 from src.api.music import get_music_data, DEFAULT_VOLUME
+from src.api.server_status import get_server_status
 
 bp = Blueprint("html_routes", __name__)
 
@@ -44,20 +45,22 @@ async def dashboard():
     ctx = await _get_base_context()
     bot = get_discord_bot()
 
-    # Add dashboard-specific data
+    # Real server status data
+    status = get_server_status(ctx["guilds"])
+
     ctx.update({
-        "cpu_percent": 0.0,
-        "memory_percent": 0.0,
-        "memory_total": 0,
-        "memory_used": 0,
+        "cpu_percent": status["cpu_percent"],
+        "memory_percent": status["memory_percent"],
+        "memory_total": status["memory_total"],
+        "memory_used": status["memory_used"],
         "guild_count": len(ctx["guilds"]) if ctx["guilds"] else 0,
         "user_count": sum(g.member_count or 0 for g in ctx["guilds"])
         if ctx["guilds"]
         else 0,
-        "queue_total": 0,
-        "music_guilds": 0,
-        "uptime_formatted": "--:--:--",
-        "bot_latency": 0,
+        "queue_total": status["queue_total"],
+        "music_guilds": status["music_guilds"],
+        "uptime_formatted": status["uptime_formatted"],
+        "bot_latency": bot.latency * 1000 if bot and bot.latency else 0,
         "bot_user": str(bot.user) if bot and bot.user else "Unknown",
         "bot_id": str(bot.user.id) if bot and bot.user else "Unknown",
         "discord_version": "2.5.2",
