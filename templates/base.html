@@ -8,6 +8,9 @@
     <!-- Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='assets/favicon.svg') }}">
     
+    <!-- HTMX config (meta tag processed during init, before deferred scripts) -->
+    <meta name="htmx-config" content='{"historyEnabled":false}'>
+    
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -145,11 +148,6 @@
     
     <!-- HTMX Configuration -->
     <script>
-        // Disable HTMX history cache via the proper config event (before HTMX starts)
-        document.body.addEventListener('htmx:config', (evt) => {
-            evt.detail.historyEnabled = false;
-        });
-
         // Handle modal opening via HTMX
         document.body.addEventListener('harpi:open-modal', (evt) => {
             const modal = document.querySelector('[x-data*="modalOpen"]');
