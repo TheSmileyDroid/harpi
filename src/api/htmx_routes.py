@@ -367,7 +367,9 @@ async def api_music_disconnect(guild_id: str):
 # ==========================================================================
 
 
-@bp.route("/api/music/<guild_id>/queue/remove/<track_url>", methods=["DELETE"])
+@bp.route(
+    "/api/music/<guild_id>/queue/remove/<path:track_url>", methods=["DELETE"]
+)
 async def api_music_queue_remove(guild_id: str, track_url: str):
     """Remove track from queue by URL."""
     try:
@@ -381,7 +383,7 @@ async def api_music_queue_remove(guild_id: str, track_url: str):
 
 
 @bp.route(
-    "/api/music/<guild_id>/queue/move/<track_url>/<int:position>",
+    "/api/music/<guild_id>/queue/move/<path:track_url>/<int:position>",
     methods=["POST"],
 )
 async def api_music_queue_move(guild_id: str, track_url: str, position: int):
@@ -597,8 +599,8 @@ async def api_music_search():
                 "title": r.title,
                 "duration": r.duration,
                 "url": r.url,
-                "thumbnail": "",
-                "uploader": "",
+                "thumbnail": r.thumbnail,
+                "uploader": r.uploader,
                 "source": "youtube",
             })
         return {"results": formatted}

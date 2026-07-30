@@ -30,34 +30,73 @@
         </div>
     </div>
 
+    {# Now playing section #}
+    {% if current_track %}
+    <div class="now-playing" style="padding:var(--space-md);border-bottom:1px solid var(--color-border);">
+        <div style="display:flex;align-items:center;gap:var(--space-md);">
+            <div style="width:80px;height:60px;background:var(--color-bg-elevated);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">
+                {% if current_track.thumbnail %}
+                <img src="{{ current_track.thumbnail }}" alt="{{ current_track.title }}"
+                     style="width:100%;height:100%;object-fit:cover;"
+                     onerror="this.style.display='none';this.parentElement.innerHTML='<i data-lucide=&quot;music&quot; class=&quot;icon-md&quot; style=&quot;opacity:0.5;&quot;></i>';lucide.createIcons({root:this.parentElement});">
+                {% else %}
+                <i data-lucide="music" class="icon-md" style="opacity:0.5;"></i>
+                {% endif %}
+            </div>
+            <div style="min-width:0;flex:1;">
+                <div style="font-family:var(--font-mono);font-size:0.65rem;letter-spacing:1px;color:var(--color-amber);margin-bottom:4px;">NOW PLAYING</div>
+                <div style="font-size:0.9rem;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;">{{ current_track.title }}</div>
+                <div style="display:flex;align-items:center;gap:var(--space-sm);font-size:0.7rem;color:var(--color-text-muted);margin-top:2px;">
+                    {% if current_track.uploader %}
+                    <span>{{ current_track.uploader }}</span>
+                    <span>|</span>
+                    {% endif %}
+                    <span>{{ current_track.duration | format_duration }}</span>
+                    {% if not paused %}
+                    <span class="badge badge-success">PLAYING</span>
+                    {% else %}
+                    <span class="badge badge-warning">PAUSED</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {% if queue %}
     <div class="queue-list" id="queue-list" role="list" aria-label="Music queue">
         {% for track in queue %}
-        <div class="queue-item {% if loop.first and not paused %}playing{% endif %}" 
+        <div class="queue-item" 
              data-track-url="{{ track.url }}"
              role="listitem">
             <span class="queue-item-index">{{ loop.index }}</span>
+            <div class="queue-item-thumb" style="width:40px;height:30px;background:var(--color-bg-elevated);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">
+                {% if track.thumbnail %}
+                <img src="{{ track.thumbnail }}" alt="" style="width:100%;height:100%;object-fit:cover;" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='&#9835;';">
+                {% else %}
+                <span style="font-size:0.8rem;opacity:0.5;">&#9835;</span>
+                {% endif %}
+            </div>
             <div class="queue-item-info">
                 <div class="queue-item-title">{{ track.title }}</div>
                 <div class="queue-item-meta">
                     <span class="queue-item-duration">{{ track.duration | format_duration }}</span>
-                    {% if loop.first and not paused %}
-                    <span class="badge badge-success">NOW PLAYING</span>
+                    {% if track.uploader %}
+                    <span style="opacity:0.5;">|</span>
+                    <span>{{ track.uploader }}</span>
                     {% endif %}
                 </div>
             </div>
             <div class="queue-item-actions">
-                {% if not loop.first %}
                 <button class="btn btn-ghost btn-sm"
-                        hx-post="{{ url_for('htmx_routes.api_music_queue_move', guild_id=guild_id, track_id=track.url, position=0) }}"
+                        hx-post="{{ url_for('htmx_routes.api_music_queue_move', guild_id=guild_id, track_url=track.url, position=0) }}"
                         hx-target="#music-queue-panel"
                         hx-swap="outerHTML"
                         aria-label="Move to top">
                     <i data-lucide="chevron-up" class="icon-xs"></i>
                 </button>
-                {% endif %}
                 <button class="btn btn-ghost btn-sm"
-                        hx-delete="{{ url_for('htmx_routes.api_music_queue_remove', guild_id=guild_id, track_id=track.url) }}"
+                        hx-delete="{{ url_for('htmx_routes.api_music_queue_remove', guild_id=guild_id, track_url=track.url) }}"
                         hx-target="#music-queue-panel"
                         hx-swap="outerHTML"
                         aria-label="Remove from queue">
@@ -68,6 +107,7 @@
         {% endfor %}
     </div>
     {% else %}
+    {% if not current_track %}
     <div class="queue-empty" role="status">
         <i data-lucide="music" class="queue-empty-icon"></i>
         <p class="empty-state-title">QUEUE IS EMPTY</p>
@@ -79,6 +119,7 @@
             SEARCH & ADD
         </button>
     </div>
+    {% endif %}
     {% endif %}
 
 </div>

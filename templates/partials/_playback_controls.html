@@ -124,7 +124,12 @@
 
         <div class="playback-info">
             {% if current_track %}
-            <div class="playback-info-item">
+            <div class="playback-info-item" style="display:flex;align-items:center;gap:var(--space-sm);">
+                {% if current_track.thumbnail %}
+                <img src="{{ current_track.thumbnail }}" alt="" 
+                     style="width:24px;height:18px;border-radius:2px;object-fit:cover;flex-shrink:0;"
+                     onerror="this.style.display='none';">
+                {% endif %}
                 <span class="info-label">TRACK:</span>
                 <span class="info-value">{{ current_track.title | truncate(30) }}</span>
             </div>

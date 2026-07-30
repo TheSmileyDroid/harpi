@@ -33,6 +33,8 @@ class MusicTrackResponse(BaseModel):
     title: str
     duration: int
     url: str
+    thumbnail: str = ""
+    uploader: str = ""
 
 
 class MusicLayerResponse(BaseModel):
@@ -50,6 +52,8 @@ class QueueItemResponse(BaseModel):
     title: str
     duration: int
     url: str
+    thumbnail: str = ""
+    uploader: str = ""
 
 
 class MusicStatusResponse(BaseModel):
@@ -204,12 +208,20 @@ def get_music_data(guild_id: int) -> MusicStatusResponse | None:
             title=current_music.title,
             duration=current_music.duration,
             url=current_music.url,
+            thumbnail=current_music.thumbnail,
+            uploader=current_music.uploader,
         )
         if current_music
         else None,
         progress=0,
         queue=[
-            QueueItemResponse(title=m.title, duration=m.duration, url=m.url)
+            QueueItemResponse(
+                title=m.title,
+                duration=m.duration,
+                url=m.url,
+                thumbnail=m.thumbnail,
+                uploader=m.uploader,
+            )
             for m in (queue if queue else [])
         ],
         layers=[

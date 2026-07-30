@@ -200,6 +200,20 @@ class YTMusicData:
     def duration(self) -> int:
         return cast(int, self._video.get("duration", 0))
 
+    @property
+    def thumbnail(self) -> str:
+        return cast(str, self._video.get("thumbnail", ""))
+
+    @property
+    def uploader(self) -> str:
+        return cast(
+            str,
+            self._video.get(
+                "uploader",
+                self._video.get("channel", self._video.get("creator", "")),
+            ),
+        )
+
 
 class FFmpegPCMAudio(discord.AudioSource):
     def __init__(
