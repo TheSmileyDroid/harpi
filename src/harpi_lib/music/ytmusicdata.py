@@ -176,9 +176,16 @@ class YTMusicData:
             logger.info(
                 f"Found {result.get('entries')} results.",
             )
-            return [
+            items = [
                 cls(dict(cast(dict[str, str | int], video)))
                 for video in cast(list, result.get("entries"))
+            ]
+            return [
+                item
+                for item in items
+                if item.duration
+                and item.duration > 0
+                and "watch?v=" in item.url
             ]
         video = result
         return cast(
@@ -202,7 +209,13 @@ class YTMusicData:
 
     @property
     def thumbnail(self) -> str:
-        return cast(str, self._video.get("thumbnail", ""))
+        thumb = self._video.get("thumbnail") or self._video.get("thumb", "")
+        if thumb:
+            return cast(str, thumb)
+        video_id = self._video.get("id", "")
+        if video_id:
+            return f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg"
+        return ""
 
     @property
     def uploader(self) -> str:

@@ -17,6 +17,6 @@ lint:
 check:
 	uv run ruff check src/ app.py
 	uv run ruff format --check src/ app.py
-	uv run ty check src/ app.py
+	uv run ty check src/ tests/ app.py
 	uv run vulture src/ app.py --min-confidence 50 --sort-by-size
 	uv run pytest tests/ --tb=short -q
