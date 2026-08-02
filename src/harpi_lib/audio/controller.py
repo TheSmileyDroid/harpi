@@ -106,6 +106,17 @@ class AudioController:
         with self._lock:
             return self._current_queue_source
 
+    def get_queue_position(self) -> float:
+        """Return the current queue track position in seconds."""
+        with self._lock:
+            source = self._current_queue_source
+        if source is None or not hasattr(source, "position_seconds"):
+            return 0.0
+        try:
+            return float(source.position_seconds())  # type: ignore
+        except Exception:
+            return 0.0
+
     def clear_queue_source(self) -> None:
         """Clear the current queue track with cleanup."""
         with self._lock:

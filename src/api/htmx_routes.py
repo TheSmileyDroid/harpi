@@ -7,6 +7,8 @@ application.
 
 from __future__ import annotations
 
+import asyncio
+import math
 from typing import Any
 
 from loguru import logger
@@ -14,7 +16,12 @@ from quart import Blueprint, render_template, request, session
 
 from src.api.deps import get_bot, get_api, run_on_bot_loop
 from src.api.guild import _get_guilds
-from src.api.music import get_music_data, _get_voice_client, DEFAULT_VOLUME
+from src.api.music import (
+    DEFAULT_VOLUME,
+    SEEK_TIMEOUT_SECONDS,
+    _get_voice_client,
+    get_music_data,
+)
 from src.api.server_status import get_server_status
 
 
@@ -327,12 +334,31 @@ async def api_music_volume(guild_id: str):
 
 @bp.route("/api/music/<guild_id>/seek", methods=["POST"])
 async def api_music_seek(guild_id: str):
-    """Seek to position and return updated controls.
-
-    TODO(SMI-38): Implement seek in the audio pipeline. The current
-    FFmpeg-based playback does not support seeking mid-stream. Needs
-    either FFmpeg seek support or a different audio source approach.
-    """
+    """Seek to position and return updated controls."""
+    data = await _parse_json_or_form()
+    position = data.get("position")
+    absolute = str(data.get("absolute", "false")).lower() in {
+        "true",
+        "1",
+        "on",
+    }
+    if position is None:
+        return await htmx_playback_controls(guild_id)
+    try:
+        position_float = float(position)
+    except (TypeError, ValueError):
+        return await htmx_playback_controls(guild_id)
+    if not math.isfinite(position_float):
+        return await htmx_playback_controls(guild_id)
+    try:
+        await asyncio.wait_for(
+            get_api().seek_music(int(guild_id), position_float, absolute),
+            timeout=SEEK_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        logger.error(f"Seek timed out for guild {guild_id}")
+    except Exception as e:
+        logger.opt(exception=True).error(f"Error seeking: {e}")
     return await htmx_playback_controls(guild_id)
 
 

@@ -8,7 +8,7 @@ import sys
 import psutil
 from loguru import logger
 from pydantic import BaseModel
-from quart import Quart, redirect, url_for
+from quart import Quart, redirect, request, url_for
 from quart_cors import cors
 from quart_schema import QuartSchema, validate_response
 
@@ -112,6 +112,20 @@ app.register_blueprint(guild.bp)
 app.register_blueprint(music.bp)
 app.register_blueprint(html_routes.bp)
 app.register_blueprint(htmx_routes.bp)
+
+
+@app.before_request
+async def throttle_music_actions():
+    """Throttle mutating music endpoints to protect the voice path."""
+    from src.api.rate_limit import MUSIC_ACTION_LIMITER
+
+    if request.method not in {"POST", "DELETE"}:
+        return None
+    if not request.path.startswith("/api/music/"):
+        return None
+    if MUSIC_ACTION_LIMITER.allow(request.remote_addr or "unknown"):
+        return None
+    return "Too many requests", 429, {"Retry-After": "1"}
 
 
 @app.before_serving

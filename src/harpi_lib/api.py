@@ -136,6 +136,12 @@ class HarpiAPI:
         """Skip the current track and play the next."""
         await self._music_queue.skip(guild_id)
 
+    async def seek_music(
+        self, guild_id: int, position: float, absolute: bool = False
+    ) -> None:
+        """Seek the current track to a position in seconds."""
+        await self._music_queue.seek(guild_id, position, absolute)
+
     async def set_loop(self, guild_id: int, loop: LoopMode) -> None:
         """Set the loop mode (off, track, or queue)."""
         await self._music_queue.set_loop(guild_id, loop)

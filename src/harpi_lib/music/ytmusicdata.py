@@ -6,16 +6,31 @@ Thread safety
   the bot's event loop via ``run_in_executor``.  yt-dlp is not documented
   as thread-safe, but in practice only one extraction runs at a time
   because callers ``await`` the result.  This is an **accepted risk**.
-* ``FFmpegPCMAudio.read()`` is called from discord.py's voice-sending
-  thread.  ``cleanup()`` may be called from the bot or Quart event loops.
-  A ``threading.Lock`` (``_proc_lock``) serialises process spawn and
-  teardown to prevent races on ``self._process``.
+* ``FFmpegPCMAudio.read()`` runs on one of the mixer's reader threads,
+  while ``cleanup()`` and ``seek()`` may be called from the bot or
+  Quart event loops.  A ``threading.Lock`` (``_proc_lock``) serialises
+  access to ``self._process`` and a monotonically increasing
+  ``_generation`` counter lets stale spawns detect that a newer seek
+  or a cleanup superseded them, so a killed process is never
+  resurrected.  Every ``seek()`` advances the generation, even when no
+  process is currently running, so an in-flight reader spawn is always
+  invalidated and the reader re-spawns at the new offset instead of
+  committing audio from the old position.  Blocking pipe reads and
+  subprocess spawns happen outside the lock so a stalled stream cannot
+  block ``seek()`` or ``cleanup()`` indefinitely.
+* ``YoutubeDLSource`` tracks its playback position in bytes under a
+  dedicated lock (``_position_lock``) because ``read()`` runs on the
+  voice-sending thread while ``position_seconds()`` and ``seek()`` are
+  called from other threads.  ``seek()`` holds a dedicated ``_seek_lock``
+  across the underlying seek and the counter reset so concurrent seeks
+  cannot leave the byte counter disagreeing with the FFmpeg position.
 """
 
 from __future__ import annotations
 
 import asyncio
 import io
+import math
 import re
 import shlex
 import subprocess  # noqa: S404
@@ -48,6 +63,8 @@ ffmpeg_options = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
 }
 
+BYTES_PER_SECOND = 48000 * 2 * 2
+
 ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
 
 
@@ -77,6 +94,38 @@ class YoutubeDLSource(UniqueAudioSource):
 
         self.title: str = data.get("title", "Unknown Title")
         self.url: str = data.get("url", "Unknown URL")
+
+        self._position_bytes: int = 0
+        self._position_lock: threading.Lock = threading.Lock()
+        self._seek_lock: threading.Lock = threading.Lock()
+
+    @override
+    def read(self) -> bytes:
+        data = super().read()
+        with self._position_lock:
+            self._position_bytes += len(data)
+        return data
+
+    def position_seconds(self) -> float:
+        with self._position_lock:
+            return self._position_bytes / BYTES_PER_SECOND
+
+    def seek(self, position: float) -> None:
+        """Seek to an absolute position in seconds."""
+        position = max(0.0, position)
+        with self._seek_lock:
+            original_seek = getattr(self.original, "seek", None)
+            if callable(original_seek):
+                original_seek(position)
+            with self._position_lock:
+                self._position_bytes = int(position * BYTES_PER_SECOND)
+
+    @override
+    def cleanup(self) -> None:
+        """Forward cleanup to the underlying FFmpeg process."""
+        original_cleanup = getattr(self.original, "cleanup", None)
+        if callable(original_cleanup):
+            original_cleanup()
 
     @classmethod
     async def from_music_data(
@@ -248,9 +297,15 @@ class FFmpegPCMAudio(discord.AudioSource):
 
         self._proc_lock: threading.Lock = threading.Lock()
         self._process: subprocess.Popen[bytes] | None = None
+        self._generation: int = 0
+        self._seek_offset: float = 0.0
+        self._shutdown: bool = False
 
-    def _spawn_process(self) -> None:
+    def _spawn_process(self) -> subprocess.Popen[bytes]:
         args: list[str] = [self.executable]
+
+        if self._seek_offset > 0:
+            args.extend(["-ss", f"{self._seek_offset:.2f}"])
 
         if self.before_options:
             args.extend(shlex.split(self.before_options))
@@ -290,7 +345,9 @@ class FFmpegPCMAudio(discord.AudioSource):
 
         args.append("pipe:1")
 
-        logger.debug(f"Starting FFmpeg with command: {shlex.join(args)}")
+        logger.debug(
+            f"Starting FFmpeg (seek={self._seek_offset:.2f}s, pipe={self.pipe})"
+        )
 
         input_stream: IO[bytes] | int | None = None
         if self.pipe:
@@ -302,8 +359,7 @@ class FFmpegPCMAudio(discord.AudioSource):
 
         try:
             stderr_dest = self.stderr if self.stderr else subprocess.DEVNULL
-
-            self._process = subprocess.Popen(
+            return subprocess.Popen(
                 args,
                 stdin=input_stream,
                 stdout=subprocess.PIPE,
@@ -318,38 +374,11 @@ class FFmpegPCMAudio(discord.AudioSource):
                 f"Failed to start Popen: {exc}"
             ) from exc
 
-    @override
-    def read(self) -> bytes:
-        with self._proc_lock:
-            if self._process is None:
-                self._spawn_process()
-            proc = self._process
-
-        if proc is None or proc.stdout is None:
-            return b""
-
-        ret: bytes = b""
-        try:
-            ret = proc.stdout.read(Encoder.FRAME_SIZE)
-
-            if len(ret) != Encoder.FRAME_SIZE:
-                self.cleanup()
-                return b""
-        except (OSError, ValueError) as e:
-            logger.error(f"Error reading from FFmpeg: {e}")
-            self.cleanup()
-            return b""
-
-        return ret
-
-    @override
-    def cleanup(self) -> None:
-        with self._proc_lock:
-            proc = self._process
-            if proc is None:
-                return
-            self._process = None
-
+    @staticmethod
+    def _terminate(proc: subprocess.Popen[bytes] | None) -> None:
+        """Terminate the FFmpeg process, falling back to kill on timeout."""
+        if proc is None:
+            return
         try:
             proc.terminate()
             try:
@@ -359,8 +388,84 @@ class FFmpegPCMAudio(discord.AudioSource):
                 _ = proc.communicate()
         except Exception:
             logger.debug(
-                "FFmpegPCMAudio cleanup error (suppressed)", exc_info=True
+                "FFmpegPCMAudio terminate error (suppressed)", exc_info=True
             )
+
+    @override
+    def read(self) -> bytes:
+        while True:
+            with self._proc_lock:
+                proc = self._process
+                generation = self._generation
+                if proc is None:
+                    if self._shutdown:
+                        return b""
+                    self._generation += 1
+                    generation = self._generation
+
+            if proc is None:
+                new_proc = self._spawn_process()
+                with self._proc_lock:
+                    if self._shutdown:
+                        self._terminate(new_proc)
+                        return b""
+                    if self._generation != generation:
+                        self._terminate(new_proc)
+                        continue
+                    self._process = new_proc
+                    proc = new_proc
+
+            if proc.stdout is None:
+                return b""
+
+            try:
+                ret = proc.stdout.read(Encoder.FRAME_SIZE)
+            except (OSError, ValueError):
+                ret = b""
+
+            if len(ret) != Encoder.FRAME_SIZE:
+                with self._proc_lock:
+                    if self._process is proc:
+                        self._process = None
+                    else:
+                        proc = None
+                if proc is not None:
+                    self._terminate(proc)
+                    return b""
+                continue
+            return ret
+
+    def seek(self, position: float) -> None:
+        """Seek the stream to an absolute position in seconds."""
+        if not math.isfinite(position):
+            return
+        position = max(0.0, position)
+        with self._proc_lock:
+            if self._shutdown:
+                return
+            self._seek_offset = position
+            proc = self._process
+            self._process = None
+            self._generation += 1
+            generation = self._generation
+        self._terminate(proc)
+        if proc is None:
+            return
+        new_proc = self._spawn_process()
+        with self._proc_lock:
+            if self._shutdown or self._generation != generation:
+                self._terminate(new_proc)
+                return
+            self._process = new_proc
+
+    @override
+    def cleanup(self) -> None:
+        with self._proc_lock:
+            self._shutdown = True
+            proc = self._process
+            self._process = None
+            self._generation += 1
+        self._terminate(proc)
 
 
 class FastStartFFmpegPCMAudio(discord.FFmpegPCMAudio):

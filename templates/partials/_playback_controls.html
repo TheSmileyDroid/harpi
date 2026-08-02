@@ -69,7 +69,8 @@
         </div>
         <div class="progress"
              hx-post="{{ url_for('htmx_routes.api_music_seek', guild_id=guild_id) }}"
-             hx-vals='js:{position: Math.round(event.offsetX / this.offsetWidth * 100)}'
+             hx-vals='js:{position: Math.round(event.offsetX / event.currentTarget.offsetWidth * {{ current_track.duration if current_track else 0 }}), absolute: true}'
+             hx-on::before-request="if ({{ current_track.duration if current_track else 0 }} <= 0) event.preventDefault()"
              hx-trigger="click"
              hx-target="#playback-controls"
              hx-swap="outerHTML"
@@ -91,7 +92,7 @@
                min="0" max="1" step="0.05"
                value="{{ volume | default(0.5) }}"
                hx-post="{{ url_for('htmx_routes.api_music_volume', guild_id=guild_id) }}"
-               hx-vals='js:{volume: this.value}'
+               hx-vals='js:{volume: event.currentTarget.value}'
                hx-trigger="change"
                hx-target="#playback-controls"
                hx-swap="outerHTML"

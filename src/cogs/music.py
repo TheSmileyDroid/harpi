@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import cast
 
 import discord
@@ -111,6 +112,32 @@ class MusicCog(Cog):
             guild, _, _ = await self._resolve_voice_context(ctx)
             await self.api.skip_music(guild.id)
             _ = await ctx.send("Música pulada")
+
+    @command("seek")
+    async def seek(self, ctx: Context, position: str) -> None:
+        """Seek to a position in the current track.
+
+        Arguments:
+            ctx (Context): Command context.
+            position (str): Absolute position in seconds, or a +/- offset for relative seek.
+
+        Raises:
+            CommandError: If the user is not in a voice channel.
+
+        """
+        async with ctx.typing():
+            guild, _, _ = await self._resolve_voice_context(ctx)
+            try:
+                target = float(position)
+            except ValueError:
+                _ = await ctx.send("Posição inválida")
+                return
+            if not math.isfinite(target):
+                _ = await ctx.send("Posição inválida")
+                return
+            absolute = not position.startswith(("+", "-"))
+            await self.api.seek_music(guild.id, target, absolute=absolute)
+            _ = await ctx.send("Posição alterada")
 
     @command("disconnect")
     async def disconnect(self, ctx: Context) -> None:

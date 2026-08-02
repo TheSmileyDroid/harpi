@@ -16,7 +16,8 @@ shared data structures that the bot/Quart event loops also access.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+import math
+from typing import TYPE_CHECKING, Callable, cast
 
 import discord
 from discord.ext.commands import Bot, Context
@@ -27,6 +28,10 @@ from src.harpi_lib.music.ytmusicdata import YoutubeDLSource, YTMusicData
 if TYPE_CHECKING:
     from src.harpi_lib.api import GuildConfig, LoopMode
     from src.harpi_lib.services.voice_connection import VoiceConnectionService
+
+
+# Fallback seek cap in seconds for tracks with unknown duration.
+MAX_SEEK_SECONDS = 4 * 3600
 
 
 class MusicQueueService:
@@ -183,6 +188,49 @@ class MusicQueueService:
             raise ValueError("Guilda não conectada")
         logger.info(f"Skipping track in guild {guild_id}")
         await self.next_music(guild_config, force_next=True)
+
+    async def seek(
+        self, guild_id: int, position: float, absolute: bool = False
+    ) -> None:
+        """Seek the current track to a position in seconds."""
+        guild_config = self.guilds.get(guild_id)
+        if not guild_config:
+            raise ValueError("Guilda não conectada")
+        source = guild_config.controller.get_queue_source()
+        if (
+            source is None
+            or not hasattr(source, "seek")
+            or not hasattr(source, "position_seconds")
+        ):
+            return
+        if not math.isfinite(position):
+            raise ValueError("Posição inválida")
+        position_seconds = cast(Callable[[], float], source.position_seconds)
+        seek = cast(Callable[[float], None], source.seek)
+        duration = (
+            guild_config.current_music.duration
+            if guild_config.current_music
+            else 0
+        )
+
+        def _seek_in_thread() -> float:
+            # Relative offsets are resolved inside the worker so two rapid
+            # seeks cannot both read the same pre-seek position and lose a
+            # jump.  FFmpeg spawn and teardown block, so this runs off the
+            # Quart or bot event loop to avoid freezing either one.
+            target = position if absolute else position_seconds() + position
+            if not math.isfinite(target):
+                raise ValueError("Posição inválida")
+            target = max(0.0, target)
+            if duration:
+                target = min(target, float(duration))
+            else:
+                target = min(target, MAX_SEEK_SECONDS)
+            seek(target)
+            return target
+
+        target = await asyncio.to_thread(_seek_in_thread)
+        logger.info(f"Seeking to {target:.1f}s in guild {guild_id}")
 
     async def set_loop(self, guild_id: int, loop: LoopMode) -> None:
         """Set the loop mode (off, track, or queue)."""

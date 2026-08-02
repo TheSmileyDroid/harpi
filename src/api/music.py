@@ -1,10 +1,11 @@
 """Music playback API endpoints."""
 
+import asyncio
 from typing import cast, Literal
 
 from discord import VoiceClient
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from quart import Blueprint
 from quart_schema import validate_response, validate_request
 
@@ -14,6 +15,7 @@ from src.harpi_lib.api import LoopMode
 bp = Blueprint("music", __name__)
 
 DEFAULT_VOLUME = 0.5
+SEEK_TIMEOUT_SECONDS = 10.0
 
 LOOP_MODE_ALIASES: dict[str, LoopMode] = {}
 for _alias in ("off", "false", "0", "no", "n"):
@@ -60,7 +62,7 @@ class MusicStatusResponse(BaseModel):
     """Full music playback status for a guild."""
 
     current_music: MusicTrackResponse | None
-    progress: int
+    progress: int  # Current track position in milliseconds.
     queue: list[QueueItemResponse]
     layers: list[MusicLayerResponse]
     is_playing: bool
@@ -110,6 +112,14 @@ class VolumeRequest(BaseModel):
     volume: int
 
 
+class SeekRequest(BaseModel):
+    """Request to seek to a position in the current track."""
+
+    guild_id: str
+    position: float = Field(..., allow_inf_nan=False)
+    absolute: bool = False
+
+
 class LayerRemoveRequest(BaseModel):
     """Request to remove a background layer."""
 
@@ -151,6 +161,7 @@ class MusicControlRequest(BaseModel):
     action: Literal[
         "stop",
         "skip",
+        "seek",
         "pause",
         "resume",
         "loop",
@@ -162,6 +173,7 @@ class MusicControlRequest(BaseModel):
     mode: None | str
     layer_id: str | None = None
     volume: int | None = None
+    position: float | None = Field(default=None, allow_inf_nan=False)
 
 
 # === Helpers ===
@@ -213,7 +225,11 @@ def get_music_data(guild_id: int) -> MusicStatusResponse | None:
         )
         if current_music
         else None,
-        progress=0,
+        progress=(
+            int(guild_config.controller.get_queue_position() * 1000)
+            if guild_config
+            else 0
+        ),
         queue=[
             QueueItemResponse(
                 title=m.title,
@@ -315,6 +331,30 @@ async def music_skip(
         return MusicControlResponse(status="ok")
     except Exception as e:
         logger.opt(exception=True).error(f"Error skipping music: {e}")
+        return MusicControlResponse(status="", error=str(e)), 500
+
+
+@bp.route("/api/music/seek", methods=["POST"])
+@validate_request(SeekRequest)
+@validate_response(MusicControlResponse)
+async def music_seek(
+    data: SeekRequest,
+) -> MusicControlResponse | tuple[MusicControlResponse, int]:
+    """Seek to a position in the current track."""
+    guild_id = _parse_guild_id(data.guild_id)
+    if guild_id is None:
+        return MusicControlResponse(status="", error="Invalid guild_id"), 400
+    try:
+        await asyncio.wait_for(
+            get_api().seek_music(guild_id, data.position, data.absolute),
+            timeout=SEEK_TIMEOUT_SECONDS,
+        )
+        return MusicControlResponse(status="ok")
+    except TimeoutError:
+        logger.error(f"Seek timed out for guild {guild_id}")
+        return MusicControlResponse(status="", error="Seek timed out"), 504
+    except Exception as e:
+        logger.opt(exception=True).error(f"Error seeking music: {e}")
         return MusicControlResponse(status="", error=str(e)), 500
 
 
@@ -469,11 +509,12 @@ async def music_control(
 
     Body:
         guild_id: The guild ID.
-        action: One of 'stop', 'skip', 'pause', 'resume', 'loop',
+        action: One of 'stop', 'skip', 'seek', 'pause', 'resume', 'loop',
                 'remove_layer', 'clean_layers', 'set_volume', 'set_layer_volume'.
         mode: (Optional) Loop mode for 'loop' action.
         layer_id: (Optional) Layer ID for layer actions.
         volume: (Optional) Volume level.
+        position: (Optional) Relative position in seconds for 'seek' action.
     """
     guild_id = _parse_guild_id(data.guild_id)
     if guild_id is None:
@@ -491,6 +532,12 @@ async def music_control(
             await api.stop_music(guild_id)
         elif action == "skip":
             await api.skip_music(guild_id)
+        elif action == "seek":
+            if data.position is None:
+                return MusicControlResponse(
+                    status="", error="position required"
+                ), 400
+            await api.seek_music(guild_id, data.position)
         elif action == "pause":
             vc = _get_voice_client(guild_id)
             if vc:
