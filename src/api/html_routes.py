@@ -22,10 +22,12 @@ async def _get_base_context():
     guilds = await _get_guilds()
 
     # Get channels for pre-selected guild
-    selected_guild_id = session.get("guild_id")
+    # Session stores strings, but guild.id is an int (discord snowflake)
+    raw_guild_id = session.get("guild_id")
+    selected_guild_id = int(raw_guild_id) if raw_guild_id else None
     channels = []
     if selected_guild_id and bot:
-        guild = bot.get_guild(int(selected_guild_id))
+        guild = bot.get_guild(selected_guild_id)
         if guild:
             channels = guild.voice_channels
 
@@ -68,7 +70,7 @@ async def dashboard():
 async def music_page():
     """Music control page - queue, layers, playback."""
     ctx = await _get_base_context()
-    guild_id = session.get("guild_id")
+    guild_id = ctx["selected_guild_id"]  # already int from _get_base_context
 
     queue = []
     layers = []

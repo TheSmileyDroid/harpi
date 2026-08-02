@@ -42,7 +42,7 @@
                                 aria-label="Select Discord server">
                             <option value="">SELECT GUILD</option>
                             {% for guild in guilds %}
-                            <option value="{{ guild.id }}" {% if guild.id == selected_guild_id %}selected{% endif %}>
+                            <option value="{{ guild.id }}" {% if (guild.id | string) == (selected_guild_id | string) %}selected{% endif %}>
                                 {{ guild.name }}
                             </option>
                             {% endfor %}
