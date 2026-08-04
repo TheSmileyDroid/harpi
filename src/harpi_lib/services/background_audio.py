@@ -15,11 +15,13 @@ CPython's GIL.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from discord.ext.commands import Bot, Context
 
 from src.harpi_lib.music.ytmusicdata import YoutubeDLSource, YTMusicData
+from src.harpi_lib.services.music_queue import TRACK_LOAD_TIMEOUT
 
 if TYPE_CHECKING:
     from src.harpi_lib.api import GuildConfig
@@ -55,8 +57,10 @@ class BackgroundAudioService:
             guild_config = await self.voice_service.connect(
                 guild_id, channel_id, ctx
             )
-        source = await YoutubeDLSource.from_music_data(music_data_list[0])
-        source.volume = 0.7
+        source = await asyncio.wait_for(
+            YoutubeDLSource.from_music_data(music_data_list[0], volume=0.7),
+            timeout=TRACK_LOAD_TIMEOUT,
+        )
         layer_id = guild_config.controller.add_layer(source)
         if not guild_config.background:
             guild_config.background = {}

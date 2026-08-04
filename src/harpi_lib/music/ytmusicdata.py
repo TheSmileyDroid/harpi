@@ -3,9 +3,11 @@
 Thread safety
 -------------
 * ``ytdl`` (module-level ``yt_dlp.YoutubeDL`` singleton) is called from
-  the bot's event loop via ``run_in_executor``.  yt-dlp is not documented
-  as thread-safe, but in practice only one extraction runs at a time
-  because callers ``await`` the result.  This is an **accepted risk**.
+  the bot's event loop via the single-worker ``_YTDL_EXECUTOR``.  yt-dlp
+  is not documented as thread-safe and a timed-out extraction is
+  abandoned mid-flight rather than awaited, so the single worker
+  serializes all extractions and guarantees callers never interleave on
+  the shared instance.
 * ``FFmpegPCMAudio.read()`` runs on one of the mixer's reader threads,
   while ``cleanup()`` and ``seek()`` may be called from the bot or
   Quart event loops.  A ``threading.Lock`` (``_proc_lock``) serialises
@@ -29,6 +31,7 @@ Thread safety
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import io
 import math
 import re
@@ -43,6 +46,8 @@ import discord
 import yt_dlp
 from discord.opus import Encoder
 from loguru import logger
+from urllib.parse import urlsplit
+from yt_dlp.utils.networking import std_headers
 
 from src.errors.nothingfound import NothingFoundError
 
@@ -56,16 +61,78 @@ ytdl_format_options = {
     "no_warnings": False,
     "default_search": "auto_warning",
     "cookiefile": "cookies.txt",
+    "socket_timeout": 15,
+    "retries": 1,
+    "fragment_retries": 1,
+    "extractor_retries": 1,
 }
+
+# Timeouts so stalled network calls fail fast instead of hanging forever.
+YT_SEARCH_TIMEOUT = 30.0  # seconds, for YTMusicData.from_url -> search()
+YT_EXTRACT_TIMEOUT = (
+    25.0  # seconds, for the fallback extraction in from_music_data
+)
+
+# Playability validation, applied before any track is committed to playback.
+# Probes the first seconds of the selected stream so a track that is
+# unreachable, carries no audio, or is pure silence is skipped up front.
+SILENCE_PROBE_SECONDS = 15.0  # ffmpeg volumedetect window (seconds)
+SILENCE_MAX_VOLUME_DB = -60.0  # max_volume below this is treated as silence
+STREAM_PROBE_ATTEMPTS = 3  # probe attempts for remote streams before giving up
+STREAM_PROBE_RETRY_DELAY = 1.0  # seconds between probe attempts
+STREAM_PROBE_TOTAL_TIMEOUT = (
+    15.0  # overall budget for one probe sequence (seconds)
+)
+
+
+class ProbeError(ValueError):
+    """A stream could not be probed or is not fit for playback."""
+
+
+class ProbeSilenceError(ProbeError):
+    """The probed stream carries audio but is pure silence."""
+
+
+class ProbeEnvironmentError(ProbeError):
+    """The probe could not run in this deployment (e.g. ffmpeg is missing)."""
+
+
+class ProbeTimeoutError(ProbeError):
+    """The probe exceeded its overall budget."""
+
+
+# Reconnect flags for flaky remote streams, shared by probe and playback.
+_RECONNECT_OPTIONS = (
+    "-reconnect",
+    "1",
+    "-reconnect_streamed",
+    "1",
+    "-reconnect_delay_max",
+    "5",
+)
 
 ffmpeg_options = {
     "options": "-vn",
-    "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+    "before_options": " ".join(_RECONNECT_OPTIONS),
 }
+
+# Browser-like HTTP headers, the same set yt-dlp attaches to every request.
+# YouTube's CDN answers the googlevideo stream URLs with 403 when ffmpeg
+# fetches them without these headers, so probing and playback send them.
+_FFMPEG_HEADERS = (
+    "\r\n".join(f"{k}: {v}" for k, v in std_headers.items()) + "\r\n"
+)
 
 BYTES_PER_SECOND = 48000 * 2 * 2
 
 ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
+
+# Serializes yt-dlp extractions: the library is not thread-safe, and a
+# timed-out extraction is abandoned mid-flight rather than awaited, so a
+# single worker guarantees callers never interleave on the shared instance.
+_YTDL_EXECUTOR = concurrent.futures.ThreadPoolExecutor(
+    max_workers=1, thread_name_prefix="ytdl"
+)
 
 
 class AudioSourceWrapper(discord.AudioSource):
@@ -133,32 +200,223 @@ class YoutubeDLSource(UniqueAudioSource):
         musicdata: YTMusicData,
         volume: float = 0.3,
     ) -> YoutubeDLSource:
-        """Create a YoutubeDLSource instance from a YTMusicData."""
-        loop = asyncio.get_event_loop()
-        data = await loop.run_in_executor(
-            None,
-            lambda: ytdl.extract_info(musicdata.get_url(), download=False),
-        )
+        """Create a YoutubeDLSource instance from a YTMusicData.
 
-        if not isinstance(data, dict):
-            raise ValueError("Invalid data from ytdl: expected dict")
-        if "entries" in data:
-            data = data["entries"][0]
-        if not isinstance(data, dict):
-            raise ValueError("Invalid data from ytdl: expected dict entry")
-
-        url = data.get("url")
-        if not isinstance(url, str):
-            raise ValueError("Invalid URL from ytdl: expected string")
-        # Use the URL directly for streaming instead of downloading the file
+        Reuses the formats already extracted at search time when possible
+        (avoiding a redundant, easily-throttled second extraction) and
+        bounds the fallback extraction with a timeout.  The selected
+        stream is then duration-validated and probed for playability and
+        silence before playback, so an unreachable, audio-less, or silent
+        track is rejected up front.
+        """
+        info, stream_url = await cls._pick_stream(musicdata)
+        data = dict(info)
+        # The public url stays the stable watch URL; the signed CDN URL is
+        # passed only to ffmpeg so it never reaches API responses or logs.
+        data["url"] = musicdata.get_url()
         return cls(
             FFmpegPCMAudio(
-                source=url,
+                source=stream_url,
                 options=ffmpeg_options["options"],
                 before_options=ffmpeg_options["before_options"],
             ),
-            data=dict(data),
+            data=data,
             volume=volume,
+        )
+
+    @staticmethod
+    def _validate_duration(info: dict[str, Any]) -> None:
+        """Reject tracks whose duration is known to be zero or negative."""
+        duration = info.get("duration")
+        if duration is None:
+            return
+        try:
+            duration = float(duration)
+        except (TypeError, ValueError):
+            return
+        if duration <= 0:
+            raise ValueError("track has no playable duration")
+
+    @classmethod
+    async def _pick_stream(
+        cls, musicdata: YTMusicData
+    ) -> tuple[dict[str, Any], str]:
+        """Pick and validate a playable stream for *musicdata*.
+
+        Reuses the formats already extracted at search time, then retries
+        with a fresh extraction if that stream cannot be probed.  Reusing
+        avoids a redundant, easily-throttled second extraction in the
+        common case; the fresh extraction yields a brand-new URL when the
+        reused one was rejected by the CDN edge.  The fresh extraction
+        happens at most once per call.
+        """
+        reused = (
+            musicdata.video_data
+            if isinstance(musicdata.video_data, dict)
+            else None
+        )
+
+        async def _try(
+            info: dict[str, Any],
+            stream_url: str,
+        ) -> tuple[dict[str, Any], str] | None:
+            if not stream_url.startswith(("http://", "https://")):
+                raise ValueError(
+                    f"No playable stream found for URL: {musicdata.get_url()}"
+                )
+            cls._validate_duration(info)
+            try:
+                await asyncio.to_thread(probe_stream_audio, stream_url)
+            except ValueError as exc:
+                if not cls._probe_failure_is_transient(exc):
+                    raise
+                return None
+            return info, stream_url
+
+        reused_url = (
+            cls._stream_url_from(reused) if reused is not None else None
+        )
+        if reused_url is not None:
+            picked = await _try(reused, reused_url)
+            if picked is not None:
+                return picked
+
+        fresh = await cls._extract_fresh(musicdata.get_url())
+        fresh_url = cls._select_stream_url(fresh)
+        if not isinstance(fresh_url, str) or not fresh_url.startswith((
+            "http://",
+            "https://",
+        )):
+            raise ValueError(
+                f"No playable stream found for URL: {musicdata.get_url()}"
+            )
+        picked = await _try(fresh, fresh_url)
+        if picked is not None:
+            return picked
+        raise ValueError(
+            f"No playable stream found for URL: {musicdata.get_url()}"
+        )
+
+    @staticmethod
+    def _stream_url_from(info: dict[str, Any] | None) -> str | None:
+        """Select a reused stream URL, or None to force a fresh extraction.
+
+        Flat search entries carry no usable ``formats`` list, so a top-level
+        URL is never trusted here; only real extracted formats are reused.
+        """
+        if not isinstance(info, dict):
+            return None
+        formats = info.get("formats")
+        if not isinstance(formats, list) or not formats:
+            return None
+        return YoutubeDLSource._select_stream_url(info)
+
+    @classmethod
+    async def _extract_fresh(cls, url: str) -> dict[str, Any]:
+        """Extract yt-dlp info with a timeout on the single ytdl worker."""
+        loop = asyncio.get_running_loop()
+        return await asyncio.wait_for(
+            loop.run_in_executor(_YTDL_EXECUTOR, cls._extract_info, url),
+            timeout=YT_EXTRACT_TIMEOUT,
+        )
+
+    @staticmethod
+    def _probe_failure_is_transient(exc: Exception) -> bool:
+        """True when a failed probe may succeed on a fresh stream URL.
+
+        Silence and a missing ffmpeg are properties of the track or the
+        deployment, not of the connection, so they are never transient;
+        everything else (rejected stream, unreadable stream, timeout) can
+        be.
+        """
+        return not isinstance(exc, (ProbeSilenceError, ProbeEnvironmentError))
+
+    @staticmethod
+    def _extract_info(url: str) -> dict[str, Any]:
+        """Extract yt-dlp info for *url* and unwrap playlist/search entries to the first video."""
+        data = ytdl.extract_info(url, download=False)
+        if not isinstance(data, dict):
+            raise ValueError("Invalid data from ytdl: expected dict")
+        if "entries" in data:
+            entries = data["entries"]
+            if not entries or not isinstance(entries[0], dict):
+                raise ValueError("Invalid data from ytdl: expected dict entry")
+            data = entries[0]
+        if not isinstance(data, dict):
+            raise ValueError("Invalid data from ytdl: expected dict entry")
+        return data
+
+    @classmethod
+    def _select_stream_url(cls, data: dict[str, Any] | None) -> str | None:
+        """Pick the best playable stream URL without any network access.
+
+        Prefers audio-only formats, then ``m4a``, then the highest bitrate.
+        Returns None when nothing usable is found.
+        """
+        if not isinstance(data, dict):
+            return None
+        formats = data.get("formats")
+        if isinstance(formats, list) and formats:
+            candidates: list[dict[str, Any]] = []
+            for f in formats:
+                if not isinstance(f, dict):
+                    continue
+                url = f.get("url")
+                if not isinstance(url, str) or not url.startswith((
+                    "http://",
+                    "https://",
+                )):
+                    continue
+                if not cls._is_usable_audio_format(f):
+                    continue
+                candidates.append(f)
+            if not candidates:
+                return None
+
+            def _bitrate(f: dict[str, Any]) -> float:
+                for key in ("abr", "tbr"):
+                    value = f.get(key)
+                    if value is None:
+                        continue
+                    try:
+                        return float(value)
+                    except (TypeError, ValueError):
+                        continue
+                return 0.0
+
+            def _score(f: dict[str, Any]) -> tuple[int, int, float]:
+                return (
+                    not cls._is_audio_only_format(f),
+                    f.get("ext") != "m4a",
+                    -_bitrate(f),
+                )
+
+            best = min(candidates, key=_score)
+            url = best.get("url")
+            if isinstance(url, str):
+                return url
+            return None
+        url = data.get("url")
+        if isinstance(url, str) and url.startswith(("http://", "https://")):
+            return url
+        return None
+
+    @staticmethod
+    def _is_usable_audio_format(f: dict[str, Any]) -> bool:
+        """True if *f* carries an audio stream (muxed or audio-only)."""
+        acodec = f.get("acodec")
+        return isinstance(acodec, str) and bool(acodec) and acodec != "none"
+
+    @staticmethod
+    def _is_audio_only_format(f: dict[str, Any]) -> bool:
+        """True if *f* carries audio but no video."""
+        acodec = f.get("acodec")
+        vcodec = f.get("vcodec")
+        return (
+            isinstance(acodec, str)
+            and bool(acodec)
+            and acodec != "none"
+            and (not vcodec or vcodec == "none")
         )
 
 
@@ -169,26 +427,26 @@ def search(arg: str) -> dict[str, Any]:
     URL_REGEX = re.compile(
         r"https?://(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
     )
-    video: dict | None = None
+    video: dict[str, Any] | None = None
     try:
         if not re.match(URL_REGEX, arg):
             video = cast(
-                dict[str, str | int],
+                dict[str, Any],
                 cast(
                     object,
                     ytdl.extract_info(
                         f"ytsearch10:{arg}",
-                        download=True,
+                        download=False,
                         process=False,
                     ),
                 ),
             )
         else:
             video = cast(
-                dict[str, str | int],
+                dict[str, Any],
                 cast(
                     object,
-                    ytdl.extract_info(arg, download=True, process=False),
+                    ytdl.extract_info(arg, download=False, process=False),
                 ),
             )
     except Exception as e:
@@ -201,10 +459,155 @@ def search(arg: str) -> dict[str, Any]:
     return video
 
 
+def _parse_max_volume(stderr: str) -> float | None:
+    """Return the volumedetect ``max_volume`` (dB) from ffmpeg stderr."""
+    match = re.search(r"max_volume:\s*(-?(?:inf|[\d.]+))\s*dB", stderr)
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
+
+
+_SIGNED_PARAM = re.compile(
+    r"(?P<pre>[?&])(?:lsig|signature|sig|token|expire|pot|nh|gcr|s|n)="
+    r"[^&\s]+",
+    re.IGNORECASE,
+)
+
+
+def _redact_signed_tokens(text: str) -> str:
+    """Blank signed URL-parameter values so logs do not leak stream tokens."""
+    return _SIGNED_PARAM.sub(r"\g<pre>REDACTED", text)
+
+
+def _redact_stream_url(stream_url: str) -> str:
+    """Return *stream_url* reduced to a bare host for log safety."""
+    try:
+        parsed = urlsplit(stream_url)
+    except ValueError:
+        return "<invalid stream url>"
+    if not (parsed.scheme and parsed.netloc):
+        return "<non-url stream source>"
+    host = parsed.netloc
+    if "@" in host:
+        host = host.rsplit("@", 1)[-1]
+    return f"{parsed.scheme}://{host}/..."
+
+
+def _probe_stream_once(stream_url: str, timeout: float) -> float:
+    """Run a single ffmpeg volumedetect probe and return the max volume (dB).
+
+    Raises a :class:`ProbeError` subclass when the stream cannot be probed
+    (no audio stream, ffmpeg failure, or timeout) or is pure silence.
+    """
+    if not isinstance(stream_url, str) or stream_url.startswith("-"):
+        raise ValueError("invalid stream url")
+    args = [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostats",
+        "-t",
+        str(SILENCE_PROBE_SECONDS),
+    ]
+    if stream_url.startswith(("http://", "https://")):
+        args.extend(_RECONNECT_OPTIONS)
+        args.extend(["-headers", _FFMPEG_HEADERS])
+    args.extend([
+        "-i",
+        stream_url,
+        "-map",
+        "0:a:0",
+        "-af",
+        "volumedetect",
+        "-f",
+        "null",
+        "-",
+    ])
+    try:
+        proc = subprocess.Popen(
+            args,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except OSError:
+        raise ProbeEnvironmentError(
+            "ffmpeg not available for stream probing"
+        ) from None
+    try:
+        _, stderr = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            proc.kill()
+        except OSError:
+            pass
+        proc.communicate()
+        raise ProbeTimeoutError("stream probe timed out") from None
+    if proc.returncode != 0:
+        tail = (stderr or "").strip()[-300:]
+        logger.debug(
+            f"Probe failed for stream {_redact_stream_url(stream_url)}: "
+            f"{_redact_signed_tokens(tail)}"
+        )
+        raise ValueError("stream not playable")
+    max_volume = _parse_max_volume(stderr or "")
+    if max_volume is None:
+        raise ValueError("could not determine stream volume")
+    if max_volume < SILENCE_MAX_VOLUME_DB:
+        raise ProbeSilenceError(
+            f"stream is silent (max_volume={max_volume:.1f} dB)"
+        )
+    return max_volume
+
+
+def probe_stream_audio(stream_url: str) -> float:
+    """Probe *stream_url* and return its max volume (dB), retrying remote streams.
+
+    YouTube's CDN sometimes answers the first request for a fresh stream URL
+    with a spurious 403 before the edge has validated it, so remote streams
+    are retried within a single overall budget before being declared
+    unplayable.  The budget is enforced here, inside this thread, so a slow
+    or hanging stream can never orphan a subprocess.  Silence and a missing
+    ffmpeg are properties of the track or the deployment, not of the
+    connection, so they are never retried.
+    """
+    if not isinstance(stream_url, str) or stream_url.startswith("-"):
+        raise ValueError("invalid stream url")
+    remote = stream_url.startswith(("http://", "https://"))
+    attempts = STREAM_PROBE_ATTEMPTS if remote else 1
+    deadline = time.monotonic() + STREAM_PROBE_TOTAL_TIMEOUT
+    last_error: ValueError | None = None
+    for attempt in range(attempts):
+        if attempt:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            time.sleep(min(STREAM_PROBE_RETRY_DELAY, remaining))
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        try:
+            return _probe_stream_once(stream_url, timeout=remaining)
+        except (ProbeSilenceError, ProbeEnvironmentError):
+            raise
+        except ValueError as exc:
+            last_error = exc
+            if attempt < attempts - 1:
+                logger.debug(
+                    f"Probe attempt {attempt + 1}/{attempts} failed for "
+                    f"{_redact_stream_url(stream_url)}; retrying"
+                )
+    if last_error is None:
+        raise ProbeTimeoutError("stream probe timed out")
+    raise last_error
+
+
 class YTMusicData:
     """Data container for a YouTube music track's metadata."""
 
-    def __init__(self, video: dict[str, str | int]) -> None:
+    def __init__(self, video: dict[str, Any]) -> None:
         self._title: str = cast(str, video.get("title", "Unknown"))
         self._url: str = cast(
             str,
@@ -213,20 +616,24 @@ class YTMusicData:
                 cast(str, video.get("original_url", "Unknown")),
             ),
         )
-        self._video: dict[str, str | int] = video
+        self._video: dict[str, Any] = video
         self._source: YoutubeDLSource | None = None
 
     @classmethod
     async def from_url(cls, url: str) -> list[YTMusicData]:
         """Create a YTMusicData instance from a URL."""
         logger.info(f"Searching for {url}")
-        result = search(url)
+        loop = asyncio.get_running_loop()
+        result = await asyncio.wait_for(
+            loop.run_in_executor(_YTDL_EXECUTOR, search, url),
+            timeout=YT_SEARCH_TIMEOUT,
+        )
         if result.get("entries"):
             logger.info(
                 f"Found {result.get('entries')} results.",
             )
             items = [
-                cls(dict(cast(dict[str, str | int], video)))
+                cls(dict(cast(dict[str, Any], video)))
                 for video in cast(list, result.get("entries"))
             ]
             return [
@@ -237,9 +644,12 @@ class YTMusicData:
                 and "watch?v=" in item.url
             ]
         video = result
-        return cast(
-            list[YTMusicData], [cls(dict(cast(dict[str, str | int], video)))]
-        )
+        return cast(list[YTMusicData], [cls(dict(video))])
+
+    @property
+    def video_data(self) -> dict[str, Any]:
+        """Raw yt-dlp info dict stored at search time (flat for search/playlist entries)."""
+        return self._video
 
     @property
     def title(self) -> str:
@@ -310,22 +720,18 @@ class FFmpegPCMAudio(discord.AudioSource):
         if self.before_options:
             args.extend(shlex.split(self.before_options))
 
+        if isinstance(self.source, str) and self.source.startswith("-"):
+            raise ValueError("invalid stream source")
+
         if isinstance(self.source, str) and self.source.startswith((
-            "http:",
-            "https:",
+            "http://",
+            "https://",
         )):
-            if (
-                not self.before_options
-                or "-reconnect" not in self.before_options
+            if not self.before_options or "-reconnect" not in shlex.split(
+                self.before_options
             ):
-                args.extend([
-                    "-reconnect",
-                    "1",
-                    "-reconnect_streamed",
-                    "1",
-                    "-reconnect_delay_max",
-                    "5",
-                ])
+                args.extend(_RECONNECT_OPTIONS)
+            args.extend(["-headers", _FFMPEG_HEADERS])
 
         args.append("-i")
         args.append("-" if self.pipe else str(self.source))

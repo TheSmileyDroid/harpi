@@ -33,6 +33,11 @@ if TYPE_CHECKING:
 # Fallback seek cap in seconds for tracks with unknown duration.
 MAX_SEEK_SECONDS = 4 * 3600
 
+# Max seconds allowed for loading a track's audio source before it is
+# treated as failed and skipped.  Covers the fallback extraction budget
+# plus the stream playability/silence probe.
+TRACK_LOAD_TIMEOUT = 60.0
+
 
 class MusicQueueService:
     """Manages the music playback queue."""
@@ -100,10 +105,26 @@ class MusicQueueService:
             guild_config.current_music = None
             guild_config.controller.clear_queue_source()
 
+    async def _load_and_play(
+        self, guild_config: GuildConfig, music_data: YTMusicData
+    ) -> None:
+        """Load a source for *music_data* (bounded by a timeout) and set it as current."""
+        source = await asyncio.wait_for(
+            YoutubeDLSource.from_music_data(
+                music_data, volume=guild_config.volume
+            ),
+            timeout=TRACK_LOAD_TIMEOUT,
+        )
+        guild_config.controller.set_queue_source(source)
+
     async def _next_music_inner(
         self, guild_config: GuildConfig, force_next: bool = False
     ) -> None:
-        """Prepare and play the next queued track."""
+        """Prepare and play the next queued track.
+
+        A track that fails to load is skipped and the next one is tried
+        instead of stalling or silently killing the queue.
+        """
         from src.harpi_lib.api import LoopMode
 
         if guild_config.current_music:
@@ -112,34 +133,39 @@ class MusicQueueService:
                     f"Looping track '{guild_config.current_music.title}' "
                     f"in guild {guild_config.id}"
                 )
-                source = await YoutubeDLSource.from_music_data(
-                    guild_config.current_music, volume=guild_config.volume
-                )
-                source.volume = guild_config.volume
-                guild_config.controller.set_queue_source(source)
-                return
-
-            if guild_config.loop == LoopMode.QUEUE:
+                try:
+                    await self._load_and_play(
+                        guild_config, guild_config.current_music
+                    )
+                    return
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to reload looping track "
+                        f"'{guild_config.current_music.title}' in guild "
+                        f"{guild_config.id}: {e}; skipping"
+                    )
+            elif guild_config.loop == LoopMode.QUEUE:
                 if not guild_config.queue:
                     guild_config.queue = []
                 guild_config.queue.append(guild_config.current_music)
 
-        if not guild_config.queue or len(guild_config.queue) == 0:
-            logger.debug(f"Queue empty for guild {guild_config.id}")
-            guild_config.current_music = None
-            guild_config.controller.clear_queue_source()
-            return
+        while guild_config.queue:
+            music_data = guild_config.queue.pop(0)
+            guild_config.current_music = music_data
+            logger.info(
+                f"Playing next track '{music_data.title}' in guild {guild_config.id}"
+            )
+            try:
+                await self._load_and_play(guild_config, music_data)
+                return
+            except Exception as e:
+                logger.warning(
+                    f"Skipping unplayable track '{music_data.title}' in guild "
+                    f"{guild_config.id}: {e}"
+                )
 
-        music_data = guild_config.queue.pop(0)
-        guild_config.current_music = music_data
-        logger.info(
-            f"Playing next track '{music_data.title}' in guild {guild_config.id}"
-        )
-        source = await YoutubeDLSource.from_music_data(
-            music_data, volume=guild_config.volume
-        )
-        source.volume = guild_config.volume
-        guild_config.controller.set_queue_source(source)
+        guild_config.current_music = None
+        guild_config.controller.clear_queue_source()
 
     async def add_to_queue(
         self,
