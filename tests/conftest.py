@@ -1,0 +1,92 @@
+"""Shared fakes for the session lifecycle tests."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+from typing import Any
+
+import discord
+
+GUILD_ID = 1
+CHANNEL_ID = 10
+BOT_USER_ID = 1234
+
+
+class FakeVoiceClient(discord.VoiceClient):
+    """Stands in for a real voice client without a websocket or channel."""
+
+    def __init__(self, guild: FakeGuild | None = None) -> None:
+        self._guild = guild
+        self.played_source: discord.AudioSource | None = None
+        self.disconnected = False
+        self._playing = False
+        self._paused = False
+
+    def play(
+        self,
+        source: discord.AudioSource,
+        **kwargs: Any,
+    ) -> None:
+        self.played_source = source
+        self._playing = True
+
+    def is_playing(self) -> bool:
+        return self._playing
+
+    def is_paused(self) -> bool:
+        return self._paused
+
+    def is_connected(self) -> bool:
+        return not self.disconnected
+
+    async def disconnect(self, *, force: bool = False) -> None:
+        self.disconnected = True
+        self._playing = False
+        if self._guild is not None:
+            self._guild.voice_client = None
+
+
+class FakeSource(discord.AudioSource):
+    """Audio source that records whether it was cleaned up."""
+
+    def __init__(self) -> None:
+        self.cleaned_up = False
+
+    def read(self) -> bytes:
+        return b""
+
+    def cleanup(self) -> None:
+        self.cleaned_up = True
+
+
+class FakeChannel:
+    def __init__(self, guild: FakeGuild) -> None:
+        self.guild = guild
+        self.name = "Voice Channel"
+        self.connect_calls = 0
+
+    async def connect(self) -> FakeVoiceClient:
+        self.connect_calls += 1
+        client = FakeVoiceClient(self.guild)
+        self.guild.voice_client = client
+        return client
+
+
+class FakeGuild:
+    def __init__(self, guild_id: int) -> None:
+        self.id = guild_id
+        self.name = "Test Guild"
+        self.voice_client: FakeVoiceClient | None = None
+        self._channels: dict[int, FakeChannel] = {}
+
+    def get_channel(self, channel_id: int) -> FakeChannel | None:
+        return self._channels.get(channel_id)
+
+
+class FakeBot:
+    def __init__(self) -> None:
+        self.user = SimpleNamespace(id=BOT_USER_ID)
+        self._guilds: dict[int, FakeGuild] = {}
+
+    def get_guild(self, guild_id: int) -> FakeGuild | None:
+        return self._guilds.get(guild_id)

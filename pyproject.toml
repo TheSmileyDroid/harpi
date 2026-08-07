@@ -121,4 +121,10 @@ ignore_names = [
     "format_duration", "format_bytes", "format_percent",
     # Flask/Quart session.permanent attribute (set but not read in Python)
     "permanent",
+    # SessionManager.ensure: connect-if-missing verb, exercised by the
+    # lifecycle tests; the panel routes that call it land in a later slice.
+    "ensure",
+    # SessionStatus.connected: read-model field consumed by the panel's
+    # status readers, which arrive in a later slice.
+    "connected",
 ]

@@ -44,6 +44,10 @@ async def create_bot() -> HarpiBot:
     await client.add_cog(DiceCog(client))
     logger.info("Added DiceCog")
 
+    logger.info("Registering session manager listeners...")
+    client.add_listener(client.sessions.on_voice_state_update)
+    logger.info("Registered on_voice_state_update listener")
+
     logger.info("Bot creation completed")
     return client
 
