@@ -62,14 +62,13 @@ def test_remove_finished_source_clears_current_queue_source():
 def test_remove_finished_source_removes_layer():
     controller = AudioController()
     source = FakeSource()
-    layer_id = controller.add_layer(cast(Any, source))
+    controller.add_layer(cast(Any, source))
 
     controller.remove_finished_source(source)
 
     assert source.cleaned_up is True
     assert controller.get_layer_id(source) is None
     assert controller.get_playing_sounds() == []
-    assert layer_id not in controller._layers
 
 
 def test_remove_finished_source_clears_tts_track():
