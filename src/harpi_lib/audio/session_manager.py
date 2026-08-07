@@ -84,7 +84,11 @@ class SessionManager:
                     f"Error disconnecting existing voice client for guild {guild_id}"
                 )
 
-        session = PlaybackSession(guild_id=guild.id, voice_client=voice_client)
+        session = PlaybackSession(
+            guild_id=guild.id,
+            voice_client=voice_client,
+            loop=self._bot.loop,
+        )
         session.start()
         self._sessions[guild.id] = session
         logger.info(

@@ -21,27 +21,19 @@ This is an **accepted risk** documented here rather than papered over
 with locks that would add complexity without preventing real bugs.
 """
 
-import enum
 from dataclasses import dataclass
 
 import discord
 from discord.channel import VoiceChannel
 from discord.ext.commands import Bot, Context
 
-from src.harpi_lib.audio.mixer import MixerSource
 from src.harpi_lib.audio.controller import AudioController
+from src.harpi_lib.audio.mixer import MixerSource
+from src.harpi_lib.audio.session import LoopMode
 from src.harpi_lib.music.ytmusicdata import (
     YoutubeDLSource,
     YTMusicData,
 )
-
-
-class LoopMode(enum.Enum):
-    """Enum for loop modes (off, track, queue)."""
-
-    OFF = 0
-    TRACK = 1
-    QUEUE = 2
 
 
 @dataclass
@@ -68,7 +60,8 @@ class GuildConfig:
 class HarpiAPI:
     """Thin facade that delegates to specialized service classes.
 
-    All public method signatures are preserved for backward compatibility.
+    Retains the music-queue facade for the htmx panel routes while the
+    PlaybackSession becomes the surface the cogs use.
     """
 
     def __init__(self, bot: Bot) -> None:
@@ -105,10 +98,6 @@ class HarpiAPI:
     ) -> GuildConfig:
         """Connect to a voice channel."""
         return await self._voice.connect(guild_id, channel_id, ctx)
-
-    async def disconnect_voice(self, guild_id: int) -> None:
-        """Disconnect from a voice channel and clean up."""
-        await self._voice.disconnect(guild_id)
 
     # -- Music queue --
 

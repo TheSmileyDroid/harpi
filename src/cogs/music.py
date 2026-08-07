@@ -10,6 +10,7 @@ from discord import Guild, Member, Message, StageChannel
 from discord.ext.commands import Cog, CommandError, Context, command
 
 from src.harpi_lib.api import HarpiAPI, LoopMode
+from src.harpi_lib.audio.session import PlaybackSession
 from src.harpi_lib.harpi_bot import HarpiBot
 
 
@@ -45,6 +46,43 @@ class MusicCog(Cog):
         guild = cast(Guild, ctx.guild)
         return (guild, voice_channel, member)
 
+    async def _require_session(self, ctx: Context) -> PlaybackSession | None:
+        """Resolve the user's voice context and return the guild's session.
+
+        Returns ``None`` and announces "Guilda não conectada" when the guild
+        has no session.  When a session exists its announcer is bound to
+        ``ctx.send`` so load failures are announced in the channel.
+        """
+        guild, _, _ = await self._resolve_voice_context(ctx)
+        session = self.bot.sessions.get(guild.id)
+        if session is None:
+            await ctx.send("Guilda não conectada")
+            return None
+        session.set_announcer(ctx.send)
+        return session
+
+    async def _connect_session(
+        self, ctx: Context, *, force: bool
+    ) -> PlaybackSession:
+        """Resolve the user's voice context and return the guild's session.
+
+        With *force* set the session is re-created by connecting afresh
+        (join); otherwise an existing session is reused (play).  The
+        session's announcer is bound to ``ctx.send`` so load failures are
+        announced in the channel.
+        """
+        guild, voice_channel, _ = await self._resolve_voice_context(ctx)
+        if force:
+            session = await self.bot.sessions.connect(
+                guild.id, voice_channel.id
+            )
+        else:
+            session = await self.bot.sessions.ensure(
+                guild.id, voice_channel.id
+            )
+        session.set_announcer(ctx.send)
+        return session
+
     @command("join")
     async def join(self, ctx: Context) -> Message:
         """Join the user's voice channel.
@@ -53,12 +91,8 @@ class MusicCog(Cog):
              ctx (Context): Command context.
 
         """
-        guild, voice_channel, _ = await self._resolve_voice_context(ctx)
-
         try:
-            _ = await self.api.connect_to_voice(
-                guild.id, voice_channel.id, ctx
-            )
+            _ = await self._connect_session(ctx, force=True)
         except Exception as e:
             return await ctx.send(str(e))
 
@@ -75,11 +109,13 @@ class MusicCog(Cog):
             link (str): Link of the song to play.
 
         """
-        guild, voice_channel, _ = await self._resolve_voice_context(ctx)
-
-        await self.api.add_music_to_queue(
-            guild.id, voice_channel.id, link, ctx
-        )
+        session = await self._connect_session(ctx, force=False)
+        try:
+            count = await session.play(link)
+        except ValueError as e:
+            await ctx.send(str(e))
+            return
+        await ctx.send(f"Adicionada(s) {count} música(s) à fila.")
 
     @command("stop")
     async def stop(self, ctx: Context) -> None:
@@ -93,8 +129,10 @@ class MusicCog(Cog):
 
         """
         async with ctx.typing():
-            guild, _, _ = await self._resolve_voice_context(ctx)
-            await self.api.stop_music(guild.id)
+            session = await self._require_session(ctx)
+            if session is None:
+                return
+            await session.stop()
             _ = await ctx.send("Música parada")
 
     @command("skip")
@@ -109,8 +147,10 @@ class MusicCog(Cog):
 
         """
         async with ctx.typing():
-            guild, _, _ = await self._resolve_voice_context(ctx)
-            await self.api.skip_music(guild.id)
+            session = await self._require_session(ctx)
+            if session is None:
+                return
+            await session.skip()
             _ = await ctx.send("Música pulada")
 
     @command("seek")
@@ -126,7 +166,9 @@ class MusicCog(Cog):
 
         """
         async with ctx.typing():
-            guild, _, _ = await self._resolve_voice_context(ctx)
+            session = await self._require_session(ctx)
+            if session is None:
+                return
             try:
                 target = float(position)
             except ValueError:
@@ -136,8 +178,13 @@ class MusicCog(Cog):
                 _ = await ctx.send("Posição inválida")
                 return
             absolute = not position.startswith(("+", "-"))
-            await self.api.seek_music(guild.id, target, absolute=absolute)
-            _ = await ctx.send("Posição alterada")
+            try:
+                moved = await session.seek(target, absolute=absolute)
+            except ValueError:
+                _ = await ctx.send("Posição inválida")
+                return
+            if moved:
+                _ = await ctx.send("Posição alterada")
 
     @command("disconnect")
     async def disconnect(self, ctx: Context) -> None:
@@ -151,7 +198,11 @@ class MusicCog(Cog):
         """
         async with ctx.typing():
             guild, _, _ = await self._resolve_voice_context(ctx)
-            await self.api.disconnect_voice(guild.id)
+            try:
+                await self.bot.sessions.disconnect(guild.id)
+            except ValueError as e:
+                _ = await ctx.send(str(e))
+                return
             _ = await ctx.send("Desconectado do canal de voz")
 
     @command("loop")
@@ -167,21 +218,83 @@ class MusicCog(Cog):
 
         """
         async with ctx.typing():
-            if not ctx.guild:
-                raise CommandError
+            session = await self._require_session(ctx)
+            if session is None:
+                return
             if mode in {"off", "false", "0", "no", "n"}:
-                await self.api.set_loop(ctx.guild.id, LoopMode.OFF)
+                await session.set_loop(LoopMode.OFF)
                 _ = await ctx.send("Loop mode: OFF")
             elif mode in {"track", "true", "1", "yes", "y", "musica"}:
-                await self.api.set_loop(ctx.guild.id, LoopMode.TRACK)
+                await session.set_loop(LoopMode.TRACK)
                 _ = await ctx.send("Loop mode: TRACK")
             elif mode in {"queue", "fila"}:
-                await self.api.set_loop(ctx.guild.id, LoopMode.QUEUE)
+                await session.set_loop(LoopMode.QUEUE)
                 _ = await ctx.send("Loop mode: QUEUE")
             else:
                 _ = await ctx.send(
                     "Modo de loop inválido. Use off, track ou queue."
                 )
+
+    @command("volume")
+    async def volume(self, ctx: Context, level: str | None = None) -> None:
+        """Show or set the music volume (0.0-2.0).
+
+        Arguments:
+            ctx (Context): Command context.
+            level (str | None): New volume level, or omit to show the current one.
+
+        """
+        async with ctx.typing():
+            session = await self._require_session(ctx)
+            if session is None:
+                return
+            if level is None:
+                _ = await ctx.send(
+                    f"Volume atual: {session.status.volume:.2f}"
+                )
+                return
+            try:
+                target = float(level)
+            except ValueError:
+                _ = await ctx.send("Volume inválido")
+                return
+            if not math.isfinite(target):
+                _ = await ctx.send("Volume inválido")
+                return
+            await session.set_volume(target)
+            _ = await ctx.send(
+                f"Volume definido para {session.status.volume:.2f}"
+            )
+
+    @command("pause")
+    async def pause(self, ctx: Context) -> None:
+        """Pause the current track.
+
+        Arguments:
+            ctx (Context): Command context.
+
+        """
+        async with ctx.typing():
+            session = await self._require_session(ctx)
+            if session is None:
+                return
+            await session.pause()
+            _ = await ctx.send("Música pausada")
+
+    @command("resume")
+    async def resume(self, ctx: Context) -> None:
+        """Resume the current track.
+
+        Arguments:
+            ctx (Context): Command context.
+
+        """
+        async with ctx.typing():
+            session = await self._require_session(ctx)
+            if session is None:
+                return
+            await session.resume()
+            _ = await ctx.send("Música retomada")
 
     @command("list", aliases=["queue", "q"])
     async def list_queue(self, ctx: Context) -> None:
@@ -196,21 +309,19 @@ class MusicCog(Cog):
 
         """
         async with ctx.typing():
-            guild, _, _ = await self._resolve_voice_context(ctx)
-            guild_config = self.api.get_guild_config(guild.id)
-            if not guild_config:
-                raise CommandError("Guild config not found")
-            queue = guild_config.queue
-            current_music = guild_config.current_music
+            session = await self._require_session(ctx)
+            if session is None:
+                return
+            status = session.status
             message_lines = []
-            if current_music:
+            if status.current_music:
                 message_lines.append(
-                    f"**Tocando agora:** {current_music.title} "
-                    + f"({current_music.duration})"
+                    f"**Tocando agora:** {status.current_music.title} "
+                    + f"({status.current_music.duration})"
                 )
-            if queue and len(queue) > 0:
+            if status.queue:
                 message_lines.append("**Próximas na fila:**")
-                for idx, music in enumerate(queue, start=1):
+                for idx, music in enumerate(status.queue, start=1):
                     message_lines.append(
                         f"{idx}. {music.title} ({music.duration})"
                     )
