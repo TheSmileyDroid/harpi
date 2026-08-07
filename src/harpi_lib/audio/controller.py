@@ -6,7 +6,6 @@ All mutable state is protected by ``self._lock``.
 """
 
 from src.harpi_lib.music.ytmusicdata import UniqueAudioSource
-from typing import Callable
 from collections.abc import Iterable
 import threading
 
@@ -19,10 +18,8 @@ class AudioController:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._layers: dict[str, discord.AudioSource] = {}
-        self._queue: list[discord.AudioSource] = []
         self._current_queue_source: discord.AudioSource | None = None
         self._tts_track: discord.AudioSource | None = None
-        self._on_queue_empty_callbacks: list[Callable] = []
 
     # --- Private helpers ---
 
@@ -46,19 +43,6 @@ class AudioController:
         # Caller must hold lock.
         self._safe_cleanup(self._tts_track)
         self._tts_track = None
-
-    def _advance_queue(self) -> list[Callable]:
-        """Pop next track from queue or return empty-callbacks to fire.
-
-        Caller must hold lock.  Returns a list of callbacks that the caller
-        must invoke **after** releasing the lock to avoid deadlock.
-        """
-        if self._queue:
-            self._current_queue_source = self._queue.pop(0)
-            return []
-        else:
-            self._current_queue_source = None
-            return list(self._on_queue_empty_callbacks)
 
     # --- Public API ---
 
@@ -122,26 +106,11 @@ class AudioController:
         with self._lock:
             self._clear_queue_source()
 
-    def add_to_queue(self, source: discord.AudioSource) -> None:
-        """Add a track to the playback queue, or start playing immediately if queue is empty."""
-        with self._lock:
-            if self._current_queue_source is None:
-                self._current_queue_source = source
-            else:
-                self._queue.append(source)
-
     def _on_track_finished(self, source: discord.AudioSource) -> None:
-        """Handle track completion by cleaning up the source and advancing the queue.
-
-        Callbacks are invoked outside the lock to avoid deadlock.
-        """
-        callbacks: list[Callable] = []
+        """Handle track completion by cleaning up and clearing the current source."""
         with self._lock:
             if self._current_queue_source == source:
-                self._safe_cleanup(source)
-                callbacks = self._advance_queue()
-        for cb in callbacks:
-            cb()
+                self._clear_queue_source()
 
     def set_tts_track(self, source: discord.AudioSource | None) -> None:
         """Set or clear the TTS audio source, cleaning up any previous one."""
@@ -150,38 +119,24 @@ class AudioController:
             self._tts_track = source
 
     def remove_finished_source(self, source: discord.AudioSource) -> None:
-        """Remove a finished source from whichever collection it belongs to.
-
-        Callbacks are invoked outside the lock to avoid deadlock.
-        """
-        callbacks: list[Callable] = []
+        """Remove a finished source from whichever collection it belongs to."""
         with self._lock:
             for layer_id, src in list(self._layers.items()):
                 if src == source:
                     del self._layers[layer_id]
                     self._safe_cleanup(source)
                     return
-            if source in self._queue:
-                self._queue.remove(source)
-                self._safe_cleanup(source)
-                return
             if self._tts_track == source:
                 self._safe_cleanup(source)
                 self._tts_track = None
             if self._current_queue_source == source:
-                self._safe_cleanup(source)
-                callbacks = self._advance_queue()
-        for cb in callbacks:
-            cb()
+                self._clear_queue_source()
 
     def cleanup_all(self) -> None:
         """Clean up all audio sources and release resources."""
         with self._lock:
             self._cleanup_collection(self._layers.values())
             self._layers.clear()
-
-            self._cleanup_collection(self._queue)
-            self._queue.clear()
 
             self._clear_queue_source()
             self._clear_tts_track()
