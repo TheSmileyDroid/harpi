@@ -16,6 +16,8 @@ from src.harpi_lib.audio.session import LoopMode, PlaybackSession, SessionStatus
 from src.harpi_lib.music.ytmusicdata import ProbeEnvironmentError
 from tests.conftest import (
     FakeAnnouncer,
+    FakeChannel,
+    FakeGuild,
     FakeMusicDataFactory,
     FakeSource,
     FakeSourceFactory,
@@ -447,3 +449,130 @@ async def test_skip_ignores_track_loop(monkeypatch):
     current = session.status.current_music
     assert current is not None
     assert current.title == "two"
+
+
+async def test_toggle_pause_pauses_and_resumes(monkeypatch):
+    session = _make_session()
+    _install_fakes(monkeypatch)
+    await session.play("one")
+
+    await session.toggle_pause()
+
+    assert session.status.is_paused is True
+
+    await session.toggle_pause()
+
+    assert session.status.is_paused is False
+
+
+async def test_remove_drops_a_waiting_track_from_the_queue(monkeypatch):
+    session = _make_session()
+    _install_fakes(monkeypatch)
+    await session.play("one,two,three")
+
+    removed = await session.remove("https://example.com/two")
+
+    assert removed is True
+    assert [m.title for m in session.status.queue] == ["three"]
+
+
+async def test_remove_current_track_skips_to_the_next(monkeypatch):
+    session = _make_session()
+    _install_fakes(monkeypatch)
+    await session.play("one,two,three")
+
+    removed = await session.remove("https://example.com/one")
+
+    assert removed is True
+    current = session.status.current_music
+    assert current is not None
+    assert current.title == "two"
+    assert [m.title for m in session.status.queue] == ["three"]
+
+
+async def test_remove_unknown_track_is_a_noop(monkeypatch):
+    session = _make_session()
+    _install_fakes(monkeypatch)
+    await session.play("one,two")
+
+    removed = await session.remove("https://example.com/nope")
+
+    assert removed is False
+    assert [m.title for m in session.status.queue] == ["two"]
+
+
+async def test_remove_on_an_empty_session_is_a_noop(monkeypatch):
+    session = _make_session()
+    _install_fakes(monkeypatch)
+
+    removed = await session.remove("https://example.com/one")
+
+    assert removed is False
+
+
+async def test_move_reorders_the_waiting_tracks(monkeypatch):
+    session = _make_session()
+    _install_fakes(monkeypatch)
+    await session.play("one,two,three,four")
+
+    moved = await session.move("https://example.com/four", 0)
+
+    assert moved is True
+    assert [m.title for m in session.status.queue] == ["four", "two", "three"]
+
+
+async def test_move_does_not_touch_the_current_track(monkeypatch):
+    session = _make_session()
+    _install_fakes(monkeypatch)
+    await session.play("one,two,three")
+
+    moved = await session.move("https://example.com/one", 2)
+
+    assert moved is False
+    current = session.status.current_music
+    assert current is not None
+    assert current.title == "one"
+    assert [m.title for m in session.status.queue] == ["two", "three"]
+
+
+async def test_move_unknown_track_is_a_noop(monkeypatch):
+    session = _make_session()
+    _install_fakes(monkeypatch)
+    await session.play("one,two,three")
+
+    moved = await session.move("https://example.com/nope", 1)
+
+    assert moved is False
+    assert [m.title for m in session.status.queue] == ["two", "three"]
+
+
+async def test_move_clamps_position_to_the_end(monkeypatch):
+    session = _make_session()
+    _install_fakes(monkeypatch)
+    await session.play("one,two,three")
+
+    moved = await session.move("https://example.com/two", 99)
+
+    assert moved is True
+    assert [m.title for m in session.status.queue] == ["three", "two"]
+
+
+async def test_clear_drops_every_waiting_track(monkeypatch):
+    session = _make_session()
+    _install_fakes(monkeypatch)
+    await session.play("one,two,three")
+
+    await session.clear_queue()
+
+    assert session.status.current_music is not None
+    assert session.status.queue == ()
+
+
+async def test_status_carries_the_voice_channel_id():
+    guild = FakeGuild(1)
+    channel = FakeChannel(guild)
+    voice_client = await channel.connect()
+    session = PlaybackSession(guild_id=1, voice_client=voice_client)
+    session.start()
+
+    assert session.status.channel_id == channel.id

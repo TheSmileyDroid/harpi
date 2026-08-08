@@ -8,14 +8,19 @@ from typing import TYPE_CHECKING
 import psutil
 from loguru import logger
 
-from src.api.deps import get_api
+from src.api.deps import run_on_bot_loop
 
 if TYPE_CHECKING:
     from src.harpi_lib.harpi_bot import HarpiBot
 
 
-def get_server_status(guilds: list, *, bot: HarpiBot | None = None) -> dict:
-    """Compute current server status from system metrics and guild data."""
+async def get_server_status(guilds: list, *, bot: "HarpiBot") -> dict:
+    """Compute current server status from system metrics and guild data.
+
+    The music/queue counters read each guild's session status snapshot
+    (sampled on the bot's event loop), so the dashboard and the HTMX
+    fragment both consume the same read-model as the rest of the panel.
+    """
     cpu_percent = psutil.cpu_percent()
     mem = psutil.virtual_memory()
 
@@ -28,10 +33,13 @@ def get_server_status(guilds: list, *, bot: HarpiBot | None = None) -> dict:
     queue_total = 0
     for g in guilds:
         try:
-            gc = get_api().get_guild_config(int(g.id))
-            if gc and gc.queue:
+            session = bot.sessions.get(int(g.id))
+            if session is None:
+                continue
+            status = await run_on_bot_loop(session.sample_status())
+            if status.queue:
                 music_guilds += 1
-                queue_total += len(gc.queue)
+                queue_total += len(status.queue)
         except Exception as e:
             logger.debug(f"Skipping guild {g.id} status: {e}")
 
@@ -45,8 +53,7 @@ def get_server_status(guilds: list, *, bot: HarpiBot | None = None) -> dict:
         "queue_total": queue_total,
     }
 
-    if bot is not None:
-        result["bot_latency"] = bot.latency * 1000 if bot.latency else 0
-        result["bot_connected"] = bot.is_ready()
+    result["bot_latency"] = bot.latency * 1000 if bot.latency else 0
+    result["bot_connected"] = bot.is_ready()
 
     return result

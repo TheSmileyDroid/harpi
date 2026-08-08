@@ -91,14 +91,6 @@ class HarpiAPI:
         )
         self._tts = TTSService(bot, self.guilds, self._voice)
 
-    # -- Voice connection --
-
-    async def connect_to_voice(
-        self, guild_id: int, channel_id: int, ctx: Context | None = None
-    ) -> GuildConfig:
-        """Connect to a voice channel."""
-        return await self._voice.connect(guild_id, channel_id, ctx)
-
     # -- Music queue --
 
     async def next_music(
@@ -107,37 +99,9 @@ class HarpiAPI:
         """Schedule the next track to play."""
         await self._music_queue.next_music(guild_config, force_next)
 
-    async def add_music_to_queue(
-        self,
-        guild_id: int,
-        channel_id: int,
-        link: str,
-        ctx: Context | None = None,
-    ) -> None:
-        """Add a track URL to the music queue."""
-        await self._music_queue.add_to_queue(guild_id, channel_id, link, ctx)
-
-    async def stop_music(self, guild_id: int) -> None:
-        """Stop current playback and clear the queue."""
-        await self._music_queue.stop(guild_id)
-
-    async def skip_music(self, guild_id: int) -> None:
-        """Skip the current track and play the next."""
-        await self._music_queue.skip(guild_id)
-
-    async def seek_music(
-        self, guild_id: int, position: float, absolute: bool = False
-    ) -> None:
-        """Seek the current track to a position in seconds."""
-        await self._music_queue.seek(guild_id, position, absolute)
-
     async def set_loop(self, guild_id: int, loop: LoopMode) -> None:
         """Set the loop mode (off, track, or queue)."""
         await self._music_queue.set_loop(guild_id, loop)
-
-    async def set_music_volume(self, guild_id: int, volume: float) -> None:
-        """Set the playback volume for the music queue."""
-        await self._music_queue.set_volume(guild_id, volume)
 
     # -- Background audio --
 

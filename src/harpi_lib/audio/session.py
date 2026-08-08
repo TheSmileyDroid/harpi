@@ -81,6 +81,7 @@ class SessionStatus:
     loop_mode: LoopMode = LoopMode.OFF
     volume: float = DEFAULT_VOLUME
     progress: float = 0.0
+    channel_id: int | None = None
 
 
 class PlaybackSession:
@@ -90,7 +91,7 @@ class PlaybackSession:
     session touches them.  State is read through :attr:`status` and
     changed through the session's verbs (``play``, ``stop``, ``skip``,
     ``seek``, ``set_loop``, ``set_volume``, ``pause``, ``resume``,
-    ``leave``).
+    ``toggle_pause``, ``remove``, ``move``, ``clear_queue``, ``leave``).
     """
 
     def __init__(
@@ -188,7 +189,16 @@ class PlaybackSession:
             loop_mode=self._loop_mode,
             volume=self._volume,
             progress=self._controller.get_queue_position(),
+            channel_id=getattr(voice_client.channel, "id", None),
         )
+
+    async def sample_status(self) -> SessionStatus:
+        """Return the current :class:`SessionStatus` snapshot.
+
+        Awaited from another event loop via ``run_on_bot_loop`` so the
+        snapshot is taken on the bot loop, the session's single writer.
+        """
+        return self.status
 
     def start(self) -> None:
         """Begin streaming the mixer to the voice client."""
@@ -311,6 +321,67 @@ class PlaybackSession:
         voice_client = self._voice_client
         if voice_client.is_paused():
             voice_client.resume()
+
+    async def toggle_pause(self) -> None:
+        """Toggle between paused and resumed playback."""
+        if self._voice_client.is_paused():
+            await self.resume()
+        elif self._voice_client.is_playing():
+            await self.pause()
+
+    async def remove(self, track_url: str) -> bool:
+        """Remove the first track with *track_url* from the queue.
+
+        Removing the currently-playing track skips to the next one.
+        Returns ``True`` when a track was removed or skipped.
+        """
+        for index, track in enumerate(self._queue):
+            if track.url == track_url:
+                self._queue.pop(index)
+                logger.info(
+                    f"Removed '{track.title}' from the queue in guild "
+                    f"{self._guild_id}"
+                )
+                return True
+        if (
+            self._current_music is not None
+            and self._current_music.url == track_url
+        ):
+            await self.skip()
+            return True
+        return False
+
+    async def move(self, track_url: str, position: int) -> bool:
+        """Move the first waiting track with *track_url* to *position*.
+
+        *position* is a zero-based index into the waiting queue (``0``
+        plays next).  Moving the currently-playing track is a no-op.
+        Returns ``True`` when the track moved.
+        """
+        if (
+            self._current_music is not None
+            and self._current_music.url == track_url
+        ):
+            return False
+        for index, track in enumerate(self._queue):
+            if track.url == track_url:
+                self._queue.pop(index)
+                target = max(0, min(position, len(self._queue)))
+                self._queue.insert(target, track)
+                logger.info(
+                    f"Moved '{track.title}' to position {target} in guild "
+                    f"{self._guild_id}"
+                )
+                return True
+        return False
+
+    async def clear_queue(self) -> None:
+        """Drop every waiting track, leaving the current track playing."""
+        cleared = len(self._queue)
+        self._queue.clear()
+        logger.info(
+            f"Cleared {cleared} queued track(s) in guild {self._guild_id}"
+        )
 
     # --- Internals ---
 

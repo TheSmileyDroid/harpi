@@ -18,8 +18,13 @@ BOT_USER_ID = 1234
 class FakeVoiceClient(discord.VoiceClient):
     """Stands in for a real voice client without a websocket or channel."""
 
-    def __init__(self, guild: FakeGuild | None = None) -> None:
+    def __init__(
+        self,
+        guild: FakeGuild | None = None,
+        channel: FakeChannel | None = None,
+    ) -> None:
         self._guild = guild
+        self.channel = channel  # type: ignore
         self.played_source: discord.AudioSource | None = None
         self.disconnected = False
         self._playing = False
@@ -130,12 +135,13 @@ class FakeAnnouncer:
 class FakeChannel:
     def __init__(self, guild: FakeGuild) -> None:
         self.guild = guild
+        self.id = 42
         self.name = "Voice Channel"
         self.connect_calls = 0
 
     async def connect(self) -> FakeVoiceClient:
         self.connect_calls += 1
-        client = FakeVoiceClient(self.guild)
+        client = FakeVoiceClient(self.guild, channel=self)
         self.guild.voice_client = client
         return client
 

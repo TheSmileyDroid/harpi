@@ -3,26 +3,28 @@
 Thread safety
 -------------
 The module-level guilds cache is populated and read exclusively from
-Quart's event loop (single-threaded async). run_async is used to
-schedule coroutines on the bot's event loop when cross-loop access is
-needed. No lock is required for the cache itself (MEDIUM-1 accepted
-risk - only one event loop serves HTTP requests).
+Quart's event loop (single-threaded async).  Anything that touches
+discord.py internals (fetching guilds, connecting to voice) is scheduled
+onto the bot's event loop via ``run_on_bot_loop`` and awaited, so no
+Quart handler blocks the web server waiting on the bot loop.  No lock is
+required for the cache itself (MEDIUM-1 accepted risk - only one event
+loop serves HTTP requests).
 """
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Coroutine
-from typing import Any
+from typing import TYPE_CHECKING
 
 from discord import Guild, VoiceChannel
-from discord.ext.commands import Bot
 from loguru import logger
 from pydantic import BaseModel
 from quart import Blueprint, session
 from quart_schema import validate_request, validate_response
 
-from src.api.deps import get_api, get_bot
+from src.api.deps import get_bot, run_on_bot_loop
+
+if TYPE_CHECKING:
+    from discord.ext.commands import Bot
 
 bp = Blueprint("guild", __name__)
 
@@ -30,23 +32,9 @@ bp = Blueprint("guild", __name__)
 guilds: list[Guild] | None = None
 
 
-_SENTINEL = object()
-
-
-def run_async(bot: Bot, coro: Coroutine[Any, Any, Any]) -> Any:
-    """Run an async coroutine on the bot's event loop from a sync context."""
-    try:
-        loop = bot.loop
-        if loop and not loop.is_closed():
-            future = asyncio.run_coroutine_threadsafe(coro, loop)
-            result = future.result(timeout=10)
-            return result if result is not None else _SENTINEL
-        else:
-            logger.warning("Bot event loop is closed or unavailable")
-            return None
-    except Exception as e:
-        logger.opt(exception=True).error(f"Error in run_async: {e}")
-        return None
+async def _fetch_guilds(bot: "Bot") -> list[Guild]:
+    """Fetch the guilds the bot can see (runs on the bot's event loop)."""
+    return [guild async for guild in bot.fetch_guilds(limit=150)]
 
 
 async def _get_guilds() -> list[Guild]:
@@ -57,11 +45,7 @@ async def _get_guilds() -> list[Guild]:
     bot = get_bot()
     if not bot:
         return []
-
-    async def load_guild():
-        return [guild async for guild in bot.fetch_guilds(limit=150)]
-
-    guilds = run_async(bot, load_guild()) or []
+    guilds = await run_on_bot_loop(_fetch_guilds(bot)) or []
     return guilds
 
 
@@ -122,10 +106,11 @@ async def get_channels(
         return ChannelsResponse(channels=[], current_channel=None), 404
 
     channel: str | None = None
-    if (guild_config := get_api().get_guild_config(int(guild_id))) and (
-        voice_channel := guild_config.channel
-    ):
-        channel = str(voice_channel.id)
+    session = bot.sessions.get(int(guild_id))
+    if session is not None:
+        status = await run_on_bot_loop(session.sample_status())
+        if status.channel_id is not None:
+            channel = str(status.channel_id)
 
     logger.debug(f"Connected to channel {channel}.")
 
@@ -192,12 +177,14 @@ async def select_channel(
 ) -> ChannelSelectResponse | tuple[ChannelSelectResponse, int]:
     bot = get_bot()
     logger.info(f"Connecting to channel {data.channel_id}.")
-    result = run_async(
-        bot,
-        get_api().connect_to_voice(int(data.guild_id), int(data.channel_id)),
-    )
-
-    if result is None:
+    try:
+        await run_on_bot_loop(
+            bot.sessions.connect(int(data.guild_id), int(data.channel_id))
+        )
+    except Exception as e:
+        logger.opt(exception=True).error(
+            f"Failed to connect to voice channel {data.channel_id}: {e}"
+        )
         return ChannelSelectResponse(
             success=False, error="Failed to connect to voice channel"
         ), 500

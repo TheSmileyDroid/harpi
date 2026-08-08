@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import math
-from typing import Any
+from typing import TYPE_CHECKING, Any, Callable, Coroutine
 
 from loguru import logger
 from quart import Blueprint, render_template, request, session
@@ -19,10 +19,13 @@ from src.api.guild import _get_guilds
 from src.api.music import (
     DEFAULT_VOLUME,
     SEEK_TIMEOUT_SECONDS,
-    _get_voice_client,
+    _get_session,
     get_music_data,
 )
 from src.api.server_status import get_server_status
+
+if TYPE_CHECKING:
+    from src.harpi_lib.audio.session import PlaybackSession
 
 
 bp = Blueprint("htmx_routes", __name__)
@@ -41,6 +44,20 @@ async def _parse_json_or_form() -> dict[str, Any]:
     return dict(form)
 
 
+async def _session_action(
+    guild_id: str,
+    action: Callable[["PlaybackSession"], Coroutine[Any, Any, Any]],
+) -> None:
+    """Run a session verb on the bot loop when a session exists.
+
+    Every panel action that touches playback funnels through here so the
+    event-loop seam stays the single ``run_on_bot_loop`` bridge.
+    """
+    session = _get_session(int(guild_id))
+    if session is not None:
+        await run_on_bot_loop(action(session))
+
+
 # ==========================================================================
 # Server Status (Dashboard)
 # ==========================================================================
@@ -51,7 +68,7 @@ async def htmx_server_status():
     """Server status cards fragment - polled every 5s."""
     bot = get_bot()
     guilds = await _get_guilds()
-    status = get_server_status(guilds, bot=bot)
+    status = await get_server_status(guilds, bot=bot)
 
     context = {
         **status,
@@ -101,7 +118,7 @@ async def htmx_music_queue(guild_id: str):
     paused = False
 
     try:
-        music_data = get_music_data(int(guild_id))
+        music_data = await get_music_data(int(guild_id))
         if music_data:
             queue = music_data.queue
             current_track = music_data.current_music
@@ -130,7 +147,7 @@ async def htmx_music_layers(guild_id: str):
     layers = []
 
     try:
-        music_data = get_music_data(int(guild_id))
+        music_data = await get_music_data(int(guild_id))
         if music_data:
             layers = music_data.layers
     except Exception as e:
@@ -160,7 +177,7 @@ async def htmx_playback_controls(guild_id: str):
     current_position_formatted = "0:00"
 
     try:
-        music_data = get_music_data(int(guild_id))
+        music_data = await get_music_data(int(guild_id))
         if music_data:
             current_track = music_data.current_music
             paused = music_data.is_paused
@@ -254,9 +271,7 @@ async def htmx_settings_section(section: str):
 async def api_music_play(guild_id: str):
     """Resume playback and return updated controls."""
     try:
-        vc = _get_voice_client(int(guild_id))
-        if vc and vc.is_paused():
-            vc.resume()
+        await _session_action(guild_id, lambda s: s.resume())
     except Exception as e:
         logger.opt(exception=True).error(f"Error resuming: {e}")
     return await htmx_playback_controls(guild_id)
@@ -266,9 +281,7 @@ async def api_music_play(guild_id: str):
 async def api_music_pause(guild_id: str):
     """Pause playback and return updated controls."""
     try:
-        vc = _get_voice_client(int(guild_id))
-        if vc and vc.is_playing():
-            vc.pause()
+        await _session_action(guild_id, lambda s: s.pause())
     except Exception as e:
         logger.opt(exception=True).error(f"Error pausing: {e}")
     return await htmx_playback_controls(guild_id)
@@ -278,12 +291,7 @@ async def api_music_pause(guild_id: str):
 async def api_music_toggle_pause(guild_id: str):
     """Toggle pause/resume and return updated controls."""
     try:
-        vc = _get_voice_client(int(guild_id))
-        if vc:
-            if vc.is_playing():
-                vc.pause()
-            elif vc.is_paused():
-                vc.resume()
+        await _session_action(guild_id, lambda s: s.toggle_pause())
     except Exception as e:
         logger.opt(exception=True).error(f"Error toggling pause: {e}")
     return await htmx_playback_controls(guild_id)
@@ -293,7 +301,7 @@ async def api_music_toggle_pause(guild_id: str):
 async def api_music_stop(guild_id: str):
     """Stop playback and return updated controls."""
     try:
-        await get_api().stop_music(int(guild_id))
+        await _session_action(guild_id, lambda s: s.stop())
     except Exception as e:
         logger.opt(exception=True).error(f"Error stopping: {e}")
     return await htmx_playback_controls(guild_id)
@@ -303,7 +311,7 @@ async def api_music_stop(guild_id: str):
 async def api_music_skip(guild_id: str):
     """Skip to next track and return updated controls."""
     try:
-        await get_api().skip_music(int(guild_id))
+        await _session_action(guild_id, lambda s: s.skip())
     except Exception as e:
         logger.opt(exception=True).error(f"Error skipping: {e}")
     return await htmx_playback_controls(guild_id)
@@ -326,7 +334,7 @@ async def api_music_volume(guild_id: str):
     data = await _parse_json_or_form()
     volume = data.get("volume", DEFAULT_VOLUME)
     try:
-        await get_api().set_music_volume(int(guild_id), float(volume))
+        await _session_action(guild_id, lambda s: s.set_volume(float(volume)))
     except Exception as e:
         logger.opt(exception=True).error(f"Error setting volume: {e}")
     return await htmx_playback_controls(guild_id)
@@ -352,7 +360,9 @@ async def api_music_seek(guild_id: str):
         return await htmx_playback_controls(guild_id)
     try:
         await asyncio.wait_for(
-            get_api().seek_music(int(guild_id), position_float, absolute),
+            _session_action(
+                guild_id, lambda s: s.seek(position_float, absolute)
+            ),
             timeout=SEEK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
@@ -370,7 +380,7 @@ async def api_music_loop(guild_id: str, mode: str):
     loop_mode = LOOP_MODE_ALIASES.get(mode)
     if loop_mode:
         try:
-            await get_api().set_loop(int(guild_id), loop_mode)
+            await _session_action(guild_id, lambda s: s.set_loop(loop_mode))
         except Exception as e:
             logger.opt(exception=True).error(f"Error setting loop: {e}")
     return await htmx_playback_controls(guild_id)
@@ -380,9 +390,9 @@ async def api_music_loop(guild_id: str, mode: str):
 async def api_music_disconnect(guild_id: str):
     """Disconnect from voice channel."""
     try:
-        vc = _get_voice_client(int(guild_id))
-        if vc:
-            await vc.disconnect(force=True)
+        session = _get_session(int(guild_id))
+        if session is not None:
+            await run_on_bot_loop(get_bot().sessions.disconnect(int(guild_id)))
     except Exception as e:
         logger.opt(exception=True).error(f"Error disconnecting: {e}")
     return "", 204  # No content
@@ -399,10 +409,7 @@ async def api_music_disconnect(guild_id: str):
 async def api_music_queue_remove(guild_id: str, track_url: str):
     """Remove track from queue by URL."""
     try:
-        api = get_api()
-        gc = api.get_guild_config(int(guild_id))
-        if gc and gc.queue:
-            gc.queue[:] = [t for t in gc.queue if t.url != track_url]
+        await _session_action(guild_id, lambda s: s.remove(track_url))
     except Exception as e:
         logger.opt(exception=True).error(f"Error removing track: {e}")
     return await htmx_music_queue(guild_id)
@@ -415,14 +422,7 @@ async def api_music_queue_remove(guild_id: str, track_url: str):
 async def api_music_queue_move(guild_id: str, track_url: str, position: int):
     """Move track to a new position in the queue."""
     try:
-        api = get_api()
-        gc = api.get_guild_config(int(guild_id))
-        if gc and gc.queue:
-            for i, t in enumerate(gc.queue):
-                if t.url == track_url:
-                    track = gc.queue.pop(i)
-                    gc.queue.insert(position, track)
-                    break
+        await _session_action(guild_id, lambda s: s.move(track_url, position))
     except Exception as e:
         logger.opt(exception=True).error(f"Error moving track: {e}")
     return await htmx_music_queue(guild_id)
@@ -432,10 +432,7 @@ async def api_music_queue_move(guild_id: str, track_url: str, position: int):
 async def api_music_queue_clear(guild_id: str):
     """Clear the entire queue."""
     try:
-        api = get_api()
-        gc = api.get_guild_config(int(guild_id))
-        if gc and gc.queue:
-            gc.queue.clear()
+        await _session_action(guild_id, lambda s: s.clear_queue())
     except Exception as e:
         logger.opt(exception=True).error(f"Error clearing queue: {e}")
     return await htmx_music_queue(guild_id)
@@ -543,14 +540,9 @@ async def guild_select_channel():
     try:
         bot = get_bot()
         if bot and bot.is_ready():
-            result = await run_on_bot_loop(
-                get_api().connect_to_voice(int(guild_id), int(channel_id)),
+            await run_on_bot_loop(
+                bot.sessions.connect(int(guild_id), int(channel_id)),
             )
-            if result is None:
-                logger.error(
-                    f"Failed to connect to voice channel {channel_id}"
-                )
-                return "Failed to connect to voice channel", 500
         else:
             logger.error("Bot is not ready")
             return "Bot is not ready", 503

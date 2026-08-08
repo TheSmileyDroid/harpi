@@ -20,7 +20,7 @@ import math
 from typing import TYPE_CHECKING, Callable, cast
 
 import discord
-from discord.ext.commands import Bot, Context
+from discord.ext.commands import Bot
 from loguru import logger
 
 from src.harpi_lib.music.ytmusicdata import YoutubeDLSource, YTMusicData
@@ -166,34 +166,6 @@ class MusicQueueService:
 
         guild_config.current_music = None
         guild_config.controller.clear_queue_source()
-
-    async def add_to_queue(
-        self,
-        guild_id: int,
-        channel_id: int,
-        link: str,
-        ctx: Context | None = None,
-    ) -> None:
-        """Add a track URL to the music queue."""
-        music_data_list = await YTMusicData.from_url(link)
-        if not music_data_list:
-            raise ValueError(f"No audio found for URL: {link}")
-        guild_config = self.guilds.get(guild_id)
-        if not guild_config:
-            guild_config = (
-                await self.voice_service.connect(guild_id, channel_id, ctx)
-                if self.voice_service
-                else None
-            )
-        assert guild_config, "Guild config not found"
-        if not guild_config.queue:
-            guild_config.queue = []
-        guild_config.queue.extend(music_data_list)
-        logger.info(
-            f"Added {len(music_data_list)} track(s) to queue in guild {guild_id}"
-        )
-        if not guild_config.current_music:
-            await self.next_music(guild_config)
 
     async def stop(self, guild_id: int) -> None:
         """Stop current playback and clear the queue."""

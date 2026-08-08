@@ -1,9 +1,8 @@
 """Music playback API endpoints."""
 
 import asyncio
-from typing import cast, Literal
+from typing import TYPE_CHECKING, Literal
 
-from discord import VoiceClient
 from loguru import logger
 from pydantic import BaseModel, Field
 from quart import Blueprint
@@ -11,6 +10,9 @@ from quart_schema import validate_response, validate_request
 
 from src.api.deps import get_api, get_bot, run_on_bot_loop
 from src.harpi_lib.api import LoopMode
+
+if TYPE_CHECKING:
+    from src.harpi_lib.audio.session import PlaybackSession, SessionStatus
 
 bp = Blueprint("music", __name__)
 
@@ -187,11 +189,71 @@ def _parse_guild_id(raw: str) -> int | None:
         return None
 
 
-def get_music_data(guild_id: int) -> MusicStatusResponse | None:
+def build_music_status(
+    status: "SessionStatus",
+    layers: list[MusicLayerResponse] | None = None,
+) -> MusicStatusResponse:
+    """Project a session status snapshot into the panel response.
+
+    *layers* stay a separate input until T4 migrates background audio onto
+    the session; everything else comes from the snapshot.
+    """
+    current = status.current_music
+    return MusicStatusResponse(
+        current_music=MusicTrackResponse(
+            title=current.title,
+            duration=current.duration,
+            url=current.url,
+            thumbnail=current.thumbnail,
+            uploader=current.uploader,
+        )
+        if current
+        else None,
+        progress=int(status.progress * 1000),
+        queue=[
+            QueueItemResponse(
+                title=track.title,
+                duration=track.duration,
+                url=track.url,
+                thumbnail=track.thumbnail,
+                uploader=track.uploader,
+            )
+            for track in status.queue
+        ],
+        layers=layers or [],
+        is_playing=status.is_playing,
+        is_paused=status.is_paused,
+        loop_mode=status.loop_mode.name.lower(),
+        volume=status.volume,
+    )
+
+
+def _legacy_layers(guild_id: int) -> list[MusicLayerResponse]:
+    """Background layers still live on the legacy guild config (T4 defers)."""
+    try:
+        guild_config = get_api().get_guild_config(guild_id)
+    except Exception as e:
+        logger.debug(f"Layers unavailable for guild {guild_id}: {e}")
+        return []
+    background = guild_config.background if guild_config else None
+    return [
+        MusicLayerResponse(
+            title=layer.title,
+            id=layer.id,
+            url=layer.url,
+            volume=layer.volume,
+        )
+        for layer in (background.values() if background else [])
+    ]
+
+
+async def get_music_data(guild_id: int) -> MusicStatusResponse | None:
     """Get music status data for a specific guild.
 
-    Args:
-        guild_id: The guild ID to get music data for.
+    Playback and queue fields are projected from the guild's session
+    status snapshot, sampled on the bot's event loop via the
+    ``run_on_bot_loop`` bridge.  Background layers still come from the
+    legacy guild config until T4 migrates them onto the session.
 
     Returns:
         MusicStatusResponse with current track, progress, queue, and playback state.
@@ -205,66 +267,20 @@ def get_music_data(guild_id: int) -> MusicStatusResponse | None:
     if not guild:
         return None
 
-    guild_config = get_api().get_guild_config(guild_id)
-    current_music = guild_config.current_music if guild_config else None
-    queue = guild_config.queue if guild_config else None
-    background = guild_config.background if guild_config else None
-    loop_mode = guild_config.loop if guild_config else LoopMode.OFF
+    session = bot.sessions.get(guild_id)
+    if session is None:
+        return MusicStatusResponse.empty()
 
-    voice_client = (
-        cast(VoiceClient, guild.voice_client) if guild.voice_client else None
-    )
-
-    return MusicStatusResponse(
-        current_music=MusicTrackResponse(
-            title=current_music.title,
-            duration=current_music.duration,
-            url=current_music.url,
-            thumbnail=current_music.thumbnail,
-            uploader=current_music.uploader,
-        )
-        if current_music
-        else None,
-        progress=(
-            int(guild_config.controller.get_queue_position() * 1000)
-            if guild_config
-            else 0
-        ),
-        queue=[
-            QueueItemResponse(
-                title=m.title,
-                duration=m.duration,
-                url=m.url,
-                thumbnail=m.thumbnail,
-                uploader=m.uploader,
-            )
-            for m in (queue if queue else [])
-        ],
-        layers=[
-            MusicLayerResponse(
-                title=layer.title,
-                id=layer.id,
-                url=layer.url,
-                volume=layer.volume,
-            )
-            for layer in (background.values() if background else [])
-        ],
-        is_playing=voice_client.is_playing() if voice_client else False,
-        is_paused=voice_client.is_paused() if voice_client else False,
-        loop_mode=loop_mode.name.lower(),
-        volume=guild_config.volume if guild_config else DEFAULT_VOLUME,
-    )
+    status = await run_on_bot_loop(session.sample_status())
+    return build_music_status(status, layers=_legacy_layers(guild_id))
 
 
-def _get_voice_client(guild_id: int) -> VoiceClient | None:
-    """Resolve the VoiceClient for a guild, or None."""
+def _get_session(guild_id: int) -> "PlaybackSession | None":
+    """Resolve the guild's playback session, or None."""
     bot = get_bot()
     if not bot:
         return None
-    guild = bot.get_guild(guild_id)
-    if guild and guild.voice_client:
-        return cast(VoiceClient, guild.voice_client)
-    return None
+    return bot.sessions.get(guild_id)
 
 
 # === Endpoints ===
@@ -284,7 +300,7 @@ async def music_status(
         return MusicStatusResponse.empty(), 400
 
     try:
-        data = get_music_data(int(guild_id))
+        data = await get_music_data(int(guild_id))
         if data is None:
             return MusicStatusResponse.empty(), 404
 
@@ -309,7 +325,9 @@ async def music_stop(
     if guild_id is None:
         return MusicControlResponse(status="", error="Invalid guild_id"), 400
     try:
-        await get_api().stop_music(guild_id)
+        session = _get_session(guild_id)
+        if session is not None:
+            await run_on_bot_loop(session.stop())
         return MusicControlResponse(status="ok")
     except Exception as e:
         logger.opt(exception=True).error(f"Error stopping music: {e}")
@@ -327,7 +345,9 @@ async def music_skip(
     if guild_id is None:
         return MusicControlResponse(status="", error="Invalid guild_id"), 400
     try:
-        await get_api().skip_music(guild_id)
+        session = _get_session(guild_id)
+        if session is not None:
+            await run_on_bot_loop(session.skip())
         return MusicControlResponse(status="ok")
     except Exception as e:
         logger.opt(exception=True).error(f"Error skipping music: {e}")
@@ -345,10 +365,14 @@ async def music_seek(
     if guild_id is None:
         return MusicControlResponse(status="", error="Invalid guild_id"), 400
     try:
-        await asyncio.wait_for(
-            get_api().seek_music(guild_id, data.position, data.absolute),
-            timeout=SEEK_TIMEOUT_SECONDS,
-        )
+        session = _get_session(guild_id)
+        if session is not None:
+            await asyncio.wait_for(
+                run_on_bot_loop(
+                    session.seek(data.position, data.absolute),
+                ),
+                timeout=SEEK_TIMEOUT_SECONDS,
+            )
         return MusicControlResponse(status="ok")
     except TimeoutError:
         logger.error(f"Seek timed out for guild {guild_id}")
@@ -369,9 +393,9 @@ async def music_pause(
     if guild_id is None:
         return MusicControlResponse(status="", error="Invalid guild_id"), 400
     try:
-        vc = _get_voice_client(guild_id)
-        if vc:
-            vc.pause()
+        session = _get_session(guild_id)
+        if session is not None:
+            await run_on_bot_loop(session.pause())
         return MusicControlResponse(status="ok")
     except Exception as e:
         logger.opt(exception=True).error(f"Error pausing music: {e}")
@@ -389,9 +413,9 @@ async def music_resume(
     if guild_id is None:
         return MusicControlResponse(status="", error="Invalid guild_id"), 400
     try:
-        vc = _get_voice_client(guild_id)
-        if vc:
-            vc.resume()
+        session = _get_session(guild_id)
+        if session is not None:
+            await run_on_bot_loop(session.resume())
         return MusicControlResponse(status="ok")
     except Exception as e:
         logger.opt(exception=True).error(f"Error resuming music: {e}")
@@ -412,7 +436,9 @@ async def music_loop(
     if loop_mode is None:
         return MusicControlResponse(status="", error="Invalid loop mode"), 400
     try:
-        await get_api().set_loop(guild_id, loop_mode)
+        session = _get_session(guild_id)
+        if session is not None:
+            await run_on_bot_loop(session.set_loop(loop_mode))
         return MusicControlResponse(status="ok")
     except Exception as e:
         logger.opt(exception=True).error(f"Error setting loop: {e}")
@@ -430,7 +456,9 @@ async def music_volume(
     if guild_id is None:
         return MusicControlResponse(status="", error="Invalid guild_id"), 400
     try:
-        await get_api().set_music_volume(guild_id, float(data.volume))
+        session = _get_session(guild_id)
+        if session is not None:
+            await run_on_bot_loop(session.set_volume(float(data.volume)))
         return MusicControlResponse(status="ok")
     except Exception as e:
         logger.opt(exception=True).error(f"Error setting volume: {e}")
@@ -525,54 +553,63 @@ async def music_control(
         return MusicControlResponse(status="", error="Bot not ready"), 503
 
     try:
-        api = get_api()
         action = data.action
 
         if action == "stop":
-            await api.stop_music(guild_id)
+            session = _get_session(guild_id)
+            if session is not None:
+                await run_on_bot_loop(session.stop())
         elif action == "skip":
-            await api.skip_music(guild_id)
+            session = _get_session(guild_id)
+            if session is not None:
+                await run_on_bot_loop(session.skip())
         elif action == "seek":
             if data.position is None:
                 return MusicControlResponse(
                     status="", error="position required"
                 ), 400
-            await api.seek_music(guild_id, data.position)
+            session = _get_session(guild_id)
+            if session is not None:
+                await run_on_bot_loop(session.seek(data.position))
         elif action == "pause":
-            vc = _get_voice_client(guild_id)
-            if vc:
-                vc.pause()
+            session = _get_session(guild_id)
+            if session is not None:
+                await run_on_bot_loop(session.pause())
         elif action == "resume":
-            vc = _get_voice_client(guild_id)
-            if vc:
-                vc.resume()
+            session = _get_session(guild_id)
+            if session is not None:
+                await run_on_bot_loop(session.resume())
         elif action == "loop":
             loop_mode = LOOP_MODE_ALIASES.get(data.mode or "")
             if loop_mode is None:
                 return MusicControlResponse(
                     status="", error="Invalid loop mode"
                 ), 400
-            await api.set_loop(guild_id, loop_mode)
+            session = _get_session(guild_id)
+            if session is not None:
+                await run_on_bot_loop(session.set_loop(loop_mode))
         elif action == "remove_layer":
             if not data.layer_id:
                 return MusicControlResponse(
                     status="", error="layer_id required"
                 ), 400
-            await api.remove_background_audio(guild_id, data.layer_id)
+            await get_api().remove_background_audio(guild_id, data.layer_id)
         elif action == "clean_layers":
-            await api.clean_background_audios(guild_id)
+            await get_api().clean_background_audios(guild_id)
         elif action == "set_volume":
             if data.volume is None:
                 return MusicControlResponse(
                     status="", error="volume required"
                 ), 400
-            await api.set_music_volume(guild_id, float(data.volume))
+            session = _get_session(guild_id)
+            if session is not None:
+                await run_on_bot_loop(session.set_volume(float(data.volume)))
         elif action == "set_layer_volume":
             if not data.layer_id or data.volume is None:
                 return MusicControlResponse(
                     status="", error="layer_id and volume required"
                 ), 400
-            await api.set_background_volume(
+            await get_api().set_background_volume(
                 guild_id, data.layer_id, float(data.volume)
             )
         else:
@@ -626,8 +663,8 @@ async def music_add(
 
     try:
         api = get_api()
-        guild_config = api.get_guild_config(guild_id)
-        if not guild_config and not channel_id:
+        session = _get_session(guild_id)
+        if session is None and not channel_id:
             return MusicAddResponse(
                 status="", error="channel_id required when bot not connected"
             ), 400
@@ -637,9 +674,13 @@ async def music_add(
                 api.add_background_audio(guild_id, channel_id or 0, link)
             )
         else:
-            await run_on_bot_loop(
-                api.add_music_to_queue(guild_id, channel_id or 0, link)
-            )
+
+            async def _add_to_queue() -> None:
+                manager = get_bot().sessions
+                target = await manager.ensure(guild_id, channel_id or 0)
+                await target.play(link)
+
+            await run_on_bot_loop(_add_to_queue())
         return MusicAddResponse(status="ok")
 
     except Exception as e:

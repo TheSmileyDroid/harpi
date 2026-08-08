@@ -48,7 +48,7 @@ async def dashboard():
     bot = get_discord_bot()
 
     # Real server status data
-    status = get_server_status(ctx["guilds"], bot=bot)
+    status = await get_server_status(ctx["guilds"], bot=bot)
 
     ctx.update({
         **status,
@@ -83,7 +83,7 @@ async def music_page():
 
     if guild_id:
         try:
-            music_data = get_music_data(int(guild_id))
+            music_data = await get_music_data(int(guild_id))
             if music_data:
                 queue = music_data.queue
                 layers = music_data.layers
