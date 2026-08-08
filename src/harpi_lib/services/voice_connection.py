@@ -39,12 +39,10 @@ class VoiceConnectionService:
         bot: Bot,
         guilds: dict[int, GuildConfig],
         on_queue_end: Callable,
-        on_track_end: Callable,
     ) -> None:
         self.bot = bot
         self.guilds = guilds
         self._on_queue_end = on_queue_end
-        self._on_track_end = on_track_end
 
     @staticmethod
     def resolve_guild(bot: Bot, guild_id: int) -> discord.Guild:
@@ -105,12 +103,7 @@ class VoiceConnectionService:
             Callable,
             partial(self._on_queue_end, guild_config=guild_config),
         )
-        bg_callback = cast(
-            Callable,
-            partial(self._on_track_end, guild_config=guild_config),
-        )
         mixer.add_observer("queue_end", callback)
-        mixer.add_observer("track_end", bg_callback)
         guild_config.ctx = ctx
         self.guilds[guild.id] = guild_config
         vc.play(mixer)

@@ -14,18 +14,29 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
+from quart import Quart
+from quart_schema import QuartSchema
 
 import src.api.deps as deps
 import src.api.music as music_module
+from src.api.music import bp as music_bp
 from src.api.music import build_music_status, get_music_data
 from src.api.server_status import get_server_status
-from src.harpi_lib.audio.session import LoopMode, PlaybackSession, SessionStatus
+from src.harpi_lib.audio.session import (
+    LayerInfo,
+    LoopMode,
+    PlaybackSession,
+    SessionStatus,
+)
 from src.harpi_lib.music.ytmusicdata import YTMusicData
 from tests.conftest import (
     GUILD_ID,
     FakeChannel,
     FakeGuild,
+    FakeLayerSource,
+    FakeLayerSourceFactory,
     FakeMusicData,
+    FakeMusicDataFactory,
     FakeVoiceClient,
 )
 
@@ -41,15 +52,17 @@ def _fake_bot(
         def get(self, guild_id: int) -> PlaybackSession | None:
             return session if guild_id == GUILD_ID else None
 
+        async def ensure(
+            self, guild_id: int, channel_id: int
+        ) -> PlaybackSession | None:
+            return session if guild_id == GUILD_ID else None
+
     return SimpleNamespace(
         loop=asyncio.get_running_loop(),
         latency=0.25,
         is_ready=lambda: ready,
         get_guild=lambda guild_id: guild if guild_id == GUILD_ID else None,
         sessions=_Sessions(),
-        api=SimpleNamespace(
-            get_guild_config=lambda guild_id: None,
-        ),
     )
 
 
@@ -135,6 +148,174 @@ def test_build_music_status_projects_progress_in_milliseconds():
     assert response.progress == 12250
     assert response.volume == pytest.approx(0.7)
     assert response.loop_mode == "off"
+
+
+def test_build_music_status_projects_layers_from_the_snapshot():
+    status = SessionStatus(
+        guild_id=GUILD_ID,
+        connected=True,
+        is_playing=True,
+        is_paused=False,
+        layers=(
+            LayerInfo(
+                id="layer-rain",
+                title="rain",
+                url="https://example.com/rain",
+                volume=0.7,
+            ),
+        ),
+    )
+
+    response = build_music_status(status)
+
+    assert response.layers == [
+        music_module.MusicLayerResponse(
+            id="layer-rain",
+            title="rain",
+            url="https://example.com/rain",
+            volume=0.7,
+        )
+    ]
+
+
+async def test_get_music_data_projects_layers_from_the_session_snapshot(monkeypatch):
+    session = await _make_session()
+    _install_layer_fakes(monkeypatch)
+    await session.add_layer("rain")
+    _install_bot(monkeypatch, _fake_bot(session))
+
+    status = await get_music_data(GUILD_ID)
+
+    assert status is not None
+    assert status.layers == [
+        music_module.MusicLayerResponse(
+            id="layer-rain",
+            title="rain",
+            url="https://example.com/rain",
+            volume=0.7,
+        )
+    ]
+
+
+async def _post(
+    app: Quart, path: str, json: dict[str, Any]
+) -> tuple[int, dict[str, Any]]:
+    client = app.test_client()
+    response = await client.post(path, json=json)
+    body = await response.get_json()
+    return response.status_code, cast(dict[str, Any], body)
+
+
+def _make_app() -> Quart:
+    app = Quart(__name__)
+    app.secret_key = "test"
+    QuartSchema(app)
+    app.register_blueprint(music_bp)
+    return app
+
+
+# --- Layer control endpoints route through the session ---
+
+
+def _install_layer_fakes(monkeypatch: pytest.MonkeyPatch) -> None:
+    import src.harpi_lib.audio.session as session_module
+
+    monkeypatch.setattr(session_module, "YTMusicData", FakeMusicDataFactory)
+    monkeypatch.setattr(
+        session_module, "YoutubeDLSource", FakeLayerSourceFactory
+    )
+
+
+async def _add_layer_to_session(
+    session: PlaybackSession, monkeypatch: pytest.MonkeyPatch, title: str
+) -> FakeLayerSource:
+    _install_layer_fakes(monkeypatch)
+    await session.add_layer(title)
+    return cast(FakeLayerSource, session._layers[f"layer-{title}"])
+
+
+async def test_music_layer_remove_routes_through_the_session(monkeypatch):
+    session = await _make_session()
+    layer_source = await _add_layer_to_session(session, monkeypatch, "rain")
+    _install_bot(monkeypatch, _fake_bot(session))
+    app = _make_app()
+
+    status, body = await _post(
+        app,
+        "/api/music/layer/remove",
+        {"guild_id": str(GUILD_ID), "layer_id": "layer-rain"},
+    )
+
+    assert status == 200
+    assert body["status"] == "ok"
+    assert session.status.layers == ()
+    assert layer_source.cleaned_up is True
+
+
+async def test_music_layer_clean_routes_through_the_session(monkeypatch):
+    session = await _make_session()
+    layers = [
+        await _add_layer_to_session(session, monkeypatch, "rain"),
+        await _add_layer_to_session(session, monkeypatch, "wind"),
+    ]
+    _install_bot(monkeypatch, _fake_bot(session))
+    app = _make_app()
+
+    status, body = await _post(
+        app,
+        "/api/music/layer/clean",
+        {"guild_id": str(GUILD_ID)},
+    )
+
+    assert status == 200
+    assert body["status"] == "ok"
+    assert session.status.layers == ()
+    assert all(layer.cleaned_up for layer in layers)
+
+
+async def test_music_layer_volume_routes_through_the_session(monkeypatch):
+    session = await _make_session()
+    layer_source = await _add_layer_to_session(session, monkeypatch, "rain")
+    _install_bot(monkeypatch, _fake_bot(session))
+    app = _make_app()
+
+    status, body = await _post(
+        app,
+        "/api/music/layer/volume",
+        {"guild_id": str(GUILD_ID), "layer_id": "layer-rain", "volume": 1},
+    )
+
+    assert status == 200
+    assert body["status"] == "ok"
+    assert layer_source.volume == pytest.approx(1.0)
+    assert session.status.layers[0].volume == pytest.approx(1.0)
+
+
+async def test_music_add_with_type_layer_adds_via_the_session(monkeypatch):
+    import src.harpi_lib.audio.session as session_module
+
+    session = await _make_session()
+    _install_bot(monkeypatch, _fake_bot(session))
+    monkeypatch.setattr(session_module, "YTMusicData", FakeMusicDataFactory)
+    monkeypatch.setattr(
+        session_module, "YoutubeDLSource", FakeLayerSourceFactory
+    )
+    app = _make_app()
+
+    status, body = await _post(
+        app,
+        "/api/music/add",
+        {
+            "guild_id": str(GUILD_ID),
+            "channel_id": "10",
+            "link": "rain",
+            "type": "layer",
+        },
+    )
+
+    assert status == 200
+    assert body["status"] == "ok"
+    assert [layer.id for layer in session.status.layers] == ["layer-rain"]
 
 
 async def test_get_server_status_counts_sessions_with_queued_music(monkeypatch):

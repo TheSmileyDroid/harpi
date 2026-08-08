@@ -53,6 +53,19 @@ TRACK_LOAD_TIMEOUT = 60.0
 # Default music queue volume (0.0-2.0).
 DEFAULT_VOLUME = 0.7
 
+# Default background layer volume (0.0-2.0).
+DEFAULT_LAYER_VOLUME = 0.7
+
+
+@dataclass(frozen=True)
+class LayerInfo:
+    """Immutable description of a playing background layer."""
+
+    id: str
+    title: str
+    url: str
+    volume: float
+
 
 class LoopMode(enum.Enum):
     """Enum for loop modes (off, track, queue)."""
@@ -78,6 +91,7 @@ class SessionStatus:
     is_paused: bool
     current_music: YTMusicData | None = None
     queue: tuple[YTMusicData, ...] = ()
+    layers: tuple[LayerInfo, ...] = ()
     loop_mode: LoopMode = LoopMode.OFF
     volume: float = DEFAULT_VOLUME
     progress: float = 0.0
@@ -91,7 +105,9 @@ class PlaybackSession:
     session touches them.  State is read through :attr:`status` and
     changed through the session's verbs (``play``, ``stop``, ``skip``,
     ``seek``, ``set_loop``, ``set_volume``, ``pause``, ``resume``,
-    ``toggle_pause``, ``remove``, ``move``, ``clear_queue``, ``leave``).
+    ``toggle_pause``, ``remove``, ``move``, ``clear_queue``, ``leave``,
+    ``add_layer``, ``remove_layer``, ``clear_layers``,
+    ``set_layer_volume``).
     """
 
     def __init__(
@@ -113,6 +129,7 @@ class PlaybackSession:
         self._wire_mixer_observers()
 
         self._queue: list[YTMusicData] = []
+        self._layers: dict[str, YoutubeDLSource] = {}
         self._current_music: YTMusicData | None = None
         self._loop_mode = LoopMode.OFF
         self._volume = volume
@@ -149,9 +166,22 @@ class PlaybackSession:
         """A background layer finished reading.
 
         The controller already removed and cleaned the finished sources.
-        Later slices keep the layer bookkeeping here, marshalling back
-        onto the bot's event loop as the threading contract requires.
+        Drop the finished layers from the session's registry, marshalling
+        back onto the bot's event loop as the threading contract requires.
         """
+        if self._loop is not None:
+            self._loop.call_soon_threadsafe(
+                self._drop_finished_layers, tuple(to_remove)
+            )
+
+    def _drop_finished_layers(
+        self, to_remove: tuple[discord.AudioSource, ...]
+    ) -> None:
+        """Run on the bot's event loop; drop finished layers from the registry."""
+        for source in to_remove:
+            layer_id = getattr(source, "id", None)
+            if layer_id is not None:
+                self._layers.pop(layer_id, None)
 
     # --- Public API ---
 
@@ -186,6 +216,15 @@ class PlaybackSession:
             is_paused=voice_client.is_paused(),
             current_music=self._current_music,
             queue=tuple(self._queue),
+            layers=tuple(
+                LayerInfo(
+                    id=source.id,
+                    title=source.title,
+                    url=source.url,
+                    volume=float(source.volume),
+                )
+                for source in self._layers.values()
+            ),
             loop_mode=self._loop_mode,
             volume=self._volume,
             progress=self._controller.get_queue_position(),
@@ -382,6 +421,65 @@ class PlaybackSession:
         logger.info(
             f"Cleared {cleared} queued track(s) in guild {self._guild_id}"
         )
+
+    # --- Background layer verbs ---
+
+    async def add_layer(self, link: str) -> str:
+        """Resolve *link* and add the first track found as a background layer.
+
+        Layers play alongside the queue and are independent of the current
+        track: stopping or clearing the queue leaves them running.  Returns
+        the new layer's id.  Raises :class:`ValueError` when nothing is
+        found.
+        """
+        music_data_list = await YTMusicData.from_url(link)
+        if not music_data_list:
+            raise ValueError("Nenhuma música encontrada para este link")
+        source = await asyncio.wait_for(
+            YoutubeDLSource.from_music_data(
+                music_data_list[0], volume=DEFAULT_LAYER_VOLUME
+            ),
+            timeout=TRACK_LOAD_TIMEOUT,
+        )
+        layer_id = self._controller.add_layer(source)
+        self._layers[layer_id] = source
+        logger.info(
+            f"Added background layer '{source.title}' in guild {self._guild_id}"
+        )
+        return layer_id
+
+    async def remove_layer(self, layer_id: str) -> bool:
+        """Remove the background layer *layer_id*, releasing its source.
+
+        Returns ``True`` when a layer was removed.
+        """
+        source = self._layers.pop(layer_id, None)
+        if source is None:
+            return False
+        self._controller.remove_layer(layer_id)
+        logger.info(
+            f"Removed background layer '{source.title}' in guild {self._guild_id}"
+        )
+        return True
+
+    async def clear_layers(self) -> None:
+        """Remove every background layer, releasing their sources."""
+        layer_ids = list(self._layers)
+        for layer_id in layer_ids:
+            self._controller.remove_layer(layer_id)
+        self._layers.clear()
+        logger.info(f"Cleared background layers in guild {self._guild_id}")
+
+    async def set_layer_volume(self, layer_id: str, volume: float) -> bool:
+        """Set the volume of the background layer *layer_id* (clamped 0-2).
+
+        Returns ``True`` when the layer exists.
+        """
+        source = self._layers.get(layer_id)
+        if source is None:
+            return False
+        source.volume = max(0.0, min(2.0, volume))
+        return True
 
     # --- Internals ---
 

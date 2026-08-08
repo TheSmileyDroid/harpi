@@ -71,14 +71,6 @@ class AudioController:
                 source = self._layers.pop(layer_id)
                 self._safe_cleanup(source)
 
-    def get_layer_id(self, source: discord.AudioSource) -> str | None:
-        """Find and return the layer ID for a given audio source, or None if not found."""
-        with self._lock:
-            for layer_id, src in self._layers.items():
-                if src == source:
-                    return layer_id
-        return None
-
     def set_queue_source(self, source: discord.AudioSource | None) -> None:
         """Set the current queue track, cleaning up any previous one."""
         with self._lock:

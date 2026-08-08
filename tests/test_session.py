@@ -18,6 +18,8 @@ from tests.conftest import (
     FakeAnnouncer,
     FakeChannel,
     FakeGuild,
+    FakeLayerSource,
+    FakeLayerSourceFactory,
     FakeMusicDataFactory,
     FakeSource,
     FakeSourceFactory,
@@ -576,3 +578,145 @@ async def test_status_carries_the_voice_channel_id():
     session.start()
 
     assert session.status.channel_id == channel.id
+
+
+# --- Background layers ---
+
+
+def _install_layer_fakes(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install_fakes(monkeypatch)
+    monkeypatch.setattr(session_module, "YoutubeDLSource", FakeLayerSourceFactory)
+
+
+def _layer_source(session: PlaybackSession) -> FakeLayerSource:
+    layer_source = session._controller.get_playing_sounds()[0][1]
+    return cast(FakeLayerSource, layer_source)
+
+
+async def test_add_layer_registers_a_background_layer_and_reports_it(monkeypatch):
+    session = _make_session()
+    _install_layer_fakes(monkeypatch)
+
+    layer_id = await session.add_layer("rain")
+
+    assert layer_id == "layer-rain"
+    layer = session.status.layers[0]
+    assert layer.id == "layer-rain"
+    assert layer.title == "rain"
+    assert layer.url == "https://example.com/rain"
+    assert layer.volume == pytest.approx(0.7)
+
+
+async def test_add_layer_plays_alongside_the_current_track(monkeypatch):
+    session = _make_session()
+    _install_layer_fakes(monkeypatch)
+    await session.play("one,two")
+
+    await session.add_layer("rain")
+
+    kinds = {kind for kind, _ in session._controller.get_playing_sounds()}
+    assert kinds == {"queue", "track"}
+    current = session.status.current_music
+    assert current is not None
+    assert current.title == "one"
+
+
+async def test_stop_keeps_background_layers_playing(monkeypatch):
+    session = _make_session()
+    _install_layer_fakes(monkeypatch)
+    await session.play("one")
+    await session.add_layer("rain")
+
+    await session.stop()
+
+    assert session.status.current_music is None
+    assert [layer.id for layer in session.status.layers] == ["layer-rain"]
+
+
+async def test_add_layer_raises_when_nothing_is_found(monkeypatch):
+    class EmptyFactory:
+        @classmethod
+        async def from_url(cls, url: str) -> list:
+            return []
+
+    session = _make_session()
+    monkeypatch.setattr(session_module, "YTMusicData", EmptyFactory)
+
+    with pytest.raises(ValueError):
+        await session.add_layer("nothing")
+
+
+async def test_remove_layer_drops_the_layer_and_cleans_its_source(monkeypatch):
+    session = _make_session()
+    _install_layer_fakes(monkeypatch)
+    await session.add_layer("rain")
+    layer_source = _layer_source(session)
+
+    removed = await session.remove_layer("layer-rain")
+
+    assert removed is True
+    assert session.status.layers == ()
+    assert layer_source.cleaned_up is True
+
+
+async def test_remove_unknown_layer_is_a_noop(monkeypatch):
+    session = _make_session()
+    _install_layer_fakes(monkeypatch)
+    await session.add_layer("rain")
+
+    removed = await session.remove_layer("layer-nope")
+
+    assert removed is False
+    assert len(session.status.layers) == 1
+
+
+async def test_clear_layers_removes_every_layer(monkeypatch):
+    session = _make_session()
+    _install_layer_fakes(monkeypatch)
+    await session.add_layer("rain")
+    await session.add_layer("wind")
+    sources = [
+        cast(FakeSource, source)
+        for _, source in session._controller.get_playing_sounds()
+    ]
+
+    await session.clear_layers()
+
+    assert session.status.layers == ()
+    assert all(source.cleaned_up for source in sources)
+
+
+async def test_set_layer_volume_applies_and_clamps(monkeypatch):
+    session = _make_session()
+    _install_layer_fakes(monkeypatch)
+    await session.add_layer("rain")
+
+    changed = await session.set_layer_volume("layer-rain", 5.0)
+
+    assert changed is True
+    layer = session.status.layers[0]
+    assert layer.volume == pytest.approx(2.0)
+    assert _layer_source(session).volume == pytest.approx(2.0)
+
+
+async def test_set_layer_volume_for_unknown_layer_is_a_noop(monkeypatch):
+    session = _make_session()
+    _install_layer_fakes(monkeypatch)
+    await session.add_layer("rain")
+
+    changed = await session.set_layer_volume("layer-nope", 1.5)
+
+    assert changed is False
+
+
+async def test_track_end_drops_finished_layers_from_the_status(monkeypatch):
+    loop = asyncio.get_running_loop()
+    session = _make_session(loop=loop)
+    _install_layer_fakes(monkeypatch)
+    await session.add_layer("rain")
+    layer_source = _layer_source(session)
+
+    session._on_track_end([layer_source])
+    await _pump()
+
+    assert session.status.layers == ()

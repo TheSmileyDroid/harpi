@@ -9,8 +9,7 @@ import discord
 from discord import Guild, Member, Message, StageChannel
 from discord.ext.commands import Cog, CommandError, Context, command
 
-from src.harpi_lib.api import HarpiAPI, LoopMode
-from src.harpi_lib.audio.session import PlaybackSession
+from src.harpi_lib.audio.session import LoopMode, PlaybackSession
 from src.harpi_lib.harpi_bot import HarpiBot
 
 
@@ -22,7 +21,6 @@ class MusicCog(Cog):
         super().__init__()
 
         self.bot: HarpiBot = bot
-        self.api: HarpiAPI = bot.api
 
     async def _resolve_voice_context(
         self, ctx: Context
@@ -331,7 +329,7 @@ class MusicCog(Cog):
             _ = await ctx.send(message)
 
     @command("add_layer")
-    async def add_layer(self, ctx: Context, *, link: str) -> Message:
+    async def add_layer(self, ctx: Context, *, link: str) -> None:
         """Add a background audio layer.
 
         Arguments:
@@ -339,19 +337,16 @@ class MusicCog(Cog):
             link (str): Link of the audio to play.
 
         """
-        guild, voice_channel, _ = await self._resolve_voice_context(ctx)
-
+        session = await self._connect_session(ctx, force=False)
         try:
-            await self.api.add_background_audio(
-                guild.id, voice_channel.id, link
-            )
-        except Exception as e:
-            return await ctx.send(str(e))
-
-        return await ctx.send(f"Adicionado **{link}** ao mixer.")
+            await session.add_layer(link)
+        except ValueError as e:
+            _ = await ctx.send(str(e))
+            return
+        _ = await ctx.send(f"Adicionado **{link}** ao mixer.")
 
     @command("remove_layer")
-    async def remove_layer(self, ctx: Context, index: int) -> Message:
+    async def remove_layer(self, ctx: Context, index: int) -> None:
         """Remove a specific layer by index.
 
         Args:
@@ -359,69 +354,50 @@ class MusicCog(Cog):
             index (int): Index of the layer to remove (based on list_layers).
 
         """
-        guild, _, _ = await self._resolve_voice_context(ctx)
-
-        try:
-            guild_config = self.api.get_guild_config(guild.id)
-            if (
-                not guild_config
-                or not guild_config.background
-                or index < 1
-                or index > len(guild_config.background)
-            ):
-                return await ctx.send("Layer inválido.")
-
-            # Get ID from index (background is a dict, convert to list)
-            layer_items = list(guild_config.background.items())
-            layer_id, layer_source = layer_items[index - 1]
-            await self.api.remove_background_audio(guild.id, layer_id)
-            return await ctx.send(
-                f"Layer removido: {getattr(layer_source, 'title', layer_id)}"
-            )
-        except Exception as e:
-            return await ctx.send(str(e))
+        async with ctx.typing():
+            session = await self._require_session(ctx)
+            if session is None:
+                return
+            status = session.status
+            if index < 1 or index > len(status.layers):
+                _ = await ctx.send("Layer inválido.")
+                return
+            layer = status.layers[index - 1]
+            await session.remove_layer(layer.id)
+            _ = await ctx.send(f"Layer removido: {layer.title}")
 
     @command("clean_layers")
-    async def clean_layers(self, ctx: Context) -> Message:
+    async def clean_layers(self, ctx: Context) -> None:
         """Clear all background audio layers.
 
         Arguments:
             ctx (Context): Command context.
 
         """
-        guild, _, _ = await self._resolve_voice_context(ctx)
-
-        try:
-            await self.api.clean_background_audios(guild.id)
-        except Exception as e:
-            return await ctx.send(str(e))
-
-        return await ctx.send("Layers de áudio de fundo limpos.")
+        async with ctx.typing():
+            session = await self._require_session(ctx)
+            if session is None:
+                return
+            await session.clear_layers()
+            _ = await ctx.send("Layers de áudio de fundo limpos.")
 
     @command("list_layers")
-    async def list_layers(self, ctx: Context) -> Message:
+    async def list_layers(self, ctx: Context) -> None:
         """List the background audio layers.
 
         Arguments:
             ctx (Context): Command context.
 
         """
-        guild, _, _ = await self._resolve_voice_context(ctx)
-
-        try:
-            guild_config = self.api.get_guild_config(guild.id)
-            if not guild_config:
-                return await ctx.send("Guilda não conectada")
-
-            if not guild_config.background:
-                return await ctx.send(
-                    "Nenhum layer de áudio de fundo adicionado"
-                )
+        async with ctx.typing():
+            session = await self._require_session(ctx)
+            if session is None:
+                return
+            status = session.status
+            if not status.layers:
+                _ = await ctx.send("Nenhum layer de áudio de fundo adicionado")
+                return
             message_lines = ["**Layers de áudio de fundo:**"]
-            for idx, layer in enumerate(guild_config.background, start=1):
+            for idx, layer in enumerate(status.layers, start=1):
                 message_lines.append(f"{idx}. {layer.title}")
-
-            message = "\n".join(message_lines)
-            return await ctx.send(message)
-        except Exception as e:
-            return await ctx.send(str(e))
+            _ = await ctx.send("\n".join(message_lines))

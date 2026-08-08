@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 
 if TYPE_CHECKING:
-    from src.harpi_lib.api import HarpiAPI
     from src.harpi_lib.harpi_bot import HarpiBot
 
 _bot_ref: HarpiBot | None = None
@@ -38,11 +37,6 @@ def get_bot() -> HarpiBot:
     """Get the bot instance. Raises if bot hasn't been initialized."""
     assert _bot_ref is not None, "Bot not initialized"
     return _bot_ref
-
-
-def get_api() -> HarpiAPI:
-    """Get the HarpiAPI instance from the bot."""
-    return get_bot().api
 
 
 async def run_on_bot_loop(

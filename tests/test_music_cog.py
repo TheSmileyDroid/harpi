@@ -36,8 +36,10 @@ class RecordingSession:
         self.calls: list[str] = []
         self.announcer: Callable[[str], Any] | None = None
         self.play_error: ValueError | None = None
+        self.add_layer_error: ValueError | None = None
         self.current_music: Any = None
         self.queue: tuple[Any, ...] = ()
+        self.layers: list[Any] = []
         self.volume = 0.7
         self.seek_result = True
 
@@ -49,6 +51,7 @@ class RecordingSession:
         return SimpleNamespace(
             current_music=self.current_music,
             queue=self.queue,
+            layers=tuple(self.layers),
             volume=self.volume,
         )
 
@@ -62,6 +65,39 @@ class RecordingSession:
         else:
             self.queue = (*self.queue, track)
         return 1
+
+    async def add_layer(self, link: str) -> str:
+        if self.add_layer_error is not None:
+            raise self.add_layer_error
+        self.calls.append(f"add_layer:{link}")
+        layer = SimpleNamespace(
+            id=f"layer-{link}",
+            title=link,
+            url=f"https://example.com/{link}",
+            volume=0.7,
+        )
+        self.layers.append(layer)
+        return layer.id
+
+    async def remove_layer(self, layer_id: str) -> bool:
+        self.calls.append(f"remove_layer:{layer_id}")
+        for index, layer in enumerate(self.layers):
+            if layer.id == layer_id:
+                self.layers.pop(index)
+                return True
+        return False
+
+    async def clear_layers(self) -> None:
+        self.calls.append("clear_layers")
+        self.layers.clear()
+
+    async def set_layer_volume(self, layer_id: str, volume: float) -> bool:
+        self.calls.append(f"set_layer_volume:{layer_id}:{volume}")
+        for layer in self.layers:
+            if layer.id == layer_id:
+                layer.volume = volume
+                return True
+        return False
 
     async def stop(self) -> None:
         self.calls.append("stop")
@@ -399,3 +435,132 @@ async def test_command_requires_the_user_to_be_in_voice():
 
     assert session is not None
     assert session.calls == []
+
+
+# --- Background layer commands ---
+
+
+async def test_add_layer_routes_through_the_session_and_binds_the_announcer():
+    session = RecordingSession()
+    cog, session, ctx = _make_cog(session)
+
+    await _invoke(cog.add_layer, cog, ctx, link="rain")
+
+    assert session is not None
+    assert session.calls == ["add_layer:rain"]
+    assert [layer.id for layer in session.layers] == ["layer-rain"]
+    announcer = session.announcer
+    assert announcer is not None
+    assert announcer == ctx.send
+    assert ctx.sent == ["Adicionado **rain** ao mixer."]
+
+
+async def test_add_layer_connects_when_there_is_no_session_yet():
+    session = RecordingSession()
+    cog, _, ctx = _make_cog(session)
+
+    await _invoke(cog.add_layer, cog, ctx, link="rain")
+
+    assert session.calls == ["add_layer:rain"]
+
+
+async def test_add_layer_reports_when_nothing_is_found():
+    session = RecordingSession()
+    session.add_layer_error = ValueError(
+        "Nenhuma música encontrada para este link"
+    )
+    cog, session, ctx = _make_cog(session)
+
+    await _invoke(cog.add_layer, cog, ctx, link="nothing")
+
+    assert session is not None
+    assert session.calls == []
+    assert ctx.sent == ["Nenhuma música encontrada para este link"]
+
+
+async def test_remove_layer_routes_through_the_session_by_index():
+    session = RecordingSession()
+    session.layers = [SimpleNamespace(id="layer-rain", title="rain")]
+    cog, session, ctx = _make_cog(session)
+
+    await _invoke(cog.remove_layer, cog, ctx, index=1)
+
+    assert session is not None
+    assert session.calls == ["remove_layer:layer-rain"]
+    assert session.layers == []
+    assert ctx.sent == ["Layer removido: rain"]
+
+
+async def test_remove_layer_rejects_out_of_range_indices():
+    session = RecordingSession()
+    session.layers = [SimpleNamespace(id="layer-rain", title="rain")]
+    cog, session, ctx = _make_cog(session)
+
+    await _invoke(cog.remove_layer, cog, ctx, index=2)
+
+    assert session is not None
+    assert session.calls == []
+    assert ctx.sent == ["Layer inválido."]
+
+
+async def test_remove_layer_without_a_session_tells_the_user():
+    cog, _, ctx = _make_cog(None)
+
+    await _invoke(cog.remove_layer, cog, ctx, index=1)
+
+    assert ctx.sent == ["Guilda não conectada"]
+
+
+async def test_clean_layers_routes_through_the_session():
+    session = RecordingSession()
+    session.layers = [SimpleNamespace(id="layer-rain", title="rain")]
+    cog, session, ctx = _make_cog(session)
+
+    await _invoke(cog.clean_layers, cog, ctx)
+
+    assert session is not None
+    assert session.calls == ["clear_layers"]
+    assert session.layers == []
+    assert ctx.sent == ["Layers de áudio de fundo limpos."]
+
+
+async def test_clean_layers_without_a_session_tells_the_user():
+    cog, _, ctx = _make_cog(None)
+
+    await _invoke(cog.clean_layers, cog, ctx)
+
+    assert ctx.sent == ["Guilda não conectada"]
+
+
+async def test_list_layers_renders_every_layer():
+    session = RecordingSession()
+    session.layers = [
+        SimpleNamespace(id="layer-rain", title="rain"),
+        SimpleNamespace(id="layer-wind", title="wind"),
+    ]
+    cog, session, ctx = _make_cog(session)
+
+    await _invoke(cog.list_layers, cog, ctx)
+
+    assert session is not None
+    assert session.calls == []
+    assert ctx.sent == ["**Layers de áudio de fundo:**\n1. rain\n2. wind"]
+
+
+async def test_list_layers_reports_when_there_are_no_layers():
+    session = RecordingSession()
+    cog, session, ctx = _make_cog(session)
+
+    await _invoke(cog.list_layers, cog, ctx)
+
+    assert session is not None
+    assert session.calls == []
+    assert ctx.sent == ["Nenhum layer de áudio de fundo adicionado"]
+
+
+async def test_list_layers_without_a_session_tells_the_user():
+    cog, _, ctx = _make_cog(None)
+
+    await _invoke(cog.list_layers, cog, ctx)
+
+    assert ctx.sent == ["Guilda não conectada"]

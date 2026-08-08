@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Callable, Coroutine
 from loguru import logger
 from quart import Blueprint, render_template, request, session
 
-from src.api.deps import get_bot, get_api, run_on_bot_loop
+from src.api.deps import get_bot, run_on_bot_loop
 from src.api.guild import _get_guilds
 from src.api.music import (
     DEFAULT_VOLUME,
@@ -447,7 +447,7 @@ async def api_music_queue_clear(guild_id: str):
 async def api_music_layer_remove(guild_id: str, layer_id: str):
     """Remove a background layer."""
     try:
-        await get_api().remove_background_audio(int(guild_id), layer_id)
+        await _session_action(guild_id, lambda s: s.remove_layer(layer_id))
     except Exception as e:
         logger.opt(exception=True).error(f"Error removing layer: {e}")
     return await htmx_music_layers(guild_id)
@@ -457,7 +457,7 @@ async def api_music_layer_remove(guild_id: str, layer_id: str):
 async def api_music_layers_clean(guild_id: str):
     """Remove all background layers."""
     try:
-        await get_api().clean_background_audios(int(guild_id))
+        await _session_action(guild_id, lambda s: s.clear_layers())
     except Exception as e:
         logger.opt(exception=True).error(f"Error cleaning layers: {e}")
     return await htmx_music_layers(guild_id)
@@ -469,8 +469,8 @@ async def api_music_layer_volume(guild_id: str, layer_id: str):
     data = await _parse_json_or_form()
     volume = data.get("volume", 0.5)
     try:
-        await get_api().set_background_volume(
-            int(guild_id), layer_id, float(volume)
+        await _session_action(
+            guild_id, lambda s: s.set_layer_volume(layer_id, float(volume))
         )
     except Exception as e:
         logger.opt(exception=True).error(f"Error setting layer volume: {e}")
@@ -481,7 +481,7 @@ async def api_music_layer_volume(guild_id: str, layer_id: str):
 async def api_music_layer_pause(guild_id: str, layer_id: str):
     """Pause a background layer.
 
-    TODO(SMI-38): Implement per-layer pause in BackgroundAudioService.
+    TODO(SMI-38): Implement per-layer pause on PlaybackSession.
     The mixer currently handles all layers as one stream, so individual
     layer pausing requires separate per-layer volume/gain control.
     """
@@ -492,7 +492,7 @@ async def api_music_layer_pause(guild_id: str, layer_id: str):
 async def api_music_layer_resume(guild_id: str, layer_id: str):
     """Resume a background layer.
 
-    TODO(SMI-38): Implement per-layer resume in BackgroundAudioService.
+    TODO(SMI-38): Implement per-layer resume on PlaybackSession.
     See layer/pause — same underlying limitation applies.
     """
     return await htmx_music_layers(guild_id)

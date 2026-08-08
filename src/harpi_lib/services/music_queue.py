@@ -2,15 +2,12 @@
 
 Thread safety
 -------------
-The ``on_queue_end`` and ``on_track_end`` callbacks are invoked from
-discord.py's **voice-sending thread** (via ``MixerSource.read()``).  They
-must not call asyncio APIs that are not thread-safe or directly mutate
-shared data structures that the bot/Quart event loops also access.
-
-* ``on_queue_end`` uses ``asyncio.run_coroutine_threadsafe`` to schedule
-  the ``next_music`` coroutine on the bot's event loop.
-* ``on_track_end`` uses ``bot.loop.call_soon_threadsafe`` to schedule dict
-  mutations on the bot's event loop rather than mutating directly.
+The ``on_queue_end`` callback is invoked from discord.py's **voice-sending
+thread** (via ``MixerSource.read()``).  It must not call asyncio APIs that
+are not thread-safe or directly mutate shared data structures that the
+bot/Quart event loops also access.  It uses
+``asyncio.run_coroutine_threadsafe`` to schedule the ``next_music``
+coroutine on the bot's event loop.
 """
 
 from __future__ import annotations
@@ -19,7 +16,6 @@ import asyncio
 import math
 from typing import TYPE_CHECKING, Callable, cast
 
-import discord
 from discord.ext.commands import Bot
 from loguru import logger
 
@@ -61,34 +57,6 @@ class MusicQueueService:
         asyncio.run_coroutine_threadsafe(
             self.next_music(guild_config), self.bot.loop
         )
-
-    def on_track_end(
-        self,
-        guild_config: GuildConfig,
-        to_remove: list[discord.AudioSource],
-    ) -> None:
-        """Callback when a background track ends.
-
-        Called from the voice-sending thread - schedules dict mutation on
-        the bot's event loop via call_soon_threadsafe.
-        """
-        for source in to_remove:
-            layer_id = guild_config.controller.get_layer_id(source)
-            if layer_id:
-                guild_config.controller.remove_layer(layer_id)
-                # Schedule the background-dict mutation on the bot's event loop
-                # to avoid cross-thread dict modification.
-                self.bot.loop.call_soon_threadsafe(
-                    self._remove_background_layer, guild_config, layer_id
-                )
-
-    @staticmethod
-    def _remove_background_layer(
-        guild_config: GuildConfig, layer_id: str
-    ) -> None:
-        """Remove a background layer entry (runs on the bot's event loop)."""
-        if guild_config.background and layer_id in guild_config.background:
-            del guild_config.background[layer_id]
 
     async def next_music(
         self, guild_config: GuildConfig, force_next: bool = False

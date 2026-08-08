@@ -67,7 +67,6 @@ def test_remove_finished_source_removes_layer():
     controller.remove_finished_source(source)
 
     assert source.cleaned_up is True
-    assert controller.get_layer_id(source) is None
     assert controller.get_playing_sounds() == []
 
 

@@ -99,6 +99,38 @@ class FakeMusicDataFactory:
         ]
 
 
+class FakeLayerSource(FakeSource):
+    """Audio source carrying the metadata a background layer needs."""
+
+    def __init__(
+        self,
+        title: str = "Layer",
+        url: str = "https://example.com/layer",
+        volume: float = 0.7,
+        layer_id: str | None = None,
+    ) -> None:
+        super().__init__()
+        self.id = layer_id or f"layer-{title}"
+        self.title = title
+        self.url = url
+        self.volume = volume
+
+
+class FakeLayerSourceFactory:
+    """Fake YoutubeDLSource stand-in that yields layer sources."""
+
+    @classmethod
+    async def from_music_data(
+        cls, music_data: Any, volume: float = 0.3
+    ) -> FakeLayerSource:
+        return FakeLayerSource(
+            title=music_data.title,
+            url=music_data.url,
+            volume=volume,
+            layer_id=f"layer-{music_data.title}",
+        )
+
+
 class FakeSourceFactory:
     """Fake YoutubeDLSource stand-in for session tests.
 

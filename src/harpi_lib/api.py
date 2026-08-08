@@ -30,10 +30,7 @@ from discord.ext.commands import Bot, Context
 from src.harpi_lib.audio.controller import AudioController
 from src.harpi_lib.audio.mixer import MixerSource
 from src.harpi_lib.audio.session import LoopMode
-from src.harpi_lib.music.ytmusicdata import (
-    YoutubeDLSource,
-    YTMusicData,
-)
+from src.harpi_lib.music.ytmusicdata import YTMusicData
 
 
 @dataclass
@@ -50,7 +47,6 @@ class GuildConfig:
     ctx: Context | None = None
     voice_client: discord.VoiceClient | None = None
     queue: list[YTMusicData] | None = None
-    background: dict[str, YoutubeDLSource] | None = None
     current_music: YTMusicData | None = None
     loop: LoopMode = LoopMode.OFF
     channel: VoiceChannel | None = None
@@ -65,9 +61,6 @@ class HarpiAPI:
     """
 
     def __init__(self, bot: Bot) -> None:
-        from src.harpi_lib.services.background_audio import (
-            BackgroundAudioService,
-        )
         from src.harpi_lib.services.music_queue import MusicQueueService
         from src.harpi_lib.services.tts import TTSService
         from src.harpi_lib.services.voice_connection import (
@@ -82,13 +75,8 @@ class HarpiAPI:
             bot,
             self.guilds,
             on_queue_end=self._music_queue.on_queue_end,
-            on_track_end=self._music_queue.on_track_end,
         )
         self._music_queue.voice_service = self._voice
-
-        self._background = BackgroundAudioService(
-            bot, self.guilds, self._voice
-        )
         self._tts = TTSService(bot, self.guilds, self._voice)
 
     # -- Music queue --
@@ -103,36 +91,6 @@ class HarpiAPI:
         """Set the loop mode (off, track, or queue)."""
         await self._music_queue.set_loop(guild_id, loop)
 
-    # -- Background audio --
-
-    async def add_background_audio(
-        self,
-        guild_id: int,
-        channel_id: int,
-        link: str,
-        ctx: Context | None = None,
-    ) -> str:
-        """Add a background audio layer from a URL."""
-        return await self._background.add_layer(
-            guild_id, channel_id, link, ctx
-        )
-
-    async def remove_background_audio(
-        self, guild_id: int, layer_id: str
-    ) -> YoutubeDLSource:
-        """Remove a background audio layer by ID."""
-        return await self._background.remove_layer(guild_id, layer_id)
-
-    async def set_background_volume(
-        self, guild_id: int, layer_id: str, volume: float
-    ) -> None:
-        """Set the volume for a specific background audio layer."""
-        await self._background.set_layer_volume(guild_id, layer_id, volume)
-
-    async def clean_background_audios(self, guild_id: int) -> None:
-        """Remove all background audio layers."""
-        await self._background.remove_all_layers(guild_id)
-
     # -- TTS --
 
     async def play_tts_source(
@@ -144,9 +102,3 @@ class HarpiAPI:
     ) -> None:
         """Play a TTS audio source in a voice channel."""
         await self._tts.play(guild_id, channel_id, source, ctx)
-
-    # -- Guild config --
-
-    def get_guild_config(self, guild_id: int) -> GuildConfig | None:
-        """Get the guild configuration for a guild ID, or None if not connected."""
-        return self.guilds.get(guild_id)

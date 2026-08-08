@@ -1,15 +1,16 @@
 """Music playback API endpoints."""
 
 import asyncio
-from typing import TYPE_CHECKING, Literal
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any, Literal
 
 from loguru import logger
 from pydantic import BaseModel, Field
 from quart import Blueprint
 from quart_schema import validate_response, validate_request
 
-from src.api.deps import get_api, get_bot, run_on_bot_loop
-from src.harpi_lib.api import LoopMode
+from src.api.deps import get_bot, run_on_bot_loop
+from src.harpi_lib.audio.session import LoopMode
 
 if TYPE_CHECKING:
     from src.harpi_lib.audio.session import PlaybackSession, SessionStatus
@@ -189,15 +190,8 @@ def _parse_guild_id(raw: str) -> int | None:
         return None
 
 
-def build_music_status(
-    status: "SessionStatus",
-    layers: list[MusicLayerResponse] | None = None,
-) -> MusicStatusResponse:
-    """Project a session status snapshot into the panel response.
-
-    *layers* stay a separate input until T4 migrates background audio onto
-    the session; everything else comes from the snapshot.
-    """
+def build_music_status(status: "SessionStatus") -> MusicStatusResponse:
+    """Project a session status snapshot into the panel response."""
     current = status.current_music
     return MusicStatusResponse(
         current_music=MusicTrackResponse(
@@ -220,7 +214,15 @@ def build_music_status(
             )
             for track in status.queue
         ],
-        layers=layers or [],
+        layers=[
+            MusicLayerResponse(
+                title=layer.title,
+                id=layer.id,
+                url=layer.url,
+                volume=layer.volume,
+            )
+            for layer in status.layers
+        ],
         is_playing=status.is_playing,
         is_paused=status.is_paused,
         loop_mode=status.loop_mode.name.lower(),
@@ -228,32 +230,12 @@ def build_music_status(
     )
 
 
-def _legacy_layers(guild_id: int) -> list[MusicLayerResponse]:
-    """Background layers still live on the legacy guild config (T4 defers)."""
-    try:
-        guild_config = get_api().get_guild_config(guild_id)
-    except Exception as e:
-        logger.debug(f"Layers unavailable for guild {guild_id}: {e}")
-        return []
-    background = guild_config.background if guild_config else None
-    return [
-        MusicLayerResponse(
-            title=layer.title,
-            id=layer.id,
-            url=layer.url,
-            volume=layer.volume,
-        )
-        for layer in (background.values() if background else [])
-    ]
-
-
 async def get_music_data(guild_id: int) -> MusicStatusResponse | None:
     """Get music status data for a specific guild.
 
-    Playback and queue fields are projected from the guild's session
-    status snapshot, sampled on the bot's event loop via the
-    ``run_on_bot_loop`` bridge.  Background layers still come from the
-    legacy guild config until T4 migrates them onto the session.
+    Playback, queue, and background layer fields are all projected from the
+    guild's session status snapshot, sampled on the bot's event loop via
+    the ``run_on_bot_loop`` bridge.
 
     Returns:
         MusicStatusResponse with current track, progress, queue, and playback state.
@@ -272,7 +254,7 @@ async def get_music_data(guild_id: int) -> MusicStatusResponse | None:
         return MusicStatusResponse.empty()
 
     status = await run_on_bot_loop(session.sample_status())
-    return build_music_status(status, layers=_legacy_layers(guild_id))
+    return build_music_status(status)
 
 
 def _get_session(guild_id: int) -> "PlaybackSession | None":
@@ -476,7 +458,9 @@ async def music_layer_remove(
     if guild_id is None:
         return MusicControlResponse(status="", error="Invalid guild_id"), 400
     try:
-        await get_api().remove_background_audio(guild_id, data.layer_id)
+        session = _get_session(guild_id)
+        if session is not None:
+            await run_on_bot_loop(session.remove_layer(data.layer_id))
         return MusicControlResponse(status="ok")
     except Exception as e:
         logger.opt(exception=True).error(f"Error removing layer: {e}")
@@ -494,7 +478,9 @@ async def music_layer_clean(
     if guild_id is None:
         return MusicControlResponse(status="", error="Invalid guild_id"), 400
     try:
-        await get_api().clean_background_audios(guild_id)
+        session = _get_session(guild_id)
+        if session is not None:
+            await run_on_bot_loop(session.clear_layers())
         return MusicControlResponse(status="ok")
     except Exception as e:
         logger.opt(exception=True).error(f"Error cleaning layers: {e}")
@@ -512,9 +498,11 @@ async def music_layer_volume(
     if guild_id is None:
         return MusicControlResponse(status="", error="Invalid guild_id"), 400
     try:
-        await get_api().set_background_volume(
-            guild_id, data.layer_id, float(data.volume)
-        )
+        session = _get_session(guild_id)
+        if session is not None:
+            await run_on_bot_loop(
+                session.set_layer_volume(data.layer_id, float(data.volume))
+            )
         return MusicControlResponse(status="ok")
     except Exception as e:
         logger.opt(exception=True).error(f"Error setting layer volume: {e}")
@@ -593,9 +581,13 @@ async def music_control(
                 return MusicControlResponse(
                     status="", error="layer_id required"
                 ), 400
-            await get_api().remove_background_audio(guild_id, data.layer_id)
+            session = _get_session(guild_id)
+            if session is not None:
+                await run_on_bot_loop(session.remove_layer(data.layer_id))
         elif action == "clean_layers":
-            await get_api().clean_background_audios(guild_id)
+            session = _get_session(guild_id)
+            if session is not None:
+                await run_on_bot_loop(session.clear_layers())
         elif action == "set_volume":
             if data.volume is None:
                 return MusicControlResponse(
@@ -609,9 +601,11 @@ async def music_control(
                 return MusicControlResponse(
                     status="", error="layer_id and volume required"
                 ), 400
-            await get_api().set_background_volume(
-                guild_id, data.layer_id, float(data.volume)
-            )
+            session = _get_session(guild_id)
+            if session is not None:
+                await run_on_bot_loop(
+                    session.set_layer_volume(data.layer_id, float(data.volume))
+                )
         else:
             return MusicControlResponse(status="", error="Invalid action"), 400
 
@@ -662,25 +656,25 @@ async def music_add(
         return MusicAddResponse(status="", error="Bot not ready"), 503
 
     try:
-        api = get_api()
         session = _get_session(guild_id)
         if session is None and not channel_id:
             return MusicAddResponse(
                 status="", error="channel_id required when bot not connected"
             ), 400
 
+        async def _apply_to_session(
+            action: Callable[[PlaybackSession], Awaitable[Any]],
+        ) -> None:
+            manager = get_bot().sessions
+            target = await manager.ensure(guild_id, channel_id or 0)
+            await action(target)
+
         if music_type == "layer":
             await run_on_bot_loop(
-                api.add_background_audio(guild_id, channel_id or 0, link)
+                _apply_to_session(lambda s: s.add_layer(link))
             )
         else:
-
-            async def _add_to_queue() -> None:
-                manager = get_bot().sessions
-                target = await manager.ensure(guild_id, channel_id or 0)
-                await target.play(link)
-
-            await run_on_bot_loop(_add_to_queue())
+            await run_on_bot_loop(_apply_to_session(lambda s: s.play(link)))
         return MusicAddResponse(status="ok")
 
     except Exception as e:
