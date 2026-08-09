@@ -139,7 +139,9 @@ class RecordingManager:
         self.calls.append(f"get:{guild_id}")
         return self._session
 
-    async def connect(self, guild_id: int, channel_id: int) -> RecordingSession:
+    async def connect(
+        self, guild_id: int, channel_id: int
+    ) -> RecordingSession:
         self.calls.append(f"connect:{guild_id}:{channel_id}")
         assert self._session is not None
         return self._session
@@ -179,7 +181,9 @@ class _NoopContextManager:
         return None
 
 
-def _make_cog(session: RecordingSession | None) -> tuple[MusicCog, RecordingSession | None, FakeContext]:
+def _make_cog(
+    session: RecordingSession | None,
+) -> tuple[MusicCog, RecordingSession | None, FakeContext]:
     recording_session = session if session is not None else None
     manager = RecordingManager(session)
     bot = FakeHarpiBot(manager)
@@ -396,9 +400,7 @@ async def test_list_renders_the_current_track_and_queue():
 
     assert session is not None
     assert ctx.sent == [
-        "**Tocando agora:** one (180)\n"
-        "**Próximas na fila:**\n"
-        "1. two (60)"
+        "**Tocando agora:** one (180)\n**Próximas na fila:**\n1. two (60)"
     ]
 
 

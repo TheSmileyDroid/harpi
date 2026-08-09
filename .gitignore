@@ -157,3 +157,8 @@ tailwindcss
 # Playwright
 .playwright/
 .playwright-cli/
+
+
+# Node_modules
+node_modules/
+

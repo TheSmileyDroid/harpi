@@ -1,32 +1,4 @@
-"""YouTube music data retrieval and audio source management.
-
-Thread safety
--------------
-* ``ytdl`` (module-level ``yt_dlp.YoutubeDL`` singleton) is called from
-  the bot's event loop via the single-worker ``_YTDL_EXECUTOR``.  yt-dlp
-  is not documented as thread-safe and a timed-out extraction is
-  abandoned mid-flight rather than awaited, so the single worker
-  serializes all extractions and guarantees callers never interleave on
-  the shared instance.
-* ``FFmpegPCMAudio.read()`` runs on one of the mixer's reader threads,
-  while ``cleanup()`` and ``seek()`` may be called from the bot or
-  Quart event loops.  A ``threading.Lock`` (``_proc_lock``) serialises
-  access to ``self._process`` and a monotonically increasing
-  ``_generation`` counter lets stale spawns detect that a newer seek
-  or a cleanup superseded them, so a killed process is never
-  resurrected.  Every ``seek()`` advances the generation, even when no
-  process is currently running, so an in-flight reader spawn is always
-  invalidated and the reader re-spawns at the new offset instead of
-  committing audio from the old position.  Blocking pipe reads and
-  subprocess spawns happen outside the lock so a stalled stream cannot
-  block ``seek()`` or ``cleanup()`` indefinitely.
-* ``YoutubeDLSource`` tracks its playback position in bytes under a
-  dedicated lock (``_position_lock``) because ``read()`` runs on the
-  voice-sending thread while ``position_seconds()`` and ``seek()`` are
-  called from other threads.  ``seek()`` holds a dedicated ``_seek_lock``
-  across the underlying seek and the counter reset so concurrent seeks
-  cannot leave the byte counter disagreeing with the FFmpeg position.
-"""
+"""YouTube music data retrieval and audio source management."""
 
 from __future__ import annotations
 
@@ -67,15 +39,9 @@ ytdl_format_options = {
     "extractor_retries": 1,
 }
 
-# Timeouts so stalled network calls fail fast instead of hanging forever.
-YT_SEARCH_TIMEOUT = 30.0  # seconds, for YTMusicData.from_url -> search()
-YT_EXTRACT_TIMEOUT = (
-    25.0  # seconds, for the fallback extraction in from_music_data
-)
+YT_SEARCH_TIMEOUT = 30.0
+YT_EXTRACT_TIMEOUT = 25.0
 
-# Playability validation, applied before any track is committed to playback.
-# Probes the first seconds of the selected stream so a track that is
-# unreachable, carries no audio, or is pure silence is skipped up front.
 SILENCE_PROBE_SECONDS = 15.0  # ffmpeg volumedetect window (seconds)
 SILENCE_MAX_VOLUME_DB = -60.0  # max_volume below this is treated as silence
 STREAM_PROBE_ATTEMPTS = 3  # probe attempts for remote streams before giving up
@@ -133,14 +99,6 @@ ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
 _YTDL_EXECUTOR = concurrent.futures.ThreadPoolExecutor(
     max_workers=1, thread_name_prefix="ytdl"
 )
-
-
-class AudioSourceWrapper(discord.AudioSource):
-    def __init__(self, source: discord.AudioSource) -> None:
-        self._source: discord.AudioSource = source
-
-    def read(self) -> bytes:
-        return self._source.read()
 
 
 class UniqueAudioSource(discord.PCMVolumeTransformer):
@@ -211,8 +169,6 @@ class YoutubeDLSource(UniqueAudioSource):
         """
         info, stream_url = await cls._pick_stream(musicdata)
         data = dict(info)
-        # The public url stays the stable watch URL; the signed CDN URL is
-        # passed only to ffmpeg so it never reaches API responses or logs.
         data["url"] = musicdata.get_url()
         return cls(
             FFmpegPCMAudio(
@@ -617,7 +573,6 @@ class YTMusicData:
             ),
         )
         self._video: dict[str, Any] = video
-        self._source: YoutubeDLSource | None = None
 
     @classmethod
     async def from_url(cls, url: str) -> list[YTMusicData]:

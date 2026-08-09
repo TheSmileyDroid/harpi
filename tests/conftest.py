@@ -1,6 +1,7 @@
 """Shared fakes for the session lifecycle tests."""
 
 from __future__ import annotations
+import re
 
 import asyncio
 from types import SimpleNamespace
@@ -13,6 +14,10 @@ from src.harpi_lib.music.ytmusicdata import YTMusicData
 GUILD_ID = 1
 CHANNEL_ID = 10
 BOT_USER_ID = 1234
+
+
+def _unformat(html: str) -> str:
+    return re.sub("\s+", "", html).strip()
 
 
 class FakeVoiceClient(discord.VoiceClient):
@@ -129,6 +134,25 @@ class FakeLayerSourceFactory:
             volume=volume,
             layer_id=f"layer-{music_data.title}",
         )
+
+
+class FakeTTSSource(FakeSource):
+    """Fake FastStartFFmpegPCMAudio stand-in; records the audio stream.
+
+    The session's ``play_tts`` verb constructs it like the real class:
+    ``FakeTTSSource(audio, pipe=True)``.
+    """
+
+    def __init__(
+        self,
+        source: Any = None,
+        *,
+        pipe: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__()
+        self.source = source
+        self.pipe = pipe
 
 
 class FakeSourceFactory:

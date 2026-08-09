@@ -1,32 +1,10 @@
-"""PlaybackSession — one deep module holding a guild's playback state.
-
-A session owns everything a single guild's audio needs: the voice client,
-the :class:`AudioController`, the :class:`MixerSource`, the queue, the
-current track, the loop mode, the volume, and the mixer's end-of-track
-observer wiring.  The session is the seam the cogs, routes, and tests
-cross.
-
-Threading contract
-------------------
-The bot's event loop is the single writer for all session state.  Every
-session verb must therefore run on the **bot's** loop; verbs that touch
-discord.py's async voice APIs (``leave``) or spawn FFmpeg (``seek``) are
-async, while ``start`` and ``cleanup`` are synchronous but still
-bot-loop-bound.  The mixer itself is an exception by design:
-``MixerSource.read()`` runs on discord.py's voice-sending thread, and its
-``queue_end`` / ``track_end`` observers fire from that same thread.  Those
-callbacks must never touch session state directly — they marshal work back
-onto the bot's event loop (``asyncio.run_coroutine_threadsafe`` /
-``call_soon_threadsafe``) before mutating anything.  Anything else that
-needs a session (the web panel, the cogs) reaches it through the
-:class:`SessionManager` and the ``run_on_bot_loop`` bridge, never by
-calling into the controller or mixer directly.
-"""
+"""PlaybackSession"""
 
 from __future__ import annotations
 
 import asyncio
 import enum
+import io
 import math
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -38,22 +16,15 @@ from loguru import logger
 from src.harpi_lib.audio.controller import AudioController
 from src.harpi_lib.audio.mixer import MixerSource
 from src.harpi_lib.music.ytmusicdata import (
+    FastStartFFmpegPCMAudio,
     ProbeEnvironmentError,
     YoutubeDLSource,
     YTMusicData,
 )
 
-# Fallback seek cap in seconds for tracks with unknown duration.
 MAX_SEEK_SECONDS = 4 * 3600
-
-# Max seconds allowed for loading a track's audio source before it is
-# treated as failed and skipped.
 TRACK_LOAD_TIMEOUT = 60.0
-
-# Default music queue volume (0.0-2.0).
 DEFAULT_VOLUME = 0.7
-
-# Default background layer volume (0.0-2.0).
 DEFAULT_LAYER_VOLUME = 0.7
 
 
@@ -77,14 +48,6 @@ class LoopMode(enum.Enum):
 
 @dataclass(frozen=True)
 class SessionStatus:
-    """Immutable snapshot of a session's state, safe to pass across threads.
-
-    The snapshot is produced on the bot's event loop (sampled from the
-    voice client) and is immutable, so once built it can be handed to
-    any reader — the panel JSON, the HTMX fragments, the server status,
-    the chat ``list`` command.
-    """
-
     guild_id: int
     connected: bool
     is_playing: bool
@@ -99,17 +62,6 @@ class SessionStatus:
 
 
 class PlaybackSession:
-    """All playback state and behaviour for a single guild.
-
-    The controller and the mixer are internal seams: nothing outside the
-    session touches them.  State is read through :attr:`status` and
-    changed through the session's verbs (``play``, ``stop``, ``skip``,
-    ``seek``, ``set_loop``, ``set_volume``, ``pause``, ``resume``,
-    ``toggle_pause``, ``remove``, ``move``, ``clear_queue``, ``leave``,
-    ``add_layer``, ``remove_layer``, ``clear_layers``,
-    ``set_layer_volume``).
-    """
-
     def __init__(
         self,
         guild_id: int,
@@ -137,19 +89,10 @@ class PlaybackSession:
         self._advance_lock = asyncio.Lock()
 
     def _wire_mixer_observers(self) -> None:
-        """Hook the mixer's end-of-track events to the session's own handlers."""
         self._mixer.add_observer("queue_end", self._on_queue_end)
         self._mixer.add_observer("track_end", self._on_track_end)
 
-    # --- End-of-track handlers (fired from the voice-sending thread) ---
-
     def _on_queue_end(self) -> None:
-        """The current queue track finished reading.
-
-        Called from the voice-sending thread.  The controller already
-        cleared and cleaned the finished source; marshal the advance back
-        onto the bot's event loop as the threading contract requires.
-        """
         if self._loop is not None:
             self._loop.call_soon_threadsafe(self._spawn_advance)
         else:
@@ -159,16 +102,9 @@ class PlaybackSession:
             )
 
     def _spawn_advance(self) -> None:
-        """Run on the bot's event loop; schedule the next advance."""
         asyncio.ensure_future(self._advance())
 
     def _on_track_end(self, to_remove: list[discord.AudioSource]) -> None:
-        """A background layer finished reading.
-
-        The controller already removed and cleaned the finished sources.
-        Drop the finished layers from the session's registry, marshalling
-        back onto the bot's event loop as the threading contract requires.
-        """
         if self._loop is not None:
             self._loop.call_soon_threadsafe(
                 self._drop_finished_layers, tuple(to_remove)
@@ -177,7 +113,6 @@ class PlaybackSession:
     def _drop_finished_layers(
         self, to_remove: tuple[discord.AudioSource, ...]
     ) -> None:
-        """Run on the bot's event loop; drop finished layers from the registry."""
         for source in to_remove:
             layer_id = getattr(source, "id", None)
             if layer_id is not None:
@@ -192,22 +127,10 @@ class PlaybackSession:
     def set_announcer(
         self, announcer: Callable[[str], Awaitable[Any]] | None
     ) -> None:
-        """Bind an async sink for user-facing announcements.
-
-        The cogs bind ``ctx.send``; the panel can pass ``None`` or its own
-        sink.  Announcements never raise back into the caller.
-        """
         self._announcer = announcer
 
     @property
     def status(self) -> SessionStatus:
-        """Snapshot of this session's state; read from the bot's event loop.
-
-        Sampling the voice client from any other thread races against the
-        bot loop, the session's single writer.  Panel readers cross the
-        loop via the ``run_on_bot_loop`` bridge; the immutable snapshot
-        is safe to hand around once built.
-        """
         voice_client = self._voice_client
         return SessionStatus(
             guild_id=self._guild_id,
@@ -240,7 +163,6 @@ class PlaybackSession:
         return self.status
 
     def start(self) -> None:
-        """Begin streaming the mixer to the voice client."""
         self._voice_client.play(self._mixer)
 
     def cleanup(self) -> None:
@@ -278,6 +200,21 @@ class PlaybackSession:
             await self._advance()
         return len(music_data_list)
 
+    async def play_tts(self, audio: io.BufferedIOBase) -> None:
+        """Speak synthesized *audio* over whatever the session is playing.
+
+        The caller only synthesizes text to audio (for example with gTTS)
+        and hands the resulting seekable byte stream over; this session
+        owns audio-source construction, wrapping the stream in the FFmpeg
+        pipe source and handing it to the mixer as a TTS track.  The TTS
+        track plays alongside the queue and the background layers and is
+        released when it finishes reading or when a newer TTS track
+        replaces it.
+        """
+        source = FastStartFFmpegPCMAudio(audio, pipe=True)
+        self._controller.set_tts_track(source)
+        logger.info(f"Playing TTS audio in guild {self._guild_id}")
+
     async def stop(self) -> None:
         """Stop current playback and clear the queue."""
         self._queue.clear()
@@ -313,10 +250,6 @@ class PlaybackSession:
         duration = self._current_music.duration if self._current_music else 0
 
         def _seek_in_thread() -> float:
-            # Relative offsets are resolved inside the worker so two rapid
-            # seeks cannot both read the same pre-seek position and lose a
-            # jump.  FFmpeg spawn and teardown block, so this runs off the
-            # bot event loop to avoid freezing it.
             target = position if absolute else position_seconds() + position
             if not math.isfinite(target):
                 raise ValueError("Posição inválida")
@@ -337,7 +270,6 @@ class PlaybackSession:
         self._loop_mode = loop
 
     async def set_volume(self, volume: float) -> None:
-        """Set the playback volume (clamped to the 0.0-2.0 range)."""
         self._volume = max(0.0, min(2.0, volume))
         queue_source = self._controller.get_queue_source()
         if queue_source and hasattr(queue_source, "volume"):
@@ -481,22 +413,11 @@ class PlaybackSession:
         source.volume = max(0.0, min(2.0, volume))
         return True
 
-    # --- Internals ---
-
     async def _advance(self, force_next: bool = False) -> None:
-        """Move the queue forward; serialized so verbs and observers agree."""
         async with self._advance_lock:
             await self._advance_inner(force_next)
 
     async def _advance_inner(self, force_next: bool) -> None:
-        """Prepare and play the next queued track.
-
-        A track that fails to load with a transient error is skipped (and
-        the reason announced) instead of stalling or silently killing the
-        queue.  A :class:`ProbeEnvironmentError` means the environment is
-        broken; the session stops cleanly and announces loudly rather than
-        retrying forever.
-        """
         if self._current_music:
             if self._loop_mode is LoopMode.TRACK and not force_next:
                 if await self._play_or_fail(
@@ -522,12 +443,6 @@ class PlaybackSession:
     async def _play_or_fail(
         self, music_data: YTMusicData, *, reloading: bool
     ) -> bool:
-        """Try to load and play *music_data*.
-
-        Returns ``True`` when a track is now playing or playback stopped
-        (environment failure); ``False`` when the track was skipped and the
-        queue should keep advancing.
-        """
         try:
             await self._load_and_play(music_data)
             return True

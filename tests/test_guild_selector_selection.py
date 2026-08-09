@@ -16,6 +16,8 @@ from types import SimpleNamespace
 import pytest
 from quart import Blueprint, Quart, render_template
 
+from tests.conftest import _unformat
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = REPO_ROOT / "templates"
 
@@ -66,19 +68,19 @@ async def _render(selected_guild_id) -> str:
 @pytest.mark.asyncio
 async def test_selected_attribute_for_string_selected_guild_id():
     html = await _render(selected_guild_id="456")
-    assert '<option value="456" selected>' in html
-    assert '<option value="123" selected>' not in html
+    assert _unformat('<option value="456" selected>') in _unformat(html)
+    assert _unformat('<option value="123" selected>') not in _unformat(html)
 
 
 @pytest.mark.asyncio
 async def test_selected_attribute_for_int_selected_guild_id():
     html = await _render(selected_guild_id=456)
-    assert '<option value="456" selected>' in html
-    assert '<option value="123" selected>' not in html
+    assert _unformat('<option value="456" selected>') in _unformat(html)
+    assert _unformat('<option value="123" selected>') not in _unformat(html)
 
 
 @pytest.mark.asyncio
 async def test_no_selected_attribute_when_selection_missing():
     html = await _render(selected_guild_id=None)
-    assert '<option value="456" selected>' not in html
-    assert '<option value="123" selected>' not in html
+    assert _unformat('<option value="456" selected>') not in _unformat(html)
+    assert _unformat('<option value="123" selected>') not in _unformat(html)

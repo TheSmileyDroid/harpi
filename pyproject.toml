@@ -95,6 +95,7 @@ docstring-code-format = true
 docstring-code-line-length = 20
 
 [tool.vulture]
+paths = ["app.py", "src", "tests"]
 min_confidence = 50
 sort_by_size = true
 ignore_decorators = [

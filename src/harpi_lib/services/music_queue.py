@@ -26,12 +26,8 @@ if TYPE_CHECKING:
     from src.harpi_lib.services.voice_connection import VoiceConnectionService
 
 
-# Fallback seek cap in seconds for tracks with unknown duration.
 MAX_SEEK_SECONDS = 4 * 3600
 
-# Max seconds allowed for loading a track's audio source before it is
-# treated as failed and skipped.  Covers the fallback extraction budget
-# plus the stream playability/silence probe.
 TRACK_LOAD_TIMEOUT = 60.0
 
 

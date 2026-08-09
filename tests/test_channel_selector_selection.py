@@ -16,6 +16,8 @@ from types import SimpleNamespace
 import pytest
 from quart import Quart, render_template
 
+from tests.conftest import _unformat
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = REPO_ROOT / "templates"
 
@@ -57,15 +59,15 @@ async def _render(selected_channel_id: str | int | None) -> str:
 @pytest.mark.asyncio
 async def test_selected_attribute_for_string_selected_channel_id():
     html = await _render(selected_channel_id="101")
-    assert '<option value="101" selected>' in html
-    assert '<option value="100" selected>' not in html
+    assert _unformat('<option value="101" selected>') in _unformat(html)
+    assert _unformat('<option value="100" selected>') not in _unformat(html)
 
 
 @pytest.mark.asyncio
 async def test_selected_attribute_for_int_selected_channel_id():
     html = await _render(selected_channel_id=101)
-    assert '<option value="101" selected>' in html
-    assert '<option value="100" selected>' not in html
+    assert _unformat('<option value="101" selected>') in _unformat(html)
+    assert _unformat('<option value="100" selected>') not in _unformat(html)
 
 
 @pytest.mark.asyncio

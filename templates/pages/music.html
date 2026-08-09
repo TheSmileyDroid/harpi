@@ -4,105 +4,148 @@
 {% block title %}Music - Harpi{% endblock %}
 
 {% block content %}
-<div class="page-transition">
+  <div class="page-transition">
     <!-- Page Header -->
-    <header class="page-header" style="margin-bottom: var(--space-lg); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);">
-        <div>
-            <h1 class="page-title" style="font-family: var(--font-mono); font-size: 1.5rem; letter-spacing: 2px; color: var(--color-amber);">
-                <i data-lucide="music" class="page-title-icon"></i>
-                MUSIC CONTROL
-            </h1>
-            <p class="page-subtitle" style="color: var(--color-text-dim); margin-top: var(--space-xs);">
-                Queue management, background layers, and playback control
-            </p>
-        </div>
-        <div style="display: flex; gap: var(--space-sm);">
-            <span class="polling-indicator" id="queue-polling-status">
-                <span class="pulse-dot"></span>
-                <span>LIVE</span>
-            </span>
-        </div>
+    <header
+      class="page-header"
+      style="margin-bottom: var(--space-lg); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);"
+    >
+      <div>
+        <h1
+          class="page-title"
+          style="font-family: var(--font-mono); font-size: 1.5rem; letter-spacing: 2px; color: var(--color-amber);"
+        >
+          <i data-lucide="music" class="page-title-icon"></i>
+          MUSIC CONTROL
+        </h1>
+        <p
+          class="page-subtitle"
+          style="color: var(--color-text-dim); margin-top: var(--space-xs);"
+        >
+          Queue management, background layers, and playback control
+        </p>
+      </div>
+      <div style="display: flex; gap: var(--space-sm);">
+        <span class="polling-indicator" id="queue-polling-status">
+          <span class="pulse-dot"></span>
+          <span>LIVE</span>
+        </span>
+      </div>
     </header>
 
     <!-- Guild/Channel Selection Panel -->
-    <div class="panel" style="margin-bottom: var(--space-lg); padding: var(--space-md);">
-        <form id="guild-channel-form"
-              hx-post="{{ url_for('htmx_routes.guild_select_channel') }}"
-              hx-swap="none"
-              hx-on::after-request="if(event.detail.successful && event.target === this) htmx.ajax('GET','{{ url_for('html_routes.music_page') }}',{target:'#main-content',swap:'innerHTML show:window:top',select:'#main-content > *'})">
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);">
-                <div style="display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap;">
-                    <div class="select-wrapper">
-                        <select id="guild-select"
-                                name="guild_id"
-                                hx-get="{{ url_for('htmx_routes.htmx_channels') }}"
-                                hx-trigger="change"
-                                hx-target="#channel-selector-container"
-                                hx-swap="innerHTML"
-                                aria-label="Select Discord server">
-                            <option value="">SELECT GUILD</option>
-                            {% for guild in guilds %}
-                            <option value="{{ guild.id }}" {% if (guild.id | string) == (selected_guild_id | string) %}selected{% endif %}>
-                                {{ guild.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div id="channel-selector-container" class="select-wrapper">
-                        {% if selected_guild_id %}
-                            {% include "partials/_channel_selector.html" with context %}
-                        {% else %}
-                            <select id="channel-select" name="channel_id" disabled aria-label="Select voice channel">
-                                <option value="">SELECT GUILD FIRST</option>
-                            </select>
-                        {% endif %}
-                    </div>
-                </div>
-                <div style="display: flex; gap: var(--space-sm); align-items: center;">
-                    {% if guild_id %}
-                    <button class="btn btn-danger btn-sm"
-                            hx-post="{{ url_for('htmx_routes.api_music_disconnect', guild_id=guild_id) }}"
-                            hx-swap="none"
-                            hx-on::after-request="if(event.detail.successful) htmx.ajax('GET','{{ url_for('html_routes.music_page') }}',{target:'#main-content',swap:'innerHTML show:window:top',select:'#main-content > *'})"
-                            hx-confirm="Disconnect from voice channel?">
-                        DISCONNECT
-                    </button>
-                    {% else %}
-                    <span class="badge badge-warning">SELECT A GUILD AND CHANNEL</span>
-                    {% endif %}
-                </div>
+    <div
+      class="panel"
+      style="margin-bottom: var(--space-lg); padding: var(--space-md);"
+    >
+      <form
+        id="guild-channel-form"
+        hx-post="{{ url_for('htmx_routes.guild_select_channel') }}"
+        hx-swap="none"
+        hx-on::after-request="if(event.detail.successful && event.target === this) htmx.ajax('GET','{{ url_for('html_routes.music_page') }}',{target:'#main-content',swap:'innerHTML show:window:top',select:'#main-content > *'})"
+      >
+        <div
+          style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);"
+        >
+          <div
+            style="display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap;"
+          >
+            <div class="select-wrapper">
+              <select
+                id="guild-select"
+                name="guild_id"
+                hx-get="{{ url_for('htmx_routes.htmx_channels') }}"
+                hx-trigger="change"
+                hx-target="#channel-selector-container"
+                hx-swap="innerHTML"
+                aria-label="Select Discord server"
+              >
+                <option value="">SELECT GUILD</option>
+                {% for guild in guilds %}
+                  <option
+                    value="{{ guild.id }}"
+                    {% if (guild.id | string) == (selected_guild_id | string) %}selected{% endif %}
+                  >
+                    {{ guild.name }}
+                  </option>
+                {% endfor %}
+              </select>
             </div>
-        </form>
+
+            <div id="channel-selector-container" class="select-wrapper">
+              {% if selected_guild_id %}
+                {% include "partials/_channel_selector.html" with context %}
+              {% else %}
+                <select
+                  id="channel-select"
+                  name="channel_id"
+                  disabled
+                  aria-label="Select voice channel"
+                >
+                  <option value="">SELECT GUILD FIRST</option>
+                </select>
+              {% endif %}
+            </div>
+          </div>
+          <div
+            style="display: flex; gap: var(--space-sm); align-items: center;"
+          >
+            {% if guild_id %}
+              <button
+                class="btn btn-danger btn-sm"
+                hx-post="{{ url_for('htmx_routes.api_music_disconnect', guild_id=guild_id) }}"
+                hx-swap="none"
+                hx-on::after-request="if(event.detail.successful) htmx.ajax('GET','{{ url_for('html_routes.music_page') }}',{target:'#main-content',swap:'innerHTML show:window:top',select:'#main-content > *'})"
+                hx-confirm="Disconnect from voice channel?"
+              >
+                DISCONNECT
+              </button>
+            {% else %}
+              <span class="badge badge-warning"
+                >SELECT A GUILD AND CHANNEL</span
+              >
+            {% endif %}
+          </div>
+        </div>
+      </form>
     </div>
 
     <!-- Main Music Layout -->
     {% if guild_id %}
-    <div class="music-layout">
+      <div class="music-layout">
         <!-- Left Column: Queue & Playback -->
         <div class="music-main">
-            {% include "partials/_music_queue.html" %}
-            {% include "partials/_playback_controls.html" %}
+          {% include "partials/_music_queue.html" %}
+          {% include "partials/_playback_controls.html" %}
         </div>
 
         <!-- Right Column: Layers -->
-        <aside aria-labelledby="layers-heading" style="position: sticky; top: 80px;">
-            {% include "partials/_music_layers.html" %}
+        <aside
+          aria-labelledby="layers-heading"
+          style="position: sticky; top: 80px;"
+        >
+          {% include "partials/_music_layers.html" %}
         </aside>
-    </div>
+      </div>
     {% else %}
-    <div class="panel" style="text-align: center; padding: var(--space-xxl);">
-        <i data-lucide="music" class="icon-xxl" style="margin-bottom:var(--space-md);opacity:0.3;"></i>
-        <h2 style="color: var(--color-text-dim); font-family: var(--font-mono); letter-spacing: 2px;">
-            NO GUILD SELECTED
+      <div class="panel" style="text-align: center; padding: var(--space-xxl);">
+        <i
+          data-lucide="music"
+          class="icon-xxl"
+          style="margin-bottom:var(--space-md);opacity:0.3;"
+        ></i>
+        <h2
+          style="color: var(--color-text-dim); font-family: var(--font-mono); letter-spacing: 2px;"
+        >
+          NO GUILD SELECTED
         </h2>
         <p style="color: var(--color-text-dim); margin-top: var(--space-sm);">
-            Select a guild and channel above to access music controls.
+          Select a guild and channel above to access music controls.
         </p>
-    </div>
+      </div>
     {% endif %}
 
     <!-- Modal Container -->
     <div id="modal-container"></div>
-</div>
+  </div>
 {% endblock %}

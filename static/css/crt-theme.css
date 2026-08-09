@@ -368,8 +368,8 @@ body {
 }
 
 .queue-empty-icon {
-    width: 3rem;
-    height: 3rem;
+    width: 2rem;
+    height: 2rem;
     margin-bottom: var(--space-md);
     opacity: 0.3;
 }

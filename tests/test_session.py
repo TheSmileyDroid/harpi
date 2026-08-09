@@ -7,6 +7,7 @@ verbs the cogs and routes will call and the wiring the session owns.
 """
 
 import asyncio
+import io
 from typing import cast
 
 import pytest
@@ -23,6 +24,7 @@ from tests.conftest import (
     FakeMusicDataFactory,
     FakeSource,
     FakeSourceFactory,
+    FakeTTSSource,
     FakeVoiceClient,
 )
 
@@ -720,3 +722,95 @@ async def test_track_end_drops_finished_layers_from_the_status(monkeypatch):
     await _pump()
 
     assert session.status.layers == ()
+
+
+# --- TTS ---
+
+
+def _install_tts_fakes(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        session_module, "FastStartFFmpegPCMAudio", FakeTTSSource
+    )
+
+
+def _tts_source(session: PlaybackSession) -> FakeTTSSource:
+    for kind, source in session._controller.get_playing_sounds():
+        if kind == "tts":
+            return cast(FakeTTSSource, source)
+    raise AssertionError("no tts source is playing")
+
+
+async def test_play_tts_sets_a_tts_source_playing(monkeypatch):
+    session = _make_session()
+    _install_tts_fakes(monkeypatch)
+
+    await session.play_tts(io.BytesIO(b"speech"))
+
+    kinds = {kind for kind, _ in session._controller.get_playing_sounds()}
+    assert kinds == {"tts"}
+
+
+async def test_play_tts_plays_over_the_queue(monkeypatch):
+    session = _make_session()
+    _install_fakes(monkeypatch)
+    _install_tts_fakes(monkeypatch)
+    await session.play("one")
+
+    await session.play_tts(io.BytesIO(b"speech"))
+
+    kinds = {kind for kind, _ in session._controller.get_playing_sounds()}
+    assert kinds == {"tts", "queue"}
+    current = session.status.current_music
+    assert current is not None
+    assert current.title == "one"
+
+
+async def test_play_tts_plays_over_background_layers(monkeypatch):
+    session = _make_session()
+    _install_layer_fakes(monkeypatch)
+    _install_tts_fakes(monkeypatch)
+    await session.play("one")
+    await session.add_layer("rain")
+
+    await session.play_tts(io.BytesIO(b"speech"))
+
+    kinds = {kind for kind, _ in session._controller.get_playing_sounds()}
+    assert kinds == {"tts", "queue", "track"}
+    assert [layer.id for layer in session.status.layers] == ["layer-rain"]
+
+
+async def test_play_tts_builds_an_ffmpeg_pipe_source_from_the_audio(monkeypatch):
+    session = _make_session()
+    _install_tts_fakes(monkeypatch)
+    fp = io.BytesIO(b"speech")
+
+    await session.play_tts(fp)
+
+    source = _tts_source(session)
+    assert source.source is fp
+    assert source.pipe is True
+
+
+async def test_play_tts_replaces_the_previous_tts_track(monkeypatch):
+    session = _make_session()
+    _install_tts_fakes(monkeypatch)
+    await session.play_tts(io.BytesIO(b"first"))
+    first_source = _tts_source(session)
+
+    await session.play_tts(io.BytesIO(b"second"))
+
+    assert first_source.cleaned_up is True
+    kinds = {kind for kind, _ in session._controller.get_playing_sounds()}
+    assert kinds == {"tts"}
+
+
+async def test_cleanup_releases_the_tts_source(monkeypatch):
+    session = _make_session()
+    _install_tts_fakes(monkeypatch)
+    await session.play_tts(io.BytesIO(b"speech"))
+    tts_source = _tts_source(session)
+
+    session.cleanup()
+
+    assert tts_source.cleaned_up is True
+    assert session._controller.get_playing_sounds() == []

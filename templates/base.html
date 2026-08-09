@@ -1,200 +1,268 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" data-theme="retro">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Harpi - TTRPG Discord Bot{% endblock %}</title>
-    
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Harpi - System Panel{% endblock %}</title>
+
     <!-- Favicon -->
-    <link rel="icon" href="{{ url_for('static', filename='assets/favicon.svg') }}">
-    
+    <link
+      rel="icon"
+      href="{{ url_for('static', filename='assets/favicon.svg') }}"
+    />
+
     <!-- HTMX config (meta tag processed during init, before deferred scripts) -->
-    <meta name="htmx-config" content='{"historyEnabled":false}'>
-    
+    <meta name="htmx-config" content='{"historyEnabled":false}' />
+
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-    
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap"
+      rel="stylesheet"
+    />
+
     <!-- CRT Theme CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/crt-theme.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/htmx-indicators.css') }}">
-    
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/crt-theme.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/components.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/htmx-indicators.css') }}"
+    />
+
     <!-- HTMX -->
-    <script src="{{ url_for('static', filename='js/htmx.min.js') }}" defer></script>
+    <script
+      src="{{ url_for('static', filename='js/htmx.min.js') }}"
+      defer
+    ></script>
     <!-- Alpine.js for minimal interactivity (modals, dropdowns) -->
-    <script src="{{ url_for('static', filename='js/alpine.min.js') }}" defer></script>
-    
+    <script
+      src="{{ url_for('static', filename='js/alpine.min.js') }}"
+      defer
+    ></script>
+
     <!-- Lucide Icons -->
-    <script src="{{ url_for('static', filename='js/lucide.min.js') }}" defer></script>
-    
+    <script
+      src="{{ url_for('static', filename='js/lucide.min.js') }}"
+      defer
+    ></script>
+
     {% block extra_head %}{% endblock %}
-</head>
-<body>
+  </head>
+  <body>
     <!-- CRT Scanlines Overlay -->
     <div class="crt-scanlines" aria-hidden="true"></div>
     <!-- CRT Vignette -->
-    <div class="crt-vignette" aria-hidden="true"></div>
+    <div class="crt-viggette" aria-hidden="true"></div>
     <!-- CRT Curvature -->
     <div class="crt-curvature" aria-hidden="true"></div>
-    
+
     <div class="app-container">
-        <!-- Top Bar -->
-        <header class="top-bar" role="banner">
-            <div class="top-bar-left">
-                 <a class="logo" aria-label="Harpi Home"
-                   hx-get="{{ url_for('html_routes.dashboard') }}"
-                   hx-target="#main-content"
-                   hx-push-url="true"
-                   hx-swap="innerHTML show:window:top"
-                   hx-select="#main-content > *">
-                     <img src="{{ url_for('static', filename='assets/favicon.svg') }}" alt="" class="logo-icon" width="24" height="24">
-                    <span class="logo-text">HARPI</span>
-                    <span class="logo-sub">TTRPG BOT</span>
-                </a>
-            </div>
-            
-            <div class="top-bar-center">
-                <nav class="main-nav" role="navigation" aria-label="Main navigation">
-                    <a class="nav-link"
-                       hx-get="{{ url_for('html_routes.dashboard') }}"
-                       hx-target="#main-content"
-                       hx-push-url="true"
-                       hx-swap="innerHTML show:window:top"
-                       hx-select="#main-content > *">
-                        <i data-lucide="layout-dashboard" class="nav-icon"></i>
-                        <span>DASHBOARD</span>
-                    </a>
-                    <a class="nav-link"
-                       hx-get="{{ url_for('html_routes.music_page') }}"
-                       hx-target="#main-content"
-                       hx-push-url="true"
-                       hx-swap="innerHTML show:window:top"
-                       hx-select="#main-content > *">
-                        <i data-lucide="music" class="nav-icon"></i>
-                        <span>MUSIC</span>
-                    </a>
-                    <a class="nav-link"
-                       hx-get="{{ url_for('html_routes.settings_page') }}"
-                       hx-target="#main-content"
-                       hx-select="#main-content > *"
-                       hx-swap="innerHTML show:window:top">
-                        <i data-lucide="settings" class="nav-icon"></i>
-                        <span>SETTINGS</span>
-                    </a>
-                </nav>
-            </div>
-            
-             <div class="top-bar-right">
-                <!-- Bot Status Indicator -->
-                <div class="bot-status" id="bot-status">
-                    <span class="status-dot {% if bot_connected %}connected{% else %}disconnected{% endif %}" aria-hidden="true"></span>
-                    <span class="status-text">{% if bot_connected %}ONLINE{% else %}OFFLINE{% endif %}</span>
-                </div>
-            </div>
-        </header>
-        
-        <!-- Main Content Area -->
-        <main id="main-content" class="main-content" role="main">
-            {% block content %}
-            {% endblock %}
-        </main>
-        
-        <!-- Footer -->
-        <footer class="app-footer" role="contentinfo">
-            <div class="footer-left">
-                <span class="version">v0.1.0</span>
-                <span class="separator">|</span>
-                <span class="latency" id="latency-display">--ms</span>
-            </div>
-            <div class="footer-center">
-                <span class="crt-label">TVA TEMPAD INTERFACE</span>
-            </div>
-            <div class="footer-right">
-                <span class="time" id="current-time">00:00:00</span>
-            </div>
-        </footer>
-    </div>
-    
-    <!-- Modal Container (Alpine.js) -->
-    <div x-data="{ modalOpen: false, modalContent: '', modalTitle: 'Modal' }" 
-         x-init="window.harpiModal = $refs.modal"
-         class="modal-container" 
-         role="dialog" 
-         aria-modal="true" 
-         aria-labelledby="modal-title"
-         style="display: none;">
-        <div class="modal-overlay" @click="modalOpen = false" aria-hidden="true"></div>
-        <div class="modal-window" role="document" x-ref="modal" x-show="modalOpen" x-transition>
-            <div class="modal-header">
-                <h2 id="modal-title" x-text="modalTitle"></h2>
-                <button class="modal-close" @click="modalOpen = false" aria-label="Close modal">✕</button>
-            </div>
-            <div class="modal-body" x-html="modalContent"></div>
+      <!-- Top Bar -->
+      <header class="top-bar" role="banner">
+        <div class="top-bar-left">
+          <a
+            class="logo"
+            aria-label="Harpi Home"
+            hx-get="{{ url_for('html_routes.dashboard') }}"
+            hx-target="#main-content"
+            hx-push-url="true"
+            hx-swap="innerHTML show:window:top"
+            hx-select="#main-content > *"
+          >
+            <img
+              src="{{ url_for('static', filename='assets/favicon.svg') }}"
+              alt=""
+              class="logo-icon"
+              width="24"
+              height="24"
+            />
+            <span class="logo-text">HARPI</span>
+            <span class="logo-sub">TTRPG BOT</span>
+          </a>
         </div>
+
+        <div class="top-bar-center">
+          <nav class="main-nav" role="navigation" aria-label="Main navigation">
+            <a
+              class="nav-link"
+              hx-get="{{ url_for('html_routes.dashboard') }}"
+              hx-target="#main-content"
+              hx-push-url="true"
+              hx-swap="innerHTML show:window:top"
+              hx-select="#main-content > *"
+            >
+              <i data-lucide="layout-dashboard" class="nav-icon"></i>
+              <span>DASHBOARD</span>
+            </a>
+            <a
+              class="nav-link"
+              hx-get="{{ url_for('html_routes.music_page') }}"
+              hx-target="#main-content"
+              hx-push-url="true"
+              hx-swap="innerHTML show:window:top"
+              hx-select="#main-content > *"
+            >
+              <i data-lucide="music" class="nav-icon"></i>
+              <span>MUSIC</span>
+            </a>
+            <a
+              class="nav-link"
+              hx-get="{{ url_for('html_routes.settings_page') }}"
+              hx-target="#main-content"
+              hx-select="#main-content > *"
+              hx-swap="innerHTML show:window:top"
+            >
+              <i data-lucide="settings" class="nav-icon"></i>
+              <span>SETTINGS</span>
+            </a>
+          </nav>
+        </div>
+
+        <div class="top-bar-right">
+          <!-- Bot Status Indicator -->
+          <div class="bot-status" id="bot-status">
+            <span
+              class="status-dot {% if bot_connected %}connected{% else %}disconnected{% endif %}"
+              aria-hidden="true"
+            ></span>
+            <span class="status-text"
+              >{% if bot_connected %}ONLINE{% else %}OFFLINE{% endif %}</span
+            >
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Content Area -->
+      <main id="main-content" class="main-content" role="main">
+        {% block content %}
+        {% endblock %}
+      </main>
+
+      <!-- Footer -->
+      <footer class="app-footer" role="contentinfo">
+        <div class="footer-left">
+          <span class="version">v0.1.0</span>
+          <span class="separator">|</span>
+          <span class="latency" id="latency-display">--ms</span>
+        </div>
+        <div class="footer-center">
+          <span class="crt-label">TVA TEMPAD INTERFACE</span>
+        </div>
+        <div class="footer-right">
+          <span class="time" id="current-time">00:00:00</span>
+        </div>
+      </footer>
     </div>
-    
+
+    <!-- Modal Container (Alpine.js) -->
+    <div
+      x-data="{ modalOpen: false, modalContent: '', modalTitle: 'Modal' }"
+      x-init="window.harpiModal = $refs.modal"
+      class="modal-container"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      style="display: none;"
+    >
+      <div
+        class="modal-overlay"
+        @click="modalOpen = false"
+        aria-hidden="true"
+      ></div>
+      <div
+        class="modal-window"
+        role="document"
+        x-ref="modal"
+        x-show="modalOpen"
+        x-transition
+      >
+        <div class="modal-header">
+          <h2 id="modal-title" x-text="modalTitle"></h2>
+          <button
+            class="modal-close"
+            @click="modalOpen = false"
+            aria-label="Close modal"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="modal-body" x-html="modalContent"></div>
+      </div>
+    </div>
+
     <!-- Toast Notifications Container -->
-    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
-    
+    <div
+      id="toast-container"
+      class="toast-container"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
+
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-    
+
     {% block extra_scripts %}{% endblock %}
-    
+
     <!-- HTMX Configuration -->
     <script>
-        // Handle modal opening via HTMX
-        document.body.addEventListener('harpi:open-modal', (evt) => {
-            const modal = document.querySelector('[x-data*="modalOpen"]');
-            if (modal && modal._x_dataStack) {
-                modal._x_dataStack[0].modalOpen = true;
-                modal._x_dataStack[0].modalTitle = evt.detail.title || 'Modal';
-                modal._x_dataStack[0].modalContent = evt.detail.content || '';
-            }
+      // Handle modal opening via HTMX
+      document.body.addEventListener("harpi:open-modal", (evt) => {
+        const modal = document.querySelector('[x-data*="modalOpen"]');
+        if (modal && modal._x_dataStack) {
+          modal._x_dataStack[0].modalOpen = true;
+          modal._x_dataStack[0].modalTitle = evt.detail.title || "Modal";
+          modal._x_dataStack[0].modalContent = evt.detail.content || "";
+        }
+      });
+
+      // Handle toast notifications
+      window.showToast = function (message, type = "info", duration = 5000) {
+        const container = document.getElementById("toast-container");
+        const toast = document.createElement("div");
+        toast.className = `toast toast-${type}`;
+        toast.setAttribute("role", "alert");
+
+        const iconSpan = document.createElement("span");
+        iconSpan.className = "toast-icon";
+        iconSpan.textContent =
+          type === "error" ? "✕" : type === "success" ? "✓" : "ℹ";
+        toast.appendChild(iconSpan);
+
+        const msgSpan = document.createElement("span");
+        msgSpan.className = "toast-message";
+        msgSpan.textContent = message;
+        toast.appendChild(msgSpan);
+
+        const closeBtn = document.createElement("button");
+        closeBtn.className = "toast-close";
+        closeBtn.setAttribute("aria-label", "Dismiss");
+        closeBtn.textContent = "✕";
+        toast.appendChild(closeBtn);
+
+        container.appendChild(toast);
+
+        // Animate in
+        requestAnimationFrame(() => toast.classList.add("show"));
+
+        // Auto dismiss
+        setTimeout(() => {
+          toast.classList.remove("show");
+          setTimeout(() => toast.remove(), 300);
+        }, duration);
+
+        // Manual dismiss
+        toast.querySelector(".toast-close").addEventListener("click", () => {
+          toast.classList.remove("show");
+          setTimeout(() => toast.remove(), 300);
         });
-        
-        // Handle toast notifications
-        window.showToast = function(message, type = 'info', duration = 5000) {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.setAttribute('role', 'alert');
-            
-            const iconSpan = document.createElement('span');
-            iconSpan.className = 'toast-icon';
-            iconSpan.textContent = type === 'error' ? '✕' : type === 'success' ? '✓' : 'ℹ';
-            toast.appendChild(iconSpan);
-            
-            const msgSpan = document.createElement('span');
-            msgSpan.className = 'toast-message';
-            msgSpan.textContent = message;
-            toast.appendChild(msgSpan);
-            
-            const closeBtn = document.createElement('button');
-            closeBtn.className = 'toast-close';
-            closeBtn.setAttribute('aria-label', 'Dismiss');
-            closeBtn.textContent = '✕';
-            toast.appendChild(closeBtn);
-            
-            container.appendChild(toast);
-            
-            // Animate in
-            requestAnimationFrame(() => toast.classList.add('show'));
-            
-            // Auto dismiss
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, duration);
-            
-            // Manual dismiss
-            toast.querySelector('.toast-close').addEventListener('click', () => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            });
-        };
+      };
     </script>
-</body>
+  </body>
 </html>

@@ -5,7 +5,8 @@
     All functions are Alpine methods so they work without <script> execution
     (scripts inside innerHTML swaps do not run).
 #}
-<div x-data="{ 
+<div
+  x-data="{ 
     query: '', 
     results: [], 
     loading: false, 
@@ -80,76 +81,140 @@
     close() {
         document.getElementById('modal-container').innerHTML = '';
     }
-}" 
-style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;">
-    <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(10,8,6,0.8);backdrop-filter:blur(4px);"
-         @click="close()"></div>
+}"
+  style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;"
+>
+  <div
+    style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(10,8,6,0.8);backdrop-filter:blur(4px);"
+    @click="close()"
+  ></div>
 
-    <div class="modal-window" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:600px;">
-        <div class="modal-header">
-            <h2 style="font-family:var(--font-mono);font-size:0.9rem;letter-spacing:1px;color:var(--color-amber);">SEARCH & ADD MUSIC</h2>
-            <button class="modal-close" @click="close()" style="background:none;border:none;color:var(--color-text-dim);font-size:1.25rem;cursor:pointer;">&times;</button>
-        </div>
-
-        <div class="modal-body" style="padding:var(--space-lg);max-height:70vh;overflow-y:auto;">
-            <div class="form-group">
-                <label class="form-label" for="search-query">SEARCH YOUTUBE</label>
-                <input type="text"
-                       id="search-query"
-                       class="form-input"
-                       placeholder="Enter song name, artist, or URL..."
-                       x-model="query"
-                       @input="doSearch()"
-                       autocomplete="off"
-                       autofocus
-                       aria-label="Search query">
-            </div>
-
-            <div style="margin-top:var(--space-md);" role="list" aria-label="Search results">
-                <!-- Loading state -->
-                <template x-if="loading">
-                    <div style="padding:16px;text-align:center;color:var(--color-text-muted);">
-                        <div class="spinner"></div>
-                        <p style="margin-top:8px;">Searching...</p>
-                    </div>
-                </template>
-
-                <!-- Empty state -->
-                <template x-if="query.length >= 2 && !loading && results.length === 0">
-                    <div style="padding:24px;text-align:center;">
-                        <p style="font-size:0.85rem;color:var(--color-text-muted);">No results found</p>
-                    </div>
-                </template>
-
-                <!-- Results -->
-                <template x-for="result in results" :key="result.id">
-                    <div class="search-result-item" role="listitem" style="display:grid;grid-template-columns:auto 1fr auto;gap:var(--space-md);align-items:center;padding:var(--space-sm) var(--space-md);border:1px solid transparent;border-radius:var(--radius-sm);cursor:pointer;margin-bottom:var(--space-xs);">
-                        <div style="width:60px;height:45px;background:var(--color-bg-elevated);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;overflow:hidden;">
-                            <template x-if="result.thumbnail">
-                                <img :src="result.thumbnail" :alt="result.title" style="width:100%;height:100%;object-fit:cover;" loading="lazy" @error="$el.style.display='none';$el.nextElementSibling.style.display='flex';">
-                            </template>
-                            <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;color:var(--color-text-muted);">&#9835;</div>
-                        </div>
-                        <div style="min-width:0;">
-                            <div style="font-size:0.85rem;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="result.title"></div>
-                            <div style="display:flex;align-items:center;gap:var(--space-sm);font-size:0.7rem;color:var(--color-text-muted);margin-top:2px;">
-                                <span x-text="formatDuration(result.duration)"></span>
-                                <template x-if="result.uploader">
-                                    <span x-text="'| ' + result.uploader"></span>
-                                </template>
-                            </div>
-                        </div>
-                        <div style="display:flex;gap:var(--space-xs);">
-                            <button class="btn btn-primary btn-sm" @click.stop="addTrack(result.url)" aria-label="Add to queue">+ QUEUE</button>
-                            <button class="btn btn-secondary btn-sm" @click.stop="addLayer(result.url)" aria-label="Add as background layer">+ LAYER</button>
-                        </div>
-                    </div>
-                </template>
-            </div>
-
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--color-border);">
-                <button class="btn btn-secondary" @click="close()">CANCEL</button>
-            </div>
-        </div>
+  <div
+    class="modal-window"
+    style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:600px;"
+  >
+    <div class="modal-header">
+      <h2
+        style="font-family:var(--font-mono);font-size:0.9rem;letter-spacing:1px;color:var(--color-amber);"
+      >
+        SEARCH & ADD MUSIC
+      </h2>
+      <button
+        class="modal-close"
+        @click="close()"
+        style="background:none;border:none;color:var(--color-text-dim);font-size:1.25rem;cursor:pointer;"
+      >
+        &times;
+      </button>
     </div>
+
+    <div
+      class="modal-body"
+      style="padding:var(--space-lg);max-height:70vh;overflow-y:auto;"
+    >
+      <div class="form-group">
+        <label class="form-label" for="search-query">SEARCH YOUTUBE</label>
+        <input
+          type="text"
+          id="search-query"
+          class="form-input"
+          placeholder="Enter song name, artist, or URL..."
+          x-model="query"
+          @input="doSearch()"
+          autocomplete="off"
+          autofocus
+          aria-label="Search query"
+        />
+      </div>
+
+      <div
+        style="margin-top:var(--space-md);"
+        role="list"
+        aria-label="Search results"
+      >
+        <!-- Loading state -->
+        <template x-if="loading">
+          <div
+            style="padding:16px;text-align:center;color:var(--color-text-muted);"
+          >
+            <div class="spinner"></div>
+            <p style="margin-top:8px;">Searching...</p>
+          </div>
+        </template>
+
+        <!-- Empty state -->
+        <template x-if="query.length >= 2 && !loading && results.length === 0">
+          <div style="padding:24px;text-align:center;">
+            <p style="font-size:0.85rem;color:var(--color-text-muted);">
+              No results found
+            </p>
+          </div>
+        </template>
+
+        <!-- Results -->
+        <template x-for="result in results" :key="result.id">
+          <div
+            class="search-result-item"
+            role="listitem"
+            style="display:grid;grid-template-columns:auto 1fr auto;gap:var(--space-md);align-items:center;padding:var(--space-sm) var(--space-md);border:1px solid transparent;border-radius:var(--radius-sm);cursor:pointer;margin-bottom:var(--space-xs);"
+          >
+            <div
+              style="width:60px;height:45px;background:var(--color-bg-elevated);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;overflow:hidden;"
+            >
+              <template x-if="result.thumbnail">
+                <img
+                  :src="result.thumbnail"
+                  :alt="result.title"
+                  style="width:100%;height:100%;object-fit:cover;"
+                  loading="lazy"
+                  @error="$el.style.display='none';$el.nextElementSibling.style.display='flex';"
+                />
+              </template>
+              <div
+                style="display:none;width:100%;height:100%;align-items:center;justify-content:center;color:var(--color-text-muted);"
+              >
+                &#9835;
+              </div>
+            </div>
+            <div style="min-width:0;">
+              <div
+                style="font-size:0.85rem;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                x-text="result.title"
+              ></div>
+              <div
+                style="display:flex;align-items:center;gap:var(--space-sm);font-size:0.7rem;color:var(--color-text-muted);margin-top:2px;"
+              >
+                <span x-text="formatDuration(result.duration)"></span>
+                <template x-if="result.uploader">
+                  <span x-text="'| ' + result.uploader"></span>
+                </template>
+              </div>
+            </div>
+            <div style="display:flex;gap:var(--space-xs);">
+              <button
+                class="btn btn-primary btn-sm"
+                @click.stop="addTrack(result.url)"
+                aria-label="Add to queue"
+              >
+                + QUEUE
+              </button>
+              <button
+                class="btn btn-secondary btn-sm"
+                @click.stop="addLayer(result.url)"
+                aria-label="Add as background layer"
+              >
+                + LAYER
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div
+        style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--color-border);"
+      >
+        <button class="btn btn-secondary" @click="close()">CANCEL</button>
+      </div>
+    </div>
+  </div>
 </div>
