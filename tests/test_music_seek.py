@@ -28,16 +28,12 @@ class FakeProc:
     def __init__(self, chunks: list[bytes]) -> None:
         self.stdout = io.BytesIO(b"".join(chunks))
         self.terminated = False
-        self.killed = False
 
     def terminate(self) -> None:
         self.terminated = True
 
     def wait(self, timeout: float | None = None) -> int:
         return 0
-
-    def kill(self) -> None:
-        self.killed = True
 
     def communicate(self) -> tuple[bytes, bytes]:
         return b"", b""

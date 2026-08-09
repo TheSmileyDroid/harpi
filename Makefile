@@ -14,7 +14,7 @@ start:
 format:
 	uv run ruff check --fix src/ app.py
 	uv run ruff format src/ app.py
-	bunx prettier --write ./templates/
+	bunx prettier --write ./templates/ ./static/css/
 
 check:
 	uv run ruff check src/ app.py
@@ -22,4 +22,4 @@ check:
 	uv run ty check src/ tests/ app.py
 	uv run vulture
 	uv run pytest tests/ --tb=short -q
-	bunx prettier --check ./templates/
+	bunx prettier --check ./templates/ ./static/css/

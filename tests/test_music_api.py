@@ -66,7 +66,9 @@ def _fake_bot(
     )
 
 
-def _install_bot(monkeypatch: pytest.MonkeyPatch, bot: SimpleNamespace) -> None:
+def _install_bot(
+    monkeypatch: pytest.MonkeyPatch, bot: SimpleNamespace
+) -> None:
     monkeypatch.setattr(deps, "_bot_ref", bot)
 
 
@@ -97,7 +99,9 @@ async def test_get_music_data_returns_none_for_an_unknown_guild(monkeypatch):
     assert await get_music_data(999) is None
 
 
-async def test_get_music_data_returns_empty_for_a_guild_without_a_session(monkeypatch):
+async def test_get_music_data_returns_empty_for_a_guild_without_a_session(
+    monkeypatch,
+):
     _install_bot(monkeypatch, _fake_bot(None))
 
     status = await get_music_data(GUILD_ID)
@@ -124,9 +128,11 @@ async def test_get_music_data_projects_the_session_snapshot(monkeypatch):
     assert status.current_music is not None
     assert status.current_music.title == "one"
     assert status.current_music.duration == 180
-    assert status.queue == [music_module.QueueItemResponse(
-        title="two", duration=200, url="https://example.com/two"
-    )]
+    assert status.queue == [
+        music_module.QueueItemResponse(
+            title="two", duration=200, url="https://example.com/two"
+        )
+    ]
     assert status.is_paused is True
     assert status.loop_mode == "queue"
     assert status.volume == pytest.approx(1.5)
@@ -178,7 +184,9 @@ def test_build_music_status_projects_layers_from_the_snapshot():
     ]
 
 
-async def test_get_music_data_projects_layers_from_the_session_snapshot(monkeypatch):
+async def test_get_music_data_projects_layers_from_the_session_snapshot(
+    monkeypatch,
+):
     session = await _make_session()
     _install_layer_fakes(monkeypatch)
     await session.add_layer("rain")
@@ -318,7 +326,9 @@ async def test_music_add_with_type_layer_adds_via_the_session(monkeypatch):
     assert [layer.id for layer in session.status.layers] == ["layer-rain"]
 
 
-async def test_get_server_status_counts_sessions_with_queued_music(monkeypatch):
+async def test_get_server_status_counts_sessions_with_queued_music(
+    monkeypatch,
+):
     session = await _make_session()
     session._queue = [_track("two"), _track("three")]
     bot = _fake_bot(session)
