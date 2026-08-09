@@ -2,18 +2,19 @@
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 from loguru import logger
 from pydantic import BaseModel, Field
 from quart import Blueprint
-from quart_schema import validate_response, validate_request
+from quart_schema import validate_request, validate_response
 
 from src.api.deps import get_bot, run_on_bot_loop
-from src.harpi_lib.audio.session import LoopMode
-
-if TYPE_CHECKING:
-    from src.harpi_lib.audio.session import PlaybackSession, SessionStatus
+from src.harpi_lib.audio.session import (
+    LoopMode,
+    PlaybackSession,
+    SessionStatus,
+)
 
 bp = Blueprint("music", __name__)
 
