@@ -1,5 +1,3 @@
-"""Music playback cog for Discord."""
-
 from __future__ import annotations
 
 import math
@@ -9,13 +7,11 @@ import discord
 from discord import Guild, Member, Message, StageChannel
 from discord.ext.commands import Cog, CommandError, Context, command
 
-from src.harpi_lib.audio.session import LoopMode, PlaybackSession
+from src.harpi_lib.audio.session import LOOP_MODE_ALIASES, PlaybackSession
 from src.harpi_lib.harpi_bot import HarpiBot
 
 
 class MusicCog(Cog):
-    """Discord cog for music playback commands."""
-
     def __init__(self, bot: HarpiBot) -> None:
         """Initialize the music cog."""
         super().__init__()
@@ -219,19 +215,19 @@ class MusicCog(Cog):
             session = await self._require_session(ctx)
             if session is None:
                 return
-            if mode in {"off", "false", "0", "no", "n"}:
-                await session.set_loop(LoopMode.OFF)
-                _ = await ctx.send("Loop mode: OFF")
-            elif mode in {"track", "true", "1", "yes", "y", "musica"}:
-                await session.set_loop(LoopMode.TRACK)
-                _ = await ctx.send("Loop mode: TRACK")
-            elif mode in {"queue", "fila"}:
-                await session.set_loop(LoopMode.QUEUE)
-                _ = await ctx.send("Loop mode: QUEUE")
-            else:
+            if mode is None:
                 _ = await ctx.send(
                     "Modo de loop inválido. Use off, track ou queue."
                 )
+                return
+            loop_mode = LOOP_MODE_ALIASES.get(mode)
+            if loop_mode is None:
+                _ = await ctx.send(
+                    "Modo de loop inválido. Use off, track ou queue."
+                )
+                return
+            await session.set_loop(loop_mode)
+            _ = await ctx.send(f"Loop mode: {loop_mode.name}")
 
     @command("volume")
     async def volume(self, ctx: Context, level: str | None = None) -> None:

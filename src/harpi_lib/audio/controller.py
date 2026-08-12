@@ -1,10 +1,3 @@
-"""Audio controller that manages all audio sources for a guild.
-
-Thread safety
--------------
-All mutable state is protected by ``self._lock``.
-"""
-
 from src.harpi_lib.music.ytmusicdata import UniqueAudioSource
 from collections.abc import Iterable
 import threading
@@ -13,15 +6,13 @@ import discord
 
 
 class AudioController:
-    """Manages all audio sources for a guild: queue tracks, layers, button sounds, and TTS."""
+    """Manages all audio sources for a guild; all mutable state is locked."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._layers: dict[str, discord.AudioSource] = {}
         self._current_queue_source: discord.AudioSource | None = None
         self._tts_track: discord.AudioSource | None = None
-
-    # --- Private helpers ---
 
     @staticmethod
     def _safe_cleanup(source: discord.AudioSource | None) -> None:
@@ -34,17 +25,13 @@ class AudioController:
         for source in sources:
             self._safe_cleanup(source)
 
-    def _clear_queue_source(self) -> None:
-        # Caller must hold lock.
+    def _clear_queue_source_unlocked(self) -> None:
         self._safe_cleanup(self._current_queue_source)
         self._current_queue_source = None
 
-    def _clear_tts_track(self) -> None:
-        # Caller must hold lock.
+    def _clear_tts_track_unlocked(self) -> None:
         self._safe_cleanup(self._tts_track)
         self._tts_track = None
-
-    # --- Public API ---
 
     def get_playing_sounds(self) -> list[tuple[str, discord.AudioSource]]:
         """Return a list of (type, source) tuples of all currently active sounds for the mixer."""
@@ -96,18 +83,18 @@ class AudioController:
     def clear_queue_source(self) -> None:
         """Clear the current queue track with cleanup."""
         with self._lock:
-            self._clear_queue_source()
+            self._clear_queue_source_unlocked()
 
     def _on_track_finished(self, source: discord.AudioSource) -> None:
         """Handle track completion by cleaning up and clearing the current source."""
         with self._lock:
             if self._current_queue_source == source:
-                self._clear_queue_source()
+                self._clear_queue_source_unlocked()
 
     def set_tts_track(self, source: discord.AudioSource | None) -> None:
         """Set or clear the TTS audio source, cleaning up any previous one."""
         with self._lock:
-            self._clear_tts_track()
+            self._clear_tts_track_unlocked()
             self._tts_track = source
 
     def remove_finished_source(self, source: discord.AudioSource) -> None:
@@ -122,7 +109,7 @@ class AudioController:
                 self._safe_cleanup(source)
                 self._tts_track = None
             if self._current_queue_source == source:
-                self._clear_queue_source()
+                self._clear_queue_source_unlocked()
 
     def cleanup_all(self) -> None:
         """Clean up all audio sources and release resources."""
@@ -130,5 +117,5 @@ class AudioController:
             self._cleanup_collection(self._layers.values())
             self._layers.clear()
 
-            self._clear_queue_source()
-            self._clear_tts_track()
+            self._clear_queue_source_unlocked()
+            self._clear_tts_track_unlocked()

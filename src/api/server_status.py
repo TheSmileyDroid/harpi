@@ -1,5 +1,3 @@
-"""Shared server status computation for dashboard and HTMX polling."""
-
 from __future__ import annotations
 
 import time

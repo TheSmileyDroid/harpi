@@ -162,3 +162,5 @@ tailwindcss
 # Node_modules
 node_modules/
 
+# AI
+.pi/

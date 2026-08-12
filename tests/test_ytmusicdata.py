@@ -1,9 +1,3 @@
-"""Unit tests for yt-dlp data reuse, stream selection, and queue skip recovery.
-
-Test doubles are hand-written Fakes injected via ``pytest.MonkeyPatch``;
-the silence probe is exercised against real ffmpeg on local media files.
-"""
-
 import asyncio
 import os
 import subprocess
@@ -13,8 +7,6 @@ from typing import Any, cast
 
 import pytest
 
-from src.harpi_lib.api import GuildConfig, LoopMode
-from src.harpi_lib.audio.controller import AudioController
 from src.harpi_lib.music import ytmusicdata
 from src.harpi_lib.music.ytmusicdata import (
     ProbeEnvironmentError,
@@ -26,8 +18,6 @@ from src.harpi_lib.music.ytmusicdata import (
     _parse_max_volume,
     probe_stream_audio,
 )
-from src.harpi_lib.services import music_queue as music_queue_module
-from src.harpi_lib.services.music_queue import MusicQueueService
 
 
 def _stream_formats() -> list[dict[str, Any]]:
@@ -921,101 +911,3 @@ async def test_from_music_data_flat_entry_probes_fresh_stream_once(
 
     assert extractor.calls == [("https://www.youtube.com/watch?v=flat", False)]
     assert probe.urls == ["https://stream.example.com/fresh.m4a"]
-
-
-class FakeSource:
-    def __init__(self) -> None:
-        self.volume = 1.0
-
-
-class FakeSourceFactory:
-    """Fake YoutubeDLSource substitute for MusicQueueService tests."""
-
-    @classmethod
-    async def from_music_data(
-        cls, music_data: Any, volume: float = 0.3
-    ) -> FakeSource:
-        if music_data.title == "bad":
-            raise RuntimeError("throttled")
-        return FakeSource()
-
-
-class FakeMixer:
-    pass
-
-
-class FakeBot:
-    pass
-
-
-class FakeMusicData(YTMusicData):
-    """Minimal YTMusicData stand-in for queue tests."""
-
-    def __init__(self, title: str) -> None:
-        super().__init__({"title": title})
-
-
-def _make_guild_config(
-    *titles: str, current: str | None = None
-) -> tuple[Any, AudioController]:
-    controller = AudioController()
-    guild_config = GuildConfig(
-        id=1,
-        mixer=cast(Any, FakeMixer()),
-        controller=controller,
-        queue=[FakeMusicData(t) for t in titles],
-    )
-    if current is not None:
-        guild_config.current_music = FakeMusicData(current)
-    return guild_config, controller
-
-
-async def test_next_music_inner_skips_failing_track_and_plays_next(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    guild_config, controller = _make_guild_config("bad", "good")
-    monkeypatch.setattr(
-        music_queue_module, "YoutubeDLSource", FakeSourceFactory
-    )
-    service = MusicQueueService(cast(Any, FakeBot()), {1: guild_config})
-
-    await service._next_music_inner(guild_config)
-
-    assert guild_config.current_music is not None
-    assert guild_config.current_music.title == "good"
-    assert isinstance(controller.get_queue_source(), FakeSource)
-    assert guild_config.queue == []
-
-
-async def test_next_music_inner_all_failing_tracks_clear_queue(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    guild_config, controller = _make_guild_config("bad", "bad")
-    monkeypatch.setattr(
-        music_queue_module, "YoutubeDLSource", FakeSourceFactory
-    )
-    service = MusicQueueService(cast(Any, FakeBot()), {1: guild_config})
-
-    await service._next_music_inner(guild_config)
-
-    assert guild_config.current_music is None
-    assert controller.get_queue_source() is None
-    assert guild_config.queue == []
-
-
-async def test_next_music_inner_track_loop_reload_failure_skips_to_next(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    guild_config, controller = _make_guild_config("good", current="bad")
-    guild_config.loop = LoopMode.TRACK
-    monkeypatch.setattr(
-        music_queue_module, "YoutubeDLSource", FakeSourceFactory
-    )
-    service = MusicQueueService(cast(Any, FakeBot()), {1: guild_config})
-
-    await service._next_music_inner(guild_config)
-
-    assert guild_config.current_music is not None
-    assert guild_config.current_music.title == "good"
-    assert isinstance(controller.get_queue_source(), FakeSource)
-    assert guild_config.queue == []

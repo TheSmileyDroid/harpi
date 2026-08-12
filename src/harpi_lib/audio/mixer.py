@@ -1,20 +1,3 @@
-"""Audio mixer that reads from multiple sources and mixes them into a single stream.
-
-Thread safety
--------------
-``MixerSource.read()`` is called from discord.py's voice-sending thread,
-while ``add_observer`` / ``remove_observer`` are called from the bot's
-event loop and ``cleanup()`` can be called from either the bot or Quart
-event loops.
-
-* ``self._lock`` guards ``_observers`` and the ``_shutdown`` flag.
-* Observer lists are snapshot-copied before notification so callbacks
-  run without the lock held.
-* ``cleanup()`` sets ``_shutdown = True`` under the lock, then tears
-  down the executor.  ``read()`` checks ``_shutdown`` early to avoid
-  submitting work to a dead pool.
-"""
-
 from src.harpi_lib.audio.controller import AudioController
 import concurrent.futures
 import threading
@@ -26,7 +9,14 @@ from loguru import logger
 
 
 class MixerSource(discord.AudioSource):
-    """Read from multiple audio sources and mix them into a single PCM stream."""
+    """Read from multiple audio sources and mix them into a single PCM stream.
+
+    ``read()`` runs on discord.py's voice-sending thread while the
+    observer/cleanup verbs run on the bot or Quart loops: ``self._lock``
+    guards ``_observers`` and ``_shutdown``, observer lists are
+    snapshot-copied before notification, and ``read()`` checks
+    ``_shutdown`` early to avoid submitting work to a dead pool.
+    """
 
     def __init__(self, controller: AudioController) -> None:
         self._lock: threading.Lock = threading.Lock()

@@ -1,5 +1,3 @@
-"""YouTube music data retrieval and audio source management."""
-
 from __future__ import annotations
 
 import asyncio
@@ -93,10 +91,7 @@ BYTES_PER_SECOND = 48000 * 2 * 2
 
 ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
 
-# Serializes yt-dlp extractions: the library is not thread-safe, and a
-# timed-out extraction is abandoned mid-flight rather than awaited, so a
-# single worker guarantees callers never interleave on the shared instance.
-_YTDL_EXECUTOR = concurrent.futures.ThreadPoolExecutor(
+_YTDL_SERIAL_EXECUTOR = concurrent.futures.ThreadPoolExecutor(
     max_workers=1, thread_name_prefix="ytdl"
 )
 
@@ -272,7 +267,9 @@ class YoutubeDLSource(UniqueAudioSource):
         """Extract yt-dlp info with a timeout on the single ytdl worker."""
         loop = asyncio.get_running_loop()
         return await asyncio.wait_for(
-            loop.run_in_executor(_YTDL_EXECUTOR, cls._extract_info, url),
+            loop.run_in_executor(
+                _YTDL_SERIAL_EXECUTOR, cls._extract_info, url
+            ),
             timeout=YT_EXTRACT_TIMEOUT,
         )
 
@@ -580,7 +577,7 @@ class YTMusicData:
         logger.info(f"Searching for {url}")
         loop = asyncio.get_running_loop()
         result = await asyncio.wait_for(
-            loop.run_in_executor(_YTDL_EXECUTOR, search, url),
+            loop.run_in_executor(_YTDL_SERIAL_EXECUTOR, search, url),
             timeout=YT_SEARCH_TIMEOUT,
         )
         if result.get("entries"):

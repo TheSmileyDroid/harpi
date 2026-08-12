@@ -1,5 +1,3 @@
-"""RPG Dice Cog module."""
-
 from typing import Dict, List
 
 from discord import Message
@@ -106,7 +104,6 @@ class DiceCog(Cog):
         median = statistics.median(results)
         std_dev = statistics.stdev(results) if len(results) > 1 else 0.0
 
-        # Top 5 most common results
         counter = Counter(results)
         top_results = counter.most_common(5)
 

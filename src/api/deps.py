@@ -1,17 +1,3 @@
-"""Dependency accessors for API route handlers.
-
-Provides a clean interface for route handlers to access the bot and API
-without importing directly from the Discord bot lifecycle module.
-
-Thread safety
--------------
-``run_on_bot_loop`` schedules a coroutine on the **Discord bot's** event
-loop (which runs in a background thread) and awaits the result from the
-calling event loop (Quart).  This is the correct way to call discord.py
-APIs (e.g. ``channel.connect()``, ``voice_client.disconnect()``) from
-Quart handlers, which run on a different event loop.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -57,5 +43,4 @@ async def run_on_bot_loop(
         raise RuntimeError("Bot event loop is closed or unavailable")
 
     future = asyncio.run_coroutine_threadsafe(coro, loop)
-    # Await the concurrent.futures.Future from the current (Quart) loop with timeout
     return await asyncio.wait_for(asyncio.wrap_future(future), timeout=timeout)

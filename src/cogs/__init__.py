@@ -1,1 +1,0 @@
-"""Bot cog loader module."""

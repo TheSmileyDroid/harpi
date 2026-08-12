@@ -1,5 +1,3 @@
-"""The bot executable."""
-
 from __future__ import annotations
 
 import os
@@ -8,11 +6,11 @@ import sys
 import psutil
 from loguru import logger
 from pydantic import BaseModel
-from quart import Quart, redirect, request, url_for
+from quart import Quart, request
 from quart_cors import cors
 from quart_schema import QuartSchema, validate_response
 
-from src.api import guild, music, html_routes, htmx_routes
+from src.api import html_routes, htmx_routes, music
 from src.discord_bot import run_bot_in_background
 
 logger.remove()
@@ -27,11 +25,6 @@ QuartSchema(app)
 
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.secret_key = os.environ.get("SECRET_KEY")
-
-
-# ==========================================================================
-# Jinja2 Template Filters
-# ==========================================================================
 
 
 @app.template_filter()
@@ -62,17 +55,6 @@ def format_bytes(value: int) -> str:
     return f"{v:.1f} {units[i]}"
 
 
-@app.template_filter()
-def format_percent(value: float, decimals: int = 1) -> str:
-    """Format a float as percentage string."""
-    return f"{value:.{decimals}f}%"
-
-
-# ==========================================================================
-# API Routes
-# ==========================================================================
-
-
 class ServerStatusModel(BaseModel):
     cpu: float
     memory_total: int
@@ -97,21 +79,9 @@ def api_server_status():
     )
 
 
-# ==========================================================================
-# HTML / HTMX Routes
-# ==========================================================================
-
-
-@app.route("/")
-async def index():
-    """Redirect root to dashboard."""
-    return redirect(url_for("html_routes.dashboard"))
-
-
-app.register_blueprint(guild.bp)
-app.register_blueprint(music.bp)
 app.register_blueprint(html_routes.bp)
 app.register_blueprint(htmx_routes.bp)
+app.register_blueprint(music.bp)
 
 
 @app.before_request

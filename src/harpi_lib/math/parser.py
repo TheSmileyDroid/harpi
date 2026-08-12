@@ -94,10 +94,6 @@ class DiceParser:
         # Must contain at least one dice token
         return any(self.dice_pattern.match(t) for t in tokens)
 
-    # ------------------------------------------------------------------
-    # Recursive descent parser
-    # ------------------------------------------------------------------
-
     def _evaluate_expression(self, tokens: list[str]) -> RollResult:
         """Evaluate the expression using recursive descent parsing."""
         if not tokens:
@@ -181,10 +177,6 @@ class DiceParser:
         except ValueError as e:
             raise ValueError(f"Unexpected token: {token}") from e
 
-    # ------------------------------------------------------------------
-    # Dice rolling
-    # ------------------------------------------------------------------
-
     def _roll_dice(self, dice_match: re.Match[str]) -> RollResult:
         """Roll dice based on the matched notation.
 
@@ -227,10 +219,6 @@ class DiceParser:
             total, [(rolls, original_notation, kept_mask)], original_notation
         )
 
-    # ------------------------------------------------------------------
-    # Public entry points
-    # ------------------------------------------------------------------
-
     def roll(self, expression: str) -> str:
         """Roll dice and evaluate the expression, returning formatted output.
 
@@ -269,24 +257,18 @@ class DiceParser:
 
         return "\n".join(lines)
 
-    # ------------------------------------------------------------------
-    # Formatting
-    # ------------------------------------------------------------------
-
     def _format_result(
         self, result: RollResult, original_expression: str
     ) -> str:
-        """Format a single ``RollResult`` for display."""
+        """Format a single ``RollResult`` for display.
 
-        # Pure math (no dice)
+        Each dice token is replaced left-to-right with its roll values;
+        placeholder tokens prevent already-replaced text from matching
+        again when the same notation appears multiple times ("1d6-1d6").
+        """
         if not result.rolls:
             return f"` {result.value} ` ⟵ {original_expression}"
 
-        # Build the formatted expression by replacing each dice token
-        # left-to-right with its individual roll values.
-        # We use placeholder tokens to prevent already-replaced text from
-        # being matched again when the same notation appears multiple times
-        # (e.g. "1d6-1d6" - each 1d6 must get its own roll values).
         placeholders: list[tuple[str, str]] = []
         formatted_expr = original_expression
         for i, (rolls, notation, kept_mask) in enumerate(result.rolls):
@@ -297,14 +279,12 @@ class DiceParser:
             placeholders.append((placeholder, formatted_roll))
             formatted_expr = formatted_expr.replace(notation, placeholder, 1)
 
-        # Restore placeholders with actual formatted values
         for placeholder, formatted_roll in placeholders:
             formatted_expr = formatted_expr.replace(
                 placeholder, formatted_roll
             )
 
-        # Add spaces around arithmetic operators for readability, but
-        # protect bold markers (**) from being treated as multiplication.
+        # Protect bold markers (**) from being treated as multiplication.
         formatted_expr = self._space_operators(formatted_expr)
 
         return f"` {result.value} ` ⟵ {formatted_expr}"
