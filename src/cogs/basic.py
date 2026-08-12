@@ -1,5 +1,3 @@
-"""Basic COG."""
-
 import asyncio
 import io
 import re
@@ -78,20 +76,16 @@ class GeneralCog(commands.Cog):
         if isinstance(result, bytes):
             result = result.decode("utf-8")
 
-        # Limit the number of lines to a reasonable size
-        lines = result.split("\n")[:20]  # Limit to 20 lines
+        lines = result.split("\n")[:20]
 
-        # Image settings
         font_size = 14
         padding = 20
         line_height = font_size + 4
 
         try:
-            # Try to use a monospaced font (better for terminal output)
             font = PIL.ImageFont.truetype("DejaVuSansMono.ttf", font_size)
         except OSError:
             try:
-                # Try common alternative
                 font = PIL.ImageFont.truetype(
                     "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
                     font_size,
@@ -99,11 +93,9 @@ class GeneralCog(commands.Cog):
             except OSError:
                 font = PIL.ImageFont.load_default()
 
-        # Create temporary image to calculate text dimensions
         temp_img = PIL.Image.new("RGB", (1, 1), color=(0, 0, 0))
         draw = PIL.ImageDraw.Draw(temp_img)
 
-        # Calculate maximum required width
         max_width = 0
         for line in lines:
             try:
@@ -115,14 +107,12 @@ class GeneralCog(commands.Cog):
                 width = len(line) * (font_size // 2)
             max_width = max(max_width, width)
 
-        # Set image dimensions
         img_width = min(
             max_width + padding * 2,
             1000,
-        )  # Limit maximum width
+        )
         img_height = len(lines) * line_height + padding * 2
 
-        # Create image with a pleasant color scheme
         bg_color = (25, 25, 35)  # Dark bluish background
         image = PIL.Image.new(
             "RGB",
@@ -131,7 +121,6 @@ class GeneralCog(commands.Cog):
         )
         draw = PIL.ImageDraw.Draw(image)
 
-        # Add title
         title = "Status do Servidor - Monitor de Processos"
         draw.text(
             (padding, padding // 2),
@@ -140,7 +129,6 @@ class GeneralCog(commands.Cog):
             fill=(135, 206, 250),
         )
 
-        # Draw lines with color scheme for readability
         y_pos = padding + line_height
 
         for i, line in enumerate(lines):
@@ -156,19 +144,16 @@ class GeneralCog(commands.Cog):
             draw.text((padding, y_pos), line, font=font, fill=color)
             y_pos += line_height
 
-        # Add borders and shadows
         draw.rectangle(
             [(0, 0), (img_width - 1, img_height - 1)],
             outline=(80, 80, 120),
             width=2,
         )
 
-        # Save to a buffer
         buffer = io.BytesIO()
         image.save(buffer, format="PNG")
         buffer.seek(0)
 
-        # Send with a descriptive message
         await ctx.send(
             "📊 **Informações do Sistema:**",
             file=File(buffer, filename="top_command.png"),

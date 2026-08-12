@@ -1,5 +1,3 @@
-"""PlaybackSession"""
-
 from __future__ import annotations
 
 import asyncio
@@ -44,6 +42,15 @@ class LoopMode(enum.Enum):
     OFF = 0
     TRACK = 1
     QUEUE = 2
+
+
+LOOP_MODE_ALIASES: dict[str, LoopMode] = {
+    **{a: LoopMode.OFF for a in ("off", "false", "0", "no", "n")},
+    **{
+        a: LoopMode.TRACK for a in ("track", "true", "1", "yes", "y", "musica")
+    },
+    **{a: LoopMode.QUEUE for a in ("queue", "fila")},
+}
 
 
 @dataclass(frozen=True)
@@ -118,8 +125,6 @@ class PlaybackSession:
             if layer_id is not None:
                 self._layers.pop(layer_id, None)
 
-    # --- Public API ---
-
     @property
     def guild_id(self) -> int:
         return self._guild_id
@@ -179,8 +184,6 @@ class PlaybackSession:
         voice_client = self._voice_client
         if voice_client.is_connected():
             await voice_client.disconnect()
-
-    # --- Playback verbs ---
 
     async def play(self, link: str) -> int:
         """Resolve *link* and add every track found to the queue.
@@ -353,8 +356,6 @@ class PlaybackSession:
         logger.info(
             f"Cleared {cleared} queued track(s) in guild {self._guild_id}"
         )
-
-    # --- Background layer verbs ---
 
     async def add_layer(self, link: str) -> str:
         """Resolve *link* and add the first track found as a background layer.

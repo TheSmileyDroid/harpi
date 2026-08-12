@@ -10,8 +10,6 @@ from src.harpi_lib.harpi_bot import HarpiBot
 
 
 class TTSCog(commands.Cog):
-    """TTS Cog."""
-
     def __init__(self, bot: HarpiBot) -> None:
         self.bot: HarpiBot = bot
 

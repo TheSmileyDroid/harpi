@@ -1,11 +1,9 @@
-{# templates/pages/dashboard.html #}
 {% extends "base.html" %}
 
 {% block title %}Harpi{% endblock %}
 
 {% block content %}
   <div class="page-transition">
-    <!-- Page Header -->
     <header class="page-header" style="margin-bottom: var(--space-lg);">
       <h1
         class="page-title"
@@ -22,7 +20,6 @@
       </p>
     </header>
 
-    <!-- Server Status Grid -->
     <section
       aria-labelledby="status-heading"
       style="margin-bottom: var(--space-xl);"
@@ -31,7 +28,6 @@
       {% include "partials/_server_status.html" %}
     </section>
 
-    <!-- Quick Actions -->
     <section
       aria-labelledby="actions-heading"
       style="margin-bottom: var(--space-xl);"
@@ -43,58 +39,24 @@
       >
         QUICK ACTIONS
       </h2>
-      <div
-        class="panel"
-        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);"
-      >
+      <div class="panel">
         <a
           class="btn btn-primary"
-          style="justify-content: center; padding: var(--space-lg); font-size: 1rem;"
-          hx-get="{{ url_for('html_routes.music_page') }}"
-          hx-target="#main-content"
-          hx-push-url="true"
-          hx-swap="innerHTML show:window:top"
-          hx-select="#main-content > *"
+          href="{{ url_for('html_routes.route', page='music') }}"
         >
           <i data-lucide="music" class="icon-lg"></i>
           <span>MUSIC CONTROL</span>
         </a>
         <a
           class="btn btn-secondary"
-          style="justify-content: center; padding: var(--space-lg); font-size: 1rem;"
-          hx-get="{{ url_for('html_routes.settings_page') }}"
-          hx-target="#main-content"
-          hx-push-url="true"
-          hx-swap="innerHTML show:window:top"
-          hx-select="#main-content > *"
+          href="{{ url_for('html_routes.route', page='settings') }}"
         >
           <i data-lucide="settings" class="icon-lg"></i>
           <span>SETTINGS</span>
         </a>
-        <button
-          class="btn btn-secondary"
-          hx-post="{{ url_for('htmx_routes.api_bot_restart') }}"
-          hx-target="#toast-container"
-          hx-swap="beforeend"
-          hx-confirm="Restart the bot?"
-          style="justify-content: center; padding: var(--space-lg); font-size: 1rem;"
-        >
-          <span>RESTART BOT</span>
-        </button>
-        <button
-          class="btn btn-danger"
-          hx-post="{{ url_for('htmx_routes.api_bot_shutdown') }}"
-          hx-target="#toast-container"
-          hx-swap="beforeend"
-          hx-confirm="Shutdown the bot completely?"
-          style="justify-content: center; padding: var(--space-lg); font-size: 1rem;"
-        >
-          <span>SHUTDOWN</span>
-        </button>
       </div>
     </section>
 
-    <!-- Bot Info -->
     <section aria-labelledby="bot-info-heading">
       <h2
         id="bot-info-heading"

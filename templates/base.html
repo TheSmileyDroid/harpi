@@ -5,16 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Harpi - System Panel{% endblock %}</title>
 
-    <!-- Favicon -->
     <link
       rel="icon"
       href="{{ url_for('static', filename='assets/favicon.svg') }}"
     />
 
-    <!-- HTMX config (meta tag processed during init, before deferred scripts) -->
     <meta name="htmx-config" content='{"historyEnabled":false}' />
 
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -22,7 +19,6 @@
       rel="stylesheet"
     />
 
-    <!-- CRT Theme CSS -->
     <link
       rel="stylesheet"
       href="{{ url_for('static', filename='css/crt-theme.css') }}"
@@ -36,18 +32,15 @@
       href="{{ url_for('static', filename='css/htmx-indicators.css') }}"
     />
 
-    <!-- HTMX -->
     <script
       src="{{ url_for('static', filename='js/htmx.min.js') }}"
       defer
     ></script>
-    <!-- Alpine.js for minimal interactivity (modals, dropdowns) -->
     <script
       src="{{ url_for('static', filename='js/alpine.min.js') }}"
       defer
     ></script>
 
-    <!-- Lucide Icons -->
     <script
       src="{{ url_for('static', filename='js/lucide.min.js') }}"
       defer
@@ -56,25 +49,17 @@
     {% block extra_head %}{% endblock %}
   </head>
   <body>
-    <!-- CRT Scanlines Overlay -->
     <div class="crt-scanlines" aria-hidden="true"></div>
-    <!-- CRT Vignette -->
     <div class="crt-viggette" aria-hidden="true"></div>
-    <!-- CRT Curvature -->
     <div class="crt-curvature" aria-hidden="true"></div>
 
     <div class="app-container">
-      <!-- Top Bar -->
       <header class="top-bar" role="banner">
         <div class="top-bar-left">
           <a
             class="logo"
             aria-label="Harpi Home"
-            hx-get="{{ url_for('html_routes.dashboard') }}"
-            hx-target="#main-content"
-            hx-push-url="true"
-            hx-swap="innerHTML show:window:top"
-            hx-select="#main-content > *"
+            href="{{ url_for('html_routes.route', page='dashboard') }}"
           >
             <img
               src="{{ url_for('static', filename='assets/favicon.svg') }}"
@@ -92,32 +77,21 @@
           <nav class="main-nav" role="navigation" aria-label="Main navigation">
             <a
               class="nav-link"
-              hx-get="{{ url_for('html_routes.dashboard') }}"
-              hx-target="#main-content"
-              hx-push-url="true"
-              hx-swap="innerHTML show:window:top"
-              hx-select="#main-content > *"
+              href="{{ url_for('html_routes.route', page='dashboard') }}"
             >
               <i data-lucide="layout-dashboard" class="nav-icon"></i>
               <span>DASHBOARD</span>
             </a>
             <a
               class="nav-link"
-              hx-get="{{ url_for('html_routes.music_page') }}"
-              hx-target="#main-content"
-              hx-push-url="true"
-              hx-swap="innerHTML show:window:top"
-              hx-select="#main-content > *"
+              href="{{ url_for('html_routes.route', page='music') }}"
             >
               <i data-lucide="music" class="nav-icon"></i>
               <span>MUSIC</span>
             </a>
             <a
               class="nav-link"
-              hx-get="{{ url_for('html_routes.settings_page') }}"
-              hx-target="#main-content"
-              hx-select="#main-content > *"
-              hx-swap="innerHTML show:window:top"
+              href="{{ url_for('html_routes.route', page='settings') }}"
             >
               <i data-lucide="settings" class="nav-icon"></i>
               <span>SETTINGS</span>
@@ -126,7 +100,6 @@
         </div>
 
         <div class="top-bar-right">
-          <!-- Bot Status Indicator -->
           <div class="bot-status" id="bot-status">
             <span
               class="status-dot {% if bot_connected %}connected{% else %}disconnected{% endif %}"
@@ -139,13 +112,11 @@
         </div>
       </header>
 
-      <!-- Main Content Area -->
       <main id="main-content" class="main-content" role="main">
         {% block content %}
         {% endblock %}
       </main>
 
-      <!-- Footer -->
       <footer class="app-footer" role="contentinfo">
         <div class="footer-left">
           <span class="version">v0.1.0</span>
@@ -161,7 +132,6 @@
       </footer>
     </div>
 
-    <!-- Modal Container (Alpine.js) -->
     <div
       x-data="{ modalOpen: false, modalContent: '', modalTitle: 'Modal' }"
       x-init="window.harpiModal = $refs.modal"
@@ -197,7 +167,6 @@
       </div>
     </div>
 
-    <!-- Toast Notifications Container -->
     <div
       id="toast-container"
       class="toast-container"
@@ -205,12 +174,10 @@
       aria-atomic="true"
     ></div>
 
-    <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
     {% block extra_scripts %}{% endblock %}
 
-    <!-- HTMX Configuration -->
     <script>
       // Handle modal opening via HTMX
       document.body.addEventListener("harpi:open-modal", (evt) => {
@@ -220,6 +187,9 @@
           modal._x_dataStack[0].modalTitle = evt.detail.title || "Modal";
           modal._x_dataStack[0].modalContent = evt.detail.content || "";
         }
+      });
+      document.body.addEventListener("htmx:configRequest", (event) => {
+        event.detail.headers["X-CSRFToken"] = "{{ csrf_token() }}";
       });
 
       // Handle toast notifications

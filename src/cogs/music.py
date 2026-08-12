@@ -1,5 +1,3 @@
-"""Music playback cog for Discord."""
-
 from __future__ import annotations
 
 import math
@@ -14,8 +12,6 @@ from src.harpi_lib.harpi_bot import HarpiBot
 
 
 class MusicCog(Cog):
-    """Discord cog for music playback commands."""
-
     def __init__(self, bot: HarpiBot) -> None:
         """Initialize the music cog."""
         super().__init__()

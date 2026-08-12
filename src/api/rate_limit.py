@@ -1,21 +1,3 @@
-"""In-process token bucket rate limiting for the music API.
-
-Thread safety
--------------
-HTTP handlers all run on Quart's single asyncio event loop, so the
-bucket state is only mutated from that loop and needs no locking.
-
-Limitation
-----------
-Buckets are keyed by the immediate TCP peer address.  When the panel
-runs behind a reverse proxy, every client collapses into the proxy's
-bucket, so one misbehaving client can exhaust the shared allowance for
-everyone.  Trusting ``X-Forwarded-For`` instead was deliberately
-avoided because that header is client-spoofable unless the proxy
-strips it.  This limiter is a load cap, not an authentication
-boundary.
-"""
-
 from __future__ import annotations
 
 import time
@@ -23,7 +5,15 @@ from collections import defaultdict
 
 
 class TokenBucket:
-    """Token bucket rate limiter keyed by client address."""
+    """Token bucket rate limiter keyed by client address.
+
+    Buckets are keyed by the immediate TCP peer, so behind a reverse
+    proxy every client collapses into the proxy's bucket and one
+    misbehaving client can exhaust the shared allowance.  Trusting
+    ``X-Forwarded-For`` was deliberately avoided because that header is
+    client-spoofable unless the proxy strips it; this limiter is a load
+    cap, not an authentication boundary.
+    """
 
     def __init__(
         self,

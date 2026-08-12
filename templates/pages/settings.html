@@ -1,11 +1,9 @@
-{# templates/pages/settings.html #}
 {% extends "base.html" %}
 
 {% block title %}Settings - Harpi{% endblock %}
 
 {% block content %}
   <div class="page-transition settings-layout">
-    <!-- Settings Navigation -->
     <nav class="settings-nav" aria-label="Settings sections">
       <ul class="settings-nav-list" role="list">
         <li>
@@ -63,7 +61,6 @@
       </ul>
     </nav>
 
-    <!-- Settings Content -->
     <div class="settings-content" id="settings-content">
       {% include "partials/_settings_general.html" %}
     </div>

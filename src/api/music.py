@@ -1,5 +1,3 @@
-"""Music playback API endpoints."""
-
 import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal
@@ -30,7 +28,7 @@ for _alias in ("queue", "fila"):
     LOOP_MODE_ALIASES[_alias] = LoopMode.QUEUE
 
 
-# === Response / Request Models ===
+# Response / Request Models
 
 
 class MusicTrackResponse(BaseModel):
@@ -155,7 +153,7 @@ class MusicAddResponse(BaseModel):
     error: str | None = None
 
 
-# === Deprecated models (kept for backward-compat endpoint) ===
+# Deprecated models (kept for backward-compat endpoint)
 
 
 class MusicControlRequest(BaseModel):
@@ -180,7 +178,7 @@ class MusicControlRequest(BaseModel):
     position: float | None = Field(default=None, allow_inf_nan=False)
 
 
-# === Helpers ===
+# Helpers
 
 
 def _parse_guild_id(raw: str) -> int | None:
@@ -266,7 +264,7 @@ def _get_session(guild_id: int) -> "PlaybackSession | None":
     return bot.sessions.get(guild_id)
 
 
-# === Endpoints ===
+# Endpoints
 
 
 @bp.route("/api/music/<guild_id>/status")
@@ -294,7 +292,7 @@ async def music_status(
     return data
 
 
-# --- Individual control endpoints ---
+# Individual control endpoints
 
 
 @bp.route("/api/music/stop", methods=["POST"])
@@ -510,7 +508,7 @@ async def music_layer_volume(
         return MusicControlResponse(status="", error=str(e)), 500
 
 
-# --- Deprecated combined endpoint (kept for backward compatibility) ---
+# Deprecated combined endpoint (kept for backward compatibility)
 
 
 @bp.route("/api/music/control", methods=["POST"])
@@ -617,7 +615,7 @@ async def music_control(
         return MusicControlResponse(status="", error=str(e)), 500
 
 
-# --- Add music endpoint ---
+# Add music endpoint
 
 
 @bp.route("/api/music/add", methods=["POST"])

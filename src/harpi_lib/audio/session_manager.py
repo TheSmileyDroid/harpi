@@ -1,21 +1,3 @@
-"""SessionManager — the registry and lifecycle for per-guild sessions.
-
-The manager owns the map of guild IDs to :class:`PlaybackSession` objects.
-Sessions are created on ``connect``, found by ``get`` / ``ensure``
-(connect-if-missing), and torn down by ``disconnect``.  When the bot is
-kicked or otherwise unexpectedly leaves a voice channel, the manager's
-``on_voice_state_update`` handler cleans the session up so no ghost session
-lingers.  This is the seam the cogs, routes, and tests cross instead of the
-controller, the mixer, or the voice client directly.
-
-Threading contract
-------------------
-Every manager verb is async and must be awaited from the **bot's** event
-loop: ``connect`` and ``disconnect`` call discord.py voice APIs that only
-the bot loop may touch.  The full contract lives in the PlaybackSession
-module.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -29,7 +11,12 @@ from src.harpi_lib.audio.session import PlaybackSession
 
 
 class SessionManager:
-    """Registers and owns a :class:`PlaybackSession` per guild."""
+    """Registers and owns a :class:`PlaybackSession` per guild.
+
+    Every verb must be awaited from the bot's event loop: ``connect`` and
+    ``disconnect`` call discord.py voice APIs that only the bot loop may
+    touch (docs/adr/0002).
+    """
 
     def __init__(self, bot: Bot) -> None:
         self._bot = bot

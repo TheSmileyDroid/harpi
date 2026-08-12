@@ -1,9 +1,3 @@
-"""Harpi Discord Bot - Main entry point.
-
-Usage:
-    uv run python -m src [--host HOST] [--port PORT] [--reload]
-"""
-
 from __future__ import annotations
 
 import argparse

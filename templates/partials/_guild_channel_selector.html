@@ -1,0 +1,85 @@
+<div id="guild-channel-selector" autocomplete="off">
+  <div>
+    <div>
+      <div class="select-wrapper">
+        <select
+          id="guild-select"
+          name="guild_id"
+          aria-label="Select Discord server"
+          hx-get="{{ url_for('htmx_routes.guild_select_channel') }}"
+          hx-trigger="change"
+          hx-target="#guild-channel-selector"
+          hx-swap="outerHTML"
+        >
+          <option
+            value=""
+            {% if None == selected_guild_id %}selected{% endif %}
+          >
+            SELECT GUILD
+          </option>
+          {% for guild in guilds %}
+            <option
+              value="{{ guild.id }}"
+              {% if guild.id == selected_guild_id %}selected{% endif %}
+            >
+              {{ guild.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div id="channel-selector-container" class="select-wrapper">
+        {% if selected_guild_id %}
+          <select
+            id="channel-select"
+            name="channel_id"
+            {% if not channels %}disabled{% endif %}
+            aria-label="Select voice channel"
+            hx-get="{{ url_for('htmx_routes.guild_select_channel') }}"
+            hx-trigger="change"
+            hx-target="#guild-channel-selector"
+            hx-swap="outerHTML"
+          >
+            <option
+              value=""
+              {% if None == selected_channel_id %}selected{% endif %}
+            >
+              SELECT CHANNEL
+            </option>
+            {% for channel in channels %}
+              <option
+                value="{{ channel.id }}"
+                {% if selected_channel_id != None and (channel.id | string) == (selected_channel_id | string) %}selected{% endif %}
+              >
+                {{ channel.name }}
+                {% if channel.user_limit > 0 %}({{ channel.voice_states|length }}/{{ channel.user_limit }}){% else %}({{ channel.voice_states|length }}){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        {% else %}
+          <select
+            id="channel-select"
+            name="channel_id"
+            disabled
+            aria-label="Select voice channel"
+          >
+            <option value="">SELECT GUILD FIRST</option>
+          </select>
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      {% if guild_id %}
+        <button
+          class="btn btn-danger btn-sm"
+          hx-post="{{ url_for('htmx_routes.api_music_disconnect', guild_id=guild_id) }}"
+          hx-confirm="Disconnect from voice channel?"
+        >
+          DISCONNECT
+        </button>
+      {% else %}
+        <span class="badge badge-warning">SELECT A GUILD AND CHANNEL</span>
+      {% endif %}
+    </div>
+  </div>
+</div>

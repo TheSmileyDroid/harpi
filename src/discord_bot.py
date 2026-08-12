@@ -1,5 +1,3 @@
-"""Bot runner and startup utilities."""
-
 from __future__ import annotations
 
 import asyncio
@@ -57,21 +55,17 @@ def run_bot_in_background() -> None:
 
     def run_bot():
         """Function to run in the background thread."""
-        # Create a new event loop for this thread
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
         try:
             logger.info("Creating Discord bot instance...")
-            # Create and run the bot
             client = loop.run_until_complete(create_bot())
             logger.info("Discord bot instance created successfully")
 
-            # Store bot reference in deps (single source of truth)
             init_bot(client)
             logger.info("Bot instance stored in deps")
 
-            # Run the bot
             logger.info("Starting Discord bot connection...")
             loop.run_until_complete(client.start(get_token()))
         except Exception as e:
@@ -83,7 +77,6 @@ def run_bot_in_background() -> None:
     if not token or type(token) is not str:
         raise ValueError("DISCORD_TOKEN not found in environment variables")
 
-    # Check if bot is already initialized in deps
     from src.api.deps import get_bot
 
     try:
@@ -91,7 +84,7 @@ def run_bot_in_background() -> None:
         logger.info("Bot already running, skipping initialization")
         return
     except AssertionError:
-        pass  # Bot not initialized yet, continue
+        pass
 
     # Start the bot in a daemon thread
     logger.info("Creating background thread for Discord bot...")
