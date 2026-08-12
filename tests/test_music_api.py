@@ -222,6 +222,16 @@ def _make_app() -> Quart:
     return app
 
 
+def _make_htmx_app() -> Quart:
+    """App with the live HTMX layer routes registered."""
+    from src.api.htmx_routes import bp as htmx_bp
+
+    app = Quart(__name__, template_folder="../templates")
+    app.secret_key = "test"
+    app.register_blueprint(htmx_bp)
+    return app
+
+
 # --- Layer control endpoints route through the session ---
 
 
@@ -246,16 +256,14 @@ async def test_music_layer_remove_routes_through_the_session(monkeypatch):
     session = await _make_session()
     layer_source = await _add_layer_to_session(session, monkeypatch, "rain")
     _install_bot(monkeypatch, _fake_bot(session))
-    app = _make_app()
+    app = _make_htmx_app()
+    client = app.test_client()
 
-    status, body = await _post(
-        app,
-        "/api/music/layer/remove",
-        {"guild_id": str(GUILD_ID), "layer_id": "layer-rain"},
+    response = await client.delete(
+        f"/api/music/{GUILD_ID}/layer/remove/layer-rain"
     )
 
-    assert status == 200
-    assert body["status"] == "ok"
+    assert response.status_code == 200
     assert session.status.layers == ()
     assert layer_source.cleaned_up is True
 
@@ -267,16 +275,12 @@ async def test_music_layer_clean_routes_through_the_session(monkeypatch):
         await _add_layer_to_session(session, monkeypatch, "wind"),
     ]
     _install_bot(monkeypatch, _fake_bot(session))
-    app = _make_app()
+    app = _make_htmx_app()
+    client = app.test_client()
 
-    status, body = await _post(
-        app,
-        "/api/music/layer/clean",
-        {"guild_id": str(GUILD_ID)},
-    )
+    response = await client.post(f"/api/music/{GUILD_ID}/layers/clean")
 
-    assert status == 200
-    assert body["status"] == "ok"
+    assert response.status_code == 200
     assert session.status.layers == ()
     assert all(layer.cleaned_up for layer in layers)
 
@@ -285,16 +289,15 @@ async def test_music_layer_volume_routes_through_the_session(monkeypatch):
     session = await _make_session()
     layer_source = await _add_layer_to_session(session, monkeypatch, "rain")
     _install_bot(monkeypatch, _fake_bot(session))
-    app = _make_app()
+    app = _make_htmx_app()
+    client = app.test_client()
 
-    status, body = await _post(
-        app,
-        "/api/music/layer/volume",
-        {"guild_id": str(GUILD_ID), "layer_id": "layer-rain", "volume": 1},
+    response = await client.post(
+        f"/api/music/{GUILD_ID}/layer/layer-rain/volume",
+        form={"volume": "1"},
     )
 
-    assert status == 200
-    assert body["status"] == "ok"
+    assert response.status_code == 200
     assert layer_source.volume == pytest.approx(1.0)
     assert session.status.layers[0].volume == pytest.approx(1.0)
 

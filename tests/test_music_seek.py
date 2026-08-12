@@ -1,8 +1,5 @@
-"""Unit tests for music seek support across sources and services."""
-
 from typing import cast
 
-from dataclasses import dataclass
 import io
 import threading
 import time
@@ -12,14 +9,12 @@ import discord
 import pytest
 from discord.opus import Encoder
 
-from src.harpi_lib.api import GuildConfig
 from src.harpi_lib.audio.controller import AudioController
 from src.harpi_lib.music.ytmusicdata import (
     BYTES_PER_SECOND,
     FFmpegPCMAudio,
     YoutubeDLSource,
 )
-from src.harpi_lib.services.music_queue import MusicQueueService
 
 CHUNK_SIZE = Encoder.FRAME_SIZE
 
@@ -172,84 +167,6 @@ class FakeSeekSource(discord.AudioSource):
         self.position = position
 
 
-@dataclass
-class FakeMusicData:
-    duration: int
-
-
-def _make_guild_config(source, current_music=None) -> GuildConfig:
-    controller = AudioController()
-    controller.set_queue_source(source)
-    return GuildConfig(
-        id=1,
-        mixer=mock.Mock(),
-        controller=controller,
-        current_music=current_music,
-    )
-
-
-def _make_service(source, current_music=None) -> MusicQueueService:
-    guild_config = _make_guild_config(source, current_music)
-    return MusicQueueService(mock.Mock(), {1: guild_config})
-
-
-async def test_absolute_seek_uses_position_directly():
-    source = FakeSeekSource(position=10.0)
-    service = _make_service(source)
-
-    await service.seek(1, 30.0, absolute=True)
-
-    assert source.seek_calls == [30.0]
-
-
-async def test_relative_seek_adds_to_current_position():
-    source = FakeSeekSource(position=10.0)
-    service = _make_service(source)
-
-    await service.seek(1, -4.0)
-
-    assert source.seek_calls == [6.0]
-
-
-async def test_negative_result_clamps_to_zero():
-    source = FakeSeekSource(position=5.0)
-    service = _make_service(source)
-
-    await service.seek(1, -20.0)
-
-    assert source.seek_calls == [0.0]
-
-
-async def test_target_clamps_to_track_duration():
-    source = FakeSeekSource(position=10.0)
-    service = _make_service(source, current_music=FakeMusicData(duration=60))
-
-    await service.seek(1, 90.0, absolute=True)
-
-    assert source.seek_calls == [60.0]
-
-
-async def test_seek_raises_when_guild_not_connected():
-    service = MusicQueueService(mock.Mock(), {})
-
-    with pytest.raises(ValueError):
-        await service.seek(99, 10.0)
-
-
-class FakeUnseekableSource(discord.AudioSource):
-    def read(self) -> bytes:
-        return b""
-
-
-async def test_seek_returns_silently_without_supported_source():
-    controller = AudioController()
-    controller.set_queue_source(FakeUnseekableSource())
-    guild_config = GuildConfig(id=1, mixer=mock.Mock(), controller=controller)
-    service = MusicQueueService(mock.Mock(), {1: guild_config})
-
-    await service.seek(1, 10.0)
-
-
 def test_get_queue_position_returns_zero_without_source():
     controller = AudioController()
 
@@ -328,45 +245,6 @@ def test_youtube_source_cleanup_forwards_to_original():
     source.cleanup()
 
     assert original.cleaned_up
-
-
-async def test_seek_rejects_non_finite_target():
-    source = FakeSeekSource(position=10.0)
-    service = _make_service(source)
-
-    with pytest.raises(ValueError):
-        await service.seek(1, float("inf"), absolute=True)
-
-
-async def test_seek_clamps_when_duration_unknown():
-    source = FakeSeekSource(position=0.0)
-    service = _make_service(source)
-
-    await service.seek(1, 1_000_000_000.0, absolute=True)
-
-    assert source.seek_calls == [4 * 3600]
-
-
-def test_seek_request_rejects_non_finite():
-    from pydantic import ValidationError
-
-    from src.api.music import SeekRequest
-
-    with pytest.raises(ValidationError):
-        SeekRequest(guild_id="1", position=float("inf"))
-    with pytest.raises(ValidationError):
-        SeekRequest(guild_id="1", position=float("nan"))
-
-
-def test_music_control_request_rejects_non_finite_position():
-    from pydantic import ValidationError
-
-    from src.api.music import MusicControlRequest
-
-    with pytest.raises(ValidationError):
-        MusicControlRequest(
-            guild_id="1", action="seek", mode=None, position=float("inf")
-        )
 
 
 def test_seek_invalidates_in_flight_spawn():

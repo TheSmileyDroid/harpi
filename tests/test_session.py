@@ -13,7 +13,11 @@ from typing import cast
 import pytest
 
 import src.harpi_lib.audio.session as session_module
-from src.harpi_lib.audio.session import LoopMode, PlaybackSession, SessionStatus
+from src.harpi_lib.audio.session import (
+    LoopMode,
+    PlaybackSession,
+    SessionStatus,
+)
 from src.harpi_lib.music.ytmusicdata import ProbeEnvironmentError
 from tests.conftest import (
     FakeAnnouncer,
@@ -104,7 +108,9 @@ def _make_session(
     loop: asyncio.AbstractEventLoop | None = None,
     announcer: FakeAnnouncer | None = None,
 ) -> PlaybackSession:
-    session = PlaybackSession(guild_id=1, voice_client=FakeVoiceClient(), loop=loop)
+    session = PlaybackSession(
+        guild_id=1, voice_client=FakeVoiceClient(), loop=loop
+    )
     session.start()
     if announcer is not None:
         session.set_announcer(announcer)
@@ -137,7 +143,9 @@ class SeekSource(FakeSource):
 
 class SeekSourceFactory:
     @classmethod
-    async def from_music_data(cls, music_data, volume: float = 0.3) -> SeekSource:
+    async def from_music_data(
+        cls, music_data, volume: float = 0.3
+    ) -> SeekSource:
         return SeekSource()
 
 
@@ -178,7 +186,9 @@ async def test_play_raises_when_nothing_is_found(monkeypatch):
         await session.play("nothing")
 
 
-async def test_stop_clears_the_queue_and_releases_the_current_source(monkeypatch):
+async def test_stop_clears_the_queue_and_releases_the_current_source(
+    monkeypatch,
+):
     session = _make_session()
     _install_fakes(monkeypatch)
     await session.play("one,two")
@@ -323,7 +333,9 @@ async def test_resume_resumes_the_voice_client():
     assert status.is_playing is True
 
 
-async def test_transient_load_failure_skips_the_track_and_announces(monkeypatch):
+async def test_transient_load_failure_skips_the_track_and_announces(
+    monkeypatch,
+):
     announcer = FakeAnnouncer()
     session = _make_session(announcer=announcer)
     _install_fakes(monkeypatch)
@@ -337,7 +349,9 @@ async def test_transient_load_failure_skips_the_track_and_announces(monkeypatch)
     assert current is not None
     assert current.title == "good"
     assert session.status.queue == ()
-    assert announcer.messages == ["'bad' não pôde ser carregada e foi pulada: throttled"]
+    assert announcer.messages == [
+        "'bad' não pôde ser carregada e foi pulada: throttled"
+    ]
 
 
 async def test_all_tracks_failing_transiently_stops_cleanly(monkeypatch):
@@ -345,7 +359,9 @@ async def test_all_tracks_failing_transiently_stops_cleanly(monkeypatch):
     session = _make_session(announcer=announcer)
     _install_fakes(monkeypatch)
     monkeypatch.setattr(
-        FakeSourceFactory, "failures", {"bad": RuntimeError("boom"), "good": RuntimeError("boom")}
+        FakeSourceFactory,
+        "failures",
+        {"bad": RuntimeError("boom"), "good": RuntimeError("boom")},
     )
 
     await session.play("bad,good")
@@ -426,7 +442,9 @@ async def test_track_loop_reloads_the_current_track_on_queue_end(monkeypatch):
     assert reloaded is not first_source
 
 
-async def test_queue_loop_reappends_the_finished_track_on_queue_end(monkeypatch):
+async def test_queue_loop_reappends_the_finished_track_on_queue_end(
+    monkeypatch,
+):
     loop = asyncio.get_running_loop()
     session = _make_session(loop=loop)
     _install_fakes(monkeypatch)
@@ -587,7 +605,9 @@ async def test_status_carries_the_voice_channel_id():
 
 def _install_layer_fakes(monkeypatch: pytest.MonkeyPatch) -> None:
     _install_fakes(monkeypatch)
-    monkeypatch.setattr(session_module, "YoutubeDLSource", FakeLayerSourceFactory)
+    monkeypatch.setattr(
+        session_module, "YoutubeDLSource", FakeLayerSourceFactory
+    )
 
 
 def _layer_source(session: PlaybackSession) -> FakeLayerSource:
@@ -595,7 +615,9 @@ def _layer_source(session: PlaybackSession) -> FakeLayerSource:
     return cast(FakeLayerSource, layer_source)
 
 
-async def test_add_layer_registers_a_background_layer_and_reports_it(monkeypatch):
+async def test_add_layer_registers_a_background_layer_and_reports_it(
+    monkeypatch,
+):
     session = _make_session()
     _install_layer_fakes(monkeypatch)
 
@@ -779,7 +801,9 @@ async def test_play_tts_plays_over_background_layers(monkeypatch):
     assert [layer.id for layer in session.status.layers] == ["layer-rain"]
 
 
-async def test_play_tts_builds_an_ffmpeg_pipe_source_from_the_audio(monkeypatch):
+async def test_play_tts_builds_an_ffmpeg_pipe_source_from_the_audio(
+    monkeypatch,
+):
     session = _make_session()
     _install_tts_fakes(monkeypatch)
     fp = io.BytesIO(b"speech")

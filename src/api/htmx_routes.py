@@ -64,25 +64,6 @@ async def htmx_server_status():
     return await render_template("partials/_server_status.html", **context)
 
 
-@bp.route("/htmx/channels")
-async def htmx_channels():
-    """Channel selector fragment - triggered when guild changes.
-
-    Accepts guild_id as query param (sent by HTMX via hx-include).
-    """
-    guild_id = request.args.get("guild_id") or session.get("guild_id")
-    bot = get_bot()
-    guild = bot.get_guild(int(guild_id)) if guild_id else None
-    channels = guild.voice_channels if guild else []
-
-    context = {
-        "channels": channels,
-        "selected_channel_id": session.get("channel_id"),
-    }
-
-    return await render_template("partials/_channel_selector.html", **context)
-
-
 @bp.route("/htmx/music/<guild_id>/queue")
 async def htmx_music_queue(guild_id: str):
     """Music queue fragment - polled every 3s."""
@@ -214,26 +195,6 @@ async def htmx_settings_section(section: str):
     return await render_template(template, **context)
 
 
-@bp.route("/api/music/<guild_id>/play", methods=["POST"])
-async def api_music_play(guild_id: str):
-    """Resume playback and return updated controls."""
-    try:
-        await _session_action(guild_id, lambda s: s.resume())
-    except Exception as e:
-        logger.opt(exception=True).error(f"Error resuming: {e}")
-    return await htmx_playback_controls(guild_id)
-
-
-@bp.route("/api/music/<guild_id>/pause", methods=["POST"])
-async def api_music_pause(guild_id: str):
-    """Pause playback and return updated controls."""
-    try:
-        await _session_action(guild_id, lambda s: s.pause())
-    except Exception as e:
-        logger.opt(exception=True).error(f"Error pausing: {e}")
-    return await htmx_playback_controls(guild_id)
-
-
 @bp.route("/api/music/<guild_id>/toggle-pause", methods=["POST"])
 async def api_music_toggle_pause(guild_id: str):
     """Toggle pause/resume and return updated controls."""
@@ -318,7 +279,7 @@ async def api_music_seek(guild_id: str):
 @bp.route("/api/music/<guild_id>/loop/<mode>", methods=["POST"])
 async def api_music_loop(guild_id: str, mode: str):
     """Set loop mode and return updated controls."""
-    from src.api.music import LOOP_MODE_ALIASES
+    from src.harpi_lib.audio.session import LOOP_MODE_ALIASES
 
     loop_mode = LOOP_MODE_ALIASES.get(mode)
     if loop_mode:
@@ -410,20 +371,6 @@ async def api_music_layer_volume(guild_id: str, layer_id: str):
     return await htmx_music_layers(guild_id)
 
 
-@bp.route("/api/music/<guild_id>/layer/<layer_id>/pause", methods=["POST"])
-async def api_music_layer_pause(guild_id: str, layer_id: str):
-    """Pause a background layer."""
-    # TODO(SMI-38): implement per-layer pause on the session
-    return await htmx_music_layers(guild_id)
-
-
-@bp.route("/api/music/<guild_id>/layer/<layer_id>/resume", methods=["POST"])
-async def api_music_layer_resume(guild_id: str, layer_id: str):
-    """Resume a background layer."""
-    # TODO(SMI-38): implement per-layer resume on the session
-    return await htmx_music_layers(guild_id)
-
-
 @bp.route("/api/settings/<section>", methods=["POST"])
 async def api_settings_update(section: str):
     """Update a setting and return a toast notification."""
@@ -460,30 +407,6 @@ async def guild_select_channel():
         logger.opt(exception=True).error(f"Error connecting to voice: {e}")
         return str(e), 500
 
-    return "", 204
-
-
-@bp.route("/api/bot/restart", methods=["POST"])
-async def api_bot_restart():
-    """Restart the bot."""
-    # TODO(SMI-38): implement bot restart
-    return (
-        '<div class="toast toast-info">Bot restart not yet implemented</div>'
-    )
-
-
-@bp.route("/api/bot/shutdown", methods=["POST"])
-async def api_bot_shutdown():
-    """Shutdown the bot."""
-    # TODO(SMI-38): implement bot shutdown
-    return (
-        '<div class="toast toast-info">Bot shutdown not yet implemented</div>'
-    )
-
-
-@bp.route("/api/ping")
-async def api_ping():
-    """Ping endpoint for latency measurement."""
     return "", 204
 
 

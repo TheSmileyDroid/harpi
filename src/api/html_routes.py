@@ -12,6 +12,12 @@ from src.api.server_status import get_server_status
 
 bp = Blueprint("html_routes", __name__)
 
+NAV_ITEMS = [
+    {"label": "DASHBOARD", "icon": "layout-dashboard", "page": "dashboard"},
+    {"label": "MUSIC", "icon": "music", "page": "music"},
+    {"label": "SETTINGS", "icon": "settings", "page": "settings"},
+]
+
 
 async def _get_base_context():
     """Build the shared context dict for all page templates."""
@@ -35,6 +41,7 @@ async def _get_base_context():
     return {
         "bot_connected": bot.is_ready() if bot else False,
         "guilds": guilds,
+        "nav_items": NAV_ITEMS,
         "selected_guild_id": selected_guild_id,
         "selected_channel_id": selected_channel.id
         if selected_channel

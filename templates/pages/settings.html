@@ -3,61 +3,32 @@
 {% block title %}Settings - Harpi{% endblock %}
 
 {% block content %}
+  {%
+    set settings_tabs = [
+      {"section": "general", "icon": "⚙", "label": "GENERAL"},
+      {"section": "music", "icon": "♪", "label": "MUSIC"},
+      {"section": "tts", "icon": "≡", "label": "TTS"},
+      {"section": "dice", "icon": "◆", "label": "DICE"},
+    ]
+  %}
   <div class="page-transition settings-layout">
     <nav class="settings-nav" aria-label="Settings sections">
       <ul class="settings-nav-list" role="list">
-        <li>
-          <button
-            class="settings-nav-item active"
-            hx-get="{{ url_for('htmx_routes.htmx_settings_section', section='general') }}"
-            hx-target="#settings-content"
-            hx-swap="innerHTML"
-            hx-push-url="false"
-            aria-label="General settings"
-          >
-            <span class="settings-nav-icon">⚙</span>
-            <span>GENERAL</span>
-          </button>
-        </li>
-        <li>
-          <button
-            class="settings-nav-item"
-            hx-get="{{ url_for('htmx_routes.htmx_settings_section', section='music') }}"
-            hx-target="#settings-content"
-            hx-swap="innerHTML"
-            hx-push-url="false"
-            aria-label="Music settings"
-          >
-            <span class="settings-nav-icon">♪</span>
-            <span>MUSIC</span>
-          </button>
-        </li>
-        <li>
-          <button
-            class="settings-nav-item"
-            hx-get="{{ url_for('htmx_routes.htmx_settings_section', section='tts') }}"
-            hx-target="#settings-content"
-            hx-swap="innerHTML"
-            hx-push-url="false"
-            aria-label="TTS settings"
-          >
-            <span class="settings-nav-icon">≡</span>
-            <span>TTS</span>
-          </button>
-        </li>
-        <li>
-          <button
-            class="settings-nav-item"
-            hx-get="{{ url_for('htmx_routes.htmx_settings_section', section='dice') }}"
-            hx-target="#settings-content"
-            hx-swap="innerHTML"
-            hx-push-url="false"
-            aria-label="Dice settings"
-          >
-            <span class="settings-nav-icon">◆</span>
-            <span>DICE</span>
-          </button>
-        </li>
+        {% for tab in settings_tabs %}
+          <li>
+            <button
+              class="settings-nav-item {% if loop.first %}active{% endif %}"
+              hx-get="{{ url_for('htmx_routes.htmx_settings_section', section=tab.section) }}"
+              hx-target="#settings-content"
+              hx-swap="innerHTML"
+              hx-push-url="false"
+              aria-label="{{ tab.label }} settings"
+            >
+              <span class="settings-nav-icon">{{ tab.icon }}</span>
+              <span>{{ tab.label }}</span>
+            </button>
+          </li>
+        {% endfor %}
       </ul>
     </nav>
 

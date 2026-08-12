@@ -10,7 +10,7 @@ from quart import Quart, request
 from quart_cors import cors
 from quart_schema import QuartSchema, validate_response
 
-from src.api import guild, html_routes, htmx_routes, music
+from src.api import html_routes, htmx_routes, music
 from src.discord_bot import run_bot_in_background
 
 logger.remove()
@@ -55,12 +55,6 @@ def format_bytes(value: int) -> str:
     return f"{v:.1f} {units[i]}"
 
 
-@app.template_filter()
-def format_percent(value: float, decimals: int = 1) -> str:
-    """Format a float as percentage string."""
-    return f"{value:.{decimals}f}%"
-
-
 class ServerStatusModel(BaseModel):
     cpu: float
     memory_total: int
@@ -87,7 +81,6 @@ def api_server_status():
 
 app.register_blueprint(html_routes.bp)
 app.register_blueprint(htmx_routes.bp)
-app.register_blueprint(guild.bp)
 app.register_blueprint(music.bp)
 
 

@@ -90,7 +90,9 @@ async def test_layer_remove_routes_through_the_session(monkeypatch):
     monkeypatch.setattr(deps, "_bot_ref", _fake_bot(session))
     rendered = _stub_layers_render(monkeypatch)
 
-    html = await htmx_module.api_music_layer_remove(str(GUILD_ID), "layer-rain")
+    html = await htmx_module.api_music_layer_remove(
+        str(GUILD_ID), "layer-rain"
+    )
 
     assert html == "layers"
     assert rendered == [str(GUILD_ID)]

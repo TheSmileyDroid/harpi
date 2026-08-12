@@ -75,27 +75,15 @@
 
         <div class="top-bar-center">
           <nav class="main-nav" role="navigation" aria-label="Main navigation">
-            <a
-              class="nav-link"
-              href="{{ url_for('html_routes.route', page='dashboard') }}"
-            >
-              <i data-lucide="layout-dashboard" class="nav-icon"></i>
-              <span>DASHBOARD</span>
-            </a>
-            <a
-              class="nav-link"
-              href="{{ url_for('html_routes.route', page='music') }}"
-            >
-              <i data-lucide="music" class="nav-icon"></i>
-              <span>MUSIC</span>
-            </a>
-            <a
-              class="nav-link"
-              href="{{ url_for('html_routes.route', page='settings') }}"
-            >
-              <i data-lucide="settings" class="nav-icon"></i>
-              <span>SETTINGS</span>
-            </a>
+            {% for item in nav_items %}
+              <a
+                class="nav-link"
+                href="{{ url_for('html_routes.route', page=item.page) }}"
+              >
+                <i data-lucide="{{ item.icon }}" class="nav-icon"></i>
+                <span>{{ item.label }}</span>
+              </a>
+            {% endfor %}
           </nav>
         </div>
 
@@ -173,8 +161,6 @@
       aria-live="polite"
       aria-atomic="true"
     ></div>
-
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
     {% block extra_scripts %}{% endblock %}
 
