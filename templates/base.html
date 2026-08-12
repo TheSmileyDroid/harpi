@@ -165,19 +165,6 @@
     {% block extra_scripts %}{% endblock %}
 
     <script>
-      // Handle modal opening via HTMX
-      document.body.addEventListener("harpi:open-modal", (evt) => {
-        const modal = document.querySelector('[x-data*="modalOpen"]');
-        if (modal && modal._x_dataStack) {
-          modal._x_dataStack[0].modalOpen = true;
-          modal._x_dataStack[0].modalTitle = evt.detail.title || "Modal";
-          modal._x_dataStack[0].modalContent = evt.detail.content || "";
-        }
-      });
-      document.body.addEventListener("htmx:configRequest", (event) => {
-        event.detail.headers["X-CSRFToken"] = "{{ csrf_token() }}";
-      });
-
       // Handle toast notifications
       window.showToast = function (message, type = "info", duration = 5000) {
         const container = document.getElementById("toast-container");

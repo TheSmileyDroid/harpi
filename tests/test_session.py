@@ -283,6 +283,18 @@ async def test_seek_clamps_to_the_track_duration(monkeypatch):
     assert session.status.progress == pytest.approx(float(duration))
 
 
+async def test_seek_clamps_to_four_hours_without_a_duration(monkeypatch):
+    session = _make_session()
+    _install_fakes(monkeypatch)
+    monkeypatch.setattr(session_module, "YoutubeDLSource", SeekSourceFactory)
+    await session.play("one")
+    session._current_music = None
+
+    await session.seek(1_000_000_000.0, absolute=True)
+
+    assert session.status.progress == pytest.approx(4 * 3600)
+
+
 async def test_set_loop_changes_the_loop_mode():
     session = _make_session()
 

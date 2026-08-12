@@ -13,8 +13,8 @@ from src.api.music import (
     DEFAULT_VOLUME,
     SEEK_TIMEOUT_SECONDS,
     _get_session,
-    get_music_data,
 )
+from src.api.panel_context import get_music_panel, selector_context
 from src.api.server_status import get_server_status
 
 if TYPE_CHECKING:
@@ -67,23 +67,11 @@ async def htmx_server_status():
 @bp.route("/htmx/music/<guild_id>/queue")
 async def htmx_music_queue(guild_id: str):
     """Music queue fragment - polled every 3s."""
-    queue = []
-    current_track = None
-    paused = False
-
-    try:
-        music_data = await get_music_data(int(guild_id))
-        if music_data:
-            queue = music_data.queue
-            current_track = music_data.current_music
-            paused = music_data.is_paused
-    except Exception as e:
-        logger.opt(exception=True).error(f"Error getting music queue: {e}")
-
+    panel = await get_music_panel(int(guild_id))
     context = {
-        "queue": queue,
-        "current_track": current_track,
-        "paused": paused,
+        "queue": panel.queue,
+        "current_track": panel.current_track,
+        "paused": panel.paused,
         "guild_id": guild_id,
     }
 
@@ -93,17 +81,9 @@ async def htmx_music_queue(guild_id: str):
 @bp.route("/htmx/music/<guild_id>/layers")
 async def htmx_music_layers(guild_id: str):
     """Background layers fragment - polled every 3s."""
-    layers = []
-
-    try:
-        music_data = await get_music_data(int(guild_id))
-        if music_data:
-            layers = music_data.layers
-    except Exception as e:
-        logger.opt(exception=True).error(f"Error getting music layers: {e}")
-
+    panel = await get_music_panel(int(guild_id))
     context = {
-        "layers": layers,
+        "layers": panel.layers,
         "guild_id": guild_id,
     }
 
@@ -113,35 +93,14 @@ async def htmx_music_layers(guild_id: str):
 @bp.route("/htmx/music/<guild_id>/playback")
 async def htmx_playback_controls(guild_id: str):
     """Playback controls fragment - polled every 2s."""
-    current_track = None
-    paused = False
-    volume = DEFAULT_VOLUME
-    loop_mode = "off"
-    current_position = 0
-    current_position_formatted = "0:00"
-
-    try:
-        music_data = await get_music_data(int(guild_id))
-        if music_data:
-            current_track = music_data.current_music
-            paused = music_data.is_paused
-            volume = music_data.volume
-            loop_mode = music_data.loop_mode
-            current_position = music_data.progress
-            total_sec = current_position // 1000
-            m = total_sec // 60
-            s = total_sec % 60
-            current_position_formatted = f"{m}:{s:02d}"
-    except Exception as e:
-        logger.opt(exception=True).error(f"Error getting playback state: {e}")
-
+    panel = await get_music_panel(int(guild_id))
     context = {
-        "current_track": current_track,
-        "paused": paused,
-        "volume": volume,
-        "loop_mode": loop_mode,
-        "current_position": current_position,
-        "current_position_formatted": current_position_formatted,
+        "current_track": panel.current_track,
+        "paused": panel.paused,
+        "volume": panel.volume,
+        "loop_mode": panel.loop_mode,
+        "current_position": panel.current_position,
+        "current_position_formatted": panel.current_position_formatted,
         "guild_id": guild_id,
     }
 
@@ -292,14 +251,19 @@ async def api_music_loop(guild_id: str, mode: str):
 
 @bp.route("/api/music/<guild_id>/disconnect", methods=["POST"])
 async def api_music_disconnect(guild_id: str):
-    """Disconnect from voice channel."""
+    """Disconnect from voice channel and re-render the selector."""
     try:
         session = _get_session(int(guild_id))
         if session is not None:
             await run_on_bot_loop(get_bot().sessions.disconnect(int(guild_id)))
     except Exception as e:
         logger.opt(exception=True).error(f"Error disconnecting: {e}")
-    return "", 204  # No content
+        return str(e), 500
+
+    return await render_template(
+        "partials/_guild_channel_selector.html",
+        **await selector_context(),
+    )
 
 
 @bp.route(
@@ -382,32 +346,51 @@ async def api_settings_update(section: str):
 
 @bp.route("/api/guild/select-channel")
 async def guild_select_channel():
-    """Select a guild and channel, connect to voice, saving to session."""
+    """Apply one selector step: a guild change or a channel change.
+
+    A guild change saves the guild and re-renders the selector with that
+    guild's channels (no connect).  A channel change connects through the
+    session guild — never a fresh ``guild_id`` arg — and re-renders the
+    selector.  When the bot is not ready the selector still re-renders
+    with the saved selection.
+    """
     guild_id = request.args.get("guild_id")
     channel_id = request.args.get("channel_id")
 
     if not guild_id and not channel_id:
-        return "guild_id and channel_id are required", 400
+        return "guild_id or channel_id required", 400
 
-    session["guild_id"] = guild_id
-    session.permanent = True
+    if guild_id:
+        session["guild_id"] = guild_id
+        session.permanent = True
 
-    try:
-        bot = get_bot()
-        if bot and bot.is_ready():
+    bot = get_bot()
+    if not bot or not bot.is_ready():
+        logger.error("Bot is not ready")
+        return (
+            await render_template(
+                "partials/_guild_channel_selector.html",
+                **await selector_context(),
+            ),
+            503,
+        )
+
+    if channel_id:
+        raw_guild_id = session.get("guild_id")
+        if not raw_guild_id:
+            return "select a guild first", 400
+        try:
             await run_on_bot_loop(
-                bot.sessions.connect(int(guild_id), int(channel_id)),
+                bot.sessions.connect(int(raw_guild_id), int(channel_id))
             )
-        else:
-            logger.error("Bot is not ready")
-            return render_template(
-                "partials/_guild_channel_selector.html"
-            ), 503
-    except Exception as e:
-        logger.opt(exception=True).error(f"Error connecting to voice: {e}")
-        return str(e), 500
+        except Exception as e:
+            logger.opt(exception=True).error(f"Error connecting to voice: {e}")
+            return str(e), 500
 
-    return "", 204
+    return await render_template(
+        "partials/_guild_channel_selector.html",
+        **await selector_context(),
+    )
 
 
 @bp.route("/api/music/search")
