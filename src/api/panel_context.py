@@ -10,6 +10,7 @@ the HTMX fragments self-poll (queue 3s, playback 2s, layers 3s, status 5s).
 
 from __future__ import annotations
 
+import importlib.metadata
 import platform
 from dataclasses import asdict, dataclass, field
 from typing import Any, Awaitable, Callable, cast
@@ -130,12 +131,16 @@ async def server_status_context() -> dict[str, Any]:
 async def bot_info_context() -> dict[str, Any]:
     """Bot and runtime information for the dashboard."""
     bot = get_bot()
+    try:
+        app_version = importlib.metadata.version("harpi")
+    except importlib.metadata.PackageNotFoundError:
+        app_version = VERSION
     return {
         "bot_user": str(bot.user) if bot and bot.user else "Unknown",
         "bot_id": str(bot.user.id) if bot and bot.user else "Unknown",
         "discord_version": discord.__version__,
         "python_version": platform.python_version(),
-        "version": VERSION,
+        "version": app_version,
     }
 
 
