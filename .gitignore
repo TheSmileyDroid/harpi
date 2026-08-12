@@ -140,7 +140,7 @@ cookies.txt
 temp/
 data/
 .temp/
-
+.ruff_cache/
 
 # Remove voice recordings
 .voice_recordings/

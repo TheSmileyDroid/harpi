@@ -16,6 +16,7 @@ from src.api.music import (
 )
 from src.api.panel_context import (
     APP_VERSION,
+    SETTINGS_SECTIONS,
     get_music_panel,
     selector_context,
     server_status_context,
@@ -126,14 +127,10 @@ async def htmx_music_add_layer_modal(guild_id: str):
 @bp.route("/htmx/settings/<section>")
 async def htmx_settings_section(section: str):
     """Settings section fragment."""
-    template_map = {
-        "general": "partials/_settings_general.html",
-        "music": "partials/_settings_general.html",
-        "tts": "partials/_settings_general.html",
-        "dice": "partials/_settings_general.html",
-    }
-
-    template = template_map.get(section, "partials/_settings_general.html")
+    section_config = SETTINGS_SECTIONS.get(
+        section, SETTINGS_SECTIONS["general"]
+    )
+    template = section_config["partial"]
     context = {
         "config": {
             "DEFAULT_PREFIX": "!",

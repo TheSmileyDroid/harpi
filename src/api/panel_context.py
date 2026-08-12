@@ -29,10 +29,34 @@ def _app_version() -> str:
 APP_VERSION = _app_version()
 
 NAV_ITEMS = [
-    {"label": "DASHBOARD", "icon": "layout-dashboard", "page": "dashboard"},
-    {"label": "MUSIC", "icon": "music", "page": "music"},
-    {"label": "SETTINGS", "icon": "settings", "page": "settings"},
+    {"label": "DASHBOARD", "icon": "grid-3x3-gap", "page": "dashboard"},
+    {"label": "MUSIC", "icon": "music-note-beamed", "page": "music"},
+    {"label": "SETTINGS", "icon": "gear", "page": "settings"},
 ]
+
+# TODO(SMI-42): partial por seção — stub: todas usam _settings_general.html
+SETTINGS_SECTIONS: dict[str, dict[str, str]] = {
+    "general": {
+        "label": "GENERAL",
+        "icon": "gear",
+        "partial": "partials/_settings_general.html",
+    },
+    "music": {
+        "label": "MUSIC",
+        "icon": "music-note-beamed",
+        "partial": "partials/_settings_general.html",
+    },
+    "tts": {
+        "label": "TTS",
+        "icon": "mic",
+        "partial": "partials/_settings_general.html",
+    },
+    "dice": {
+        "label": "DICE",
+        "icon": "dice-6",
+        "partial": "partials/_settings_general.html",
+    },
+}
 
 
 @dataclass
@@ -143,10 +167,15 @@ async def bot_info_context() -> dict[str, Any]:
     }
 
 
+async def settings_context() -> dict[str, Any]:
+    """Settings page context: the section tabs it renders."""
+    return {"settings_sections": SETTINGS_SECTIONS}
+
+
 PAGE_RESOLVERS: dict[str, list[Callable[[], Awaitable[dict[str, Any]]]]] = {
     "dashboard": [server_status_context, bot_info_context],
     "music": [selector_context],
-    "settings": [],
+    "settings": [settings_context],
 }
 
 

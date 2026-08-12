@@ -440,35 +440,6 @@
   transform: scaleX(1);
 }
 
-/* ==========================================================================
-   Error States
-   ========================================================================== */
-
-.htmx-error {
-  position: relative;
-}
-
-.htmx-error::after {
-  content: "⚠";
-  position: absolute;
-  top: var(--space-sm);
-  right: var(--space-sm);
-  color: var(--color-error);
-  font-size: 1rem;
-  animation: error-pulse 1s ease-in-out infinite;
-}
-
-@keyframes error-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.2);
-  }
-}
-
 .error-toast {
   background: var(--color-bg-card);
   border: 1px solid var(--color-error);

@@ -9,7 +9,7 @@
         class="page-title"
         style="font-family: var(--font-mono); font-size: 1.5rem; letter-spacing: 2px; color: var(--color-amber);"
       >
-        <i data-lucide="layout-dashboard" class="page-title-icon"></i>
+        <i class="bi bi-grid-3x3-gap page-title-icon" aria-hidden="true"></i>
         DASHBOARD
       </h1>
       <p
@@ -44,14 +44,14 @@
           class="btn btn-primary"
           href="{{ url_for('html_routes.route', page='music') }}"
         >
-          <i data-lucide="music" class="icon-lg"></i>
+          <i class="bi bi-music-note-beamed icon-lg" aria-hidden="true"></i>
           <span>MUSIC CONTROL</span>
         </a>
         <a
           class="btn btn-secondary"
           href="{{ url_for('html_routes.route', page='settings') }}"
         >
-          <i data-lucide="settings" class="icon-lg"></i>
+          <i class="bi bi-gear icon-lg" aria-hidden="true"></i>
           <span>SETTINGS</span>
         </a>
       </div>

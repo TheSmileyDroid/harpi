@@ -7,7 +7,7 @@
 >
   <div class="panel-header">
     <h3 class="panel-title">
-      <i data-lucide="layers" class="panel-title-icon"></i>
+      <i class="bi bi-layers panel-title-icon" aria-hidden="true"></i>
       BACKGROUND LAYERS
       <span class="queue-count">{{ layers|length }}</span>
     </h3>
@@ -71,7 +71,7 @@
                 hx-confirm="Remove this layer?"
                 aria-label="Remove layer"
               >
-                <i data-lucide="x" class="icon-xs"></i>
+                <i class="bi bi-x icon-xs" aria-hidden="true"></i>
               </button>
             </div>
           </div>
@@ -100,9 +100,9 @@
       style="padding: 24px; text-align: center;"
     >
       <i
-        data-lucide="layers"
-        class="icon-xl"
+        class="bi bi-layers icon-xl"
         style="margin-bottom:8px;opacity:0.3;"
+        aria-hidden="true"
       ></i>
       <p
         class="empty-state-title"

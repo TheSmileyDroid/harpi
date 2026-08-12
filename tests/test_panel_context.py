@@ -8,12 +8,18 @@ the playback position for the UI.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from src.api.music import (
     MusicStatusResponse,
     MusicTrackResponse,
     QueueItemResponse,
 )
-from src.api.panel_context import MusicPanelContext, project_music_panel
+from src.api.panel_context import (
+    MusicPanelContext,
+    SETTINGS_SECTIONS,
+    project_music_panel,
+)
 from src.harpi_lib.audio.session import LoopMode
 
 
@@ -21,6 +27,16 @@ def test_project_music_panel_defaults_without_a_session():
     panel = project_music_panel(None)
 
     assert panel == MusicPanelContext()
+
+
+def test_settings_sections_render_from_real_partials():
+    """Every settings section resolves to an existing partial with icon+label."""
+    templates = Path(__file__).resolve().parents[1] / "templates"
+
+    for section, config in SETTINGS_SECTIONS.items():
+        assert set(config) == {"label", "icon", "partial"}
+        partial = templates / config["partial"]
+        assert partial.is_file(), f"settings section '{section}' has no partial"
 
 
 def test_project_music_panel_formats_the_position_in_minutes_and_seconds():

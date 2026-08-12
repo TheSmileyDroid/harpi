@@ -31,6 +31,10 @@
       rel="stylesheet"
       href="{{ url_for('static', filename='css/htmx-indicators.css') }}"
     />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/bootstrap-icons.css') }}"
+    />
 
     <script
       src="{{ url_for('static', filename='js/htmx.min.js') }}"
@@ -38,11 +42,6 @@
     ></script>
     <script
       src="{{ url_for('static', filename='js/alpine.min.js') }}"
-      defer
-    ></script>
-
-    <script
-      src="{{ url_for('static', filename='js/lucide.min.js') }}"
       defer
     ></script>
 
@@ -80,7 +79,10 @@
                 class="nav-link"
                 href="{{ url_for('html_routes.route', page=item.page) }}"
               >
-                <i data-lucide="{{ item.icon }}" class="nav-icon"></i>
+                <i
+                  class="bi bi-{{ item.icon }} nav-icon"
+                  aria-hidden="true"
+                ></i>
                 <span>{{ item.label }}</span>
               </a>
             {% endfor %}
@@ -148,7 +150,7 @@
             @click="modalOpen = false"
             aria-label="Close modal"
           >
-            ✕
+            <i class="bi bi-x" aria-hidden="true"></i>
           </button>
         </div>
         <div class="modal-body" x-html="modalContent"></div>
@@ -173,9 +175,14 @@
         toast.setAttribute("role", "alert");
 
         const iconSpan = document.createElement("span");
-        iconSpan.className = "toast-icon";
-        iconSpan.textContent =
-          type === "error" ? "✕" : type === "success" ? "✓" : "ℹ";
+        const icon =
+          type === "error"
+            ? "x-circle"
+            : type === "success"
+              ? "check-circle"
+              : "info-circle";
+        iconSpan.className = `toast-icon bi bi-${icon}`;
+        iconSpan.setAttribute("aria-hidden", "true");
         toast.appendChild(iconSpan);
 
         const msgSpan = document.createElement("span");
@@ -186,7 +193,7 @@
         const closeBtn = document.createElement("button");
         closeBtn.className = "toast-close";
         closeBtn.setAttribute("aria-label", "Dismiss");
-        closeBtn.textContent = "✕";
+        closeBtn.innerHTML = '<i class="bi bi-x" aria-hidden="true"></i>';
         toast.appendChild(closeBtn);
 
         container.appendChild(toast);

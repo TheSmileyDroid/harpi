@@ -7,7 +7,10 @@
 >
   <div class="panel-header queue-header">
     <h3 class="panel-title queue-title">
-      <i data-lucide="music" class="panel-title-icon"></i>
+      <i
+        class="bi bi-music-note-beamed panel-title-icon"
+        aria-hidden="true"
+      ></i>
       QUEUE
       <span class="queue-count">{{ queue|length }}</span>
     </h3>
@@ -48,10 +51,14 @@
               src="{{ current_track.thumbnail }}"
               alt="{{ current_track.title }}"
               style="width:100%;height:100%;object-fit:cover;"
-              onerror='this.style.display=&apos;none&apos;;this.parentElement.innerHTML=&apos;<i data-lucide="music" class="icon-md" style="opacity:0.5;"></i>&apos;;lucide.createIcons({root:this.parentElement});'
+              onerror="this.style.display='none';this.parentElement.innerHTML='<i class=&quot;bi bi-music-note-beamed icon-md&quot; style=&quot;opacity:0.5;&quot;></i>';"
             />
           {% else %}
-            <i data-lucide="music" class="icon-md" style="opacity:0.5;"></i>
+            <i
+              class="bi bi-music-note-beamed icon-md"
+              style="opacity:0.5;"
+              aria-hidden="true"
+            ></i>
           {% endif %}
         </div>
         <div style="min-width:0;flex:1;">
@@ -108,10 +115,14 @@
                 alt=""
                 style="width:100%;height:100%;object-fit:cover;"
                 loading="lazy"
-                onerror="this.style.display='none';this.parentElement.innerHTML='&#9835;';"
+                onerror="this.style.display='none';this.parentElement.innerHTML='<i class=&quot;bi bi-music-note-beamed&quot; style=&quot;font-size:0.8rem;opacity:0.5;&quot;></i>';"
               />
             {% else %}
-              <span style="font-size:0.8rem;opacity:0.5;">&#9835;</span>
+              <i
+                class="bi bi-music-note-beamed"
+                style="font-size:0.8rem;opacity:0.5;"
+                aria-hidden="true"
+              ></i>
             {% endif %}
           </div>
           <div class="queue-item-info">
@@ -134,7 +145,7 @@
               hx-swap="outerHTML"
               aria-label="Move to top"
             >
-              <i data-lucide="chevron-up" class="icon-xs"></i>
+              <i class="bi bi-chevron-up icon-xs" aria-hidden="true"></i>
             </button>
             <button
               class="btn btn-ghost btn-sm"
@@ -143,7 +154,7 @@
               hx-swap="outerHTML"
               aria-label="Remove from queue"
             >
-              <i data-lucide="x" class="icon-xs"></i>
+              <i class="bi bi-x icon-xs" aria-hidden="true"></i>
             </button>
           </div>
         </div>
@@ -152,7 +163,10 @@
   {% else %}
     {% if not current_track %}
       <div class="queue-empty" role="status">
-        <i data-lucide="music" class="queue-empty-icon"></i>
+        <i
+          class="bi bi-music-note-beamed queue-empty-icon"
+          aria-hidden="true"
+        ></i>
         <p class="empty-state-title">QUEUE IS EMPTY</p>
         <p class="empty-state-message">Add tracks to start playing music</p>
         <button

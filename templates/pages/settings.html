@@ -3,28 +3,23 @@
 {% block title %}Settings - Harpi{% endblock %}
 
 {% block content %}
-  {%
-    set settings_tabs = [
-      {"section": "general", "icon": "⚙", "label": "GENERAL"},
-      {"section": "music", "icon": "♪", "label": "MUSIC"},
-      {"section": "tts", "icon": "≡", "label": "TTS"},
-      {"section": "dice", "icon": "◆", "label": "DICE"},
-    ]
-  %}
   <div class="page-transition settings-layout">
     <nav class="settings-nav" aria-label="Settings sections">
       <ul class="settings-nav-list" role="list">
-        {% for tab in settings_tabs %}
+        {% for section, tab in settings_sections.items() %}
           <li>
             <button
               class="settings-nav-item {% if loop.first %}active{% endif %}"
-              hx-get="{{ url_for('htmx_routes.htmx_settings_section', section=tab.section) }}"
+              hx-get="{{ url_for('htmx_routes.htmx_settings_section', section=section) }}"
               hx-target="#settings-content"
               hx-swap="innerHTML"
               hx-push-url="false"
               aria-label="{{ tab.label }} settings"
             >
-              <span class="settings-nav-icon">{{ tab.icon }}</span>
+              <i
+                class="bi bi-{{ tab.icon }} settings-nav-icon"
+                aria-hidden="true"
+              ></i>
               <span>{{ tab.label }}</span>
             </button>
           </li>
