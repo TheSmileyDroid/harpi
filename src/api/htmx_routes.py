@@ -8,6 +8,7 @@ from loguru import logger
 from quart import Blueprint, render_template, request, session
 
 from src.api.deps import get_bot, run_on_bot_loop
+from src.harpi_lib.audio.session import LOOP_MODE_ALIASES
 from src.api.music import (
     DEFAULT_VOLUME,
     SEEK_TIMEOUT_SECONDS,
@@ -231,8 +232,6 @@ async def api_music_seek(guild_id: str):
 @bp.route("/api/music/<guild_id>/loop/<mode>", methods=["POST"])
 async def api_music_loop(guild_id: str, mode: str):
     """Set loop mode and return updated controls."""
-    from src.harpi_lib.audio.session import LOOP_MODE_ALIASES
-
     loop_mode = LOOP_MODE_ALIASES.get(mode)
     if loop_mode:
         try:
