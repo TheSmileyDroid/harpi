@@ -8,6 +8,7 @@ from quart_schema import validate_request, validate_response
 
 from src.api.deps import get_bot, run_on_bot_loop
 from src.harpi_lib.audio.session import (
+    DEFAULT_VOLUME,
     LoopMode,
     PlaybackSession,
     SessionStatus,
@@ -15,11 +16,7 @@ from src.harpi_lib.audio.session import (
 
 bp = Blueprint("music", __name__)
 
-DEFAULT_VOLUME = 0.5
 SEEK_TIMEOUT_SECONDS = 10.0
-
-
-# Response / Request Models
 
 
 class MusicTrackResponse(BaseModel):
@@ -92,9 +89,6 @@ class MusicAddResponse(BaseModel):
 
     status: str
     error: str | None = None
-
-
-# Helpers
 
 
 def _parse_guild_id(raw: str) -> int | None:
@@ -178,9 +172,6 @@ def _get_session(guild_id: int) -> "PlaybackSession | None":
     if not bot:
         return None
     return bot.sessions.get(guild_id)
-
-
-# Add music endpoint
 
 
 @bp.route("/api/music/add", methods=["POST"])

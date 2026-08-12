@@ -1,13 +1,3 @@
-"""Panel context: each page resolves only what it renders.
-
-The base context covers the chrome every page shares (navigation, bot
-status).  ``PAGE_RESOLVERS`` maps a page to the extra resolvers it needs:
-the dashboard resolves server status and bot info, the music page resolves
-the guild/channel selector (plus static fragment defaults), settings
-resolves nothing.  Music playback data is never resolved by the page —
-the HTMX fragments self-poll (queue 3s, playback 2s, layers 3s, status 5s).
-"""
-
 from __future__ import annotations
 
 import importlib.metadata
@@ -23,8 +13,20 @@ from src.api.deps import get_bot
 from src.api.guild import _get_guilds
 from src.api.music import MusicStatusResponse, get_music_data
 from src.api.server_status import get_server_status
+from src.harpi_lib.audio.session import DEFAULT_VOLUME
 
 VERSION = "0.1.0"
+
+
+def _app_version() -> str:
+    """App version from package metadata; source runs fall back to VERSION."""
+    try:
+        return importlib.metadata.version("harpi")
+    except importlib.metadata.PackageNotFoundError:
+        return VERSION
+
+
+APP_VERSION = _app_version()
 
 NAV_ITEMS = [
     {"label": "DASHBOARD", "icon": "layout-dashboard", "page": "dashboard"},
@@ -41,7 +43,7 @@ class MusicPanelContext:
     layers: list[Any] = field(default_factory=list)
     current_track: Any | None = None
     paused: bool = False
-    volume: float = 0.5
+    volume: float = DEFAULT_VOLUME
     loop_mode: str = "off"
     current_position: int = 0
     current_position_formatted: str = "0:00"
@@ -73,11 +75,12 @@ async def get_music_panel(guild_id: int) -> MusicPanelContext:
 
 
 async def base_context() -> dict[str, Any]:
-    """Context shared by every page: navigation and bot status."""
+    """Context shared by every page: navigation, version, bot status."""
     bot = get_bot()
     return {
         "nav_items": NAV_ITEMS,
         "bot_connected": bot.is_ready() if bot else False,
+        "version": APP_VERSION,
     }
 
 
@@ -131,16 +134,12 @@ async def server_status_context() -> dict[str, Any]:
 async def bot_info_context() -> dict[str, Any]:
     """Bot and runtime information for the dashboard."""
     bot = get_bot()
-    try:
-        app_version = importlib.metadata.version("harpi")
-    except importlib.metadata.PackageNotFoundError:
-        app_version = VERSION
     return {
         "bot_user": str(bot.user) if bot and bot.user else "Unknown",
         "bot_id": str(bot.user.id) if bot and bot.user else "Unknown",
         "discord_version": discord.__version__,
         "python_version": platform.python_version(),
-        "version": app_version,
+        "version": APP_VERSION,
     }
 
 

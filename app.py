@@ -15,7 +15,7 @@ from src.discord_bot import run_bot_in_background
 
 logger.remove()
 logger.add("spam.log", level="DEBUG")
-logger.add(sys.stdout, level="DEBUG")
+logger.add(sys.stdout, level="INFO")
 
 app = Quart(__name__)
 

@@ -8,14 +8,17 @@ from loguru import logger
 from quart import Blueprint, render_template, request, session
 
 from src.api.deps import get_bot, run_on_bot_loop
-from src.api.guild import _get_guilds
 from src.api.music import (
     DEFAULT_VOLUME,
     SEEK_TIMEOUT_SECONDS,
     _get_session,
 )
-from src.api.panel_context import get_music_panel, selector_context
-from src.api.server_status import get_server_status
+from src.api.panel_context import (
+    APP_VERSION,
+    get_music_panel,
+    selector_context,
+    server_status_context,
+)
 
 if TYPE_CHECKING:
     from src.harpi_lib.audio.session import PlaybackSession
@@ -49,19 +52,9 @@ async def _session_action(
 @bp.route("/htmx/server/status")
 async def htmx_server_status():
     """Server status cards fragment - polled every 5s."""
-    bot = get_bot()
-    guilds = await _get_guilds()
-    status = await get_server_status(guilds, bot=bot)
-
-    context = {
-        **status,
-        "guild_count": len(guilds),
-        "user_count": sum(g.member_count or 0 for g in guilds)
-        if guilds
-        else 0,
-    }
-
-    return await render_template("partials/_server_status.html", **context)
+    return await render_template(
+        "partials/_server_status.html", **await server_status_context()
+    )
 
 
 @bp.route("/htmx/music/<guild_id>/queue")
@@ -148,7 +141,7 @@ async def htmx_settings_section(section: str):
             "auto_connect": False,
             "debug_mode": False,
         },
-        "version": "0.1.0",
+        "version": APP_VERSION,
     }
 
     return await render_template(template, **context)
