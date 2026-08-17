@@ -1,7 +1,6 @@
 """Shared fakes for the session lifecycle tests."""
 
 from __future__ import annotations
-import re
 
 import asyncio
 from types import SimpleNamespace
@@ -14,10 +13,6 @@ from src.harpi_lib.music.ytmusicdata import YTMusicData
 GUILD_ID = 1
 CHANNEL_ID = 10
 BOT_USER_ID = 1234
-
-
-def _unformat(html: str) -> str:
-    return re.sub("\s+", "", html).strip()
 
 
 class FakeVoiceClient(discord.VoiceClient):

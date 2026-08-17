@@ -619,16 +619,6 @@ class YTMusicData:
         return cast(int, self._video.get("duration", 0))
 
     @property
-    def thumbnail(self) -> str:
-        thumb = self._video.get("thumbnail") or self._video.get("thumb", "")
-        if thumb:
-            return cast(str, thumb)
-        video_id = self._video.get("id", "")
-        if video_id:
-            return f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg"
-        return ""
-
-    @property
     def uploader(self) -> str:
         return cast(
             str,

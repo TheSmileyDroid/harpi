@@ -1,66 +1,176 @@
-{% extends "base.html" %}
+{% extends "layout.html" %}
 
-{% block title %}Music - Harpi{% endblock %}
+{% block title %}Music{% endblock title %}
 
 {% block content %}
-  <div class="page-transition">
-    <header class="page-header">
-      <div>
-        <h1 class="page-title">
-          <i
-            class="bi bi-music-note-beamed page-title-icon"
-            aria-hidden="true"
-          ></i>
-          MUSIC CONTROL
-        </h1>
-        <p class="page-subtitle">Controle de fila e audios de fundo</p>
-      </div>
-      <div>
-        <span class="polling-indicator" id="queue-polling-status">
-          <span class="pulse-dot"></span>
-          {% if channel_id %}
-            <span>LIVE</span>
-          {% else %}
-            <span>OFFLINE</span>
-          {% endif %}
-        </span>
-      </div>
-    </header>
+  <h1 class="page-title">MUSIC CONTROL</h1>
 
-    <div class="panel">
-      {% include "partials/_guild_channel_selector.html" %}
-    </div>
-
-    {% if guild_id and channel_id %}
-      <div class="music-layout">
-        <div class="music-main">
-          {% include "partials/_music_queue.html" %}
-          {% include "partials/_playback_controls.html" %}
-        </div>
-
-        <aside
-          aria-labelledby="layers-heading"
-          style="position: sticky; top: 80px;"
+  {% block selector %}
+    <section
+      id="selector"
+      hx-get="{{ url_for('music.music') }}"
+      hx-swap="outerHTML"
+      hx-target="#selector"
+    >
+      <form
+        hx-post="{{ url_for('music.music') }}"
+        hx-target="#selector"
+        hx-swap="outerHTML"
+      >
+        <select name="guild_id" required>
+          <option value="">Guild</option>
+          {% for g in guilds %}
+            <option
+              value="{{ g.id }}"
+              {% if g.id == selected_guild_id %}selected{% endif %}
+            >
+              {{ g.name }}
+            </option>
+          {% endfor %}
+        </select>
+        <select name="channel_id" required>
+          <option value="">Channel</option>
+          {% for c in channels %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" name="action" value="connect">Connect</button>
+      </form>
+      {% if selected_guild_id %}
+        <form
+          hx-post="{{ url_for('music.music') }}"
+          hx-target="#selector"
+          hx-swap="outerHTML"
         >
-          {% include "partials/_music_layers.html" %}
-        </aside>
-      </div>
-    {% else %}
-      <div class="panel" style="text-align: center; padding: var(--space-xxl);">
-        <i
-          class="bi bi-music-note-beamed icon-xxl"
-          style="margin-bottom:var(--space-md);opacity:0.3;"
-          aria-hidden="true"
-        ></i>
-        <h2
-          style="color: var(--color-text-dim); font-family: var(--font-mono); letter-spacing: 2px;"
-        >
-          NO CHANNEL SELECTED
+          <input type="hidden" name="action" value="disconnect" />
+          <button type="submit">Disconnect</button>
+        </form>
+      {% endif %}
+    </section>
+  {% endblock selector %}
+
+  {% block now_playing %}
+    <section
+      id="now_playing"
+      hx-get="{{ url_for('music.music') }}"
+      hx-trigger="every 2s"
+      hx-swap="outerHTML"
+      hx-target="#now_playing"
+    >
+      {% if status and status.connected %}
+        <h2>
+          {{ status.current_music.title if status.current_music else "Nothing playing" }}
         </h2>
-        <p>Select a guild and channel above to access music controls.</p>
-      </div>
-    {% endif %}
+        <p>
+          {{ status.current_music.uploader if status.current_music else "" }} ·
+          {{ (status.current_music.duration if status.current_music else 0) | format_duration }}
+        </p>
+        <p>Progress: {{ (status.progress / 1000) | format_duration }}</p>
+        <p>Volume: {{ status.volume }} · Loop: {{ status.loop_mode.name }}</p>
+        <form
+          hx-post="{{ url_for('music.music') }}"
+          hx-target="#now_playing"
+          hx-swap="outerHTML"
+        >
+          <input type="hidden" name="action" value="toggle_pause" />
+          <button type="submit">
+            {{ "Resume" if status.is_paused else "Pause" }}
+          </button>
+        </form>
+        <form
+          hx-post="{{ url_for('music.music') }}"
+          hx-target="#now_playing"
+          hx-swap="outerHTML"
+        >
+          <input type="hidden" name="action" value="skip" />
+          <button type="submit">Skip</button>
+        </form>
+      {% else %}
+        <p>No active session.</p>
+      {% endif %}
+    </section>
+  {% endblock now_playing %}
 
-    <div id="modal-container"></div>
-  </div>
-{% endblock %}
+  {% block queue %}
+    <section
+      id="queue"
+      hx-get="{{ url_for('music.music') }}"
+      hx-trigger="every 3s"
+      hx-swap="outerHTML"
+      hx-target="#queue"
+    >
+      <form
+        hx-post="{{ url_for('music.music') }}"
+        hx-target="#queue"
+        hx-swap="outerHTML"
+      >
+        <input type="hidden" name="action" value="add" />
+        <input name="value" placeholder="URL or search" required />
+        <button type="submit">Add</button>
+      </form>
+      <ul>
+        {% for t in (status.queue if status else []) %}
+          <li>
+            {{ t.title }}
+            <form
+              hx-post="{{ url_for('music.music') }}"
+              hx-target="#queue"
+              hx-swap="outerHTML"
+            >
+              <input type="hidden" name="action" value="remove" />
+              <input type="hidden" name="value" value="{{ t.url }}" />
+              <button type="submit">Remove</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if status and status.queue %}
+        <form
+          hx-post="{{ url_for('music.music') }}"
+          hx-target="#queue"
+          hx-swap="outerHTML"
+        >
+          <input type="hidden" name="action" value="clear_queue" />
+          <button type="submit">Clear queue</button>
+        </form>
+      {% endif %}
+    </section>
+  {% endblock queue %}
+
+  {% block layers %}
+    <section
+      id="layers"
+      hx-get="{{ url_for('music.music') }}"
+      hx-trigger="every 3s"
+      hx-swap="outerHTML"
+      hx-target="#layers"
+    >
+      <ul>
+        {% for l in (status.layers if status else []) %}
+          <li>
+            {{ l.title }} ({{ l.volume }})
+            <form
+              hx-post="{{ url_for('music.music') }}"
+              hx-target="#layers"
+              hx-swap="outerHTML"
+            >
+              <input type="hidden" name="action" value="remove_layer" />
+              <input type="hidden" name="value" value="{{ l.id }}" />
+              <button type="submit">Remove</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if status and status.layers %}
+        <form
+          hx-post="{{ url_for('music.music') }}"
+          hx-target="#layers"
+          hx-swap="outerHTML"
+        >
+          <input type="hidden" name="action" value="clear_layers" />
+          <button type="submit">Clear layers</button>
+        </form>
+      {% endif %}
+    </section>
+  {% endblock layers %}
+{% endblock content %}

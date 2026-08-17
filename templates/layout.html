@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Harpi - System Panel" />
+    <meta name="keywords" content="harpi, discord, bot, music, panel" />
+    <title>{% block title %}Harpi - System Panel{% endblock title %}</title>
+
+    <link
+      rel="icon"
+      href="{{ url_for('static', filename='assets/favicon.svg') }}"
+    />
+
+    <script
+      src="{{ url_for('static', filename='js/htmx.min.js') }}"
+      defer
+    ></script>
+
+    {% block extra_head %}{% endblock extra_head %}
+  </head>
+  <body>
+    <div class="app-container">
+      <header class="top-bar" role="banner">
+        <div class="top-bar-left">
+          <a class="logo" aria-label="Harpi Home" href="/">
+            <img
+              src="{{ url_for('static', filename='assets/favicon.svg') }}"
+              alt=""
+              class="logo-icon"
+              width="24"
+              height="24"
+            />
+            <span class="logo-text">HARPI</span>
+          </a>
+        </div>
+
+        <div class="top-bar-center">
+          <nav class="main-nav" role="navigation" aria-label="Main navigation">
+            <a href="/">Home</a>
+            <a href="{{ url_for('music.music') }}">Music</a>
+          </nav>
+        </div>
+
+        <div class="top-bar-right">
+          <div
+            id="bot-status"
+            hx-get="/status"
+            hx-trigger="load"
+            hx-swap="innerHTML"
+          ></div>
+        </div>
+      </header>
+
+      <main id="main" class="main-content" role="main">
+        {% block content %}{% endblock content %}
+      </main>
+
+      <footer class="app-footer" role="contentinfo"></footer>
+    </div>
+
+    <div
+      id="toast-container"
+      class="toast-container"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
+
+    {% block extra_scripts %}{% endblock extra_scripts %}
+  </body>
+</html>

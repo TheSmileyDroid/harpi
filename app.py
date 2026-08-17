@@ -3,14 +3,14 @@ from __future__ import annotations
 import os
 import sys
 
-import psutil
 from loguru import logger
-from pydantic import BaseModel
-from quart import Quart, request
+from quart import Quart
 from quart_cors import cors
-from quart_schema import QuartSchema, validate_response
 
-from src.api import html_routes, htmx_routes, music
+from pages.index import bp as index_bp
+from pages.music import bp as music_bp
+from pages.status import bp as status_bp
+
 from src.discord_bot import run_bot_in_background
 
 logger.remove()
@@ -20,8 +20,6 @@ logger.add(sys.stdout, level="INFO")
 app = Quart(__name__)
 
 app = cors(app, allow_origin="*")
-
-QuartSchema(app)
 
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.secret_key = os.environ.get("SECRET_KEY")
@@ -55,47 +53,14 @@ def format_bytes(value: int) -> str:
     return f"{v:.1f} {units[i]}"
 
 
-class ServerStatusModel(BaseModel):
-    cpu: float
-    memory_total: int
-    memory_available: int
-    memory_percent: float
-    memory_used: int
-    memory_free: int
+@app.template_filter(name="round")
+def format_round(value: str, precision: int = 1) -> str:
+    """Format float to a given precision."""
+    return f"{str(round(float(value), precision))}"
 
 
-@app.route("/api/serverstatus")
-@validate_response(ServerStatusModel)
-def api_server_status():
-    cpu_percent = psutil.cpu_percent()
-    mem = psutil.virtual_memory()
-    return ServerStatusModel(
-        cpu=cpu_percent,
-        memory_total=mem.total,
-        memory_available=mem.available,
-        memory_percent=mem.percent,
-        memory_used=mem.used,
-        memory_free=mem.free,
-    )
-
-
-app.register_blueprint(html_routes.bp)
-app.register_blueprint(htmx_routes.bp)
-app.register_blueprint(music.bp)
-
-
-@app.before_request
-async def throttle_music_actions():
-    """Throttle mutating music endpoints to protect the voice path."""
-    from src.api.rate_limit import MUSIC_ACTION_LIMITER
-
-    if request.method not in {"POST", "DELETE"}:
-        return None
-    if not request.path.startswith("/api/music/"):
-        return None
-    if MUSIC_ACTION_LIMITER.allow(request.remote_addr or "unknown"):
-        return None
-    return "Too many requests", 429, {"Retry-After": "1"}
+for _bp in (index_bp, music_bp, status_bp):
+    app.register_blueprint(_bp)
 
 
 @app.before_serving

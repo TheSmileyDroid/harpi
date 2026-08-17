@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+
+{% block title %}Harpi{% endblock title %}
+
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">DASHBOARD</h1>
+    <p class="page-subtitle">System overview and bot status</p>
+  </header>
+
+  {% block server_status %}
+    <section
+      id="server_status"
+      hx-get="{{ url_for('index.index') }}"
+      hx-trigger="every 5s"
+      hx-swap="outerHTML"
+      hx-target="#server_status"
+    >
+      <h2>Server Status</h2>
+      <p>CPU: {{ cpu }}%</p>
+      <p>Memory: {{ mem_percent }}% ({{ mem_available }} / {{ mem_total }})</p>
+      <p>Bot: {{ "ONLINE" if connected else "OFFLINE" }}</p>
+    </section>
+  {% endblock server_status %}
+
+  <p><a href="{{ url_for('music.music') }}">Music Control</a></p>
+{% endblock content %}
