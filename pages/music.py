@@ -1,86 +1,322 @@
-from quart import Blueprint, request, session
+from typing import Any
+from collections.abc import Callable
 
-from src.api.deps import get_bot, run_on_bot_loop
-from src.api.guild import _get_guilds
-from src.api.panel import render_page_or_fragment
+from discord import Guild
+from loguru import logger
+from quart import Blueprint, render_template, request, session
+from jinja2_fragments.quart import render_block
+
+from src.bot_state import get_bot, run_on_bot_loop
+from src.harpi_lib.audio.session import (
+    LOOP_MODE_ALIASES,
+    LoopMode,
+    PlaybackSession,
+)
+from src.harpi_lib.music.ytmusic import YTMusicData
+from src.harpi_lib.parse import parse_finite_float
 
 bp = Blueprint("music", __name__)
+
+# htmx sends the HX-Target header (the id from hx-target); renaming an id
+# means editing this set and the template together.
+_TARGET_BLOCKS: frozenset[str] = frozenset({
+    "now_playing",
+    "queue",
+    "layers",
+    "selector",
+    "status_panels",
+    "transport",
+    "search",
+})
+
+_SESSION_VERBS: frozenset[str] = frozenset({
+    "toggle_pause",
+    "skip",
+    "previous",
+    "stop",
+    "clear_queue",
+    "clear_layers",
+})
+
+_SESSION_VALUE_VERBS: dict[str, str] = {
+    "remove": "remove",
+    "remove_layer": "remove_layer",
+    "add": "play",
+    "add_layer": "add_layer",
+}
+
+SEARCH_RESULT_LIMIT = 5
+
+# Shown after an add that left the session with nothing playing and an
+# empty queue: every track was skipped while loading and the reason only
+# reached the Discord channel, so the panel must speak up too.
+_ALL_SKIPPED_WARNING = (
+    "As faixas foram adicionadas, mas nenhuma pôde ser tocada. "
+    "O motivo foi anunciado no canal do Discord."
+)
+
+
+async def _collect_guilds(bot) -> list[Guild]:
+    """Collect guilds from the bot's async generator (runs on bot loop)."""
+    return [guild async for guild in bot.fetch_guilds(limit=150)]
+
+
+async def _get_guilds() -> list[Guild]:
+    """Return every guild the bot can see, fresh on each call."""
+    bot = get_bot()
+    return await run_on_bot_loop(_collect_guilds(bot))
 
 
 def _guild_id() -> int | None:
     raw = session.get("guild_id")
-    return int(raw) if raw else None
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+async def _status():
+    bot = get_bot()
+    guild_id = _guild_id()
+    if guild_id is None:
+        return None
+    session_obj = bot.sessions.get(guild_id)
+    if session_obj is None:
+        return None
+    return await run_on_bot_loop(session_obj.sample_status())
 
 
 async def _context() -> dict:
     bot = get_bot()
     guild_id = _guild_id()
-    guilds = await _get_guilds()
+    guild_list = await _get_guilds()
     channels = []
-    if guild_id is not None and bot:
+    if guild_id is not None:
         guild = bot.get_guild(guild_id)
         if guild:
             channels = guild.voice_channels
-    status = None
-    if guild_id is not None and bot:
-        session_obj = bot.sessions.get(guild_id)
-        if session_obj is not None:
-            status = await run_on_bot_loop(session_obj.sample_status())
     return {
-        "guilds": guilds,
+        "guilds": guild_list,
         "selected_guild_id": guild_id,
         "channels": channels,
-        "status": status,
+        "status": await _status(),
     }
 
 
-async def _handle_action(request) -> None:
-    form = await request.form
+def _float_value(raw: str | None) -> float:
+    value = parse_finite_float(raw)
+    if value is None:
+        raise ValueError("Valor numérico inválido")
+    return value
+
+
+def _loop_mode(value: str) -> LoopMode:
+    mode = LOOP_MODE_ALIASES.get(value)
+    if mode is None:
+        raise ValueError("Modo de loop inválido")
+    return mode
+
+
+# Verbs whose single form value must arrive at the session as a float.
+_NUMERIC_VERBS: dict[str, tuple[str, Callable[[str], float]]] = {
+    "set_volume": ("set_volume", _float_value),
+    "seek": ("seek", _float_value),
+}
+
+
+def _custom_verb_call(session_obj: PlaybackSession, action: str, form: Any):
+    """Coroutine for the verbs whose form mapping is not a plain name."""
+    value = form.get("value")
+    if action == "set_loop" and value:
+        return session_obj.set_loop(_loop_mode(value))
+    if action == "set_layer_volume" and value:
+        return session_obj.set_layer_volume(
+            form.get("layer_id") or "", _float_value(value)
+        )
+    return None
+
+
+def _verb_call(session_obj: PlaybackSession, action: str, form: Any):
+    """Resolve *action* to the session coroutine to run, or None."""
+    value = form.get("value")
+    if action in _SESSION_VERBS:
+        return getattr(session_obj, action)()
+    if action in _SESSION_VALUE_VERBS and value:
+        return getattr(session_obj, _SESSION_VALUE_VERBS[action])(value)
+    if action in _NUMERIC_VERBS and value:
+        verb, coerce = _NUMERIC_VERBS[action]
+        return getattr(session_obj, verb)(coerce(value))
+    return _custom_verb_call(session_obj, action, form)
+
+
+async def _run_session_verb(
+    session_obj: PlaybackSession, action: str, form: Any
+) -> None:
+    """Run the session verb *action* expects, adapting the form values."""
+    call = _verb_call(session_obj, action, form)
+    if call is not None:
+        await run_on_bot_loop(call)
+
+
+async def _dispatch_session_action(
+    session_obj: PlaybackSession, action: str, form: Any
+) -> str | None:
+    """Run the session verb for *action*; return a panel warning, if any."""
+    await _run_session_verb(session_obj, action, form)
+    if action == "add":
+        return await _skipped_tracks_warning(session_obj)
+    return None
+
+
+async def _skipped_tracks_warning(session_obj: PlaybackSession) -> str | None:
+    """Warn when an add left the session idle: play awaits the first
+    advance before returning, so idle here means every track was skipped."""
+    status = await run_on_bot_loop(session_obj.sample_status())
+    if status.current_music is None and not status.queue:
+        return _ALL_SKIPPED_WARNING
+    return None
+
+
+async def _handle_session_action(
+    bot: Any, form: Any, action: str
+) -> str | None:
+    guild_id = _guild_id()
+    if guild_id is None:
+        raise ValueError("Nenhum servidor selecionado")
+    session_obj = bot.sessions.get(guild_id)
+    if session_obj is None:
+        raise ValueError("Não conectado a um canal de voz")
+    return await _dispatch_session_action(session_obj, action, form)
+
+
+async def _handle_search(form: Any) -> list[YTMusicData]:
+    """Resolve a search term or URL into the results the panel lists.
+
+    Runs on the web loop on purpose: yt-dlp work happens in an executor,
+    so nothing here touches discord.py internals.
+    """
+    term = (form.get("value") or "").strip()
+    if not term:
+        return []
+    results = await YTMusicData.from_url(term)
+    if not results:
+        raise ValueError("Nenhuma música encontrada para esta busca")
+    return results[:SEARCH_RESULT_LIMIT]
+
+
+async def _handle_connect(bot: Any, form) -> None:
+    try:
+        guild_id = int(form["guild_id"])
+        channel_id = int(form["channel_id"])
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("Selecione um servidor e um canal") from None
+    # The cookie records the selection only after the connect succeeds, so a
+    # failed connect never leaves the panel claiming a session it does not have.
+    await run_on_bot_loop(bot.sessions.connect(guild_id, channel_id))
+    session["guild_id"] = str(guild_id)
+
+
+async def _handle_disconnect(bot: Any) -> None:
+    guild_id = _guild_id()
+    if guild_id is not None:
+        session.pop("guild_id", None)
+        await run_on_bot_loop(bot.sessions.disconnect(guild_id))
+
+
+async def _handle_action(
+    form: Any,
+) -> tuple[list[YTMusicData], str | None]:
+    """Dispatch one panel action; return search results and a warning."""
     action = (form.get("action") or "").strip()
     bot = get_bot()
 
     if action == "connect":
-        guild_id = int(form["guild_id"])
-        channel_id = int(form["channel_id"])
-        session["guild_id"] = str(guild_id)
-        await run_on_bot_loop(bot.sessions.connect(guild_id, channel_id))
-        return
+        await _handle_connect(bot, form)
+    elif action == "disconnect":
+        await _handle_disconnect(bot)
+    elif action == "search":
+        return await _handle_search(form), None
+    else:
+        warning = await _handle_session_action(bot, form, action)
+        return [], warning
+    return [], None
 
-    if action == "disconnect":
-        guild_id = _guild_id()
-        if guild_id is not None:
-            session.pop("guild_id", None)
-            await run_on_bot_loop(bot.sessions.disconnect(guild_id))
-        return
 
-    guild_id = _guild_id()
-    if guild_id is None:
-        return
-    session_obj = bot.sessions.get(guild_id)
-    if session_obj is None:
-        return
+async def _block_or_page(
+    block: str | None,
+    error: str | None,
+    search_results: list[YTMusicData],
+):
+    if not (block and request.headers.get("HX-Request")):
+        return await render_template(
+            "pages/music.html",
+            error=error,
+            search_results=search_results,
+            **await _context(),
+        )
+    if block == "selector":
+        return await render_block(
+            "pages/music.html",
+            block,
+            error=error,
+            search_results=search_results,
+            **await _context(),
+        )
+    return await render_block(
+        "pages/music.html",
+        block,
+        error=error,
+        search_results=search_results,
+        status=await _status(),
+    )
 
-    value = form.get("value")
-    if action == "toggle_pause":
-        await run_on_bot_loop(session_obj.toggle_pause())
-    elif action == "skip":
-        await run_on_bot_loop(session_obj.skip())
-    elif action == "stop":
-        await run_on_bot_loop(session_obj.stop())
-    elif action == "clear_queue":
-        await run_on_bot_loop(session_obj.clear_queue())
-    elif action == "remove" and value:
-        await run_on_bot_loop(session_obj.remove(value))
-    elif action == "clear_layers":
-        await run_on_bot_loop(session_obj.clear_layers())
-    elif action == "remove_layer" and value:
-        await run_on_bot_loop(session_obj.remove_layer(value))
-    elif action == "add" and value:
-        await run_on_bot_loop(session_obj.play(value))
+
+async def _panel_error_oob(error: str | None) -> str:
+    """Render the error region for an out-of-band swap inside a fragment."""
+    inner = await render_block("pages/music.html", "panel_error", error=error)
+    return f'<div id="panel_error" hx-swap-oob="true">{inner}</div>'
+
+
+async def _handle_music_post() -> tuple[list[YTMusicData], str | None]:
+    """Handle a POST to the music page; return (results, error_or_warning)."""
+    try:
+        results, warning = await _handle_action(await request.form)
+        return results, warning
+    except Exception as e:
+        logger.opt(exception=True).warning(f"Panel action failed: {e}")
+        error = str(e) if str(e) else type(e).__name__
+        return [], error
+
+
+async def _render_music_response(
+    block: str | None,
+    error: str | None,
+    search_results: list[YTMusicData],
+) -> str:
+    """Render the music page or fragment, attaching the OOB error on POSTs."""
+    response = await _block_or_page(block, error, search_results)
+    if (
+        request.method == "POST"
+        and block
+        and request.headers.get("HX-Request")
+    ):
+        response += await _panel_error_oob(error)
+    return response
 
 
 @bp.route("/music", methods=["GET", "POST"])
 async def music():
+    guild_id = request.args.get("guild_id")
+    if guild_id:
+        session["guild_id"] = guild_id
+    error: str | None = None
+    search_results: list[YTMusicData] = []
     if request.method == "POST":
-        await _handle_action(request)
-    return await render_page_or_fragment("pages/music.html", await _context())
+        search_results, error = await _handle_music_post()
+    hx_target = request.headers.get("HX-Target", "")
+    block = None
+    if hx_target in _TARGET_BLOCKS:
+        block = hx_target
+    return await _render_music_response(block, error, search_results)

@@ -2,7 +2,6 @@ from typing import cast
 
 import io
 import threading
-import time
 from unittest import mock
 
 import discord
@@ -10,11 +9,8 @@ import pytest
 from discord.opus import Encoder
 
 from src.harpi_lib.audio.controller import AudioController
-from src.harpi_lib.music.ytmusicdata import (
-    BYTES_PER_SECOND,
-    FFmpegPCMAudio,
-    YoutubeDLSource,
-)
+from src.harpi_lib.music.ffmpeg_source import FFmpegPCMAudio
+from src.harpi_lib.music.ytdl_source import BYTES_PER_SECOND, YoutubeDLSource
 
 CHUNK_SIZE = Encoder.FRAME_SIZE
 
@@ -36,7 +32,7 @@ class FakeProc:
 
 def _patch_popen(chunks: list[bytes]) -> mock._patch:
     return mock.patch(
-        "src.harpi_lib.music.ytmusicdata.subprocess.Popen",
+        "src.harpi_lib.music.ffmpeg_source.subprocess.Popen",
         side_effect=lambda *args, **kwargs: FakeProc(chunks),
     )
 
@@ -120,7 +116,7 @@ def test_position_tracking_increases_per_read():
         volume=1.0,
     )
 
-    assert source.position_seconds() == 0.0
+    assert source.position_seconds() == pytest.approx(0.0)
     for i in range(1, 5):
         source.read()
         assert source.position_seconds() == pytest.approx(
@@ -148,7 +144,7 @@ def test_seek_delegates_to_original_and_resets_position():
     source.seek(12.5)
 
     assert original.seek_calls == [12.5]
-    assert source.position_seconds() == 12.5
+    assert source.position_seconds() == pytest.approx(12.5)
 
 
 class FakeSeekSource(discord.AudioSource):
@@ -170,14 +166,14 @@ class FakeSeekSource(discord.AudioSource):
 def test_get_queue_position_returns_zero_without_source():
     controller = AudioController()
 
-    assert controller.get_queue_position() == 0.0
+    assert controller.get_queue_position() == pytest.approx(0.0)
 
 
 def test_get_queue_position_returns_source_position():
     controller = AudioController()
     controller.set_queue_source(FakeSeekSource(position=42.5))
 
-    assert controller.get_queue_position() == 42.5
+    assert controller.get_queue_position() == pytest.approx(42.5)
 
 
 def test_get_queue_position_handles_source_errors():
@@ -191,7 +187,7 @@ def test_get_queue_position_handles_source_errors():
     controller = AudioController()
     controller.set_queue_source(BrokenSource())
 
-    assert controller.get_queue_position() == 0.0
+    assert controller.get_queue_position() == pytest.approx(0.0)
 
 
 def test_read_after_seek_uses_new_process():
@@ -280,21 +276,28 @@ def test_seek_serializes_concurrent_calls():
     """Concurrent seeks must land atomically on the underlying source."""
     entered = threading.Event()
     release = threading.Event()
+    overlap_detected = False
 
-    class BlockingSeekSource(discord.AudioSource):
+    class OverlapDetectingSource(discord.AudioSource):
         def __init__(self) -> None:
             self.seek_calls: list[float] = []
+            self._in_seek = False
 
         def read(self) -> bytes:
             return b""
 
         def seek(self, position: float) -> None:
+            nonlocal overlap_detected
+            if self._in_seek:
+                overlap_detected = True
+            self._in_seek = True
             self.seek_calls.append(position)
-            if position == 10.0:
+            if position == pytest.approx(10.0):
                 entered.set()
                 release.wait(timeout=5)
+            self._in_seek = False
 
-    original = BlockingSeekSource()
+    original = OverlapDetectingSource()
     source = YoutubeDLSource(
         original, data={"title": "t", "url": "u"}, volume=1.0
     )
@@ -305,12 +308,13 @@ def test_seek_serializes_concurrent_calls():
 
     second = threading.Thread(target=source.seek, args=(20.0,), daemon=True)
     second.start()
-    time.sleep(0.05)
-    assert original.seek_calls == [10.0]
 
     release.set()
     first.join(timeout=5)
     second.join(timeout=5)
 
+    assert not first.is_alive()
+    assert not second.is_alive()
+    assert not overlap_detected
     assert original.seek_calls == [10.0, 20.0]
-    assert source.position_seconds() == 20.0
+    assert source.position_seconds() == pytest.approx(20.0)

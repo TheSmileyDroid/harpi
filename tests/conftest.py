@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, ClassVar
 
 import discord
 
-from src.harpi_lib.music.ytmusicdata import YTMusicData
+from src.harpi_lib.music.ytmusic import YTMusicData
 
 GUILD_ID = 1
 CHANNEL_ID = 10
@@ -158,13 +158,14 @@ class FakeSourceFactory:
     failures keyed by track title.
     """
 
-    failures: dict[str, Exception] = {}
+    failures: ClassVar[dict[str, Exception]] = {}
 
     @classmethod
     async def from_music_data(
         cls, music_data: Any, volume: float = 0.3
     ) -> FakeSource:
-        failure = cls.failures.get(getattr(music_data, "title", None))
+        title = getattr(music_data, "title", None)
+        failure = cls.failures.get(title) if isinstance(title, str) else None
         if failure is not None:
             raise failure
         source = FakeSource()

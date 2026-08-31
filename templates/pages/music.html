@@ -5,19 +5,33 @@
 {% block content %}
   <h1 class="page-title">MUSIC CONTROL</h1>
 
+  {# Action failures land here, outside every poller; actions re-render it out-of-band. #}
+  <div id="panel_error">
+    {% block panel_error %}
+      {% if error %}
+        <p class="panel-error" role="alert">{{ error }}</p>
+      {% endif %}
+    {% endblock panel_error %}
+  </div>
+
   {% block selector %}
-    <section
-      id="selector"
-      hx-get="{{ url_for('music.music') }}"
-      hx-swap="outerHTML"
-      hx-target="#selector"
-    >
+    <section id="selector" class="hud-panel panel-gap">
+      <h2 class="panel-label">00 // LINK</h2>
       <form
         hx-post="{{ url_for('music.music') }}"
         hx-target="#selector"
         hx-swap="outerHTML"
+        class="data-row"
       >
-        <select name="guild_id" required>
+        <select
+          name="guild_id"
+          required
+          class="hud-input"
+          hx-get="{{ url_for('music.music') }}"
+          hx-trigger="change"
+          hx-target="#selector"
+          hx-swap="outerHTML"
+        >
           <option value="">Guild</option>
           {% for g in guilds %}
             <option
@@ -28,149 +42,359 @@
             </option>
           {% endfor %}
         </select>
-        <select name="channel_id" required>
+        <select name="channel_id" required class="hud-input">
           <option value="">Channel</option>
           {% for c in channels %}
-            <option value="{{ c.id }}">{{ c.name }}</option>
+            <option
+              value="{{ c.id }}"
+              {% if status and status.channel_id == c.id %}selected{% endif %}
+            >
+              {{ c.name }}
+            </option>
           {% endfor %}
         </select>
-        <button type="submit" name="action" value="connect">Connect</button>
+        <button type="submit" name="action" value="connect" class="hud-btn">
+          Connect
+        </button>
       </form>
       {% if selected_guild_id %}
         <form
           hx-post="{{ url_for('music.music') }}"
           hx-target="#selector"
           hx-swap="outerHTML"
+          class="data-row"
         >
           <input type="hidden" name="action" value="disconnect" />
-          <button type="submit">Disconnect</button>
+          <button type="submit" class="hud-btn">Disconnect</button>
         </form>
       {% endif %}
     </section>
   {% endblock selector %}
 
-  {% block now_playing %}
-    <section
-      id="now_playing"
+  {% block status_panels %}
+    <div
+      id="status_panels"
+      class="panel-grid"
       hx-get="{{ url_for('music.music') }}"
       hx-trigger="every 2s"
       hx-swap="outerHTML"
-      hx-target="#now_playing"
+    >
+      {% block now_playing %}
+        <section id="now_playing" class="hud-panel">
+          <h2 class="panel-label">01 // NOW PLAYING</h2>
+          {% if status and status.connected %}
+            <p class="data-row">
+              <span class="data-label">TRACK</span>
+              <span class="data-title">
+                {{ status.current_music.title if status.current_music else "Nothing playing" }}
+              </span>
+            </p>
+            <p class="data-row">
+              <span class="data-label">SOURCE</span>
+              <span class="data-value">
+                {{ status.current_music.uploader if status.current_music else "--" }}
+              </span>
+            </p>
+            <p class="data-row">
+              <span class="data-label">LENGTH</span>
+              <span class="data-value">
+                {{ (status.current_music.duration if status.current_music else 0) | format_duration }}
+              </span>
+            </p>
+            <p class="data-row">
+              <span class="data-label">VOLUME</span>
+              <span class="data-value">{{ status.volume }}</span>
+            </p>
+            <p class="data-row">
+              <span class="data-label">LOOP</span>
+              <span class="data-value">{{ status.loop_mode.name }}</span>
+            </p>
+          {% else %}
+            <p class="progress-readout is-empty">NO SESSION</p>
+          {% endif %}
+        </section>
+      {% endblock now_playing %}
+
+      {% block queue %}
+        <section id="queue" class="hud-panel">
+          <h2 class="panel-label">02 // QUEUE</h2>
+          <!-- hx-preserve: this form sits inside the status_panels poller;
+               without it the 2s swap wipes whatever is being typed. -->
+          <form
+            id="queue-add"
+            hx-preserve
+            hx-post="{{ url_for('music.music') }}"
+            hx-target="#queue"
+            hx-swap="outerHTML"
+            class="data-row"
+          >
+            <input type="hidden" name="action" value="add" />
+            <input
+              name="value"
+              placeholder="URL or search"
+              required
+              class="hud-input"
+            />
+            <button type="submit" class="hud-btn">Add</button>
+          </form>
+          <ul>
+            {% for t in (status.queue if status else []) %}
+              <li class="data-row">
+                <span class="data-label"
+                  >{{ "%02d" | format(loop.index) }}</span
+                >
+                <span class="data-title">{{ t.title }}</span>
+                <form
+                  hx-post="{{ url_for('music.music') }}"
+                  hx-target="#queue"
+                  hx-swap="outerHTML"
+                >
+                  <input type="hidden" name="action" value="remove" />
+                  <input type="hidden" name="value" value="{{ t.url }}" />
+                  <button type="submit" class="hud-btn">DEL</button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+          {% if status and status.queue %}
+            <form
+              hx-post="{{ url_for('music.music') }}"
+              hx-target="#queue"
+              hx-swap="outerHTML"
+              class="data-row"
+            >
+              <input type="hidden" name="action" value="clear_queue" />
+              <button type="submit" class="hud-btn">Clear queue</button>
+            </form>
+          {% endif %}
+        </section>
+      {% endblock queue %}
+
+      {% block layers %}
+        <section id="layers" class="hud-panel">
+          <h2 class="panel-label">03 // LAYERS</h2>
+          <ul>
+            {% for l in (status.layers if status else []) %}
+              <li class="data-row">
+                <span class="data-label"
+                  >{{ "%02d" | format(loop.index) }}</span
+                >
+                <span class="data-title"
+                  >{{ l.title }} ({{ l.volume | round(2) }})</span
+                >
+                <!-- hx-preserve: this form sits inside the status_panels
+                     poller; without it the 2s swap wipes the volume being
+                     typed. -->
+                <form
+                  id="layer-volume-{{ l.id }}"
+                  hx-preserve
+                  hx-post="{{ url_for('music.music') }}"
+                  hx-target="#layers"
+                  hx-swap="outerHTML"
+                  class="data-row"
+                >
+                  <input type="hidden" name="action" value="set_layer_volume" />
+                  <input type="hidden" name="layer_id" value="{{ l.id }}" />
+                  <input
+                    name="value"
+                    type="number"
+                    min="0"
+                    max="2"
+                    step="0.1"
+                    value="{{ l.volume }}"
+                    class="hud-input"
+                  />
+                  <button type="submit" class="hud-btn">VOL</button>
+                </form>
+                <form
+                  hx-post="{{ url_for('music.music') }}"
+                  hx-target="#layers"
+                  hx-swap="outerHTML"
+                >
+                  <input type="hidden" name="action" value="remove_layer" />
+                  <input type="hidden" name="value" value="{{ l.id }}" />
+                  <button type="submit" class="hud-btn">DEL</button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+          {% if status and status.layers %}
+            <form
+              hx-post="{{ url_for('music.music') }}"
+              hx-target="#layers"
+              hx-swap="outerHTML"
+              class="data-row"
+            >
+              <input type="hidden" name="action" value="clear_layers" />
+              <button type="submit" class="hud-btn">Clear layers</button>
+            </form>
+          {% endif %}
+        </section>
+      {% endblock layers %}
+    </div>
+  {% endblock status_panels %}
+
+  {% block search %}
+    <section id="search" class="hud-panel panel-gap">
+      <h2 class="panel-label">04 // SEARCH</h2>
+      <form
+        hx-post="{{ url_for('music.music') }}"
+        hx-target="#search"
+        hx-swap="outerHTML"
+        class="data-row"
+      >
+        <input type="hidden" name="action" value="search" />
+        <input
+          name="value"
+          placeholder="Search YouTube or paste a URL"
+          required
+          class="hud-input"
+        />
+        <button type="submit" class="hud-btn">Search</button>
+      </form>
+      {% for t in search_results %}
+        <div class="data-row">
+          <span class="data-title">{{ t.title }}</span>
+          <span class="data-value"
+            >{{ t.duration | format_duration }} · {{ t.uploader }}</span
+          >
+          <form
+            hx-post="{{ url_for('music.music') }}"
+            hx-target="#queue"
+            hx-swap="outerHTML"
+          >
+            <input type="hidden" name="action" value="add" />
+            <input type="hidden" name="value" value="{{ t.url }}" />
+            <button type="submit" class="hud-btn">+ QUEUE</button>
+          </form>
+          <form
+            hx-post="{{ url_for('music.music') }}"
+            hx-target="#layers"
+            hx-swap="outerHTML"
+          >
+            <input type="hidden" name="action" value="add_layer" />
+            <input type="hidden" name="value" value="{{ t.url }}" />
+            <button type="submit" class="hud-btn">+ LAYER</button>
+          </form>
+        </div>
+      {% endfor %}
+    </section>
+  {% endblock search %}
+
+  {% block transport %}
+    {%
+      set elapsed = status.progress | round(0, 'floor') | int
+      if status else 0
+    %}
+    {%
+      set total = status.current_music.duration
+      if status and status.current_music else 0
+    %}
+    {% set pct = ((elapsed / total * 100) | round(1)) if total else 0 %}
+    <div
+      id="transport"
+      class="transport-bar {{ 'is-paused' if status and status.is_paused else '' }}"
+      hx-get="{{ url_for('music.music') }}"
+      hx-trigger="every 2s"
+      hx-swap="outerHTML"
     >
       {% if status and status.connected %}
-        <h2>
-          {{ status.current_music.title if status.current_music else "Nothing playing" }}
-        </h2>
-        <p>
-          {{ status.current_music.uploader if status.current_music else "" }} ·
-          {{ (status.current_music.duration if status.current_music else 0) | format_duration }}
-        </p>
-        <p>Progress: {{ (status.progress / 1000) | format_duration }}</p>
-        <p>Volume: {{ status.volume }} · Loop: {{ status.loop_mode.name }}</p>
+        <!-- hx-preserve: the transport polls every 2s; without it the
+             swap wipes forms mid-use. -->
         <form
           hx-post="{{ url_for('music.music') }}"
-          hx-target="#now_playing"
+          hx-target="#transport"
+          hx-swap="outerHTML"
+        >
+          <input type="hidden" name="action" value="previous" />
+          <button type="submit" class="hud-btn">Prev</button>
+        </form>
+        <form
+          hx-post="{{ url_for('music.music') }}"
+          hx-target="#transport"
           hx-swap="outerHTML"
         >
           <input type="hidden" name="action" value="toggle_pause" />
-          <button type="submit">
+          <button type="submit" class="hud-btn">
             {{ "Resume" if status.is_paused else "Pause" }}
           </button>
         </form>
         <form
           hx-post="{{ url_for('music.music') }}"
-          hx-target="#now_playing"
+          hx-target="#transport"
           hx-swap="outerHTML"
         >
           <input type="hidden" name="action" value="skip" />
-          <button type="submit">Skip</button>
+          <button type="submit" class="hud-btn">Skip</button>
         </form>
+        {%
+          set next_loop = {
+            "OFF": "track",
+            "TRACK": "queue",
+            "QUEUE": "off",
+          }[status.loop_mode.name]
+        %}
+        <form
+          hx-post="{{ url_for('music.music') }}"
+          hx-target="#transport"
+          hx-swap="outerHTML"
+        >
+          <input type="hidden" name="action" value="set_loop" />
+          <button
+            type="submit"
+            name="value"
+            value="{{ next_loop }}"
+            class="hud-btn"
+          >
+            LOOP {{ status.loop_mode.name }}
+          </button>
+        </form>
+        <form
+          id="transport-volume"
+          hx-preserve
+          hx-post="{{ url_for('music.music') }}"
+          hx-target="#transport"
+          hx-swap="outerHTML"
+        >
+          <input type="hidden" name="action" value="set_volume" />
+          <input
+            name="value"
+            type="number"
+            min="0"
+            max="2"
+            step="0.1"
+            value="{{ status.volume }}"
+            class="hud-input"
+          />
+          <button type="submit" class="hud-btn">VOL</button>
+        </form>
+        <form
+          id="transport-seek"
+          hx-preserve
+          hx-post="{{ url_for('music.music') }}"
+          hx-target="#transport"
+          hx-swap="outerHTML"
+        >
+          <input type="hidden" name="action" value="seek" />
+          <input
+            name="value"
+            type="number"
+            step="1"
+            placeholder="± s"
+            class="hud-input"
+          />
+          <button type="submit" class="hud-btn">SEEK</button>
+        </form>
+        <div class="progress-track">
+          <div class="progress-fill" style="width: {{ pct }}%"></div>
+        </div>
+        <span class="progress-readout">
+          {{ elapsed | format_duration }} / {{ total | format_duration }} //
+          {{ status.current_music.title if status.current_music else "Nothing playing" }}
+        </span>
       {% else %}
-        <p>No active session.</p>
+        <span class="progress-readout is-empty">TRANSPORT // NO SESSION</span>
       {% endif %}
-    </section>
-  {% endblock now_playing %}
-
-  {% block queue %}
-    <section
-      id="queue"
-      hx-get="{{ url_for('music.music') }}"
-      hx-trigger="every 3s"
-      hx-swap="outerHTML"
-      hx-target="#queue"
-    >
-      <form
-        hx-post="{{ url_for('music.music') }}"
-        hx-target="#queue"
-        hx-swap="outerHTML"
-      >
-        <input type="hidden" name="action" value="add" />
-        <input name="value" placeholder="URL or search" required />
-        <button type="submit">Add</button>
-      </form>
-      <ul>
-        {% for t in (status.queue if status else []) %}
-          <li>
-            {{ t.title }}
-            <form
-              hx-post="{{ url_for('music.music') }}"
-              hx-target="#queue"
-              hx-swap="outerHTML"
-            >
-              <input type="hidden" name="action" value="remove" />
-              <input type="hidden" name="value" value="{{ t.url }}" />
-              <button type="submit">Remove</button>
-            </form>
-          </li>
-        {% endfor %}
-      </ul>
-      {% if status and status.queue %}
-        <form
-          hx-post="{{ url_for('music.music') }}"
-          hx-target="#queue"
-          hx-swap="outerHTML"
-        >
-          <input type="hidden" name="action" value="clear_queue" />
-          <button type="submit">Clear queue</button>
-        </form>
-      {% endif %}
-    </section>
-  {% endblock queue %}
-
-  {% block layers %}
-    <section
-      id="layers"
-      hx-get="{{ url_for('music.music') }}"
-      hx-trigger="every 3s"
-      hx-swap="outerHTML"
-      hx-target="#layers"
-    >
-      <ul>
-        {% for l in (status.layers if status else []) %}
-          <li>
-            {{ l.title }} ({{ l.volume }})
-            <form
-              hx-post="{{ url_for('music.music') }}"
-              hx-target="#layers"
-              hx-swap="outerHTML"
-            >
-              <input type="hidden" name="action" value="remove_layer" />
-              <input type="hidden" name="value" value="{{ l.id }}" />
-              <button type="submit">Remove</button>
-            </form>
-          </li>
-        {% endfor %}
-      </ul>
-      {% if status and status.layers %}
-        <form
-          hx-post="{{ url_for('music.music') }}"
-          hx-target="#layers"
-          hx-swap="outerHTML"
-        >
-          <input type="hidden" name="action" value="clear_layers" />
-          <button type="submit">Clear layers</button>
-        </form>
-      {% endif %}
-    </section>
-  {% endblock layers %}
+    </div>
+  {% endblock transport %}
 {% endblock content %}

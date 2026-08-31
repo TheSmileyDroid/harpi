@@ -7,17 +7,22 @@ from typing import Any, cast
 
 import pytest
 
-from src.harpi_lib.music import ytmusicdata
-from src.harpi_lib.music.ytmusicdata import (
+from src.harpi_lib.music import (
+    stream_probe,
+    ytmusic,
+)
+from src.harpi_lib.music.ffmpeg_source import FFmpegPCMAudio, _FFMPEG_HEADERS
+from src.harpi_lib.music.stream_probe import (
     ProbeEnvironmentError,
     ProbeSilenceError,
     ProbeTimeoutError,
     SILENCE_MAX_VOLUME_DB,
-    YTMusicData,
-    YoutubeDLSource,
     _parse_max_volume,
     probe_stream_audio,
 )
+from src.harpi_lib.music.ytdl_source import YoutubeDLSource
+from src.harpi_lib.music.ytmusic import YTMusicData
+from src.harpi_lib.music.nothing_found import NothingFoundError
 
 
 def _stream_formats() -> list[dict[str, Any]]:
@@ -127,7 +132,7 @@ def test_parse_max_volume_parses_volumedetect_output():
         "[Parsed_volumedetect_0 @ 0x55] histogram_1db: 2\n"
     )
 
-    assert _parse_max_volume(stderr) == -18.1
+    assert _parse_max_volume(stderr) == pytest.approx(-18.1)
 
 
 def test_parse_max_volume_returns_none_for_garbage():
@@ -275,14 +280,14 @@ def test_probe_stream_audio_times_out_on_blocking_stream(
 ):
     fifo = tmp_path / "fifo"
     os.mkfifo(fifo)
-    monkeypatch.setattr(ytmusicdata, "STREAM_PROBE_TOTAL_TIMEOUT", 0.3)
+    monkeypatch.setattr(stream_probe, "STREAM_PROBE_TOTAL_TIMEOUT", 0.3)
 
     with pytest.raises(ValueError, match="probe timed out"):
         probe_stream_audio(str(fifo))
 
 
 def test_ffmpeg_headers_arg_carries_browser_like_headers():
-    headers = ytmusicdata._FFMPEG_HEADERS
+    headers = _FFMPEG_HEADERS
 
     assert "User-Agent:" in headers
     assert "Accept:" in headers
@@ -307,10 +312,8 @@ def test_probe_stream_audio_sends_headers_for_stream_urls(
 
     max_volume = probe_stream_audio("https://stream.example.com/audio.m4a")
 
-    assert max_volume == -3.0
-    assert (
-        captured[captured.index("-headers") + 1] == ytmusicdata._FFMPEG_HEADERS
-    )
+    assert max_volume == pytest.approx(-3.0)
+    assert captured[captured.index("-headers") + 1] == _FFMPEG_HEADERS
 
 
 def test_probe_stream_audio_omits_headers_for_local_paths(
@@ -345,13 +348,11 @@ def test_ffmpegpcm_spawn_sends_headers_for_stream_urls(
 
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
 
-    ytmusicdata.FFmpegPCMAudio(
+    FFmpegPCMAudio(
         source="https://stream.example.com/audio.m4a"
     )._spawn_process()
 
-    assert (
-        captured[captured.index("-headers") + 1] == ytmusicdata._FFMPEG_HEADERS
-    )
+    assert captured[captured.index("-headers") + 1] == _FFMPEG_HEADERS
 
 
 def test_ffmpegpcm_spawn_omits_headers_for_local_paths(
@@ -366,7 +367,7 @@ def test_ffmpegpcm_spawn_omits_headers_for_local_paths(
 
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
 
-    ytmusicdata.FFmpegPCMAudio(source="/tmp/media/tone.wav")._spawn_process()
+    FFmpegPCMAudio(source="/tmp/media/tone.wav")._spawn_process()
 
     assert "-headers" not in captured
 
@@ -387,11 +388,11 @@ def test_probe_stream_audio_retries_transient_failures(
             return None, "HTTP error 403 Forbidden\n"
 
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
-    monkeypatch.setattr(ytmusicdata, "STREAM_PROBE_RETRY_DELAY", 0.0)
+    monkeypatch.setattr(stream_probe, "STREAM_PROBE_RETRY_DELAY", 0.0)
 
     max_volume = probe_stream_audio("https://stream.example.com/audio.m4a")
 
-    assert max_volume == -3.0
+    assert max_volume == pytest.approx(-3.0)
     assert len(attempts) == 3
 
 
@@ -409,12 +410,12 @@ def test_probe_stream_audio_retries_then_gives_up(
             return None, "HTTP error 403 Forbidden\n"
 
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
-    monkeypatch.setattr(ytmusicdata, "STREAM_PROBE_RETRY_DELAY", 0.0)
+    monkeypatch.setattr(stream_probe, "STREAM_PROBE_RETRY_DELAY", 0.0)
 
     with pytest.raises(ValueError, match="stream not playable"):
         probe_stream_audio("https://stream.example.com/audio.m4a")
 
-    assert len(attempts) == ytmusicdata.STREAM_PROBE_ATTEMPTS
+    assert len(attempts) == stream_probe.STREAM_PROBE_ATTEMPTS
 
 
 def test_probe_stream_audio_does_not_retry_silence(
@@ -431,7 +432,7 @@ def test_probe_stream_audio_does_not_retry_silence(
             return None, "[Parsed_volumedetect_0] max_volume: -91.0 dB\n"
 
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
-    monkeypatch.setattr(ytmusicdata, "STREAM_PROBE_RETRY_DELAY", 0.0)
+    monkeypatch.setattr(stream_probe, "STREAM_PROBE_RETRY_DELAY", 0.0)
 
     with pytest.raises(ValueError, match="stream is silent"):
         probe_stream_audio("https://stream.example.com/audio.m4a")
@@ -466,7 +467,7 @@ def test_redact_signed_tokens_strips_signed_values():
         "&expire=123456&pot=ppp&n=nnn&nh=hhh&gcr=ggg&signature=sss&s=vvv"
     )
 
-    redacted = ytmusicdata._redact_signed_tokens(text)
+    redacted = stream_probe._redact_signed_tokens(text)
 
     for secret in (
         "aaabbb",
@@ -485,7 +486,7 @@ def test_redact_signed_tokens_strips_signed_values():
 
 
 def test_redact_stream_url_strips_query_string():
-    redacted = ytmusicdata._redact_stream_url(
+    redacted = stream_probe._redact_stream_url(
         "https://x.googlevideo.com/videoplayback?expire=123&sig=secret"
     )
 
@@ -495,7 +496,7 @@ def test_redact_stream_url_strips_query_string():
 
 
 def test_redact_stream_url_strips_userinfo_and_non_urls():
-    redacted = ytmusicdata._redact_stream_url(
+    redacted = stream_probe._redact_stream_url(
         "https://user:secret@x.googlevideo.com/videoplayback?expire=1"
     )
 
@@ -503,15 +504,15 @@ def test_redact_stream_url_strips_userinfo_and_non_urls():
     assert "user" not in redacted
     assert redacted == "https://x.googlevideo.com/..."
     assert (
-        ytmusicdata._redact_stream_url("not a url")
+        stream_probe._redact_stream_url("not a url")
         == "<non-url stream source>"
     )
-    assert ytmusicdata._redact_stream_url("") == "<non-url stream source>"
+    assert stream_probe._redact_stream_url("") == "<non-url stream source>"
 
 
 def test_probe_stream_once_rejects_option_injection():
     with pytest.raises(ValueError, match="invalid stream url"):
-        ytmusicdata._probe_stream_once("-i", timeout=5.0)
+        stream_probe._probe_stream_once("-i", timeout=5.0)
 
 
 def test_probe_stream_once_raises_environment_error_without_ffmpeg(
@@ -523,7 +524,7 @@ def test_probe_stream_once_raises_environment_error_without_ffmpeg(
     monkeypatch.setattr(subprocess, "Popen", raise_missing)
 
     with pytest.raises(ProbeEnvironmentError, match="ffmpeg not available"):
-        ytmusicdata._probe_stream_once(
+        stream_probe._probe_stream_once(
             "https://stream.example.com/audio.m4a", timeout=5.0
         )
 
@@ -537,7 +538,7 @@ def test_probe_stream_once_raises_environment_error_on_permission_denied(
     monkeypatch.setattr(subprocess, "Popen", raise_permission)
 
     with pytest.raises(ProbeEnvironmentError, match="ffmpeg not available"):
-        ytmusicdata._probe_stream_once(
+        stream_probe._probe_stream_once(
             "https://stream.example.com/audio.m4a", timeout=5.0
         )
 
@@ -551,8 +552,8 @@ def test_probe_stream_audio_does_not_retry_environment_errors(
         calls.append(url)
         raise ProbeEnvironmentError("ffmpeg not available")
 
-    monkeypatch.setattr(ytmusicdata, "_probe_stream_once", fake_probe)
-    monkeypatch.setattr(ytmusicdata, "STREAM_PROBE_RETRY_DELAY", 0.0)
+    monkeypatch.setattr(stream_probe, "_probe_stream_once", fake_probe)
+    monkeypatch.setattr(stream_probe, "STREAM_PROBE_RETRY_DELAY", 0.0)
 
     with pytest.raises(ProbeEnvironmentError):
         probe_stream_audio("https://stream.example.com/audio.m4a")
@@ -569,8 +570,8 @@ def test_probe_stream_audio_does_not_retry_silence_errors(
         calls.append(url)
         raise ProbeSilenceError("stream is silent")
 
-    monkeypatch.setattr(ytmusicdata, "_probe_stream_once", fake_probe)
-    monkeypatch.setattr(ytmusicdata, "STREAM_PROBE_RETRY_DELAY", 0.0)
+    monkeypatch.setattr(stream_probe, "_probe_stream_once", fake_probe)
+    monkeypatch.setattr(stream_probe, "STREAM_PROBE_RETRY_DELAY", 0.0)
 
     with pytest.raises(ProbeSilenceError):
         probe_stream_audio("https://stream.example.com/audio.m4a")
@@ -591,15 +592,15 @@ def test_probe_stream_audio_passes_bounded_budget_to_each_attempt(
             raise ValueError("stream not playable")
         return -3.0
 
-    monkeypatch.setattr(ytmusicdata, "_probe_stream_once", fake_probe)
-    monkeypatch.setattr(ytmusicdata, "STREAM_PROBE_RETRY_DELAY", 0.0)
+    monkeypatch.setattr(stream_probe, "_probe_stream_once", fake_probe)
+    monkeypatch.setattr(stream_probe, "STREAM_PROBE_RETRY_DELAY", 0.0)
 
     max_volume = probe_stream_audio("https://stream.example.com/audio.m4a")
 
-    assert max_volume == -3.0
+    assert max_volume == pytest.approx(-3.0)
     assert len(attempts) == 2
     assert all(
-        0.0 < timeout <= ytmusicdata.STREAM_PROBE_TOTAL_TIMEOUT
+        0.0 < timeout <= stream_probe.STREAM_PROBE_TOTAL_TIMEOUT
         for timeout in timeouts
     )
 
@@ -620,7 +621,7 @@ def test_probe_failure_is_transient_classifies_errors():
 
 
 def test_ffmpegpcm_spawn_rejects_option_injection():
-    source = ytmusicdata.FFmpegPCMAudio(source="-i")
+    source = FFmpegPCMAudio(source="-i")
 
     with pytest.raises(ValueError, match="invalid stream source"):
         source._spawn_process()
@@ -638,15 +639,13 @@ def test_ffmpegpcm_spawn_headers_with_existing_reconnect_options(
 
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
 
-    ytmusicdata.FFmpegPCMAudio(
+    FFmpegPCMAudio(
         source="https://stream.example.com/audio.m4a",
         before_options="-reconnect 1 -reconnect_streamed 1",
     )._spawn_process()
 
     assert captured.count("-reconnect") == 1
-    assert (
-        captured[captured.index("-headers") + 1] == ytmusicdata._FFMPEG_HEADERS
-    )
+    assert captured[captured.index("-headers") + 1] == _FFMPEG_HEADERS
 
 
 class FakeProbe:
@@ -713,8 +712,8 @@ async def test_from_music_data_reuses_stored_formats(
     musicdata = YTMusicData(video)
     probe = FakeProbe()
     extractor = FakeExtractor(result=None)
-    monkeypatch.setattr(ytmusicdata, "probe_stream_audio", probe)
-    monkeypatch.setattr(ytmusicdata, "ytdl", extractor)
+    monkeypatch.setattr(stream_probe, "probe_stream_audio", probe)
+    monkeypatch.setattr(ytmusic, "ytdl", extractor)
 
     source = await YoutubeDLSource.from_music_data(musicdata, volume=0.5)
 
@@ -745,8 +744,8 @@ async def test_from_music_data_falls_back_to_extract_info(
     }
     probe = FakeProbe()
     extractor = FakeExtractor(result=extracted)
-    monkeypatch.setattr(ytmusicdata, "probe_stream_audio", probe)
-    monkeypatch.setattr(ytmusicdata, "ytdl", extractor)
+    monkeypatch.setattr(stream_probe, "probe_stream_audio", probe)
+    monkeypatch.setattr(ytmusic, "ytdl", extractor)
 
     source = await YoutubeDLSource.from_music_data(musicdata, volume=0.5)
 
@@ -779,8 +778,8 @@ async def test_from_music_data_flat_search_entry_uses_fallback(
     }
     probe = FakeProbe()
     extractor = FakeExtractor(result=extracted)
-    monkeypatch.setattr(ytmusicdata, "probe_stream_audio", probe)
-    monkeypatch.setattr(ytmusicdata, "ytdl", extractor)
+    monkeypatch.setattr(stream_probe, "probe_stream_audio", probe)
+    monkeypatch.setattr(ytmusic, "ytdl", extractor)
 
     source = await YoutubeDLSource.from_music_data(musicdata, volume=0.5)
 
@@ -792,12 +791,12 @@ async def test_from_music_data_flat_search_entry_uses_fallback(
 async def test_from_music_data_times_out_on_slow_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    monkeypatch.setattr(ytmusicdata, "YT_EXTRACT_TIMEOUT", 0.05)
+    monkeypatch.setattr(ytmusic, "YT_EXTRACT_TIMEOUT", 0.05)
     musicdata = YTMusicData({"title": "slow"})
     probe = FakeProbe()
     extractor = BlockingExtractor()
-    monkeypatch.setattr(ytmusicdata, "probe_stream_audio", probe)
-    monkeypatch.setattr(ytmusicdata, "ytdl", extractor)
+    monkeypatch.setattr(stream_probe, "probe_stream_audio", probe)
+    monkeypatch.setattr(ytmusic, "ytdl", extractor)
 
     with pytest.raises(asyncio.TimeoutError):
         await YoutubeDLSource.from_music_data(musicdata)
@@ -817,8 +816,8 @@ async def test_from_music_data_propagates_silent_probe(
     musicdata = YTMusicData(video)
     probe = FakeProbe(error=ProbeSilenceError("stream is silent"))
     extractor = FakeExtractor(result=None)
-    monkeypatch.setattr(ytmusicdata, "probe_stream_audio", probe)
-    monkeypatch.setattr(ytmusicdata, "ytdl", extractor)
+    monkeypatch.setattr(stream_probe, "probe_stream_audio", probe)
+    monkeypatch.setattr(ytmusic, "ytdl", extractor)
 
     with pytest.raises(ValueError, match="stream is silent"):
         await YoutubeDLSource.from_music_data(musicdata, volume=0.5)
@@ -844,8 +843,8 @@ async def test_from_music_data_refetches_when_reused_stream_unplayable(
     }
     probe = FakeProbe(fail_urls=["https://stream.example.com/reused.m4a"])
     extractor = FakeExtractor(result=extracted)
-    monkeypatch.setattr(ytmusicdata, "probe_stream_audio", probe)
-    monkeypatch.setattr(ytmusicdata, "ytdl", extractor)
+    monkeypatch.setattr(stream_probe, "probe_stream_audio", probe)
+    monkeypatch.setattr(ytmusic, "ytdl", extractor)
 
     source = await YoutubeDLSource.from_music_data(musicdata, volume=0.5)
 
@@ -875,8 +874,8 @@ async def test_from_music_data_plays_fresh_top_level_url_without_formats(
     }
     probe = FakeProbe()
     extractor = FakeExtractor(result=extracted)
-    monkeypatch.setattr(ytmusicdata, "probe_stream_audio", probe)
-    monkeypatch.setattr(ytmusicdata, "ytdl", extractor)
+    monkeypatch.setattr(stream_probe, "probe_stream_audio", probe)
+    monkeypatch.setattr(ytmusic, "ytdl", extractor)
 
     source = await YoutubeDLSource.from_music_data(musicdata, volume=0.5)
 
@@ -903,11 +902,195 @@ async def test_from_music_data_flat_entry_probes_fresh_stream_once(
     }
     probe = FakeProbe(fail_urls=["https://stream.example.com/fresh.m4a"])
     extractor = FakeExtractor(result=extracted)
-    monkeypatch.setattr(ytmusicdata, "probe_stream_audio", probe)
-    monkeypatch.setattr(ytmusicdata, "ytdl", extractor)
+    monkeypatch.setattr(stream_probe, "probe_stream_audio", probe)
+    monkeypatch.setattr(ytmusic, "ytdl", extractor)
 
     with pytest.raises(ValueError, match="No playable stream found"):
         await YoutubeDLSource.from_music_data(musicdata, volume=0.5)
 
     assert extractor.calls == [("https://www.youtube.com/watch?v=flat", False)]
     assert probe.urls == ["https://stream.example.com/fresh.m4a"]
+
+
+def _fake_ytdl(monkeypatch: pytest.MonkeyPatch, result: Any, calls: list):
+    class FakeYtdl:
+        def extract_info(self, arg, download=False, process=False):
+            assert not process, "search must extract flat entries"
+            calls.append(arg)
+            if isinstance(result, Exception):
+                raise result
+            return result
+
+    monkeypatch.setattr(ytmusic, "search_ytdl", FakeYtdl())
+
+
+def test_search_delegates_to_ytsearch_for_plain_query(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    calls: list = []
+    _fake_ytdl(monkeypatch, {"entries": [{"title": "x"}]}, calls)
+
+    result = ytmusic.search("some song")
+
+    assert calls == ["ytsearch10:some song"]
+    assert result == {"entries": [{"title": "x"}]}
+
+
+def test_search_extracts_flat_entries_without_downloading(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A download=True mutant would write files to disk in production."""
+    kwargs_seen: list[dict] = []
+
+    class RecordingYtdl:
+        def extract_info(self, arg, **kwargs):
+            kwargs_seen.append(kwargs)
+            return {"entries": [{"title": "x"}]}
+
+    monkeypatch.setattr(ytmusic, "search_ytdl", RecordingYtdl())
+
+    ytmusic.search("some song")
+    ytmusic.search("https://www.youtube.com/watch?v=abc")
+
+    assert kwargs_seen == [
+        {"download": False, "process": False},
+        {"download": False, "process": False},
+    ]
+
+
+def test_search_recognizes_urls_with_uppercase_characters(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    calls: list = []
+    _fake_ytdl(monkeypatch, {"title": "direct"}, calls)
+
+    ytmusic.search("https://www.YouTube.COM/watch?v=ABC")
+
+    assert calls == ["https://www.YouTube.COM/watch?v=ABC"]
+
+
+def test_search_extracts_url_directly(monkeypatch: pytest.MonkeyPatch):
+    calls: list = []
+    _fake_ytdl(monkeypatch, {"title": "direct"}, calls)
+
+    result = ytmusic.search("https://www.youtube.com/watch?v=abc")
+
+    assert calls == ["https://www.youtube.com/watch?v=abc"]
+    assert result == {"title": "direct"}
+
+
+def test_search_wraps_ytdl_failure_in_nothing_found(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    calls: list = []
+    _fake_ytdl(monkeypatch, RuntimeError("network down"), calls)
+
+    with pytest.raises(NothingFoundError):
+        ytmusic.search("some song")
+
+
+def test_search_wraps_empty_result_in_nothing_found(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    calls: list = []
+    _fake_ytdl(monkeypatch, None, calls)
+
+    with pytest.raises(NothingFoundError):
+        ytmusic.search("some song")
+
+
+async def test_from_url_wraps_each_entry(monkeypatch: pytest.MonkeyPatch):
+    entries = [
+        {
+            "title": "kept",
+            "url": "https://www.youtube.com/watch?v=1",
+            "duration": 100,
+        },
+        {
+            "title": "no duration",
+            "url": "https://www.youtube.com/watch?v=2",
+        },
+        {
+            "title": "zero duration",
+            "url": "https://www.youtube.com/watch?v=3",
+            "duration": 0,
+        },
+        {
+            "title": "no watch url",
+            "url": "https://youtu.be/4",
+            "duration": 50,
+        },
+    ]
+    monkeypatch.setattr(ytmusic, "search", lambda arg: {"entries": entries})
+
+    tracks = await YTMusicData.from_url("some song")
+
+    assert [t.title for t in tracks] == ["kept"]
+    assert tracks[0].duration == 100
+
+
+async def test_from_url_without_entries_returns_single_track(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        ytmusic,
+        "search",
+        lambda arg: {
+            "title": "solo",
+            "url": "https://www.youtube.com/watch?v=solo",
+            "duration": 30,
+        },
+    )
+
+    tracks = await YTMusicData.from_url("https://www.youtube.com/watch?v=solo")
+
+    assert len(tracks) == 1
+    assert tracks[0].title == "solo"
+    assert tracks[0].url == "https://www.youtube.com/watch?v=solo"
+
+
+async def test_search_is_not_starved_by_track_extractions(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A skip chain occupies the extraction executor for ~4s per track;
+    panel searches must not queue behind it."""
+    release_extraction = threading.Event()
+    ytmusic._YTDL_SERIAL_EXECUTOR.submit(release_extraction.wait)
+    monkeypatch.setattr(
+        ytmusic,
+        "search",
+        lambda arg: {
+            "title": "fresh search",
+            "url": "https://www.youtube.com/watch?v=fresh",
+            "duration": 9,
+        },
+    )
+    try:
+        tracks = await asyncio.wait_for(
+            YTMusicData.from_url("some song"), timeout=5
+        )
+    finally:
+        release_extraction.set()
+
+    assert [t.title for t in tracks] == ["fresh search"]
+
+
+def test_detect_js_runtimes_follows_ytdlp_priority_order():
+    installed = {"deno", "bun"}
+
+    found = ytmusic.detect_js_runtimes(
+        lambda name: f"/usr/bin/{name}" if name in installed else None
+    )
+
+    assert found == ["deno", "bun"]
+
+
+def test_detect_js_runtimes_finds_nothing_when_none_installed():
+    assert ytmusic.detect_js_runtimes(lambda name: None) == []
+
+
+def test_js_runtimes_option_uses_ytdlp_dict_shape():
+    assert ytmusic.js_runtimes_option(["node", "bun"]) == {
+        "node": {},
+        "bun": {},
+    }

@@ -1,4 +1,4 @@
-from src.harpi_lib.music.ytmusicdata import UniqueAudioSource
+from src.harpi_lib.music.ytdl_source import UniqueAudioSource
 from collections.abc import Iterable
 import threading
 
@@ -36,9 +36,7 @@ class AudioController:
     def get_playing_sounds(self) -> list[tuple[str, discord.AudioSource]]:
         """Return a list of (type, source) tuples of all currently active sounds for the mixer."""
         with self._lock:
-            sounds: list[tuple[str, discord.AudioSource]] = []
-            for source in self._layers.values():
-                sounds.append(("track", source))
+            sounds = [("track", source) for source in self._layers.values()]
             if self._current_queue_source:
                 sounds.append(("queue", self._current_queue_source))
             if self._tts_track:

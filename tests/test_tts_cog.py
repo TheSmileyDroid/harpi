@@ -58,6 +58,7 @@ class RecordingManager:
 class FakeHarpiBot:
     def __init__(self, manager: RecordingManager) -> None:
         self.sessions = manager
+        self.user: SimpleNamespace | None = None
 
 
 class FakeContext:

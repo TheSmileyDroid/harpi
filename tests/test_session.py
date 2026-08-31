@@ -18,7 +18,7 @@ from src.harpi_lib.audio.session import (
     PlaybackSession,
     SessionStatus,
 )
-from src.harpi_lib.music.ytmusicdata import ProbeEnvironmentError
+from src.harpi_lib.music.stream_probe import ProbeEnvironmentError
 from tests.conftest import (
     FakeAnnouncer,
     FakeChannel,
@@ -381,6 +381,56 @@ async def test_all_tracks_failing_transiently_stops_cleanly(monkeypatch):
     assert session.status.current_music is None
     assert session.status.queue == ()
     assert len(announcer.messages) == 2
+
+
+async def test_too_many_consecutive_failures_halts_and_keeps_the_queue(
+    monkeypatch,
+):
+    announcer = FakeAnnouncer()
+    session = _make_session(announcer=announcer)
+    _install_fakes(monkeypatch)
+    monkeypatch.setattr(
+        FakeSourceFactory,
+        "failures",
+        {
+            "bad1": RuntimeError("boom"),
+            "bad2": RuntimeError("boom"),
+            "bad3": RuntimeError("boom"),
+        },
+    )
+
+    await session.play("bad1,bad2,bad3,still queued")
+
+    assert session.status.current_music is None
+    assert [m.title for m in session.status.queue] == ["still queued"]
+    assert announcer.messages[-1].startswith(
+        "3 faixas seguidas não puderam ser tocadas"
+    )
+
+
+async def test_skip_resumes_a_queue_halted_by_consecutive_failures(
+    monkeypatch,
+):
+    announcer = FakeAnnouncer()
+    session = _make_session(announcer=announcer)
+    _install_fakes(monkeypatch)
+    monkeypatch.setattr(
+        FakeSourceFactory,
+        "failures",
+        {
+            "bad1": RuntimeError("boom"),
+            "bad2": RuntimeError("boom"),
+            "bad3": RuntimeError("boom"),
+        },
+    )
+    await session.play("bad1,bad2,bad3,still queued")
+
+    await session.skip()
+
+    current = session.status.current_music
+    assert current is not None
+    assert current.title == "still queued"
+    assert session.status.queue == ()
 
 
 async def test_environment_failure_stops_playback_and_announces(monkeypatch):

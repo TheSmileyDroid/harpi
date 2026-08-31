@@ -23,6 +23,11 @@ COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --upgrade
 
+# Runtime user: uvicorn, loguru (spam.log) and yt-dlp (.audios/) write to /app
+RUN useradd --create-home harpi \
+    && chown -R harpi:harpi /app
+USER harpi
+
 ENV PATH="/app/.venv/bin:$PATH"
 
 ENTRYPOINT []

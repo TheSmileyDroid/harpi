@@ -163,4 +163,9 @@ tailwindcss
 node_modules/
 
 # AI
-.pi/
+# (.pi is tracked: gates, skills, workflows all belong to the repo)
+
+
+# Coverage JSON report (make check)
+coverage.json
+mutants/

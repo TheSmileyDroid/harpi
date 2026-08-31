@@ -129,34 +129,43 @@ class MixerSource(discord.AudioSource):
 
             del self.pending_futures[source_obj]
 
-            try:
-                data = future.result()
-            except Exception as e:
-                logger.opt(exception=True).error(
-                    f"Unexpected error in thread for {source_type}: {e}"
-                )
-                data = b""
-
-            should_remove = False
+            data = self._future_frame(source_type, future)
             if not data:
-                should_remove = True
-            else:
-                has_active = True
-                audio_chunk = np.frombuffer(data, dtype=np.int16)
+                to_remove.append(source_obj)
+                self._handle_source_removal(source_type, source_obj)
+                continue
 
-                if len(audio_chunk) < len(mixed_audio):
-                    padded = np.zeros(len(mixed_audio), dtype=np.int16)
-                    padded[: len(audio_chunk)] = audio_chunk
-                    audio_chunk = padded
-                    should_remove = True
-
-                mixed_audio += audio_chunk
-
-            if should_remove:
+            has_active = True
+            if self._mix_chunk(mixed_audio, data):
                 to_remove.append(source_obj)
                 self._handle_source_removal(source_type, source_obj)
 
         return to_remove, has_active
+
+    def _future_frame(
+        self, source_type: str, future: concurrent.futures.Future
+    ) -> bytes:
+        """Return the finished future's frame, or b"" if its thread failed."""
+        try:
+            return future.result()
+        except Exception as e:
+            logger.opt(exception=True).error(
+                f"Unexpected error in thread for {source_type}: {e}"
+            )
+            return b""
+
+    @staticmethod
+    def _mix_chunk(mixed_audio: np.ndarray, data: bytes) -> bool:
+        """Add *data* to mixed_audio; True when a short chunk ended the track."""
+        audio_chunk = np.frombuffer(data, dtype=np.int16)
+        if len(audio_chunk) < len(mixed_audio):
+            padded = np.zeros(len(mixed_audio), dtype=np.int16)
+            padded[: len(audio_chunk)] = audio_chunk
+            audio_chunk = padded
+            mixed_audio += audio_chunk
+            return True
+        mixed_audio += audio_chunk
+        return False
 
     def _handle_source_removal(
         self, source_type: str, source_obj: discord.AudioSource
@@ -172,7 +181,7 @@ class MixerSource(discord.AudioSource):
         # "button" sources need no special handling
 
     @override
-    def read(self) -> bytes:
+    def read(self) -> bytes:  # type: ignore[override]
         """Read and mix one frame from all active sources."""
         if self._shutdown:
             return b"\x00" * self.frame_size
@@ -187,7 +196,7 @@ class MixerSource(discord.AudioSource):
         self._prune_stale_futures(sources)
         self._await_futures(sources)
 
-        to_remove, has_active = self._collect_and_mix(sources, mixed_audio)
+        to_remove, _has_active = self._collect_and_mix(sources, mixed_audio)
 
         for source in to_remove:
             self.controller.remove_finished_source(source)
@@ -196,7 +205,7 @@ class MixerSource(discord.AudioSource):
         return mixed_audio.astype(np.int16).tobytes()
 
     @override
-    def cleanup(self) -> None:
+    def cleanup(self) -> None:  # type: ignore[override]
         """Cancel pending futures and shut down the thread pool.
 
         Sets the ``_shutdown`` flag so that ``read()`` stops submitting

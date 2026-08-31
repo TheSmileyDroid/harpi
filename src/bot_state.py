@@ -25,6 +25,11 @@ def get_bot() -> HarpiBot:
     return _bot_ref
 
 
+def bot_running() -> bool:
+    """True when a bot instance is registered."""
+    return _bot_ref is not None
+
+
 async def run_on_bot_loop(
     coro: Coroutine[Any, Any, _T], timeout: float = 30.0
 ) -> _T:

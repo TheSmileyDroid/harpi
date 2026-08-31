@@ -4,26 +4,46 @@ import asyncio
 import enum
 import io
 import math
+from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Protocol, runtime_checkable
 
 import discord
 from loguru import logger
 
 from src.harpi_lib.audio.controller import AudioController
 from src.harpi_lib.audio.mixer import MixerSource
-from src.harpi_lib.music.ytmusicdata import (
-    FastStartFFmpegPCMAudio,
-    ProbeEnvironmentError,
-    YoutubeDLSource,
-    YTMusicData,
-)
+from src.harpi_lib.music.ffmpeg_source import FastStartFFmpegPCMAudio
+from src.harpi_lib.music.stream_probe import ProbeEnvironmentError
+from src.harpi_lib.music.ytdl_source import YoutubeDLSource
+from src.harpi_lib.music.ytmusic import YTMusicData
 
 MAX_SEEK_SECONDS = 4 * 3600
 TRACK_LOAD_TIMEOUT = 60.0
 DEFAULT_VOLUME = 0.7
 DEFAULT_LAYER_VOLUME = 0.7
+# A run of unplayable tracks used to drain the whole queue in silence,
+# one ~4s extraction per track.  After this many consecutive failures we
+# stop and announce instead; skip resumes the queue at the next track.
+MAX_CONSECUTIVE_SKIPS = 3
+# How many finished tracks ``previous`` can reach back through.
+HISTORY_LIMIT = 20
+
+
+@runtime_checkable
+class SeekableSource(Protocol):
+    """A source that reports its playback position and can jump to one."""
+
+    def position_seconds(self) -> float:
+        """Current playback position in seconds."""
+        # pi-lens-ignore: no-ellipsis-body
+        ...
+
+    def seek(self, position: float) -> None:
+        """Jump to *position* seconds."""
+        # pi-lens-ignore: no-ellipsis-body
+        ...
 
 
 @dataclass(frozen=True)
@@ -45,11 +65,11 @@ class LoopMode(enum.Enum):
 
 
 LOOP_MODE_ALIASES: dict[str, LoopMode] = {
-    **{a: LoopMode.OFF for a in ("off", "false", "0", "no", "n")},
-    **{
-        a: LoopMode.TRACK for a in ("track", "true", "1", "yes", "y", "musica")
-    },
-    **{a: LoopMode.QUEUE for a in ("queue", "fila")},
+    **dict.fromkeys(("off", "false", "0", "no", "n"), LoopMode.OFF),
+    **dict.fromkeys(
+        ("track", "true", "1", "yes", "y", "musica"), LoopMode.TRACK
+    ),
+    **dict.fromkeys(("queue", "fila"), LoopMode.QUEUE),
 }
 
 
@@ -88,8 +108,10 @@ class PlaybackSession:
         self._wire_mixer_observers()
 
         self._queue: list[YTMusicData] = []
+        self._history: deque[YTMusicData] = deque(maxlen=HISTORY_LIMIT)
         self._layers: dict[str, YoutubeDLSource] = {}
         self._current_music: YTMusicData | None = None
+        self._advance_tasks: set[asyncio.Task[None]] = set()
         self._loop_mode = LoopMode.OFF
         self._volume = volume
         self._announcer: Callable[[str], Awaitable[Any]] | None = None
@@ -109,7 +131,9 @@ class PlaybackSession:
             )
 
     def _spawn_advance(self) -> None:
-        asyncio.ensure_future(self._advance())
+        task = asyncio.ensure_future(self._advance())
+        self._advance_tasks.add(task)
+        task.add_done_callback(self._advance_tasks.discard)
 
     def _on_track_end(self, to_remove: list[discord.AudioSource]) -> None:
         if self._loop is not None:
@@ -149,7 +173,7 @@ class PlaybackSession:
                     id=source.id,
                     title=source.title,
                     url=source.url,
-                    volume=float(source.volume),
+                    volume=source.volume,
                 )
                 for source in self._layers.values()
             ),
@@ -232,6 +256,21 @@ class PlaybackSession:
         logger.info(f"Skipping track in guild {self._guild_id}")
         await self._advance(force_next=True)
 
+    async def previous(self) -> bool:
+        """Replay the most recently finished track.
+
+        The current track moves to the front of the queue, so the
+        ``previous``/``skip`` pair can walk back and forth.  Returns
+        ``False`` when nothing was played before.
+        """
+        if not self._history:
+            return False
+        last = self._history.pop()
+        self._queue.insert(0, last)
+        logger.info(f"Going back to '{last.title}' in guild {self._guild_id}")
+        await self._advance(force_next=True)
+        return True
+
     async def seek(self, position: float, absolute: bool = False) -> bool:
         """Seek the current track to *position* seconds (relative by default).
 
@@ -240,25 +279,22 @@ class PlaybackSession:
         invalid position.
         """
         source = self._controller.get_queue_source()
-        if (
-            source is None
-            or not hasattr(source, "seek")
-            or not hasattr(source, "position_seconds")
-        ):
+        if not isinstance(source, SeekableSource):
             return False
         if not math.isfinite(position):
             raise ValueError("Posição inválida")
-        position_seconds = cast(Callable[[], float], source.position_seconds)
-        seek = cast(Callable[[float], None], source.seek)
         duration = self._current_music.duration if self._current_music else 0
 
         def _seek_in_thread() -> float:
-            target = position if absolute else position_seconds() + position
+            target = (
+                position if absolute else source.position_seconds() + position
+            )
             if not math.isfinite(target):
                 raise ValueError("Posição inválida")
             target = max(0.0, target)
+            seek = source.seek
             if duration:
-                target = min(target, float(duration))
+                target = min(target, duration)
             else:
                 target = min(target, MAX_SEEK_SECONDS)
             seek(target)
@@ -429,17 +465,39 @@ class PlaybackSession:
             elif self._loop_mode is LoopMode.QUEUE:
                 self._queue.append(self._current_music)
 
+        await self._play_queue_head()
+
+    async def _play_queue_head(self) -> None:
+        """Play the next queued track, or reset to an empty queue state."""
+        consecutive_skips = 0
         while self._queue:
             music_data = self._queue.pop(0)
+            finished = self._current_music
             self._current_music = music_data
             logger.info(
                 f"Playing next track '{music_data.title}' in guild {self._guild_id}"
             )
             if await self._play_or_fail(music_data, reloading=False):
+                if finished is not None and finished is not music_data:
+                    self._history.append(finished)
+                return
+            consecutive_skips += 1
+            if consecutive_skips >= MAX_CONSECUTIVE_SKIPS:
+                await self._halt_after_consecutive_skips(consecutive_skips)
                 return
 
         self._current_music = None
         self._controller.clear_queue_source()
+
+    async def _halt_after_consecutive_skips(self, skipped: int) -> None:
+        """Stop playback after *skipped* failures, keeping the queue intact."""
+        self._current_music = None
+        self._controller.clear_queue_source()
+        await self._announce(
+            f"{skipped} faixas seguidas não puderam ser tocadas. "
+            "Reprodução interrompida e a fila mantida; use skip para "
+            "tentar a próxima."
+        )
 
     async def _play_or_fail(
         self, music_data: YTMusicData, *, reloading: bool

@@ -25,6 +25,18 @@ RollResult = namedtuple("RollResult", ["value", "rolls", "expression"])
 _FUDGE_SYMBOLS = {-1: "-", 0: "\u2007", 1: "+"}
 
 
+def _to_int(text: str) -> int:
+    """Convert a regex-validated digit group to an int.
+
+    The parser's patterns only ever match digits here, so a ValueError
+    means a parser bug; surface it in the parser's error vocabulary.
+    """
+    try:
+        return int(text)
+    except ValueError as e:
+        raise ValueError(f"Invalid dice specification: {text}") from e
+
+
 class DiceParser:
     """Recursive descent parser for dice notation expressions (e.g. '2d6+3')."""
 
@@ -183,41 +195,48 @@ class DiceParser:
         Supports: NdX, NdXkhY, NdXklY, NdF.
         """
         count_str, sides_str, keep_mode, keep_count_str = dice_match.groups()
-        count = int(count_str)
-        is_fudge = sides_str.upper() == "F"
+        count = _to_int(count_str)
         original_notation = dice_match.group(0)
 
-        if is_fudge:
-            sides = 0  # not used for range, just for max-bold check
-            rolls = [random.choice([-1, 0, 1]) for _ in range(count)]
-        else:
-            sides = int(sides_str)
-            if sides <= 0 or count < 0:
-                raise ValueError("Invalid dice specification")
-            rolls = [random.randint(1, sides) for _ in range(count)]
-
-        # Keep-highest / keep-lowest filtering
-        kept_mask: list[bool] | None = None
-        if keep_mode and keep_count_str:
-            keep_n = int(keep_count_str)
-            if keep_n > count:
-                keep_n = count
-            if keep_mode == "kh":
-                # Indices of the highest keep_n values
-                sorted_indices = sorted(
-                    range(count), key=lambda i: rolls[i], reverse=True
-                )
-            else:  # kl
-                sorted_indices = sorted(range(count), key=lambda i: rolls[i])
-            kept_indices = set(sorted_indices[:keep_n])
-            kept_mask = [i in kept_indices for i in range(count)]
-            total = sum(r for r, k in zip(rolls, kept_mask, strict=False) if k)
-        else:
-            total = sum(rolls)
+        rolls = self._roll_all_dice(count, sides_str)
+        kept_mask, total = self._apply_keep_filter(
+            keep_mode, keep_count_str, rolls
+        )
 
         return RollResult(
             total, [(rolls, original_notation, kept_mask)], original_notation
         )
+
+    def _roll_all_dice(self, count: int, sides_str: str) -> list[int]:
+        if sides_str.upper() == "F":
+            return [random.choice([-1, 0, 1]) for _ in range(count)]
+        sides = _to_int(sides_str)
+        if sides <= 0 or count < 0:
+            raise ValueError("Invalid dice specification")
+        return [random.randint(1, sides) for _ in range(count)]
+
+    def _apply_keep_filter(
+        self,
+        keep_mode: str | None,
+        keep_count_str: str | None,
+        rolls: list[int],
+    ) -> tuple[list[bool] | None, int]:
+        """Return the kept-mask (None keeps all) and the filtered total."""
+        if not (keep_mode and keep_count_str):
+            return None, sum(rolls)
+
+        keep_n = min(_to_int(keep_count_str), len(rolls))
+        if keep_mode == "kh":
+            # Indices of the highest keep_n values
+            sorted_indices = sorted(
+                range(len(rolls)), key=lambda i: rolls[i], reverse=True
+            )
+        else:  # kl
+            sorted_indices = sorted(range(len(rolls)), key=lambda i: rolls[i])
+        kept_indices = set(sorted_indices[:keep_n])
+        kept_mask = [i in kept_indices for i in range(len(rolls))]
+        total = sum(r for r, k in zip(rolls, kept_mask, strict=False) if k)
+        return kept_mask, total
 
     def roll(self, expression: str) -> str:
         """Roll dice and evaluate the expression, returning formatted output.
@@ -235,7 +254,7 @@ class DiceParser:
             result = self.parse(expression)
             return self._format_result(result, expression)
         except Exception as e:
-            return f"Error: {str(e)}"
+            return f"Error: {e!s}"
 
     def _roll_repeated(self, count: int, sub_expression: str) -> str:
         """Evaluate *sub_expression* *count* times and format all results."""
@@ -304,40 +323,54 @@ class DiceParser:
             1
         ].upper().startswith("F")
 
-        if is_fudge:
-            # Fudge dice: show symbols
-            parts: list[str] = []
-            for i, r in enumerate(rolls):
-                sym = _FUDGE_SYMBOLS[r]
-                kept = kept_mask[i] if kept_mask else True
-                if not kept:
-                    parts.append(f"~~{sym}~~")
-                else:
-                    parts.append(sym)
-            roll_str = f"[{', '.join(parts)}]"
-        else:
-            # Extract sides for max-bold detection
-            sides = self._extract_sides(notation)
-            parts = []
-            for i, r in enumerate(rolls):
-                kept = kept_mask[i] if kept_mask else True
-                if r == sides:
-                    text = f"**{r}**"
-                else:
-                    text = str(r)
-                if not kept:
-                    text = f"~~{text}~~"
-                parts.append(text)
-            roll_str = f"[{', '.join(parts)}]"
+        roll_str = (
+            self._format_fudge_rolls(rolls, kept_mask)
+            if is_fudge
+            else self._format_numbered_rolls(rolls, notation, kept_mask)
+        )
 
         # Append the notation label (e.g. "2d6", "4d6kh3", "4dF")
         return f"{roll_str} {notation}"
 
     @staticmethod
+    def _format_fudge_rolls(
+        rolls: list[int], kept_mask: list[bool] | None
+    ) -> str:
+        """Format fudge rolls as symbols, dropped ones struck through."""
+        parts: list[str] = []
+        for i, r in enumerate(rolls):
+            sym = _FUDGE_SYMBOLS[r]
+            kept = kept_mask[i] if kept_mask else True
+            parts.append(sym if kept else f"~~{sym}~~")
+        return f"[{', '.join(parts)}]"
+
+    def _format_numbered_rolls(
+        self,
+        rolls: list[int],
+        notation: str,
+        kept_mask: list[bool] | None,
+    ) -> str:
+        """Format numbered rolls, bolding max rolls, dropped struck through."""
+        sides = self._extract_sides(notation)
+        parts = []
+        for i, r in enumerate(rolls):
+            kept = kept_mask[i] if kept_mask else True
+            text = f"**{r}**" if r == sides else str(r)
+            if not kept:
+                text = f"~~{text}~~"
+            parts.append(text)
+        return f"[{', '.join(parts)}]"
+
+    @staticmethod
     def _extract_sides(notation: str) -> int:
         """Extract the number of sides from a notation like '2d6kh1'."""
         m = re.search(r"d(\d+)", notation)
-        return int(m.group(1)) if m else 0
+        if not m:
+            return 0
+        try:
+            return int(m.group(1))
+        except ValueError:
+            return 0
 
     @staticmethod
     def _space_operators(expr: str) -> str:
@@ -362,5 +395,4 @@ class DiceParser:
         expr = expr.replace("( ", "(").replace(" )", ")")
 
         expr = expr.replace(bold_ph, "**")
-        expr = expr.replace(fdiv_ph, " // ")
-        return expr
+        return expr.replace(fdiv_ph, " // ")

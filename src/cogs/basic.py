@@ -12,6 +12,101 @@ from discord import Embed, File
 from discord.ext import commands
 
 
+_MONO_FONT_CANDIDATES = (
+    "DejaVuSansMono.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+)
+
+
+def _load_mono_font(
+    font_size: int,
+) -> PIL.ImageFont.FreeTypeFont | PIL.ImageFont.ImageFont:
+    for candidate in _MONO_FONT_CANDIDATES:
+        try:
+            return PIL.ImageFont.truetype(candidate, font_size)
+        except OSError:
+            continue
+    return PIL.ImageFont.load_default()
+
+
+def _text_width(
+    draw: PIL.ImageDraw.ImageDraw,
+    line: str,
+    font: PIL.ImageFont.FreeTypeFont | PIL.ImageFont.ImageFont,
+    font_size: int,
+) -> int:
+    try:
+        # For PIL >= 9.2.0
+        bbox = draw.textbbox((0, 0), line, font=font)
+        return int(bbox[2] - bbox[0])
+    except AttributeError:
+        # Fallback for older versions
+        return len(line) * (font_size // 2)
+
+
+def _line_color(index: int) -> tuple[int, int, int]:
+    if index == 0:  # Main header
+        return (0, 255, 127)  # Light green
+    if index <= 2:  # System statistics
+        return (102, 204, 255)  # Light blue
+    if index <= 6:  # Headers and info
+        return (255, 165, 0)  # Orange
+    return (220, 220, 220)  # Processes
+
+
+def _render_top_image(output: str) -> io.BytesIO:
+    lines = output.split("\n")[:20]
+
+    font_size = 14
+    padding = 20
+    line_height = font_size + 4
+    font = _load_mono_font(font_size)
+
+    measure_img = PIL.Image.new("RGB", (1, 1), color=(0, 0, 0))
+    measure_draw = PIL.ImageDraw.Draw(measure_img)
+    max_width = max(
+        _text_width(measure_draw, line, font, font_size) for line in lines
+    )
+
+    img_width = min(
+        max_width + padding * 2,
+        1000,
+    )
+    img_height = len(lines) * line_height + padding * 2
+
+    image = PIL.Image.new(
+        "RGB",
+        (round(img_width), round(img_height)),
+        color=(25, 25, 35),  # Dark bluish background
+    )
+    draw = PIL.ImageDraw.Draw(image)
+
+    title = "Status do Servidor - Monitor de Processos"
+    draw.text(
+        (padding, padding // 2),
+        title,
+        font=font,
+        fill=(135, 206, 250),
+    )
+
+    y_pos = padding + line_height
+
+    for i, line in enumerate(lines):
+        draw.text((padding, y_pos), line, font=font, fill=_line_color(i))
+        y_pos += line_height
+
+    draw.rectangle(
+        [(0, 0), (img_width - 1, img_height - 1)],
+        outline=(80, 80, 120),
+        width=2,
+    )
+
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    buffer.seek(0)
+    return buffer
+
+
 class GeneralCog(commands.Cog):
     """General-purpose Discord commands (ping, echo, status, shutdown)."""
 
@@ -32,11 +127,7 @@ class GeneralCog(commands.Cog):
         memory = psutil.virtual_memory()
         cpu = psutil.cpu_percent(interval=1)
         uptime = psutil.boot_time()
-        uptime = int(uptime)
-        uptime = datetime.fromtimestamp(  # noqa: DTZ006
-            uptime,
-        )
-        uptime = datetime.now() - uptime
+        uptime = datetime.now() - datetime.fromtimestamp(uptime)
         uptime = str(uptime).split(".")[0]
         uptime = re.sub(
             r"(\d+):(\d+):(\d+)",
@@ -76,83 +167,7 @@ class GeneralCog(commands.Cog):
         if isinstance(result, bytes):
             result = result.decode("utf-8")
 
-        lines = result.split("\n")[:20]
-
-        font_size = 14
-        padding = 20
-        line_height = font_size + 4
-
-        try:
-            font = PIL.ImageFont.truetype("DejaVuSansMono.ttf", font_size)
-        except OSError:
-            try:
-                font = PIL.ImageFont.truetype(
-                    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
-                    font_size,
-                )
-            except OSError:
-                font = PIL.ImageFont.load_default()
-
-        temp_img = PIL.Image.new("RGB", (1, 1), color=(0, 0, 0))
-        draw = PIL.ImageDraw.Draw(temp_img)
-
-        max_width = 0
-        for line in lines:
-            try:
-                # For PIL >= 9.2.0
-                bbox = draw.textbbox((0, 0), line, font=font)
-                width = bbox[2] - bbox[0]
-            except AttributeError:
-                # Fallback for older versions
-                width = len(line) * (font_size // 2)
-            max_width = max(max_width, width)
-
-        img_width = min(
-            max_width + padding * 2,
-            1000,
-        )
-        img_height = len(lines) * line_height + padding * 2
-
-        bg_color = (25, 25, 35)  # Dark bluish background
-        image = PIL.Image.new(
-            "RGB",
-            (int(img_width), int(img_height)),
-            color=bg_color,
-        )
-        draw = PIL.ImageDraw.Draw(image)
-
-        title = "Status do Servidor - Monitor de Processos"
-        draw.text(
-            (padding, padding // 2),
-            title,
-            font=font,
-            fill=(135, 206, 250),
-        )
-
-        y_pos = padding + line_height
-
-        for i, line in enumerate(lines):
-            if i == 0:  # Main header
-                color = (0, 255, 127)  # Light green
-            elif i <= 2:  # System statistics
-                color = (102, 204, 255)  # Light blue
-            elif i <= 6:  # Headers and info
-                color = (255, 165, 0)  # Orange
-            else:  # Processes
-                color = (220, 220, 220)  # Light gray
-
-            draw.text((padding, y_pos), line, font=font, fill=color)
-            y_pos += line_height
-
-        draw.rectangle(
-            [(0, 0), (img_width - 1, img_height - 1)],
-            outline=(80, 80, 120),
-            width=2,
-        )
-
-        buffer = io.BytesIO()
-        image.save(buffer, format="PNG")
-        buffer.seek(0)
+        buffer = await asyncio.to_thread(_render_top_image, result)
 
         await ctx.send(
             "📊 **Informações do Sistema:**",

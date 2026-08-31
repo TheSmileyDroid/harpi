@@ -1,14 +1,43 @@
 from __future__ import annotations
 
-import math
 from typing import cast
 
 import discord
 from discord import Guild, Member, Message, StageChannel
 from discord.ext.commands import Cog, CommandError, Context, command
 
-from src.harpi_lib.audio.session import LOOP_MODE_ALIASES, PlaybackSession
+from src.harpi_lib.audio.session import (
+    LOOP_MODE_ALIASES,
+    PlaybackSession,
+    SessionStatus,
+)
 from src.harpi_lib.harpi_bot import HarpiBot
+from src.harpi_lib.parse import parse_finite_float
+
+
+def _queue_message(status: SessionStatus) -> str:
+    message_lines = []
+    if status.current_music:
+        message_lines.append(
+            f"**Tocando agora:** {status.current_music.title} "
+            + f"({status.current_music.duration})"
+        )
+    if status.queue:
+        message_lines.append("**Próximas na fila:**")
+        for idx, music in enumerate(status.queue, start=1):
+            message_lines.append(f"{idx}. {music.title} ({music.duration})")
+    else:
+        message_lines.append("A fila está vazia.")
+    return "\n".join(message_lines)
+
+
+def _layers_message(status: SessionStatus) -> str:
+    if not status.layers:
+        return "Nenhum layer de áudio de fundo adicionado"
+    message_lines = ["**Layers de áudio de fundo:**"]
+    for idx, layer in enumerate(status.layers, start=1):
+        message_lines.append(f"{idx}. {layer.title}")
+    return "\n".join(message_lines)
 
 
 class MusicCog(Cog):
@@ -54,6 +83,15 @@ class MusicCog(Cog):
             return None
         session.set_announcer(ctx.send)
         return session
+
+    async def _simple_verb(self, ctx: Context, verb: str, reply: str) -> None:
+        """Run *verb* on the session and send *reply*."""
+        async with ctx.typing():
+            session = await self._require_session(ctx)
+            if session is None:
+                return
+            await getattr(session, verb)()
+            _ = await ctx.send(reply)
 
     async def _connect_session(
         self, ctx: Context, *, force: bool
@@ -122,12 +160,7 @@ class MusicCog(Cog):
             CommandError: If the user is not in a voice channel.
 
         """
-        async with ctx.typing():
-            session = await self._require_session(ctx)
-            if session is None:
-                return
-            await session.stop()
-            _ = await ctx.send("Música parada")
+        await self._simple_verb(ctx, "stop", "Música parada")
 
     @command("skip")
     async def skip(self, ctx: Context) -> None:
@@ -140,12 +173,7 @@ class MusicCog(Cog):
             CommandError: If the user is not in a voice channel.
 
         """
-        async with ctx.typing():
-            session = await self._require_session(ctx)
-            if session is None:
-                return
-            await session.skip()
-            _ = await ctx.send("Música pulada")
+        await self._simple_verb(ctx, "skip", "Música pulada")
 
     @command("seek")
     async def seek(self, ctx: Context, position: str) -> None:
@@ -163,12 +191,8 @@ class MusicCog(Cog):
             session = await self._require_session(ctx)
             if session is None:
                 return
-            try:
-                target = float(position)
-            except ValueError:
-                _ = await ctx.send("Posição inválida")
-                return
-            if not math.isfinite(target):
+            target = parse_finite_float(position)
+            if target is None:
                 _ = await ctx.send("Posição inválida")
                 return
             absolute = not position.startswith(("+", "-"))
@@ -215,12 +239,7 @@ class MusicCog(Cog):
             session = await self._require_session(ctx)
             if session is None:
                 return
-            if mode is None:
-                _ = await ctx.send(
-                    "Modo de loop inválido. Use off, track ou queue."
-                )
-                return
-            loop_mode = LOOP_MODE_ALIASES.get(mode)
+            loop_mode = LOOP_MODE_ALIASES.get(mode) if mode else None
             if loop_mode is None:
                 _ = await ctx.send(
                     "Modo de loop inválido. Use off, track ou queue."
@@ -247,12 +266,8 @@ class MusicCog(Cog):
                     f"Volume atual: {session.status.volume:.2f}"
                 )
                 return
-            try:
-                target = float(level)
-            except ValueError:
-                _ = await ctx.send("Volume inválido")
-                return
-            if not math.isfinite(target):
+            target = parse_finite_float(level)
+            if target is None:
                 _ = await ctx.send("Volume inválido")
                 return
             await session.set_volume(target)
@@ -268,12 +283,7 @@ class MusicCog(Cog):
             ctx (Context): Command context.
 
         """
-        async with ctx.typing():
-            session = await self._require_session(ctx)
-            if session is None:
-                return
-            await session.pause()
-            _ = await ctx.send("Música pausada")
+        await self._simple_verb(ctx, "pause", "Música pausada")
 
     @command("resume")
     async def resume(self, ctx: Context) -> None:
@@ -283,12 +293,7 @@ class MusicCog(Cog):
             ctx (Context): Command context.
 
         """
-        async with ctx.typing():
-            session = await self._require_session(ctx)
-            if session is None:
-                return
-            await session.resume()
-            _ = await ctx.send("Música retomada")
+        await self._simple_verb(ctx, "resume", "Música retomada")
 
     @command("list", aliases=["queue", "q"])
     async def list_queue(self, ctx: Context) -> None:
@@ -306,23 +311,7 @@ class MusicCog(Cog):
             session = await self._require_session(ctx)
             if session is None:
                 return
-            status = session.status
-            message_lines = []
-            if status.current_music:
-                message_lines.append(
-                    f"**Tocando agora:** {status.current_music.title} "
-                    + f"({status.current_music.duration})"
-                )
-            if status.queue:
-                message_lines.append("**Próximas na fila:**")
-                for idx, music in enumerate(status.queue, start=1):
-                    message_lines.append(
-                        f"{idx}. {music.title} ({music.duration})"
-                    )
-            else:
-                message_lines.append("A fila está vazia.")
-            message = "\n".join(message_lines)
-            _ = await ctx.send(message)
+            _ = await ctx.send(_queue_message(session.status))
 
     @command("add_layer")
     async def add_layer(self, ctx: Context, *, link: str) -> None:
@@ -370,12 +359,9 @@ class MusicCog(Cog):
             ctx (Context): Command context.
 
         """
-        async with ctx.typing():
-            session = await self._require_session(ctx)
-            if session is None:
-                return
-            await session.clear_layers()
-            _ = await ctx.send("Layers de áudio de fundo limpos.")
+        await self._simple_verb(
+            ctx, "clear_layers", "Layers de áudio de fundo limpos."
+        )
 
     @command("list_layers")
     async def list_layers(self, ctx: Context) -> None:
@@ -389,11 +375,4 @@ class MusicCog(Cog):
             session = await self._require_session(ctx)
             if session is None:
                 return
-            status = session.status
-            if not status.layers:
-                _ = await ctx.send("Nenhum layer de áudio de fundo adicionado")
-                return
-            message_lines = ["**Layers de áudio de fundo:**"]
-            for idx, layer in enumerate(status.layers, start=1):
-                message_lines.append(f"{idx}. {layer.title}")
-            _ = await ctx.send("\n".join(message_lines))
+            _ = await ctx.send(_layers_message(session.status))

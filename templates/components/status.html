@@ -1,0 +1,7 @@
+{% block content %}
+  {% block bot_status %}
+    <span class="{{ 'bot-online' if connected else 'bot-offline' }}">
+      {{ "ONLINE" if connected else "OFFLINE" }}
+    </span>
+  {% endblock bot_status %}
+{% endblock content %}

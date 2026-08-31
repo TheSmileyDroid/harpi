@@ -1,31 +1,32 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 
 import uvicorn
 from dotenv import load_dotenv
 from loguru import logger
 
+from src.config import Settings
 
-def parse_args() -> argparse.Namespace:
+
+def parse_args(settings: Settings) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Harpi Discord Bot")
     parser.add_argument(
         "--host",
-        default=os.getenv("HOST", "0.0.0.0"),
+        default=settings.host,
         help="Host to bind to (default: 0.0.0.0 or HOST env var)",
     )
     parser.add_argument(
         "--port",
         type=int,
-        default=int(os.getenv("PORT", "8000")),
+        default=settings.port,
         help="Port to bind to (default: 8000 or PORT env var)",
     )
     parser.add_argument(
         "--reload",
         action="store_true",
-        default=os.getenv("RELOAD", "").lower() in ("1", "true", "yes"),
+        default=settings.reload,
         help="Enable auto-reload (default: RELOAD env var or false)",
     )
     return parser.parse_args()
@@ -44,7 +45,8 @@ def main() -> None:
 
     setup_logging()
 
-    args = parse_args()
+    settings = Settings.from_env()
+    args = parse_args(settings)
 
     logger.info(
         f"Starting Harpi on {args.host}:{args.port} (reload={args.reload})"

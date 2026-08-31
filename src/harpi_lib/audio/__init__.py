@@ -3,4 +3,4 @@ from src.harpi_lib.audio.tone_source import (
     TestToneSource,
 )
 
-__all__ = ["TestToneSource", "MultiFrequencyTestSource"]
+__all__ = ["MultiFrequencyTestSource", "TestToneSource"]

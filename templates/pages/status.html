@@ -1,9 +1,0 @@
-{% extends "layout.html" %}
-
-{% block title %}Status{% endblock title %}
-
-{% block content %}
-  {% block bot_status %}
-    <span class="status">{{ "ONLINE" if connected else "OFFLINE" }}</span>
-  {% endblock bot_status %}
-{% endblock content %}

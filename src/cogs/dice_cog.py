@@ -52,7 +52,7 @@ class DiceCog(Cog):
             logger.opt(exception=True).error(
                 f"Erro na simulação Monte Carlo: {e}"
             )
-            await ctx.reply(f"Erro ao executar simulação: {str(e)}")
+            await ctx.reply(f"Erro ao executar simulação: {e!s}")
 
     def _run_monte_carlo_simulation(
         self, n: int, roll_expression: str

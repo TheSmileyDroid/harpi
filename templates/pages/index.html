@@ -11,17 +11,40 @@
   {% block server_status %}
     <section
       id="server_status"
+      class="hud-panel"
       hx-get="{{ url_for('index.index') }}"
-      hx-trigger="every 5s"
+      hx-trigger="every 2s"
       hx-swap="outerHTML"
       hx-target="#server_status"
+      hx-select="#server_status"
     >
-      <h2>Server Status</h2>
-      <p>CPU: {{ cpu }}%</p>
-      <p>Memory: {{ mem_percent }}% ({{ mem_available }} / {{ mem_total }})</p>
-      <p>Bot: {{ "ONLINE" if connected else "OFFLINE" }}</p>
+      <h2 class="panel-label">01 // SERVER</h2>
+      <p class="data-row">
+        <span class="data-label">CPU</span>
+        <span class="data-value">{{ cpu }}%</span>
+      </p>
+      <div class="meter">
+        <div class="meter-fill" style="width: {{ cpu }}%"></div>
+      </div>
+      <p class="data-row">
+        <span class="data-label">MEMORY</span>
+        <span class="data-value">
+          {{ mem_percent }}% ({{ mem_available }} / {{ mem_total }})
+        </span>
+      </p>
+      <div class="meter">
+        <div class="meter-fill" style="width: {{ mem_percent }}%"></div>
+      </div>
+      <p class="data-row">
+        <span class="data-label">BOT</span>
+        <span class="{{ 'bot-online' if connected else 'bot-offline' }}">
+          {{ "ONLINE" if connected else "OFFLINE" }}
+        </span>
+      </p>
     </section>
   {% endblock server_status %}
 
-  <p><a href="{{ url_for('music.music') }}">Music Control</a></p>
+  <p class="page-actions">
+    <a class="hud-btn" href="{{ url_for('music.music') }}">Music Control</a>
+  </p>
 {% endblock content %}
