@@ -44,7 +44,10 @@
     </section>
   {% endblock server_status %}
 
-  <p class="page-actions">
-    <a class="hud-btn" href="{{ url_for('music.music') }}">Music Control</a>
-  </p>
+  <section class="hud-panel panel-gap">
+    <h2 class="panel-label">02 // NAVIGATE</h2>
+    <div class="action-strip">
+      <a class="hud-btn" href="{{ url_for('music.music') }}">Music Control</a>
+    </div>
+  </section>
 {% endblock content %}

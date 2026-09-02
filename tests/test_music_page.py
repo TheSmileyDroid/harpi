@@ -141,6 +141,116 @@ class FakeBot:
 GUILD_C = 3
 
 
+def playing_status(**overrides: Any) -> SessionStatus:
+    values: dict[str, Any] = {
+        "guild_id": GUILD_A,
+        "connected": True,
+        "is_playing": True,
+        "is_paused": False,
+        "current_music": YTMusicData({
+            "title": "Now Track",
+            "uploader": "Artist",
+            "duration": 120,
+        }),
+        "loop_mode": LoopMode.OFF,
+        "volume": 0.7,
+        "progress": 0.0,
+    }
+    values.update(overrides)
+    return SessionStatus(**values)
+
+
+async def render_queue(client, bot: FakeBot, status: SessionStatus) -> str:
+    bot.sessions._session = FakeSession(status)
+    await client.get(
+        f"/music?guild_id={GUILD_A}",
+        headers={"HX-Request": "true", "HX-Target": "selector"},
+    )
+    response = await client.get(
+        "/music", headers={"HX-Request": "true", "HX-Target": "queue"}
+    )
+    assert response.status_code == 200
+    return (await response.get_data()).decode()
+
+
+async def test_music_page_has_no_stale_font_references(client, bot):
+    response = await client.get(f"/music?guild_id={GUILD_A}")
+
+    body = (await response.get_data()).decode()
+    assert "Fira+Code" not in body
+    assert "Share+Tech+Mono" not in body
+
+
+async def test_resting_music_page_carries_no_bracket_classes(client, bot):
+    bot.sessions._session = FakeSession()
+
+    response = await client.get(f"/music?guild_id={GUILD_A}")
+
+    body = (await response.get_data()).decode()
+    assert "hud-brackets" not in body
+    assert "is-playing" not in body
+
+
+async def test_now_playing_is_bracketed_only_while_playing(client, bot):
+    bot.sessions._session = FakeSession(playing_status())
+    await client.get(
+        f"/music?guild_id={GUILD_A}",
+        headers={"HX-Request": "true", "HX-Target": "selector"},
+    )
+
+    playing = await client.get(
+        "/music", headers={"HX-Request": "true", "HX-Target": "now_playing"}
+    )
+    playing_body = (await playing.get_data()).decode()
+    assert 'id="now_playing"' in playing_body
+    assert "is-playing" in playing_body
+
+    bot.sessions._session = FakeSession(
+        playing_status(is_playing=False, is_paused=True)
+    )
+    paused = await client.get(
+        "/music", headers={"HX-Request": "true", "HX-Target": "now_playing"}
+    )
+    paused_body = (await paused.get_data()).decode()
+    assert 'id="now_playing"' in paused_body
+    assert "is-playing" not in paused_body
+
+
+async def test_queue_rows_carry_a_right_hand_metadata_column(client, bot):
+    body = await render_queue(
+        client,
+        bot,
+        playing_status(
+            queue=(
+                YTMusicData({
+                    "title": "Queued One",
+                    "url": "u1",
+                    "duration": 61,
+                }),
+            ),
+        ),
+    )
+
+    assert "queue-row" in body
+    assert "row-meta" in body
+    assert "1:01" in body
+
+
+async def test_transport_uses_the_segmented_action_strip(client, bot):
+    bot.sessions._session = FakeSession(playing_status())
+    await client.get(
+        f"/music?guild_id={GUILD_A}",
+        headers={"HX-Request": "true", "HX-Target": "selector"},
+    )
+
+    response = await client.get(
+        "/music", headers={"HX-Request": "true", "HX-Target": "transport"}
+    )
+
+    body = (await response.get_data()).decode()
+    assert "action-strip" in body
+
+
 @pytest.fixture
 def bot() -> FakeBot:
     return FakeBot([

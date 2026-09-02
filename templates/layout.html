@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=Share+Tech+Mono&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Rajdhani:wght@600&display=swap"
       rel="stylesheet"
     />
 
@@ -48,8 +48,16 @@
 
         <div class="top-bar-center">
           <nav class="main-nav" role="navigation" aria-label="Main navigation">
-            <a href="/">Home</a>
-            <a href="{{ url_for('music.music') }}">Music</a>
+            <a
+              href="/"
+              {% if request.path == '/' %}aria-current="page"{% endif %}
+              >Home</a
+            >
+            <a
+              href="{{ url_for('music.music') }}"
+              {% if request.path.startswith('/music') %}aria-current="page"{% endif %}
+              >Music</a
+            >
           </nav>
         </div>
 
@@ -83,6 +91,34 @@
       aria-live="polite"
       aria-atomic="true"
     ></div>
+
+    <div
+      id="global-indicator"
+      class="global-indicator"
+      aria-hidden="true"
+    ></div>
+
+    <script>
+      // One subtle global indicator for any HTMX activity; per-action
+      // feedback is the .htmx-request class htmx puts on the trigger.
+      (() => {
+        const bar = document.getElementById("global-indicator");
+        if (!bar) return;
+        let pending = 0;
+        const sync = () => bar.classList.toggle("is-busy", pending > 0);
+        document.body.addEventListener("htmx:beforeRequest", () => {
+          pending += 1;
+          sync();
+        });
+        const done = () => {
+          pending = Math.max(0, pending - 1);
+          sync();
+        };
+        document.body.addEventListener("htmx:afterRequest", done);
+        document.body.addEventListener("htmx:responseError", done);
+        document.body.addEventListener("htmx:sendError", done);
+      })();
+    </script>
 
     {% block extra_scripts %}{% endblock extra_scripts %}
   </body>
