@@ -42,3 +42,6 @@
   text read as a floating box; the current item now follows
   `references/buttons_2.png` instead — amber-bright label plus a 1px accent
   underline. Brackets remain on focus and on the playing panel.
+  The aria-current match is exact (`request.path == href`); if a
+  `/music/<x>` subpage is ever added, its nav link needs the same
+  treatment — the comparison lives in `templates/layout.html`.
