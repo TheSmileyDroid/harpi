@@ -316,8 +316,6 @@
 
   /* Corner brackets mark only the element under operation right now:
      keyboard focus, the current nav item, the playing panel. */
-  .main-nav a[aria-current="page"]::before,
-  .main-nav a[aria-current="page"]::after,
   .hud-panel.is-playing::before,
   .hud-panel.is-playing::after,
   :is(.hud-btn, .hud-input):focus-visible::before,
@@ -330,23 +328,29 @@
     border-style: solid;
   }
 
-  :is(.hud-btn, .hud-input),
-  .main-nav a {
+  :is(.hud-btn, .hud-input) {
     position: relative;
   }
 
-  :is(.main-nav a[aria-current="page"], .hud-panel.is-playing)::before,
+  .hud-panel.is-playing::before,
   :is(.hud-btn, .hud-input):focus-visible::before {
     top: -1px;
     left: -1px;
     border-width: 1px 0 0 1px;
   }
 
-  :is(.main-nav a[aria-current="page"], .hud-panel.is-playing)::after,
+  .hud-panel.is-playing::after,
   :is(.hud-btn, .hud-input):focus-visible::after {
     right: -1px;
     bottom: -1px;
     border-width: 0 1px 1px 0;
+  }
+
+  /* Cyberpunk menu voice (references/buttons_2.png): the current item
+     brightens and carries a 1px accent line underneath. No box. */
+  .main-nav a[aria-current="page"] {
+    color: var(--color-amber-bright);
+    border-bottom-color: var(--color-amber-bright);
   }
 
   .hud-btn {

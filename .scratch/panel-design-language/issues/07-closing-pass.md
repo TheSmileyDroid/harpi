@@ -34,3 +34,8 @@
   music page repeats the row+meta+action markup shape three times (jscpd
   gate passes at 0 clones); `.row-meta` doubles as row index and metadata
   column.
+
+- **Nav current item** (maintainer feedback): corner brackets on nav-sized
+  text read as a floating box; the current item now follows
+  `references/buttons_2.png` instead — amber-bright label plus a 1px accent
+  underline. Brackets remain on focus and on the playing panel.
