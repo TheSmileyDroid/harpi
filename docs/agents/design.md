@@ -6,6 +6,7 @@ How the Harpi panel looks and behaves. Read before editing `templates/`, `pages/
 
 - **Primary: TVA terminal** (`references/ce9c7c4a61c7c3c5bf4bb8dea9c4371b.jpg`, `references/c19b4f13c2d19d20da121d1d69857fda.jpg`) — amber phosphor CRT: dark tube, double 1px borders, boxed panel titles, mono everywhere.
 - **Secondary: Cyberpunk 2077 menus** (`references/64e3002ffe918c14b43da9aaff48f57c.jpg`) — the structural grammar: thin lines, small caps with wide tracking, metadata column on the right of list rows, segmented action strip along a card's bottom edge.
+- **Buttons and active states** (`references/buttons_1.png`, `references/buttons_2.png`) — how controls and selection read: flat 1px-outlined rows with a bright accent line under the selected item; the active nav/menu item brightens and carries a 1px accent underline, never a box or brackets around it.
 
 The other images in `references/` are direction candidates we rejected. Do not pull cyan, steel blue, or full-hologram decoration from them.
 
@@ -55,7 +56,7 @@ Texture and chrome that say "tube screen" without becoming a fantasy HUD:
 
 - **Global scanlines + subtle vignette** as one fixed overlay layer, barely perceptible. No flicker, no curvature, no per-element glow.
 - **Double 1px borders** on panels and boxed titles (TVA).
-- **Corner brackets only on the focused/active element** — a bracket means "this is under operation right now", nothing else.
+- **Corner brackets only on the focused/active element** — a bracket means "this is under operation right now", nothing else. Exception: nav-sized text never gets brackets (they read as a box at that size); the current nav item brightens with a 1px accent underline instead (`references/buttons_2.png`).
 
 Cyberpunk grammar applied on top:
 
