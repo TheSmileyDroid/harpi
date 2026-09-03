@@ -162,6 +162,9 @@ def playing_status(**overrides: Any) -> SessionStatus:
 
 async def render_queue(client, bot: FakeBot, status: SessionStatus) -> str:
     bot.sessions._session = FakeSession(status)
+    # Throwaway GET: guild selection lives in the session cookie/server
+    # state, so the queue-targeted fragment below only renders a queue
+    # once a guild has been selected first.
     await client.get(
         f"/music?guild_id={GUILD_A}",
         headers={"HX-Request": "true", "HX-Target": "selector"},

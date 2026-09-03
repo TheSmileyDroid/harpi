@@ -87,6 +87,18 @@ async def test_layout_has_a_global_htmx_indicator(client):
     assert 'id="global-indicator"' in body
 
 
+async def test_global_indicator_stays_silent_on_background_polls(client):
+    # Story 16: polling swaps are visually silent. The 2s pollers must not
+    # flash the global activity bar, so the layout script guards on htmx's
+    # `every` trigger. String-level seam: the guard lives in the layout's
+    # inline enhancement script, which no JS test harness covers.
+    deps.init_bot(cast(HarpiBot, FakeBot(ready=True, closed=False)))
+    response = await client.get("/")
+
+    body = (await response.get_data()).decode()
+    assert 'includes("every")' in body
+
+
 async def test_home_renders_no_brackets_at_rest(client):
     deps.init_bot(cast(HarpiBot, FakeBot(ready=True, closed=False)))
 

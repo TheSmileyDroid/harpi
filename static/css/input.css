@@ -1,6 +1,9 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 
-@source "../templates";
+/* Classes live only in templates. Scanning the whole repo made prose
+   (.scratch issues, docs) emit phantom utilities like `.underline` and
+   `.border`; source(none) + this explicit path is the fix. */
+@source "../../templates";
 
 @theme {
   /* Two families only (docs/agents/design.md): body in IBM Plex Mono,

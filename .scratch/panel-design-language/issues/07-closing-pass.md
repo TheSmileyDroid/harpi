@@ -25,6 +25,9 @@
 - **Per-action loading feedback** uses htmx's automatic `.htmx-request` class
   on the triggering button (CSS blink, reduced-motion guarded) instead of a
   literal `hx-indicator` attribute; same mechanism, no attribute needed.
+  Resolved by review: `docs/agents/design.md` was amended to canonize this
+  as the Loading behavior, alongside the poll-exclusion rule for the global
+  indicator (background `every` pollers never trip the global bar).
 - **Silent polling** is achieved by absence: poller fragments carry no
   entrance animation or skeleton, so an unchanged swap renders identically.
   No diffing/morph extension was added.

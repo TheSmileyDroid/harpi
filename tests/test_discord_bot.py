@@ -109,13 +109,26 @@ def test_run_bot_in_background_creates_and_starts_the_bot_in_a_thread(
 
     monkeypatch.setattr(discord_bot_module, "create_bot", fake_create_bot)
 
+    # Record the thread at creation instead of fishing for it in
+    # threading.enumerate(): the fake bot starts instantly, so the daemon
+    # thread could already be gone (and the hunt raise StopIteration)
+    # before we looked.
+    created: list[threading.Thread] = []
+    real_thread = threading.Thread
+
+    def recording_thread(*args: Any, **kwargs: Any) -> threading.Thread:
+        thread = real_thread(*args, **kwargs)
+        created.append(thread)
+        return thread
+
+    monkeypatch.setattr(
+        discord_bot_module.threading, "Thread", recording_thread
+    )
+
     run_bot_in_background(_settings("abc"))
 
-    thread = next(
-        t
-        for t in threading.enumerate()
-        if t is not threading.current_thread() and t.daemon
-    )
+    assert created, "run_bot_in_background must start a thread"
+    thread = created[0]
     assert started.wait(timeout=5)
     thread.join(timeout=5)
     assert not thread.is_alive()

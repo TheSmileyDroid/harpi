@@ -48,14 +48,15 @@
 
         <div class="top-bar-center">
           <nav class="main-nav" role="navigation" aria-label="Main navigation">
+            {% set music_url = url_for('music.music') %}
             <a
               href="/"
               {% if request.path == '/' %}aria-current="page"{% endif %}
               >Home</a
             >
             <a
-              href="{{ url_for('music.music') }}"
-              {% if request.path.startswith('/music') %}aria-current="page"{% endif %}
+              href="{{ music_url }}"
+              {% if request.path == music_url %}aria-current="page"{% endif %}
               >Music</a
             >
           </nav>
@@ -99,18 +100,26 @@
     ></div>
 
     <script>
-      // One subtle global indicator for any HTMX activity; per-action
+      // One subtle global indicator for HTMX activity; per-action
       // feedback is the .htmx-request class htmx puts on the trigger.
+      // Background pollers (hx-trigger containing "every") are excluded:
+      // the 2s status polls must be visually silent (design.md), so they
+      // neither raise nor lower the bar.
       (() => {
         const bar = document.getElementById("global-indicator");
         if (!bar) return;
         let pending = 0;
+        const isPoll = (evt) =>
+          evt.detail.elt?.getAttribute("hx-trigger")?.includes("every") ??
+          false;
         const sync = () => bar.classList.toggle("is-busy", pending > 0);
-        document.body.addEventListener("htmx:beforeRequest", () => {
+        document.body.addEventListener("htmx:beforeRequest", (evt) => {
+          if (isPoll(evt)) return;
           pending += 1;
           sync();
         });
-        const done = () => {
+        const done = (evt) => {
+          if (isPoll(evt)) return;
           pending = Math.max(0, pending - 1);
           sync();
         };

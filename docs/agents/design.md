@@ -67,7 +67,7 @@ Cyberpunk grammar applied on top:
 
 ## Behavior (HTMX surface)
 
-- **Loading**: one subtle global indicator (thin bar or cursor) plus per-action `hx-indicator` on the triggering element. Never skeletons on polling fragments — the 2s status poll would strobe.
+- **Loading**: one subtle global indicator (thin bar) for user-initiated requests only — background pollers (`hx-trigger` containing `every`), like the 2s status poll, must never trip it. Per-action feedback is htmx's automatic `.htmx-request` class on the triggering button (same mechanism as `hx-indicator` on the trigger; no attribute needed). Never skeletons on polling fragments — the 2s status poll would strobe.
 - **Motion**: view transitions between pages, micro-feedback on hover/press. No "boot" animation on elements that appear — polling would replay it forever.
 - Polling swaps must be visually silent when nothing changed.
 
