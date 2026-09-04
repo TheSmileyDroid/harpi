@@ -1,4 +1,4 @@
-"""Shared fakes for the session lifecycle tests."""
+"""Shared fakes for the session lifecycle tests, and network fixtures."""
 
 from __future__ import annotations
 
@@ -7,12 +7,20 @@ from types import SimpleNamespace
 from typing import Any, ClassVar
 
 import discord
+import pytest
 
 from src.harpi_lib.music.ytmusic import YTMusicData
+from tests.network_harness import print_version_banner
 
 GUILD_ID = 1
 CHANNEL_ID = 10
 BOT_USER_ID = 1234
+
+
+@pytest.fixture
+def version_banner() -> None:
+    """Print the library-version banner at the start of a network run."""
+    print_version_banner()
 
 
 class FakeVoiceClient(discord.VoiceClient):

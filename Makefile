@@ -3,7 +3,7 @@
 -include .env
 export $(shell sed 's/=.*//' .env 2>/dev/null || true)
 
-.PHONY: dev start lint check mutants tailwind tailwind-watch
+.PHONY: dev start lint check check-network mutants tailwind tailwind-watch
 
 dev:
 	$(MAKE) tailwind
@@ -35,6 +35,11 @@ check:
 	bunx jscpd src/ pages/ templates/ --min-tokens 50 --threshold 1 || { touch .check-failed; true; }; \
 	bunx prettier --check ./templates/ || { touch .check-failed; true; }; \
 	uv run vulture || { touch .check-failed; true; }; \
+	if [ -f .check-failed ]; then rm -f .check-failed; exit 1; fi
+
+check-network:
+	@rm -f .check-failed; \
+	uv run pytest -m network -s --tb=short || { touch .check-failed; true; }; \
 	if [ -f .check-failed ]; then rm -f .check-failed; exit 1; fi
 
 mutants:

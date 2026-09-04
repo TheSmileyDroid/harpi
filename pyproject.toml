@@ -52,6 +52,15 @@ dev = [
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["."]
+# Bare `pytest` (e.g. `pytest -m network`) must not wander into the
+# mutmut scratch tree under mutants/; only the real suite is collected.
+testpaths = ["tests"]
+# Real-network tests are never part of the offline gate; run them with
+# `pytest -m network` (a CLI -m overrides this one).
+addopts = "-m 'not network'"
+markers = [
+    "network: real-network tests hitting YouTube/CDN (deselect by default)",
+]
 
 [tool.ruff]
 line-length = 79
@@ -144,6 +153,12 @@ ignore_names = [
     "previous",
     # YtMusicData.uploader: property consumed only from Jinja templates.
     "uploader",
+    # pytest fixtures in tests/ (invoked via usefixtures/autouse, never
+    # by our code) print the version banner at the start of network runs.
+    "version_banner",
+    # Module-level pytest attribute (read by pytest, not our code):
+    # applies the network marker + banner fixture to network test files.
+    "pytestmark",
 ]
 
 
