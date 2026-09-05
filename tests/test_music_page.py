@@ -918,6 +918,42 @@ async def test_guild_list_reflects_bot_changes_between_requests(
     assert "Beta Guild" not in body
 
 
+async def test_stale_guild_cookie_renders_as_no_selection(client, bot):
+    # A cookie pointing at a guild the bot can no longer see must not
+    # render as a selection: no guild matched in the select, no channel
+    # list, no disconnect button, and the cookie is cleared so the
+    # broken link line never comes back.
+    async with client.session_transaction() as sess:
+        sess["guild_id"] = "99999"
+
+    response = await client.get("/music")
+    body = (await response.get_data()).decode()
+
+    assert response.status_code == 200
+    assert "selected>Guild" not in body  # no guild pre-selected
+    assert 'value="99999"' not in body
+    assert ">Disconnect<" not in body
+    async with client.session_transaction() as sess:
+        assert "guild_id" not in sess
+
+
+async def test_unknown_guild_in_the_query_is_never_stored(client, bot):
+    await client.get("/music?guild_id=99999")
+
+    async with client.session_transaction() as sess:
+        assert "guild_id" not in sess
+
+
+async def test_search_renders_above_the_panels(client, bot: FakeBot):
+    # The spec puts the single search right under the link line, before
+    # the now playing / side panel grid; the dropdown opens downward
+    # from the top instead of colliding with the fixed transport.
+    response = await client.get("/music")
+    body = (await response.get_data()).decode()
+
+    assert body.index('id="search"') < body.index('id="status_panels"')
+
+
 async def test_selector_branch_lists_guild_channels_and_persists_selection(
     client,
 ):

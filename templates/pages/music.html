@@ -77,238 +77,6 @@
     </section>
   {% endblock selector %}
 
-  {% block status_panels %}
-    <div
-      id="status_panels"
-      class="music-grid"
-      hx-get="{{ url_for('music.music') }}"
-      hx-trigger="every 2s"
-      hx-swap="outerHTML"
-    >
-      {% block now_playing %}
-        <section
-          id="now_playing"
-          class="hud-panel {{ 'is-playing' if status and status.is_playing else '' }}"
-          data-thumbnail="{{ status.current_music.thumbnail if status.current_music else '' }}"
-        >
-          <h2 class="panel-label">01 // NOW PLAYING</h2>
-          {% if status and status.connected %}
-            {#
-              The art leads and the metadata reads below it. The src is
-              the track's stable YouTube URL: the poll re-renders this
-              block every 2s/500ms, but the browser cache keeps the
-              image up, so repeated swaps never flicker it.
-            #}
-            {% if status.current_music and status.current_music.thumbnail %}
-              <img
-                class="now-playing-art"
-                src="{{ status.current_music.thumbnail }}"
-                alt="{{ status.current_music.title }}"
-                width="224"
-                height="224"
-              />
-            {% else %}
-              <span
-                class="now-playing-art thumb-empty"
-                role="img"
-                aria-label="{{
-                  status.current_music.title
-                  if status.current_music
-                  else 'No track'
-                }}"
-              ></span>
-            {% endif %}
-            <p class="data-row">
-              <span class="data-label">TRACK</span>
-              <span class="data-title">
-                {{ status.current_music.title if status.current_music else "Nothing playing" }}
-              </span>
-            </p>
-            <p class="data-row">
-              <span class="data-label">SOURCE</span>
-              <span class="data-value">
-                {{ status.current_music.uploader if status.current_music else "--" }}
-              </span>
-            </p>
-            <p class="data-row">
-              <span class="data-label">LENGTH</span>
-              <span class="data-value">
-                {{ (status.current_music.duration if status.current_music else 0) | format_duration }}
-              </span>
-            </p>
-            <p class="data-row">
-              <span class="data-label">LOOP</span>
-              <span class="data-value">{{ status.loop_mode.name }}</span>
-            </p>
-          {% else %}
-            <p class="progress-readout is-empty">NO SESSION</p>
-          {% endif %}
-        </section>
-      {% endblock now_playing %}
-
-      {% block side_panel %}
-        <aside id="side_panel" class="hud-panel">
-          <div id="side_tabs" class="side-tabs" aria-label="Side panel tabs">
-            <form
-              hx-post="{{ url_for('music.music') }}"
-              hx-target="#side_panel"
-              hx-swap="outerHTML"
-            >
-              <input type="hidden" name="action" value="show_tab" />
-              <input type="hidden" name="value" value="queue" />
-              <button
-                type="submit"
-                class="side-tab"
-                {% if active_tab == 'queue' %}aria-current="true"{% endif %}
-              >
-                QUEUE
-              </button>
-            </form>
-            <form
-              hx-post="{{ url_for('music.music') }}"
-              hx-target="#side_panel"
-              hx-swap="outerHTML"
-            >
-              <input type="hidden" name="action" value="show_tab" />
-              <input type="hidden" name="value" value="layers" />
-              <button
-                type="submit"
-                class="side-tab"
-                {% if active_tab == 'layers' %}aria-current="true"{% endif %}
-              >
-                LAYERS
-              </button>
-            </form>
-          </div>
-          {% if active_tab == 'layers' %}
-            {% block layers %}
-              <section id="layers">
-                <h2 class="panel-label">03 // LAYERS</h2>
-                <ul>
-                  {% for l in (status.layers if status else []) %}
-                    <li>
-                      {#
-                        Clicking a layer opens #layer_detail; the row
-                        carries the layer's server truth as data so the
-                        dialog opens filled without an extra request.
-                        The poller swap re-renders this row freely —
-                        no live controls inside the poll region anymore.
-                      #}
-                      <button
-                        type="button"
-                        class="data-row queue-row layer-row"
-                        data-layer-open
-                        data-thumbnail="{{ l.thumbnail }}"
-                        data-layer-id="{{ l.id }}"
-                        data-layer-title="{{ l.title }}"
-                        data-layer-volume="{{ l.volume }}"
-                      >
-                        {% if l.thumbnail %}
-                          <img
-                            class="row-thumb"
-                            src="{{ l.thumbnail }}"
-                            alt="{{ l.title }}"
-                            width="48"
-                            height="48"
-                          />
-                        {% else %}
-                          <span
-                            class="row-thumb thumb-empty"
-                            aria-hidden="true"
-                          ></span>
-                        {% endif %}
-                        <span class="row-meta">
-                          {{ "%02d" | format(loop.index) }}
-                        </span>
-                        <span class="data-title">{{ l.title }}</span>
-                        <span class="row-meta">
-                          {{ l.volume | round(2) }}
-                        </span>
-                      </button>
-                    </li>
-                  {% endfor %}
-                </ul>
-                {% if status and status.layers %}
-                  <form
-                    hx-post="{{ url_for('music.music') }}"
-                    hx-target="#side_panel"
-                    hx-swap="outerHTML"
-                    class="action-strip"
-                    data-confirm="Limpar todas as camadas?"
-                  >
-                    <input type="hidden" name="action" value="clear_layers" />
-                    <button type="submit" class="hud-btn">Clear layers</button>
-                  </form>
-                {% endif %}
-              </section>
-            {% endblock layers %}
-          {% else %}
-            {% block queue %}
-              <section id="queue">
-                <h2 class="panel-label">02 // QUEUE</h2>
-                <ul>
-                  {% for t in (status.queue if status else []) %}
-                    <li
-                      class="data-row queue-row"
-                      data-thumbnail="{{ t.thumbnail }}"
-                    >
-                      {% if t.thumbnail %}
-                        <img
-                          class="row-thumb"
-                          src="{{ t.thumbnail }}"
-                          alt="{{ t.title }}"
-                          width="48"
-                          height="48"
-                        />
-                      {% else %}
-                        <span
-                          class="row-thumb thumb-empty"
-                          aria-hidden="true"
-                        ></span>
-                      {% endif %}
-                      <span class="row-meta">
-                        {{ "%02d" | format(loop.index) }}
-                      </span>
-                      <span class="data-title">{{ t.title }}</span>
-                      <span class="row-meta">
-                        <span>{{ t.duration | format_duration }}</span>
-                        <form
-                          hx-post="{{ url_for('music.music') }}"
-                          hx-target="#side_panel"
-                          hx-swap="outerHTML"
-                        >
-                          <input type="hidden" name="action" value="remove" />
-                          <input
-                            type="hidden"
-                            name="value"
-                            value="{{ t.url }}"
-                          />
-                          <button type="submit" class="hud-btn">DEL</button>
-                        </form>
-                      </span>
-                    </li>
-                  {% endfor %}
-                </ul>
-                {% if status and status.queue %}
-                  <form
-                    hx-post="{{ url_for('music.music') }}"
-                    hx-target="#side_panel"
-                    hx-swap="outerHTML"
-                    class="action-strip"
-                    data-confirm="Limpar a fila inteira?"
-                  >
-                    <input type="hidden" name="action" value="clear_queue" />
-                    <button type="submit" class="hud-btn">Clear queue</button>
-                  </form>
-                {% endif %}
-              </section>
-            {% endblock queue %}
-          {% endif %}
-        </aside>
-      {% endblock side_panel %}
-    </div>
-  {% endblock status_panels %}
-
   {% block search %}
     <section id="search" class="hud-panel panel-gap">
       <h2 class="panel-label">SEARCH</h2>
@@ -599,6 +367,238 @@
       })();
     </script>
   {% endblock search %}
+
+  {% block status_panels %}
+    <div
+      id="status_panels"
+      class="music-grid"
+      hx-get="{{ url_for('music.music') }}"
+      hx-trigger="every 2s"
+      hx-swap="outerHTML"
+    >
+      {% block now_playing %}
+        <section
+          id="now_playing"
+          class="hud-panel {{ 'is-playing' if status and status.is_playing else '' }}"
+          data-thumbnail="{{ status.current_music.thumbnail if status.current_music else '' }}"
+        >
+          <h2 class="panel-label">01 // NOW PLAYING</h2>
+          {% if status and status.connected %}
+            {#
+              The art leads and the metadata reads below it. The src is
+              the track's stable YouTube URL: the poll re-renders this
+              block every 2s/500ms, but the browser cache keeps the
+              image up, so repeated swaps never flicker it.
+            #}
+            {% if status.current_music and status.current_music.thumbnail %}
+              <img
+                class="now-playing-art"
+                src="{{ status.current_music.thumbnail }}"
+                alt="{{ status.current_music.title }}"
+                width="224"
+                height="224"
+              />
+            {% else %}
+              <span
+                class="now-playing-art thumb-empty"
+                role="img"
+                aria-label="{{
+                  status.current_music.title
+                  if status.current_music
+                  else 'No track'
+                }}"
+              ></span>
+            {% endif %}
+            <p class="data-row">
+              <span class="data-label">TRACK</span>
+              <span class="data-title">
+                {{ status.current_music.title if status.current_music else "Nothing playing" }}
+              </span>
+            </p>
+            <p class="data-row">
+              <span class="data-label">SOURCE</span>
+              <span class="data-value">
+                {{ status.current_music.uploader if status.current_music else "--" }}
+              </span>
+            </p>
+            <p class="data-row">
+              <span class="data-label">LENGTH</span>
+              <span class="data-value">
+                {{ (status.current_music.duration if status.current_music else 0) | format_duration }}
+              </span>
+            </p>
+            <p class="data-row">
+              <span class="data-label">LOOP</span>
+              <span class="data-value">{{ status.loop_mode.name }}</span>
+            </p>
+          {% else %}
+            <p class="progress-readout is-empty">NO SESSION</p>
+          {% endif %}
+        </section>
+      {% endblock now_playing %}
+
+      {% block side_panel %}
+        <aside id="side_panel" class="hud-panel">
+          <div id="side_tabs" class="side-tabs" aria-label="Side panel tabs">
+            <form
+              hx-post="{{ url_for('music.music') }}"
+              hx-target="#side_panel"
+              hx-swap="outerHTML"
+            >
+              <input type="hidden" name="action" value="show_tab" />
+              <input type="hidden" name="value" value="queue" />
+              <button
+                type="submit"
+                class="side-tab"
+                {% if active_tab == 'queue' %}aria-current="true"{% endif %}
+              >
+                QUEUE
+              </button>
+            </form>
+            <form
+              hx-post="{{ url_for('music.music') }}"
+              hx-target="#side_panel"
+              hx-swap="outerHTML"
+            >
+              <input type="hidden" name="action" value="show_tab" />
+              <input type="hidden" name="value" value="layers" />
+              <button
+                type="submit"
+                class="side-tab"
+                {% if active_tab == 'layers' %}aria-current="true"{% endif %}
+              >
+                LAYERS
+              </button>
+            </form>
+          </div>
+          {% if active_tab == 'layers' %}
+            {% block layers %}
+              <section id="layers">
+                <h2 class="panel-label">03 // LAYERS</h2>
+                <ul>
+                  {% for l in (status.layers if status else []) %}
+                    <li>
+                      {#
+                        Clicking a layer opens #layer_detail; the row
+                        carries the layer's server truth as data so the
+                        dialog opens filled without an extra request.
+                        The poller swap re-renders this row freely —
+                        no live controls inside the poll region anymore.
+                      #}
+                      <button
+                        type="button"
+                        class="data-row queue-row layer-row"
+                        data-layer-open
+                        data-thumbnail="{{ l.thumbnail }}"
+                        data-layer-id="{{ l.id }}"
+                        data-layer-title="{{ l.title }}"
+                        data-layer-volume="{{ l.volume }}"
+                      >
+                        {% if l.thumbnail %}
+                          <img
+                            class="row-thumb"
+                            src="{{ l.thumbnail }}"
+                            alt="{{ l.title }}"
+                            width="48"
+                            height="48"
+                          />
+                        {% else %}
+                          <span
+                            class="row-thumb thumb-empty"
+                            aria-hidden="true"
+                          ></span>
+                        {% endif %}
+                        <span class="row-meta">
+                          {{ "%02d" | format(loop.index) }}
+                        </span>
+                        <span class="data-title">{{ l.title }}</span>
+                        <span class="row-meta">
+                          {{ l.volume | round(2) }}
+                        </span>
+                      </button>
+                    </li>
+                  {% endfor %}
+                </ul>
+                {% if status and status.layers %}
+                  <form
+                    hx-post="{{ url_for('music.music') }}"
+                    hx-target="#side_panel"
+                    hx-swap="outerHTML"
+                    class="action-strip"
+                    data-confirm="Limpar todas as camadas?"
+                  >
+                    <input type="hidden" name="action" value="clear_layers" />
+                    <button type="submit" class="hud-btn">Clear layers</button>
+                  </form>
+                {% endif %}
+              </section>
+            {% endblock layers %}
+          {% else %}
+            {% block queue %}
+              <section id="queue">
+                <h2 class="panel-label">02 // QUEUE</h2>
+                <ul>
+                  {% for t in (status.queue if status else []) %}
+                    <li
+                      class="data-row queue-row"
+                      data-thumbnail="{{ t.thumbnail }}"
+                    >
+                      {% if t.thumbnail %}
+                        <img
+                          class="row-thumb"
+                          src="{{ t.thumbnail }}"
+                          alt="{{ t.title }}"
+                          width="48"
+                          height="48"
+                        />
+                      {% else %}
+                        <span
+                          class="row-thumb thumb-empty"
+                          aria-hidden="true"
+                        ></span>
+                      {% endif %}
+                      <span class="row-meta">
+                        {{ "%02d" | format(loop.index) }}
+                      </span>
+                      <span class="data-title">{{ t.title }}</span>
+                      <span class="row-meta">
+                        <span>{{ t.duration | format_duration }}</span>
+                        <form
+                          hx-post="{{ url_for('music.music') }}"
+                          hx-target="#side_panel"
+                          hx-swap="outerHTML"
+                        >
+                          <input type="hidden" name="action" value="remove" />
+                          <input
+                            type="hidden"
+                            name="value"
+                            value="{{ t.url }}"
+                          />
+                          <button type="submit" class="hud-btn">DEL</button>
+                        </form>
+                      </span>
+                    </li>
+                  {% endfor %}
+                </ul>
+                {% if status and status.queue %}
+                  <form
+                    hx-post="{{ url_for('music.music') }}"
+                    hx-target="#side_panel"
+                    hx-swap="outerHTML"
+                    class="action-strip"
+                    data-confirm="Limpar a fila inteira?"
+                  >
+                    <input type="hidden" name="action" value="clear_queue" />
+                    <button type="submit" class="hud-btn">Clear queue</button>
+                  </form>
+                {% endif %}
+              </section>
+            {% endblock queue %}
+          {% endif %}
+        </aside>
+      {% endblock side_panel %}
+    </div>
+  {% endblock status_panels %}
 
   {% block transport %}
     {%

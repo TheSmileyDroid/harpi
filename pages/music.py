@@ -110,6 +110,20 @@ def _guild_id() -> int | None:
         return None
 
 
+def _guild_id_in(guilds: list[Guild]) -> int | None:
+    """The cookie's guild id, but only when the bot still sees that guild.
+
+    A stale cookie (the bot left the guild, or the id never existed) must
+    not render as a selection nothing can back up: it is cleared here so
+    the broken link line never comes back.
+    """
+    guild_id = _guild_id()
+    if guild_id is not None and any(g.id == guild_id for g in guilds):
+        return guild_id
+    session.pop("guild_id", None)
+    return None
+
+
 async def _status():
     bot = get_bot()
     guild_id = _guild_id()
@@ -123,8 +137,8 @@ async def _status():
 
 async def _context() -> dict:
     bot = get_bot()
-    guild_id = _guild_id()
     guild_list = await _get_guilds()
+    guild_id = _guild_id_in(guild_list)
     channels = []
     if guild_id is not None:
         guild = bot.get_guild(guild_id)
@@ -409,7 +423,13 @@ async def _render_music_response(
 async def music():
     guild_id = request.args.get("guild_id")
     if guild_id:
-        session["guild_id"] = guild_id
+        # Only a guild the bot can see may become the selection; an
+        # unknown id in the URL must not poison the cookie.
+        try:
+            if get_bot().get_guild(int(guild_id)) is not None:
+                session["guild_id"] = guild_id
+        except ValueError:
+            pass
     error: str | None = None
     search_results: list[YTMusicData] = []
     toast: str | None = None
