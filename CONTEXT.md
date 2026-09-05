@@ -35,6 +35,10 @@ _Avoid_: check, validate, ping
 The fixed bottom bar of the Music page: progress bar, play/pause, skip/previous, loop, volume. The Session's controls, rendered as one surface.
 _Avoid_: player (reserved), playback bar, control bar
 
+**Volume**:
+Linear gain applied to a source, 0.0–1.0, where 1.0 is unity: the ceiling never amplifies above the source. Volume is what is stored, what the `!volume` command speaks, and what the readout shows; the panel slider is a perceptual input device over it (position squared, ADR 0002).
+_Avoid_: loudness (perception, not the value), level
+
 **Search results**:
 The transient list of candidates returned by the single search on the Music page, shown as an overlay dropdown. Ephemeral by design: they live in the page, not in the Session, and vanish on close or navigation.
 _Avoid_: search panel (there is only one search), results page

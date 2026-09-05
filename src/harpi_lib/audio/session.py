@@ -23,6 +23,8 @@ MAX_SEEK_SECONDS = 4 * 3600
 TRACK_LOAD_TIMEOUT = 60.0
 DEFAULT_VOLUME = 0.7
 DEFAULT_LAYER_VOLUME = 0.7
+# Unity gain ceiling: volume never amplifies above the source (ADR 0002).
+MAX_VOLUME = 1.0
 # A run of unplayable tracks used to drain the whole queue in silence,
 # one ~4s extraction per track.  After this many consecutive failures we
 # stop and announce instead; skip resumes the queue at the next track.
@@ -311,7 +313,7 @@ class PlaybackSession:
         self._loop_mode = loop
 
     async def set_volume(self, volume: float) -> None:
-        self._volume = max(0.0, min(2.0, volume))
+        self._volume = max(0.0, min(MAX_VOLUME, volume))
         queue_source = self._controller.get_queue_source()
         if queue_source and hasattr(queue_source, "volume"):
             try:
@@ -449,7 +451,7 @@ class PlaybackSession:
         source = self._layers.get(layer_id)
         if source is None:
             return False
-        source.volume = max(0.0, min(2.0, volume))
+        source.volume = max(0.0, min(MAX_VOLUME, volume))
         return True
 
     async def _advance(self, force_next: bool = False) -> None:

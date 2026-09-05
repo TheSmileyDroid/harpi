@@ -317,31 +317,35 @@
       // only paints the local preview and schedules a send; the send is
       // throttled (min 300ms between posts) AND debounced (trailing
       // timer carries the final value exactly once). One htmx.ajax call
-      // site. The posted action and swap target come from the slider's
-      // own form, so the transport volume (set_volume -> #transport)
-      // and the layer detail slider (set_layer_volume -> #side_panel)
-      // ride the same channel. The listeners bind once here, outside
-      // every poller swap region; the transport slider element is
-      // hx-preserve'd and the layer dialog lives outside every swap
-      // region, so no poll wipes them or the pending timer mid-drag.
+      // site. The slider speaks perceptual position 0-1 and the session
+      // speaks linear gain: gain = pos * pos (ADR 0002), so paint and
+      // send square the value and the readout shows gain. The posted
+      // action and swap target come from the slider's own form, so the
+      // transport volume (set_volume -> #transport) and the layer
+      // detail slider (set_layer_volume -> #side_panel) ride the same
+      // channel. The listeners bind once here, outside every poller
+      // swap region; the transport slider element is hx-preserve'd and
+      // the layer dialog lives outside every swap region, so no poll
+      // wipes them or the pending timer mid-drag.
       (() => {
         if (document.body.dataset.volumeBound) return;
         document.body.dataset.volumeBound = "true";
         const MIN_INTERVAL = 300;
         let timer = null;
         let lastPosted = 0;
+        const toGain = (pos) => Number(pos) * Number(pos);
         const readoutFor = (slider) =>
           slider.closest("form")?.querySelector(".volume-value");
         const paint = (slider) => {
           const readout = readoutFor(slider);
-          if (readout) readout.textContent = Number(slider.value).toFixed(2);
+          if (readout) readout.textContent = toGain(slider.value).toFixed(2);
         };
         const send = (slider) => {
           timer = null;
           lastPosted = Date.now();
           const form = slider.closest("form");
           if (!form) return;
-          const values = { value: Number(slider.value).toFixed(2) };
+          const values = { value: toGain(slider.value).toFixed(2) };
           new FormData(form).forEach((field, key) => {
             if (key !== "value" && typeof field === "string") {
               values[key] = field;
@@ -578,6 +582,10 @@
       if status and status.current_music else 0
     %}
     {% set pct = ((elapsed / total * 100) | round(1)) if total else 0 %}
+    {%
+      set volume_pos = ((status.volume ** 0.5) | round(2))
+      if status and status.volume is defined else 0
+    %}
     {#
       Adaptive transport poller, server-driven: the interval is a property
       of the server-rendered state, so the poller itself re-renders it.
@@ -672,9 +680,9 @@
             type="range"
             class="volume-slider"
             min="0"
-            max="2"
+            max="1"
             step="0.01"
-            value="{{ status.volume }}"
+            value="{{ volume_pos }}"
             aria-label="Volume"
           />
           <span class="volume-value">{{ status.volume | round(2) }}</span>
@@ -733,7 +741,7 @@
           type="range"
           class="volume-slider"
           min="0"
-          max="2"
+          max="1"
           step="0.01"
           value="0"
           aria-label="Layer volume"
@@ -804,7 +812,7 @@
             layerId.value = opener.dataset.layerId;
             layerRemoveId.value = opener.dataset.layerId;
             layerTitle.textContent = opener.dataset.layerTitle;
-            layerSlider.value = opener.dataset.layerVolume;
+            layerSlider.value = Math.sqrt(Number(opener.dataset.layerVolume));
             layerReadout.textContent = Number(
               opener.dataset.layerVolume,
             ).toFixed(2);

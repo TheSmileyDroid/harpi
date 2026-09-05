@@ -14,6 +14,7 @@ import pytest
 
 import src.harpi_lib.audio.session as session_module
 from src.harpi_lib.audio.session import (
+    MAX_VOLUME,
     LoopMode,
     PlaybackSession,
     SessionStatus,
@@ -308,12 +309,12 @@ async def test_set_volume_applies_to_the_current_source(monkeypatch):
     _install_fakes(monkeypatch)
     await session.play("one")
 
-    await session.set_volume(1.5)
+    await session.set_volume(0.8)
 
-    assert session.status.volume == pytest.approx(1.5)
+    assert session.status.volume == pytest.approx(0.8)
     source = session._controller.get_queue_source()
     assert source is not None
-    assert cast(FakeSource, source).volume == pytest.approx(1.5)
+    assert cast(FakeSource, source).volume == pytest.approx(0.8)
 
 
 async def test_set_volume_clamps_to_the_allowed_range():
@@ -321,7 +322,7 @@ async def test_set_volume_clamps_to_the_allowed_range():
 
     await session.set_volume(5.0)
 
-    assert session.status.volume == pytest.approx(2.0)
+    assert session.status.volume == pytest.approx(MAX_VOLUME)
 
 
 async def test_pause_pauses_the_voice_client():
@@ -781,8 +782,8 @@ async def test_set_layer_volume_applies_and_clamps(monkeypatch):
 
     assert changed is True
     layer = session.status.layers[0]
-    assert layer.volume == pytest.approx(2.0)
-    assert _layer_source(session).volume == pytest.approx(2.0)
+    assert layer.volume == pytest.approx(MAX_VOLUME)
+    assert _layer_source(session).volume == pytest.approx(MAX_VOLUME)
 
 
 async def test_set_layer_volume_for_unknown_layer_is_a_noop(monkeypatch):

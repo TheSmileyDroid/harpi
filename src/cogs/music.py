@@ -250,7 +250,7 @@ class MusicCog(Cog):
 
     @command("volume")
     async def volume(self, ctx: Context, level: str | None = None) -> None:
-        """Show or set the music volume (0.0-2.0).
+        """Show or set the music volume (0.0-1.0, unity at max).
 
         Arguments:
             ctx (Context): Command context.

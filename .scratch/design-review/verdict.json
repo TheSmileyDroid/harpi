@@ -1,43 +1,43 @@
 {
-  "digest": "81cf18c55a38f5c4",
+  "digest": "d6d2da3a59419a42",
   "overall": "pass",
-  "reviewed_at": "2026-09-05",
-  "model": "human:gabriel + opengo (glm-5.3-flash), cross-checked against two independent prototype reviews",
+  "reviewed_at": "2026-09-05T15:20:00Z",
+  "model": "glm-5.3-flash (opencode agent)",
   "items": [
     {
       "id": "V1",
       "status": "pass",
-      "evidence": "Labels and dim metadata (CPU/MEMORY/BOT on home, TRACK/SOURCE/LENGTH on music) legible on near-black at both widths; idle gray confined to the footer credit and disabled controls."
+      "evidence": "desktop-music-viewport: labels (TRACK/SOURCE/LENGTH), row-meta (3:00, DEL) and the dim volume readout 0.7 all legible against near-black; idle gray only on the empty SOURCE/LOOP slots."
     },
     {
       "id": "V2",
       "status": "pass",
-      "evidence": "Amber on dark everywhere; zero red in any shot; no green (also enforced by tests/test_design_language.py). ONLINE chip is amber, memory bar amber."
+      "evidence": "all 8 shots: amber phosphor on dark throughout (buttons, fills, tabs); no green anywhere, no red outside the danger buttons (mobile-music-full CLEAR QUEUE)."
     },
     {
       "id": "V3",
       "status": "pass",
-      "evidence": "Brackets appear only on the NOW PLAYING panel (.is-playing) in desktop/mobile music; nav uses brighten + 1px underline; static panels carry only boxed titles (00 // LINK, 02 // QUEUE), verified by full-resolution corner crops. Wording sharpened after Mimo trial 1 conflated boxed titles with brackets."
+      "evidence": "desktop-music-viewport and mobile-music-viewport: bright L corner bracket sits only on the playing NOW PLAYING panel frame (top-left); LINK/SEARCH/QUEUE panels carry only boxed-title chips; nav underline under MUSIC/HOME, no brackets."
     },
     {
       "id": "V4",
       "status": "pass",
-      "evidence": "Boxed titles (01 // SERVER, 02 // QUEUE) align across panels; queue row keeps thumb | index | title | duration+DEL in one row with metadata right (macro-rendered rows match pre-refactor pixels); transport is a segmented bottom strip."
+      "evidence": "desktop-music-viewport: boxed titles align per panel, queue row shows 01 second | 3:00 | DEL in a right-hand meta column, CLEAR QUEUE in a segmented bottom strip; transport reads as one segmented row."
     },
     {
       "id": "V5",
       "status": "pass",
-      "evidence": "Mobile-music queue row reads as one list row (thumb + 01 second on the first line, 3:00 DEL right-aligned below) after the .row-meta wrap fix; single column, boxed titles and mono identity intact at 375."
+      "evidence": "mobile-music-full: single column, transport wraps to two rows (PREV/PAUSE/SKIP then LOOP OFF + slider + times) in the same amber console language; nothing orphaned."
     },
     {
       "id": "V6",
       "status": "pass",
-      "evidence": "Viewport shots show the transport pinned at the bottom above the status strip with nothing covered at rest; main-content padding-bottom (5rem desktop / 10rem mobile) clears the fixed furniture. No cut-off or colliding elements at either width."
+      "evidence": "desktop-music-viewport and mobile-music-viewport: progress track now paints as a visible line between the volume control and the time readout, no overlap or cutoff; transport judged on viewport shots per skill (full-page fixed-bar seam ignored)."
     },
     {
       "id": "V7",
       "status": "pass",
-      "evidence": "Scanline texture perceptible only as faint banding in panel fills; no per-element glow, no badges, no HUD excess in any of the eight shots."
+      "evidence": "all 8 shots: scanlines barely perceptible, no per-element glow, no badges or HUD excess after the transport CSS fix."
     }
   ]
 }

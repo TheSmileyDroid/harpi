@@ -24,7 +24,7 @@ from src import bot_state as deps
 from src.bot_state import run_on_bot_loop
 from pages import music as guild_module
 import src.harpi_lib.audio.session as session_module
-from src.harpi_lib.audio.session import LoopMode, PlaybackSession
+from src.harpi_lib.audio.session import MAX_VOLUME, LoopMode, PlaybackSession
 from src.harpi_lib.audio.session_manager import SessionManager
 from src.harpi_lib.music.ytmusic import YTMusicData
 from tests.conftest import (
@@ -251,9 +251,9 @@ async def test_layer_volume_reaches_the_session(client, bot: PanelBot):
 
     assert response.status_code == 200
     body = (await response.get_data()).decode()
-    assert "1.5" in body
+    assert "1.0" in body
     status = await _status(bot)
-    assert status.layers[0].volume == pytest.approx(1.5)
+    assert status.layers[0].volume == pytest.approx(MAX_VOLUME)
 
 
 async def test_skip_then_previous_replays_the_finished_track(
@@ -292,14 +292,14 @@ async def test_previous_with_no_history_leaves_the_session_idle(
 async def test_volume_and_loop_reach_the_session(client, bot: PanelBot):
     await _connect(client)
 
-    await _post(client, "set_volume", "transport", value="1.5")
+    await _post(client, "set_volume", "transport", value="0.8")
     response = await _post(client, "set_loop", "transport", value="track")
 
     assert response.status_code == 200
     body = (await response.get_data()).decode()
     assert "LOOP TRACK" in body
     status = await _status(bot)
-    assert status.volume == pytest.approx(1.5)
+    assert status.volume == pytest.approx(0.8)
     assert status.loop_mode is LoopMode.TRACK
 
 

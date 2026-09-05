@@ -789,10 +789,10 @@ async def test_transport_carries_a_volume_slider_with_the_current_value(
     assert 'id="transport-volume"' in collapsed
     assert 'type="range"' in collapsed
     assert 'min="0"' in collapsed
-    assert 'max="2"' in collapsed
+    assert 'max="1"' in collapsed
     assert 'step="0.01"' in collapsed
     assert 'name="value"' in collapsed
-    assert 'value="0.7"' in collapsed
+    assert 'value="0.84"' in collapsed
     assert 'name="action" value="set_volume"' in collapsed
     # The numeric ±0.1 input and its VOL button are gone.
     assert 'type="number"' not in collapsed
@@ -1513,7 +1513,7 @@ async def test_layer_dialog_carries_the_layer_slider_form(client, bot):
     assert 'name="layer_id"' in collapsed
     assert 'type="range"' in collapsed
     assert 'min="0"' in collapsed
-    assert 'max="2"' in collapsed
+    assert 'max="1"' in collapsed
     assert 'step="0.01"' in collapsed
     assert 'name="action" value="remove_layer"' in collapsed
     # Both dialog posts re-render the side panel like the old rows did.

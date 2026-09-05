@@ -649,8 +649,8 @@
   .progress-track {
     position: relative;
     flex: 1;
-    /* 4px visual bar inside a ~20px click target (seek-on-click). */
-    height: 4px;
+    /* border-box: 4px visual bar via background-clip, 20px click target. */
+    height: 20px;
     padding-block: 8px;
     margin-block: -8px;
     background: var(--color-line);
@@ -673,8 +673,7 @@
 
   /* Transport volume: same thin-track amber language as the progress
      bar. A range input's own pseudo-elements are limited, so the corner
-     brackets live on the .volume-control wrapper via focus-within. */
-  .volume-control {
+     brackets live on the .volume-control wrapper via focus-within. */.volume-control {
     display: flex;
     align-items: center;
     gap: 0.5rem;
