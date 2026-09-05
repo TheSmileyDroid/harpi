@@ -1,0 +1,43 @@
+{
+  "digest": "341e931354322d52",
+  "overall": "pass",
+  "reviewed_at": "2026-09-05",
+  "model": "human:gabriel + opengo (glm-5.3-flash), cross-checked against two independent prototype reviews",
+  "items": [
+    {
+      "id": "V1",
+      "status": "pass",
+      "evidence": "Labels and dim metadata (CPU/MEMORY/BOT on home, TRACK/SOURCE/LENGTH on music) legible on near-black at both widths; idle gray confined to the footer credit and disabled controls."
+    },
+    {
+      "id": "V2",
+      "status": "pass",
+      "evidence": "Amber on dark everywhere; zero red in any shot; no green (also enforced by tests/test_design_language.py). ONLINE chip is amber, memory bar amber."
+    },
+    {
+      "id": "V3",
+      "status": "pass",
+      "evidence": "Brackets appear only on the NOW PLAYING panel (.is-playing, the playing surface) in desktop-music/mobile-music; nav uses brighten + 1px underline, no brackets; static panels (SERVER, NAVIGATE, LINK, SEARCH, QUEUE) have none."
+    },
+    {
+      "id": "V4",
+      "status": "pass",
+      "evidence": "Boxed titles (01 // SERVER, 02 // QUEUE) align across panels; queue row keeps thumb | index | title | duration+DEL in one row with metadata right (macro-rendered rows match pre-refactor pixels); transport is a segmented bottom strip."
+    },
+    {
+      "id": "V5",
+      "status": "pass",
+      "evidence": "Mobile-music queue row reads as one list row (thumb + 01 second on the first line, 3:00 DEL right-aligned below) after the .row-meta wrap fix; single column, boxed titles and mono identity intact at 375."
+    },
+    {
+      "id": "V6",
+      "status": "pass",
+      "evidence": "Viewport shots show the transport pinned at the bottom above the status strip with nothing covered at rest; main-content padding-bottom (5rem desktop / 10rem mobile) clears the fixed furniture. No cut-off or colliding elements at either width."
+    },
+    {
+      "id": "V7",
+      "status": "pass",
+      "evidence": "Scanline texture perceptible only as faint banding in panel fills; no per-element glow, no badges, no HUD excess in any of the eight shots."
+    }
+  ]
+}

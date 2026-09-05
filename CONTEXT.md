@@ -57,3 +57,10 @@ A discord.py command module in `src/cogs/`. Commands stay thin: parse, delegate,
 
 **Page**:
 A web surface in `pages/`: a Quart blueprint plus its HTMX action handlers.
+
+**Design review**:
+The mandatory pass that judges panel work against the design language (`docs/agents/design.md`). Split by checkability: rules a test can verify are tested (TDD); rules only pixels can reveal go to the vision reviewer. Runs before-done and after big layout changes.
+_Avoid_: checker, verifier, audit (Probe is the audio pre-flight, not this)
+
+**Verdict**:
+The structured output of a Design review: one entry per checklist item — pass, fail, or inapplicable — with evidence. A stale or missing Verdict fails the gate; a Verdict never overrides a failing test.

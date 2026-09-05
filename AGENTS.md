@@ -24,7 +24,7 @@ Discord bot (music, dice, TTS) with an HTMX web panel, served by Quart in one pr
 - **Testing and the gates** — [docs/agents/testing.md](docs/agents/testing.md). Read when writing tests or triaging a failing gate.
 - **Panel and HTMX work** — [docs/agents/panel.md](docs/agents/panel.md). Read before editing `pages/`, `templates/`, or any music surface (commands and panel are one feature on two surfaces).
 - **Taste and judgment calls** — [docs/agents/taste.md](docs/agents/taste.md). Read when a design decision could go two ways.
-- **Panel design language** — [docs/agents/design.md](docs/agents/design.md). Read before editing `templates/`, `pages/`, or `static/css/`.
+- **Panel design language** — [docs/agents/design.md](docs/agents/design.md). Read before editing `templates/`, `pages/`, or `static/css/`. Panel changes owe a design review: `make check` runs the gate (`.opencode/skills/design-review/`, ADR 0001) and stays red without a fresh passing verdict.
 - **Issue tracker** — [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md). Local markdown under `.scratch/<feature-slug>/`.
 - **Triage labels** — [docs/agents/triage-labels.md](docs/agents/triage-labels.md). Vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`.
 - **Domain docs** — [docs/agents/domain.md](docs/agents/domain.md). `CONTEXT.md` + `docs/adr/` at the repo root.

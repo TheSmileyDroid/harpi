@@ -473,6 +473,7 @@
           </div>
           {% if active_tab == 'layers' %}
             {% block layers %}
+              {% import "components/row_face.html" as rows %}
               <section id="layers">
                 <h2 class="panel-label">03 // LAYERS</h2>
                 <ul>
@@ -494,24 +495,7 @@
                         data-layer-title="{{ l.title }}"
                         data-layer-volume="{{ l.volume }}"
                       >
-                        {% if l.thumbnail %}
-                          <img
-                            class="row-thumb"
-                            src="{{ l.thumbnail }}"
-                            alt="{{ l.title }}"
-                            width="48"
-                            height="48"
-                          />
-                        {% else %}
-                          <span
-                            class="row-thumb thumb-empty"
-                            aria-hidden="true"
-                          ></span>
-                        {% endif %}
-                        <span class="row-meta">
-                          {{ "%02d" | format(loop.index) }}
-                        </span>
-                        <span class="data-title">{{ l.title }}</span>
+                        {{ rows.row_face(l, loop.index) }}
                         <span class="row-meta">
                           {{ l.volume | round(2) }}
                         </span>
@@ -535,6 +519,7 @@
             {% endblock layers %}
           {% else %}
             {% block queue %}
+              {% import "components/row_face.html" as rows %}
               <section id="queue">
                 <h2 class="panel-label">02 // QUEUE</h2>
                 <ul>
@@ -543,24 +528,7 @@
                       class="data-row queue-row"
                       data-thumbnail="{{ t.thumbnail }}"
                     >
-                      {% if t.thumbnail %}
-                        <img
-                          class="row-thumb"
-                          src="{{ t.thumbnail }}"
-                          alt="{{ t.title }}"
-                          width="48"
-                          height="48"
-                        />
-                      {% else %}
-                        <span
-                          class="row-thumb thumb-empty"
-                          aria-hidden="true"
-                        ></span>
-                      {% endif %}
-                      <span class="row-meta">
-                        {{ "%02d" | format(loop.index) }}
-                      </span>
-                      <span class="data-title">{{ t.title }}</span>
+                      {{ rows.row_face(t, loop.index) }}
                       <span class="row-meta">
                         <span>{{ t.duration | format_duration }}</span>
                         <form

@@ -35,6 +35,7 @@ check:
 	bunx jscpd src/ pages/ templates/ --min-tokens 50 --threshold 1 || { touch .check-failed; true; }; \
 	bunx prettier --check ./templates/ || { touch .check-failed; true; }; \
 	uv run vulture || { touch .check-failed; true; }; \
+	uv run python tools/design_review_gate.py || { touch .check-failed; true; }; \
 	if [ -f .check-failed ]; then rm -f .check-failed; exit 1; fi
 
 check-network:

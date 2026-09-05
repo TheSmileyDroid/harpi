@@ -1,0 +1,19 @@
+{# One row-opening body shared by the layer and queue rows: thumbnail (or
+   its empty slot), the row index, the title. The trailing meta differs per
+   row type and stays at the call site. Lives in its own file because the
+   fragment renderer evaluates blocks without the page's top-level macros. #}
+{% macro row_face(item, index) -%}
+  {% if item.thumbnail %}
+    <img
+      class="row-thumb"
+      src="{{ item.thumbnail }}"
+      alt="{{ item.title }}"
+      width="48"
+      height="48"
+    />
+  {% else %}
+    <span class="row-thumb thumb-empty" aria-hidden="true"></span>
+  {% endif %}
+  <span class="row-meta"> {{ "%02d" | format(index) }} </span>
+  <span class="data-title">{{ item.title }}</span>
+{%- endmacro %}

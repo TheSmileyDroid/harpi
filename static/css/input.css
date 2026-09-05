@@ -135,6 +135,9 @@
   /* Breathing room between the frame and the page, and between blocks. */
   .main-content {
     display: block;
+    /* Clear the fixed transport bar and status strip so page content never
+       hides under them (design review V6). */
+    padding-bottom: 5rem;
   }
 
   .main-content > * + * {
@@ -837,11 +840,19 @@
 
   /* Mobile: density collapses to one column; the language stays on. */
   @media (max-width: 30rem) {
+    .main-content {
+      /* The transport wraps to two rows here; clear it plus the strip. */
+      padding-bottom: 10rem;
+    }
+
     .queue-row {
       flex-wrap: wrap;
     }
 
-    .queue-row .row-meta {
+    /* Only the actions (duration + DEL) drop to their own right-aligned
+       line. The index stays with the thumb, the title keeps its line, so
+       the row reads as one list row, not scattered fragments (V5). */
+    .queue-row .row-meta:last-child {
       flex-basis: 100%;
       justify-content: flex-end;
     }
