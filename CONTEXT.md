@@ -31,6 +31,22 @@ How music plays: yt-dlp search → stream selection and probing → FFmpeg decod
 A short FFmpeg pre-flight that confirms a stream URL actually decodes audio (with retries and a time budget) before playback commits to it. Probe failure means the source is rejected, not that playback dies.
 _Avoid_: check, validate, ping
 
+**Transport**:
+The fixed bottom bar of the Music page: progress bar, play/pause, skip/previous, loop, volume. The Session's controls, rendered as one surface.
+_Avoid_: player (reserved), playback bar, control bar
+
+**Search results**:
+The transient list of candidates returned by the single search on the Music page, shown as an overlay dropdown. Ephemeral by design: they live in the page, not in the Session, and vanish on close or navigation.
+_Avoid_: search panel (there is only one search), results page
+
+**Side panel**:
+The right-hand column of the Music page holding the Queue and Layers as tabs. One panel, two views.
+_Avoid_: queue panel, layers panel (those are the tabs)
+
+**Toast**:
+A transient amber confirmation that fades on its own (action succeeded). The opposite of the persistent error region: errors stay until resolved, toasts die quietly. Toasts are never green.
+_Avoid_: notification, alert (alert is red and means error)
+
 ### Structure
 
 **Bot state**:

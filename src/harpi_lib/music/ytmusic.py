@@ -126,6 +126,47 @@ def search(arg: str) -> dict[str, Any]:
     return video
 
 
+# Panel thumbnails want a mid-resolution image: big enough to look
+# sharp, small enough to load fast. yt-dlp entries usually carry a
+# whole ladder of widths, and 400px sits in the ~320-480px sweet spot.
+THUMBNAIL_TARGET_WIDTH = 400
+
+
+def _thumbnail_candidates(video: dict[str, Any]) -> list[tuple[Any, str]]:
+    """Extract (width, url) pairs from the yt-dlp thumbnails list."""
+    thumbs = video.get("thumbnails")
+    if not isinstance(thumbs, list):
+        return []
+    return [
+        (thumb.get("width"), thumb["url"])
+        for thumb in thumbs
+        if isinstance(thumb, dict)
+        and isinstance(thumb.get("url"), str)
+        and thumb["url"]
+    ]
+
+
+def pick_thumbnail(video: dict[str, Any]) -> str:
+    """Pick a reasonable mid-resolution thumbnail URL from a yt-dlp dict.
+
+    Prefers a candidate 320-480px wide (closest to 400px); otherwise the
+    closest sized candidate, then the middle entry when no widths are
+    known, then the top-level ``thumbnail`` key, then an empty string.
+    """
+    candidates = _thumbnail_candidates(video)
+    if not candidates:
+        top_level = video.get("thumbnail")
+        return top_level if isinstance(top_level, str) else ""
+    sized = [
+        candidate
+        for candidate in candidates
+        if isinstance(candidate[0], int | float)
+    ]
+    if sized:
+        return min(sized, key=lambda c: abs(c[0] - THUMBNAIL_TARGET_WIDTH))[1]
+    return candidates[len(candidates) // 2][1]
+
+
 class YTMusicData:
     """Data container for a YouTube music track's metadata."""
 
@@ -186,6 +227,11 @@ class YTMusicData:
     @property
     def duration(self) -> int:
         return cast(int, self._video.get("duration", 0))
+
+    @property
+    def thumbnail(self) -> str:
+        """Mid-resolution thumbnail URL, or an empty string when none."""
+        return pick_thumbnail(self._video)
 
     @property
     def uploader(self) -> str:

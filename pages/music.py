@@ -1,9 +1,11 @@
 from typing import Any
 from collections.abc import Callable
+import json
+import re
 
 from discord import Guild
 from loguru import logger
-from quart import Blueprint, render_template, request, session
+from quart import Blueprint, make_response, render_template, request, session
 from jinja2_fragments.quart import render_block
 
 from src.bot_state import get_bot, run_on_bot_loop
@@ -23,11 +25,17 @@ _TARGET_BLOCKS: frozenset[str] = frozenset({
     "now_playing",
     "queue",
     "layers",
+    "side_panel",
     "selector",
     "status_panels",
     "transport",
     "search",
+    "search_dropdown",
 })
+
+# Side panel tabs: which fragment the panel shows. The server owns the
+# choice, so polls and full-page renders never lose it.
+_MUSIC_TABS: frozenset[str] = frozenset({"queue", "layers"})
 
 _SESSION_VERBS: frozenset[str] = frozenset({
     "toggle_pause",
@@ -46,6 +54,31 @@ _SESSION_VALUE_VERBS: dict[str, str] = {
 }
 
 SEARCH_RESULT_LIMIT = 5
+
+# Successful confirmations the panel surfaces as transient amber toasts.
+# The server declares the event; the client listener in layout.html
+# renders it. Errors NEVER appear here — they go to panel_error, red.
+_TOAST_MESSAGES: dict[str, str] = {
+    "add": "Adicionado à fila",
+    "add_layer": "Virou camada",
+    "set_volume": "Volume alterado",
+    "set_layer_volume": "Volume da camada alterado",
+    "seek": "Posição ajustada",
+}
+
+# htmx reads this response header and dispatches the event with its
+# JSON payload as detail; one body listener renders the toast.
+TOAST_EVENT = "harpi:toast"
+
+# A pasted link is the whole term, not a search that happens to contain
+# a URL; only then does it bypass the dropdown and go straight to the queue.
+_URL_PATTERN = re.compile(r"https?://\S+", re.IGNORECASE)
+
+
+def looks_like_url(term: str) -> bool:
+    """True when *term* is one http(s) URL (a pasted link)."""
+    return bool(_URL_PATTERN.fullmatch(term.strip()))
+
 
 # Shown after an add that left the session with nothing playing and an
 # empty queue: every track was skipped while loading and the reason only
@@ -119,11 +152,22 @@ def _loop_mode(value: str) -> LoopMode:
     return mode
 
 
-# Verbs whose single form value must arrive at the session as a float.
+# Verbs whose single form value must arrive at the session as a float,
+# with how the value maps to the session call. The panel bar clicks a
+# point on the track, so seek speaks absolute seconds; the panel rejects
+# targets outside 0..duration and the session clamps whatever is left.
 _NUMERIC_VERBS: dict[str, tuple[str, Callable[[str], float]]] = {
     "set_volume": ("set_volume", _float_value),
     "seek": ("seek", _float_value),
 }
+
+
+def _numeric_call(session_obj: PlaybackSession, action: str, value: str):
+    verb, coerce = _NUMERIC_VERBS[action]
+    target = coerce(value)
+    if action == "seek":
+        return session_obj.seek(target, absolute=True)
+    return getattr(session_obj, verb)(target)
 
 
 def _custom_verb_call(session_obj: PlaybackSession, action: str, form: Any):
@@ -146,8 +190,7 @@ def _verb_call(session_obj: PlaybackSession, action: str, form: Any):
     if action in _SESSION_VALUE_VERBS and value:
         return getattr(session_obj, _SESSION_VALUE_VERBS[action])(value)
     if action in _NUMERIC_VERBS and value:
-        verb, coerce = _NUMERIC_VERBS[action]
-        return getattr(session_obj, verb)(coerce(value))
+        return _numeric_call(session_obj, action, value)
     return _custom_verb_call(session_obj, action, form)
 
 
@@ -160,10 +203,32 @@ async def _run_session_verb(
         await run_on_bot_loop(call)
 
 
+async def _reject_seek_out_of_range(
+    session_obj: PlaybackSession, form: Any
+) -> None:
+    """Reject an absolute seek outside 0..duration before it runs.
+
+    The session clamps internally (the Discord command relies on that),
+    but a panel POST outside the range means a stale duration on the
+    client, so it gets an error instead of a silent snap.
+    """
+    value = form.get("value") or ""
+    if not value:
+        return
+    target = _float_value(value)
+    status = await run_on_bot_loop(session_obj.sample_status())
+    current = status.current_music if status else None
+    duration = current.duration if current else 0
+    if duration and not 0 <= target <= duration:
+        raise ValueError("Posição fora da duração da faixa")
+
+
 async def _dispatch_session_action(
     session_obj: PlaybackSession, action: str, form: Any
 ) -> str | None:
     """Run the session verb for *action*; return a panel warning, if any."""
+    if action == "seek":
+        await _reject_seek_out_of_range(session_obj, form)
     await _run_session_verb(session_obj, action, form)
     if action == "add":
         return await _skipped_tracks_warning(session_obj)
@@ -225,10 +290,30 @@ async def _handle_disconnect(bot: Any) -> None:
         await run_on_bot_loop(bot.sessions.disconnect(guild_id))
 
 
+def _active_tab() -> str:
+    tab = session.get("music_tab")
+    return tab if tab in _MUSIC_TABS else "queue"
+
+
+def _handle_show_tab(form: Any) -> None:
+    tab = (form.get("value") or "").strip()
+    if tab not in _MUSIC_TABS:
+        raise ValueError("Aba inválida")
+    session["music_tab"] = tab
+
+
+def _toast_for(action: str, warning: str | None) -> str | None:
+    """The toast message for a successful action, if any. A warning (all
+    tracks skipped) speaks for itself, so it suppresses the toast."""
+    if warning is not None:
+        return None
+    return _TOAST_MESSAGES.get(action)
+
+
 async def _handle_action(
     form: Any,
-) -> tuple[list[YTMusicData], str | None]:
-    """Dispatch one panel action; return search results and a warning."""
+) -> tuple[list[YTMusicData], str | None, str | None]:
+    """Dispatch one panel action; return results, warning and toast."""
     action = (form.get("action") or "").strip()
     bot = get_bot()
 
@@ -236,12 +321,20 @@ async def _handle_action(
         await _handle_connect(bot, form)
     elif action == "disconnect":
         await _handle_disconnect(bot)
+    elif action == "show_tab":
+        _handle_show_tab(form)
     elif action == "search":
-        return await _handle_search(form), None
+        term = (form.get("value") or "").strip()
+        if looks_like_url(term):
+            # Pasted URL: no dropdown, straight to the queue with the
+            # same play semantics as the add action.
+            warning = await _handle_session_action(bot, {"value": term}, "add")
+            return [], warning, _toast_for("add", warning)
+        return await _handle_search(form), None, None
     else:
         warning = await _handle_session_action(bot, form, action)
-        return [], warning
-    return [], None
+        return [], warning, _toast_for(action, warning)
+    return [], None, None
 
 
 async def _block_or_page(
@@ -249,11 +342,13 @@ async def _block_or_page(
     error: str | None,
     search_results: list[YTMusicData],
 ):
+    active_tab = _active_tab()
     if not (block and request.headers.get("HX-Request")):
         return await render_template(
             "pages/music.html",
             error=error,
             search_results=search_results,
+            active_tab=active_tab,
             **await _context(),
         )
     if block == "selector":
@@ -262,6 +357,7 @@ async def _block_or_page(
             block,
             error=error,
             search_results=search_results,
+            active_tab=active_tab,
             **await _context(),
         )
     return await render_block(
@@ -269,6 +365,7 @@ async def _block_or_page(
         block,
         error=error,
         search_results=search_results,
+        active_tab=active_tab,
         status=await _status(),
     )
 
@@ -279,15 +376,17 @@ async def _panel_error_oob(error: str | None) -> str:
     return f'<div id="panel_error" hx-swap-oob="true">{inner}</div>'
 
 
-async def _handle_music_post() -> tuple[list[YTMusicData], str | None]:
-    """Handle a POST to the music page; return (results, error_or_warning)."""
+async def _handle_music_post() -> tuple[
+    list[YTMusicData], str | None, str | None
+]:
+    """Handle a POST to the music page; return (results, error, toast)."""
     try:
-        results, warning = await _handle_action(await request.form)
-        return results, warning
+        results, warning, toast = await _handle_action(await request.form)
+        return results, warning, toast
     except Exception as e:
         logger.opt(exception=True).warning(f"Panel action failed: {e}")
         error = str(e) if str(e) else type(e).__name__
-        return [], error
+        return [], error, None
 
 
 async def _render_music_response(
@@ -313,10 +412,21 @@ async def music():
         session["guild_id"] = guild_id
     error: str | None = None
     search_results: list[YTMusicData] = []
+    toast: str | None = None
     if request.method == "POST":
-        search_results, error = await _handle_music_post()
+        search_results, error, toast = await _handle_music_post()
     hx_target = request.headers.get("HX-Target", "")
     block = None
     if hx_target in _TARGET_BLOCKS:
         block = hx_target
-    return await _render_music_response(block, error, search_results)
+    response = await _render_music_response(block, error, search_results)
+    if toast is None:
+        return response
+    # Server-driven toast: htmx reads the header and dispatches the
+    # event with the message as detail. Never set on failures — they
+    # stay in panel_error, red and persistent.
+    declared = await make_response(response)
+    declared.headers["HX-Trigger"] = json.dumps({
+        TOAST_EVENT: {"message": toast}
+    })
+    return declared

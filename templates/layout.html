@@ -99,6 +99,31 @@
       aria-hidden="true"
     ></div>
 
+    <script id="toast-script">
+      // Enhancement only: the server declares the confirmation through
+      // the HX-Trigger response header (pages/music.py only sets it on
+      // successful actions); this listener just renders what arrived
+      // into #toast-container, which sits outside every poller swap
+      // region, so toasts stack and never get wiped by a poll. Each
+      // toast removes itself after a few seconds. Errors never arrive
+      // here — they stay in #panel_error, red and persistent.
+      (() => {
+        if (document.body.dataset.toastBound) return;
+        document.body.dataset.toastBound = "true";
+        const TOAST_MS = 4000;
+        document.body.addEventListener("harpi:toast", (evt) => {
+          const container = document.getElementById("toast-container");
+          if (!container || !evt.detail?.message) return;
+          const toast = document.createElement("div");
+          toast.className = "toast";
+          toast.setAttribute("role", "status");
+          toast.textContent = evt.detail.message;
+          container.appendChild(toast);
+          setTimeout(() => toast.remove(), TOAST_MS);
+        });
+      })();
+    </script>
+
     <script>
       // One subtle global indicator for HTMX activity; per-action
       // feedback is the .htmx-request class htmx puts on the trigger.

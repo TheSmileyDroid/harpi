@@ -54,6 +54,7 @@ class LayerInfo:
     title: str
     url: str
     volume: float
+    thumbnail: str = ""
 
 
 class LoopMode(enum.Enum):
@@ -174,6 +175,7 @@ class PlaybackSession:
                     title=source.title,
                     url=source.url,
                     volume=source.volume,
+                    thumbnail=source.thumbnail,
                 )
                 for source in self._layers.values()
             ),

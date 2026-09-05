@@ -17,64 +17,70 @@
   {% block selector %}
     <section id="selector" class="hud-panel panel-gap">
       <h2 class="panel-label">00 // LINK</h2>
-      <form
-        hx-post="{{ url_for('music.music') }}"
-        hx-target="#selector"
-        hx-swap="outerHTML"
-        class="data-row"
-      >
-        <select
-          name="guild_id"
-          required
-          class="hud-input"
-          hx-get="{{ url_for('music.music') }}"
-          hx-trigger="change"
-          hx-target="#selector"
-          hx-swap="outerHTML"
-        >
-          <option value="">Guild</option>
-          {% for g in guilds %}
-            <option
-              value="{{ g.id }}"
-              {% if g.id == selected_guild_id %}selected{% endif %}
-            >
-              {{ g.name }}
-            </option>
-          {% endfor %}
-        </select>
-        <select name="channel_id" required class="hud-input">
-          <option value="">Channel</option>
-          {% for c in channels %}
-            <option
-              value="{{ c.id }}"
-              {% if status and status.channel_id == c.id %}selected{% endif %}
-            >
-              {{ c.name }}
-            </option>
-          {% endfor %}
-        </select>
-        <button type="submit" name="action" value="connect" class="hud-btn">
-          Connect
-        </button>
-      </form>
-      {% if selected_guild_id %}
+      <div class="link-line">
         <form
           hx-post="{{ url_for('music.music') }}"
           hx-target="#selector"
           hx-swap="outerHTML"
-          class="action-strip"
+          class="link-line"
         >
-          <input type="hidden" name="action" value="disconnect" />
-          <button type="submit" class="hud-btn">Disconnect</button>
+          <select
+            name="guild_id"
+            required
+            class="hud-input"
+            hx-get="{{ url_for('music.music') }}"
+            hx-trigger="change"
+            hx-target="#selector"
+            hx-swap="outerHTML"
+          >
+            <option value="">Guild</option>
+            {% for g in guilds %}
+              <option
+                value="{{ g.id }}"
+                {% if g.id == selected_guild_id %}selected{% endif %}
+              >
+                {{ g.name }}
+              </option>
+            {% endfor %}
+          </select>
+          <select name="channel_id" required class="hud-input">
+            <option value="">Channel</option>
+            {% for c in channels %}
+              <option
+                value="{{ c.id }}"
+                {% if status and status.channel_id == c.id %}selected{% endif %}
+              >
+                {{ c.name }}
+              </option>
+            {% endfor %}
+          </select>
+          <button type="submit" name="action" value="connect" class="hud-btn">
+            Connect
+          </button>
         </form>
-      {% endif %}
+        {% if selected_guild_id %}
+          {#
+            data-confirm: the dialog script gates the first submit behind
+            #confirm_dialog; the server side is unchanged (plain POST).
+          #}
+          <form
+            hx-post="{{ url_for('music.music') }}"
+            hx-target="#selector"
+            hx-swap="outerHTML"
+            data-confirm="Desconectar do canal de voz?"
+          >
+            <input type="hidden" name="action" value="disconnect" />
+            <button type="submit" class="hud-btn">Disconnect</button>
+          </form>
+        {% endif %}
+      </div>
     </section>
   {% endblock selector %}
 
   {% block status_panels %}
     <div
       id="status_panels"
-      class="panel-grid"
+      class="music-grid"
       hx-get="{{ url_for('music.music') }}"
       hx-trigger="every 2s"
       hx-swap="outerHTML"
@@ -83,9 +89,35 @@
         <section
           id="now_playing"
           class="hud-panel {{ 'is-playing' if status and status.is_playing else '' }}"
+          data-thumbnail="{{ status.current_music.thumbnail if status.current_music else '' }}"
         >
           <h2 class="panel-label">01 // NOW PLAYING</h2>
           {% if status and status.connected %}
+            {#
+              The art leads and the metadata reads below it. The src is
+              the track's stable YouTube URL: the poll re-renders this
+              block every 2s/500ms, but the browser cache keeps the
+              image up, so repeated swaps never flicker it.
+            #}
+            {% if status.current_music and status.current_music.thumbnail %}
+              <img
+                class="now-playing-art"
+                src="{{ status.current_music.thumbnail }}"
+                alt="{{ status.current_music.title }}"
+                width="224"
+                height="224"
+              />
+            {% else %}
+              <span
+                class="now-playing-art thumb-empty"
+                role="img"
+                aria-label="{{
+                  status.current_music.title
+                  if status.current_music
+                  else 'No track'
+                }}"
+              ></span>
+            {% endif %}
             <p class="data-row">
               <span class="data-label">TRACK</span>
               <span class="data-title">
@@ -105,10 +137,6 @@
               </span>
             </p>
             <p class="data-row">
-              <span class="data-label">VOLUME</span>
-              <span class="data-value">{{ status.volume }}</span>
-            </p>
-            <p class="data-row">
               <span class="data-label">LOOP</span>
               <span class="data-value">{{ status.loop_mode.name }}</span>
             </p>
@@ -118,175 +146,458 @@
         </section>
       {% endblock now_playing %}
 
-      {% block queue %}
-        <section id="queue" class="hud-panel">
-          <h2 class="panel-label">02 // QUEUE</h2>
-          <!-- hx-preserve: this form sits inside the status_panels poller;
-               without it the 2s swap wipes whatever is being typed. -->
-          <form
-            id="queue-add"
-            hx-preserve
-            hx-post="{{ url_for('music.music') }}"
-            hx-target="#queue"
-            hx-swap="outerHTML"
-            class="data-row"
-          >
-            <input type="hidden" name="action" value="add" />
-            <input
-              name="value"
-              placeholder="URL or search"
-              required
-              class="hud-input"
-            />
-            <button type="submit" class="hud-btn">Add</button>
-          </form>
-          <ul>
-            {% for t in (status.queue if status else []) %}
-              <li class="data-row queue-row">
-                <span class="row-meta">{{ "%02d" | format(loop.index) }}</span>
-                <span class="data-title">{{ t.title }}</span>
-                <span class="row-meta">
-                  <span>{{ t.duration | format_duration }}</span>
-                  <form
-                    hx-post="{{ url_for('music.music') }}"
-                    hx-target="#queue"
-                    hx-swap="outerHTML"
-                  >
-                    <input type="hidden" name="action" value="remove" />
-                    <input type="hidden" name="value" value="{{ t.url }}" />
-                    <button type="submit" class="hud-btn">DEL</button>
-                  </form>
-                </span>
-              </li>
-            {% endfor %}
-          </ul>
-          {% if status and status.queue %}
+      {% block side_panel %}
+        <aside id="side_panel" class="hud-panel">
+          <div id="side_tabs" class="side-tabs" aria-label="Side panel tabs">
             <form
               hx-post="{{ url_for('music.music') }}"
-              hx-target="#queue"
+              hx-target="#side_panel"
               hx-swap="outerHTML"
-              class="action-strip"
             >
-              <input type="hidden" name="action" value="clear_queue" />
-              <button type="submit" class="hud-btn">Clear queue</button>
+              <input type="hidden" name="action" value="show_tab" />
+              <input type="hidden" name="value" value="queue" />
+              <button
+                type="submit"
+                class="side-tab"
+                {% if active_tab == 'queue' %}aria-current="true"{% endif %}
+              >
+                QUEUE
+              </button>
             </form>
-          {% endif %}
-        </section>
-      {% endblock queue %}
-
-      {% block layers %}
-        <section id="layers" class="hud-panel">
-          <h2 class="panel-label">03 // LAYERS</h2>
-          <ul>
-            {% for l in (status.layers if status else []) %}
-              <li class="data-row queue-row">
-                <span class="row-meta">{{ "%02d" | format(loop.index) }}</span>
-                <span class="data-title">{{ l.title }}</span>
-                <span class="row-meta">
-                  <!-- hx-preserve: this form sits inside the status_panels
-                       poller; without it the 2s swap wipes the volume being
-                       typed. -->
-                  <form
-                    id="layer-volume-{{ l.id }}"
-                    hx-preserve
-                    hx-post="{{ url_for('music.music') }}"
-                    hx-target="#layers"
-                    hx-swap="outerHTML"
-                    class="data-row"
-                  >
-                    <input
-                      type="hidden"
-                      name="action"
-                      value="set_layer_volume"
-                    />
-                    <input type="hidden" name="layer_id" value="{{ l.id }}" />
-                    <input
-                      name="value"
-                      type="number"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value="{{ l.volume }}"
-                      class="hud-input"
-                    />
-                    <button type="submit" class="hud-btn">VOL</button>
-                  </form>
-                  <form
-                    hx-post="{{ url_for('music.music') }}"
-                    hx-target="#layers"
-                    hx-swap="outerHTML"
-                  >
-                    <input type="hidden" name="action" value="remove_layer" />
-                    <input type="hidden" name="value" value="{{ l.id }}" />
-                    <button type="submit" class="hud-btn">DEL</button>
-                  </form>
-                </span>
-              </li>
-            {% endfor %}
-          </ul>
-          {% if status and status.layers %}
             <form
               hx-post="{{ url_for('music.music') }}"
-              hx-target="#layers"
+              hx-target="#side_panel"
               hx-swap="outerHTML"
-              class="action-strip"
             >
-              <input type="hidden" name="action" value="clear_layers" />
-              <button type="submit" class="hud-btn">Clear layers</button>
+              <input type="hidden" name="action" value="show_tab" />
+              <input type="hidden" name="value" value="layers" />
+              <button
+                type="submit"
+                class="side-tab"
+                {% if active_tab == 'layers' %}aria-current="true"{% endif %}
+              >
+                LAYERS
+              </button>
             </form>
+          </div>
+          {% if active_tab == 'layers' %}
+            {% block layers %}
+              <section id="layers">
+                <h2 class="panel-label">03 // LAYERS</h2>
+                <ul>
+                  {% for l in (status.layers if status else []) %}
+                    <li>
+                      {#
+                        Clicking a layer opens #layer_detail; the row
+                        carries the layer's server truth as data so the
+                        dialog opens filled without an extra request.
+                        The poller swap re-renders this row freely —
+                        no live controls inside the poll region anymore.
+                      #}
+                      <button
+                        type="button"
+                        class="data-row queue-row layer-row"
+                        data-layer-open
+                        data-thumbnail="{{ l.thumbnail }}"
+                        data-layer-id="{{ l.id }}"
+                        data-layer-title="{{ l.title }}"
+                        data-layer-volume="{{ l.volume }}"
+                      >
+                        {% if l.thumbnail %}
+                          <img
+                            class="row-thumb"
+                            src="{{ l.thumbnail }}"
+                            alt="{{ l.title }}"
+                            width="48"
+                            height="48"
+                          />
+                        {% else %}
+                          <span
+                            class="row-thumb thumb-empty"
+                            aria-hidden="true"
+                          ></span>
+                        {% endif %}
+                        <span class="row-meta">
+                          {{ "%02d" | format(loop.index) }}
+                        </span>
+                        <span class="data-title">{{ l.title }}</span>
+                        <span class="row-meta">
+                          {{ l.volume | round(2) }}
+                        </span>
+                      </button>
+                    </li>
+                  {% endfor %}
+                </ul>
+                {% if status and status.layers %}
+                  <form
+                    hx-post="{{ url_for('music.music') }}"
+                    hx-target="#side_panel"
+                    hx-swap="outerHTML"
+                    class="action-strip"
+                    data-confirm="Limpar todas as camadas?"
+                  >
+                    <input type="hidden" name="action" value="clear_layers" />
+                    <button type="submit" class="hud-btn">Clear layers</button>
+                  </form>
+                {% endif %}
+              </section>
+            {% endblock layers %}
+          {% else %}
+            {% block queue %}
+              <section id="queue">
+                <h2 class="panel-label">02 // QUEUE</h2>
+                <ul>
+                  {% for t in (status.queue if status else []) %}
+                    <li
+                      class="data-row queue-row"
+                      data-thumbnail="{{ t.thumbnail }}"
+                    >
+                      {% if t.thumbnail %}
+                        <img
+                          class="row-thumb"
+                          src="{{ t.thumbnail }}"
+                          alt="{{ t.title }}"
+                          width="48"
+                          height="48"
+                        />
+                      {% else %}
+                        <span
+                          class="row-thumb thumb-empty"
+                          aria-hidden="true"
+                        ></span>
+                      {% endif %}
+                      <span class="row-meta">
+                        {{ "%02d" | format(loop.index) }}
+                      </span>
+                      <span class="data-title">{{ t.title }}</span>
+                      <span class="row-meta">
+                        <span>{{ t.duration | format_duration }}</span>
+                        <form
+                          hx-post="{{ url_for('music.music') }}"
+                          hx-target="#side_panel"
+                          hx-swap="outerHTML"
+                        >
+                          <input type="hidden" name="action" value="remove" />
+                          <input
+                            type="hidden"
+                            name="value"
+                            value="{{ t.url }}"
+                          />
+                          <button type="submit" class="hud-btn">DEL</button>
+                        </form>
+                      </span>
+                    </li>
+                  {% endfor %}
+                </ul>
+                {% if status and status.queue %}
+                  <form
+                    hx-post="{{ url_for('music.music') }}"
+                    hx-target="#side_panel"
+                    hx-swap="outerHTML"
+                    class="action-strip"
+                    data-confirm="Limpar a fila inteira?"
+                  >
+                    <input type="hidden" name="action" value="clear_queue" />
+                    <button type="submit" class="hud-btn">Clear queue</button>
+                  </form>
+                {% endif %}
+              </section>
+            {% endblock queue %}
           {% endif %}
-        </section>
-      {% endblock layers %}
+        </aside>
+      {% endblock side_panel %}
     </div>
   {% endblock status_panels %}
 
   {% block search %}
     <section id="search" class="hud-panel panel-gap">
-      <h2 class="panel-label">04 // SEARCH</h2>
-      <form
-        hx-post="{{ url_for('music.music') }}"
-        hx-target="#search"
-        hx-swap="outerHTML"
-        class="data-row"
-      >
-        <input type="hidden" name="action" value="search" />
-        <input
-          name="value"
-          placeholder="Search YouTube or paste a URL"
-          required
-          class="hud-input"
-        />
-        <button type="submit" class="hud-btn">Search</button>
-      </form>
-      {% for t in search_results %}
-        <div class="data-row queue-row">
-          <span class="data-title">{{ t.title }}</span>
-          <span class="row-meta"
-            >{{ t.duration | format_duration }} · {{ t.uploader }}</span
-          >
-          <span class="row-meta">
-            <form
-              hx-post="{{ url_for('music.music') }}"
-              hx-target="#queue"
-              hx-swap="outerHTML"
-            >
-              <input type="hidden" name="action" value="add" />
-              <input type="hidden" name="value" value="{{ t.url }}" />
-              <button type="submit" class="hud-btn">+ QUEUE</button>
-            </form>
-            <form
-              hx-post="{{ url_for('music.music') }}"
-              hx-target="#layers"
-              hx-swap="outerHTML"
-            >
-              <input type="hidden" name="action" value="add_layer" />
-              <input type="hidden" name="value" value="{{ t.url }}" />
-              <button type="submit" class="hud-btn">+ LAYER</button>
-            </form>
-          </span>
+      <h2 class="panel-label">SEARCH</h2>
+      <div class="search-shell">
+        <form class="search-line">
+          <input type="hidden" name="action" value="search" />
+          {#
+            Search-as-you-type: `input changed` fires on typing and paste
+            but not on Enter, so Enter stays free for row selection below.
+            This input lives outside every poller swap region.
+          #}
+          <input
+            id="search-input"
+            name="value"
+            placeholder="Search YouTube or paste a URL"
+            class="hud-input"
+            autocomplete="off"
+            hx-post="{{ url_for('music.music') }}"
+            hx-trigger="input changed delay:300ms"
+            hx-include="closest form"
+            hx-target="#search_dropdown"
+            hx-swap="innerHTML"
+          />
+        </form>
+        <div
+          id="search_dropdown"
+          class="search-dropdown"
+          role="listbox"
+          aria-label="Search results"
+          hidden
+        >
+          {% block search_dropdown %}
+            {% for t in search_results %}
+              <div class="search-row" data-thumbnail="{{ t.thumbnail }}">
+                {% if t.thumbnail %}
+                  <img
+                    class="search-thumb"
+                    src="{{ t.thumbnail }}"
+                    alt="{{ t.title }}"
+                    width="48"
+                    height="48"
+                    loading="lazy"
+                  />
+                {% else %}
+                  <span
+                    class="search-thumb thumb-empty"
+                    aria-hidden="true"
+                  ></span>
+                {% endif %}
+                <span class="data-title">{{ t.title }}</span>
+                <span class="row-meta">
+                  {{ t.uploader }} · {{ t.duration | format_duration }}
+                </span>
+                <span class="row-meta">
+                  <form
+                    hx-post="{{ url_for('music.music') }}"
+                    hx-target="#side_panel"
+                    hx-swap="outerHTML"
+                  >
+                    <input type="hidden" name="action" value="add" />
+                    <input type="hidden" name="value" value="{{ t.url }}" />
+                    <button type="submit" class="hud-btn" data-action="queue">
+                      QUEUE
+                    </button>
+                  </form>
+                  <form
+                    hx-post="{{ url_for('music.music') }}"
+                    hx-target="#side_panel"
+                    hx-swap="outerHTML"
+                  >
+                    <input type="hidden" name="action" value="add_layer" />
+                    <input type="hidden" name="value" value="{{ t.url }}" />
+                    <button type="submit" class="hud-btn" data-action="layer">
+                      LAYER
+                    </button>
+                  </form>
+                </span>
+              </div>
+            {% endfor %}
+          {% endblock search_dropdown %}
         </div>
-      {% endfor %}
+      </div>
     </section>
+    <script>
+      // Enhancement only: highlight navigation and visibility for the
+      // search dropdown. The script owns no playback state — row actions
+      // are plain htmx form posts; the server renders and closes results.
+      (() => {
+        const input = document.getElementById("search-input");
+        const dropdown = document.getElementById("search_dropdown");
+        if (!input || !dropdown || input.dataset.searchBound) return;
+        input.dataset.searchBound = "true";
+        let index = -1;
+        const rows = () => Array.from(dropdown.querySelectorAll(".search-row"));
+        const close = () => {
+          dropdown.hidden = true;
+          index = -1;
+        };
+        const setActive = (next) => {
+          const list = rows();
+          if (!list.length) return;
+          index = (next + list.length) % list.length;
+          list.forEach((row, n) =>
+            row.classList.toggle("is-active", n === index),
+          );
+          list[index].scrollIntoView({ block: "nearest" });
+        };
+        input.addEventListener("keydown", (evt) => {
+          if (dropdown.hidden) return;
+          if (evt.key === "ArrowDown") {
+            evt.preventDefault();
+            setActive(index + 1);
+          } else if (evt.key === "ArrowUp") {
+            evt.preventDefault();
+            setActive(index - 1);
+          } else if (evt.key === "Escape") {
+            close();
+          } else if (evt.key === "Enter") {
+            // Enter selects: clicks the highlighted row's primary (QUEUE)
+            // action — a normal htmx post, no client-side playback logic.
+            const row = rows()[index];
+            if (row) {
+              evt.preventDefault();
+              const primary =
+                row.querySelector("button[data-action='queue']") ||
+                row.querySelector("button");
+              if (primary) primary.click();
+              close();
+            }
+          }
+        });
+        document.addEventListener("keydown", (evt) => {
+          // Esc closes the dropdown wherever focus is, not just in the input.
+          if (evt.key === "Escape" && !dropdown.hidden) close();
+        });
+        document.addEventListener("click", (evt) => {
+          if (!dropdown.hidden && !evt.target.closest(".search-shell")) {
+            close();
+          }
+        });
+        document.body.addEventListener("htmx:afterSwap", (evt) => {
+          if (evt.detail.target?.id !== "search_dropdown") return;
+          index = -1;
+          dropdown.hidden = dropdown.children.length === 0;
+        });
+        dropdown.addEventListener("click", (evt) => {
+          if (evt.target.closest("button")) close();
+        });
+      })();
+    </script>
+    <script id="progress-seek-script">
+      // Enhancement only: turning a click or drag into an absolute seek
+      // needs the pointer position, which no hx-* attribute can express.
+      // The script owns no playback state — the bar's data-duration is
+      // server-rendered on every transport swap, and the session clamps
+      // the posted value. Dragging paints a preview of the target time
+      // and cancels the transport poll mid-gesture; only pointerup fires
+      // htmx.ajax, exactly once — seek restarts FFmpeg, so continuous
+      // seeking is forbidden. The listeners bind once here, outside every
+      // poller swap region, so no poll wipes them or doubles them.
+      (() => {
+        if (document.body.dataset.seekDragBound) return;
+        document.body.dataset.seekDragBound = "true";
+        let drag = null;
+        const fmt = (seconds) => {
+          const total = Math.max(0, Math.round(seconds));
+          const h = Math.floor(total / 3600);
+          const m = Math.floor((total % 3600) / 60);
+          const s = total % 60;
+          const pad = (n) => String(n).padStart(2, "0");
+          return (h ? `${h}:${pad(m)}` : `${m}`) + `:${pad(s)}`;
+        };
+        const stateAt = (clientX) => {
+          const track = document.querySelector(
+            ".progress-track[data-duration]",
+          );
+          if (!track) return null;
+          const rect = track.getBoundingClientRect();
+          if (!rect.width) return null;
+          const ratio = Math.min(
+            Math.max((clientX - rect.left) / rect.width, 0),
+            1,
+          );
+          const duration = Number(track.dataset.duration);
+          return { track, ratio, target: ratio * duration, duration };
+        };
+        const paintPreview = (state) => {
+          const fill = state.track.querySelector(".progress-fill");
+          if (fill) fill.style.width = `${(state.ratio * 100).toFixed(1)}%`;
+          const readout = state.track
+            .closest("#transport")
+            ?.querySelector(".progress-times");
+          if (readout) {
+            readout.textContent = `${fmt(state.target)} / ${fmt(state.duration)}`;
+          }
+        };
+        document.addEventListener("pointerdown", (evt) => {
+          const track = evt.target.closest(".progress-track[data-duration]");
+          if (!track) return;
+          const duration = Number(track.dataset.duration);
+          if (!(duration > 0)) return;
+          drag = { duration };
+          evt.preventDefault();
+          const state = stateAt(evt.clientX);
+          if (state) paintPreview(state);
+        });
+        document.addEventListener("pointermove", (evt) => {
+          if (!drag) return;
+          const state = stateAt(evt.clientX);
+          if (state) paintPreview(state);
+        });
+        document.addEventListener("pointerup", (evt) => {
+          if (!drag) return;
+          drag = null;
+          const state = stateAt(evt.clientX);
+          if (!state) return;
+          htmx.ajax("POST", "{{ url_for('music.music') }}", {
+            target: "#transport",
+            swap: "outerHTML",
+            values: {
+              action: "seek",
+              value: state.target.toFixed(1),
+            },
+          });
+        });
+        // Hold the transport poll while the drag is live so the preview
+        // never snaps back mid-gesture; it resumes on release.
+        document.body.addEventListener("htmx:beforeRequest", (evt) => {
+          if (drag && evt.detail.elt?.id === "transport") {
+            evt.preventDefault();
+          }
+        });
+      })();
+    </script>
+    <script id="volume-slider-script">
+      // Enhancement only: dragging a range slider fires `input` far
+      // faster than a volume action should be hit, so the input handler
+      // only paints the local preview and schedules a send; the send is
+      // throttled (min 300ms between posts) AND debounced (trailing
+      // timer carries the final value exactly once). One htmx.ajax call
+      // site. The posted action and swap target come from the slider's
+      // own form, so the transport volume (set_volume -> #transport)
+      // and the layer detail slider (set_layer_volume -> #side_panel)
+      // ride the same channel. The listeners bind once here, outside
+      // every poller swap region; the transport slider element is
+      // hx-preserve'd and the layer dialog lives outside every swap
+      // region, so no poll wipes them or the pending timer mid-drag.
+      (() => {
+        if (document.body.dataset.volumeBound) return;
+        document.body.dataset.volumeBound = "true";
+        const MIN_INTERVAL = 300;
+        let timer = null;
+        let lastPosted = 0;
+        const readoutFor = (slider) =>
+          slider.closest("form")?.querySelector(".volume-value");
+        const paint = (slider) => {
+          const readout = readoutFor(slider);
+          if (readout) readout.textContent = Number(slider.value).toFixed(2);
+        };
+        const send = (slider) => {
+          timer = null;
+          lastPosted = Date.now();
+          const form = slider.closest("form");
+          if (!form) return;
+          const values = { value: Number(slider.value).toFixed(2) };
+          new FormData(form).forEach((field, key) => {
+            if (key !== "value" && typeof field === "string") {
+              values[key] = field;
+            }
+          });
+          htmx.ajax("POST", form.getAttribute("hx-post"), {
+            target: form.getAttribute("hx-target"),
+            swap: "outerHTML",
+            values,
+          });
+        };
+        const schedule = (slider) => {
+          clearTimeout(timer);
+          const wait = Math.max(0, MIN_INTERVAL - (Date.now() - lastPosted));
+          timer = setTimeout(() => send(slider), wait);
+        };
+        document.addEventListener("input", (evt) => {
+          const slider = evt.target.closest(".volume-slider");
+          if (!slider) return;
+          paint(slider);
+          schedule(slider);
+        });
+      })();
+    </script>
   {% endblock search %}
 
   {% block transport %}
@@ -299,11 +610,25 @@
       if status and status.current_music else 0
     %}
     {% set pct = ((elapsed / total * 100) | round(1)) if total else 0 %}
+    {#
+      Adaptive transport poller, server-driven: the interval is a property
+      of the server-rendered state, so the poller itself re-renders it.
+      htmx sets up a fresh every-trigger on each outerHTML swap and cancels
+      the outgoing element's timer, so switching intervals never kills the
+      poll. The trigger keeps the "every" keyword, which the global
+      indicator excludes (design.md: pollers never trip the bar).
+    #}
+    {%
+      set transport_interval
+      = "500ms"
+      if status and status.is_playing and not status.is_paused
+      else "2s"
+    %}
     <div
       id="transport"
       class="transport-bar action-strip {{ 'is-paused' if status and status.is_paused else '' }}"
       hx-get="{{ url_for('music.music') }}"
-      hx-trigger="every 2s"
+      hx-trigger="every {{ transport_interval }}"
       hx-swap="outerHTML"
     >
       {% if status and status.connected %}
@@ -360,44 +685,48 @@
         <form
           id="transport-volume"
           hx-preserve
+          class="volume-control"
           hx-post="{{ url_for('music.music') }}"
           hx-target="#transport"
           hx-swap="outerHTML"
         >
           <input type="hidden" name="action" value="set_volume" />
+          {#
+            Enhancement-only script drives this: `input` paints the
+            preview locally and schedules a debounced POST (throttled to
+            300ms) so dragging never hammers the endpoint; the slider
+            itself is hx-preserve'd, so the transport poll swap never
+            wipes the value under the pointer. The form stays a plain
+            POST so a no-JS fallback still reaches set_volume.
+          #}
           <input
             name="value"
-            type="number"
+            type="range"
+            class="volume-slider"
             min="0"
             max="2"
-            step="0.1"
+            step="0.01"
             value="{{ status.volume }}"
-            class="hud-input"
+            aria-label="Volume"
           />
-          <button type="submit" class="hud-btn">VOL</button>
+          <span class="volume-value">{{ status.volume | round(2) }}</span>
         </form>
-        <form
-          id="transport-seek"
-          hx-preserve
-          hx-post="{{ url_for('music.music') }}"
-          hx-target="#transport"
-          hx-swap="outerHTML"
+        <div
+          class="progress-track"
+          data-duration="{{ total }}"
+          title="Click or drag to seek"
         >
-          <input type="hidden" name="action" value="seek" />
-          <input
-            name="value"
-            type="number"
-            step="1"
-            placeholder="± s"
-            class="hud-input"
-          />
-          <button type="submit" class="hud-btn">SEEK</button>
-        </form>
-        <div class="progress-track">
           <div class="progress-fill" style="width: {{ pct }}%"></div>
         </div>
         <span class="progress-readout">
-          {{ elapsed | format_duration }} / {{ total | format_duration }} //
+          {# The drag script rewrites this span as a preview of the
+             target time while the pointer is down; every poll swap
+             re-renders the server truth. #}
+          <span class="progress-times"
+            >{{ elapsed | format_duration }} /
+            {{ total | format_duration }}</span
+          >
+          //
           {{ status.current_music.title if status.current_music else "Nothing playing" }}
         </span>
       {% else %}
@@ -405,4 +734,173 @@
       {% endif %}
     </div>
   {% endblock transport %}
+
+  {% block dialogs %}
+    {#
+      Both dialogs live here, outside every poller swap region: no swap
+      ever touches them, so nothing can wipe an open dialog or its
+      pending slider timer. The server owns all state — the script only
+      fills, opens, and closes; the posts go to the existing actions.
+    #}
+    <dialog
+      id="layer_detail"
+      class="hud-panel hud-dialog"
+      data-close-on-success
+      aria-labelledby="layer_detail_title"
+    >
+      <h2 class="panel-label">LAYER // DETAIL</h2>
+      <p id="layer_detail_title" class="data-title dialog-title"></p>
+      <form
+        id="layer_detail_volume"
+        hx-post="{{ url_for('music.music') }}"
+        hx-target="#side_panel"
+        hx-swap="outerHTML"
+        class="volume-control dialog-line"
+      >
+        <input type="hidden" name="action" value="set_layer_volume" />
+        <input type="hidden" name="layer_id" id="layer_detail_id" value="" />
+        <input
+          id="layer_detail_slider"
+          name="value"
+          type="range"
+          class="volume-slider"
+          min="0"
+          max="2"
+          step="0.01"
+          value="0"
+          aria-label="Layer volume"
+        />
+        <span id="layer_detail_value" class="volume-value">0.00</span>
+        <button type="submit" class="hud-btn">Apply</button>
+      </form>
+      <form
+        hx-post="{{ url_for('music.music') }}"
+        hx-target="#side_panel"
+        hx-swap="outerHTML"
+      >
+        <input type="hidden" name="action" value="remove_layer" />
+        <input
+          type="hidden"
+          name="value"
+          id="layer_detail_remove_id"
+          value=""
+        />
+        <button type="submit" class="hud-btn hud-btn-danger">
+          Remove layer
+        </button>
+      </form>
+    </dialog>
+
+    <dialog
+      id="confirm_dialog"
+      class="hud-panel hud-dialog"
+      aria-labelledby="confirm_text"
+    >
+      <p id="confirm_text" class="confirm-text"></p>
+      <div class="action-strip">
+        <button type="button" class="hud-btn dialog-cancel">Cancel</button>
+        <button
+          type="button"
+          id="confirm_execute"
+          class="hud-btn hud-btn-danger"
+        >
+          Confirm
+        </button>
+      </div>
+    </dialog>
+
+    <script id="dialog-script">
+      // Enhancement only: dialogs need a client hand (showModal, fill,
+      // confirm gate) that no hx-* attribute can express. The script
+      // owns no state: layer data comes from the server-rendered row,
+      // destructive posts go through their original forms untouched,
+      // and a successful post from inside a dialog closes it. Esc is
+      // native; showModal traps focus and close() returns it.
+      (() => {
+        if (document.body.dataset.dialogBound) return;
+        document.body.dataset.dialogBound = "true";
+        const layerDialog = document.getElementById("layer_detail");
+        const confirmDialog = document.getElementById("confirm_dialog");
+        const layerId = document.getElementById("layer_detail_id");
+        const layerTitle = document.getElementById("layer_detail_title");
+        const layerRemoveId = document.getElementById("layer_detail_remove_id");
+        const layerSlider = document.getElementById("layer_detail_slider");
+        const layerReadout = document.getElementById("layer_detail_value");
+        const confirmText = document.getElementById("confirm_text");
+        let pendingForm = null;
+
+        // Layer detail: filled from the row's server-rendered data.
+        document.addEventListener("click", (evt) => {
+          const opener = evt.target.closest("[data-layer-open]");
+          if (opener) {
+            layerId.value = opener.dataset.layerId;
+            layerRemoveId.value = opener.dataset.layerId;
+            layerTitle.textContent = opener.dataset.layerTitle;
+            layerSlider.value = opener.dataset.layerVolume;
+            layerReadout.textContent = Number(
+              opener.dataset.layerVolume,
+            ).toFixed(2);
+            layerDialog.showModal();
+            return;
+          }
+          const cancel = evt.target.closest(".dialog-cancel");
+          if (cancel) cancel.closest("dialog")?.close();
+        });
+
+        // Click outside (on the backdrop) closes, like Esc.
+        for (const dialog of [layerDialog, confirmDialog]) {
+          dialog.addEventListener("click", (evt) => {
+            if (evt.target === dialog) dialog.close();
+          });
+        }
+
+        // Destructive gate: forms opt in with data-confirm. The first
+        // submit is held at the document (capture) and shown in
+        // #confirm_dialog; confirming replays the SAME form untouched,
+        // so hx-target, the action value and the OOB error swap stay
+        // exactly as the server template wrote them.
+        document.addEventListener(
+          "submit",
+          (evt) => {
+            const form = evt.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            if (form.dataset.confirmed) {
+              delete form.dataset.confirmed;
+              return;
+            }
+            if (!form.dataset.confirm) return;
+            evt.preventDefault();
+            evt.stopPropagation();
+            pendingForm = form;
+            confirmText.textContent = form.dataset.confirm;
+            confirmDialog.showModal();
+          },
+          true,
+        );
+        document
+          .getElementById("confirm_execute")
+          ?.addEventListener("click", () => {
+            confirmDialog.close();
+            const form = pendingForm;
+            pendingForm = null;
+            if (!form) return;
+            form.dataset.confirmed = "true";
+            form.requestSubmit();
+          });
+        confirmDialog.addEventListener("close", () => {
+          pendingForm = null;
+        });
+
+        // A successful post from inside a dialog re-renders the server
+        // state; the dialog's job is done, so it closes itself.
+        document.body.addEventListener("htmx:afterRequest", (evt) => {
+          const elt = evt.detail.elt;
+          const dialog = elt?.closest?.("dialog");
+          if (dialog?.hasAttribute("data-close-on-success")) {
+            if (evt.detail.successful) dialog.close();
+          }
+        });
+      })();
+    </script>
+  {% endblock dialogs %}
 {% endblock content %}

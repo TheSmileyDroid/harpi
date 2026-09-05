@@ -198,6 +198,57 @@ def test_ytmusicdata_video_data_returns_stored_dict():
     assert musicdata.video_data is video
 
 
+def _thumb(width: int | None, name: str) -> dict[str, Any]:
+    thumb: dict[str, Any] = {"url": f"https://img.example.com/{name}.jpg"}
+    if width is not None:
+        thumb["width"] = width
+    return thumb
+
+
+def test_thumbnail_prefers_mid_resolution_among_candidates():
+    video = {
+        "thumbnails": [
+            _thumb(120, "small"),
+            _thumb(336, "mid"),
+            _thumb(640, "large"),
+            _thumb(1280, "maxres"),
+        ]
+    }
+
+    assert YTMusicData(video).thumbnail == "https://img.example.com/mid.jpg"
+
+
+def test_thumbnail_picks_closest_sized_candidate_outside_range():
+    video = {"thumbnails": [_thumb(96, "tiny"), _thumb(1920, "huge")]}
+
+    assert YTMusicData(video).thumbnail == "https://img.example.com/tiny.jpg"
+
+
+def test_thumbnail_takes_middle_entry_without_widths():
+    video = {
+        "thumbnails": [
+            {"url": "https://img.example.com/1.jpg"},
+            {"url": "https://img.example.com/2.jpg"},
+            {"url": "https://img.example.com/3.jpg"},
+        ]
+    }
+
+    assert YTMusicData(video).thumbnail == "https://img.example.com/2.jpg"
+
+
+def test_thumbnail_falls_back_to_top_level_thumbnail_without_list():
+    video = {"thumbnail": "https://img.example.com/top.jpg"}
+
+    assert YTMusicData(video).thumbnail == "https://img.example.com/top.jpg"
+
+
+def test_thumbnail_is_empty_without_any_thumbnail_data():
+    assert YTMusicData({"title": "t"}).thumbnail == ""
+    assert YTMusicData({"thumbnails": []}).thumbnail == ""
+    assert YTMusicData({"thumbnails": [{"url": ""}]}).thumbnail == ""
+    assert YTMusicData({"thumbnails": ["not a dict"]}).thumbnail == ""
+
+
 @pytest.fixture
 def media_dir(tmp_path: Path) -> tuple[Path, Path, Path]:
     """Generate real local media fixtures with ffmpeg into tmp_path."""

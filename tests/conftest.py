@@ -122,6 +122,7 @@ class FakeLayerSource(FakeSource):
         self.title = title
         self.url = url
         self.volume = volume
+        self.thumbnail = ""
 
 
 class FakeLayerSourceFactory:

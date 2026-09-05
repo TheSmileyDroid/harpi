@@ -11,7 +11,7 @@ import discord
 
 from src.harpi_lib.music import stream_probe, ytmusic
 from src.harpi_lib.music.ffmpeg_source import FFmpegPCMAudio, ffmpeg_options
-from src.harpi_lib.music.ytmusic import YTMusicData
+from src.harpi_lib.music.ytmusic import YTMusicData, pick_thumbnail
 
 BYTES_PER_SECOND = 48000 * 2 * 2
 
@@ -34,6 +34,7 @@ class YoutubeDLSource(UniqueAudioSource):
 
         self.title: str = data.get("title", "Unknown Title")
         self.url: str = data.get("url", "Unknown URL")
+        self.thumbnail: str = pick_thumbnail(data)
 
         self._position_bytes: int = 0
         self._position_lock: threading.Lock = threading.Lock()

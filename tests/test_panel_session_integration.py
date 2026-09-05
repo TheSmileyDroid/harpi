@@ -11,6 +11,7 @@ or in the session verbs the panel calls shows up here.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from types import SimpleNamespace
 from typing import Any, ClassVar, cast
@@ -20,6 +21,7 @@ import pytest
 
 from app import app as quart_app
 from src import bot_state as deps
+from src.bot_state import run_on_bot_loop
 from pages import music as guild_module
 import src.harpi_lib.audio.session as session_module
 from src.harpi_lib.audio.session import LoopMode, PlaybackSession
@@ -193,15 +195,15 @@ async def test_search_renders_results_with_queue_and_layer_actions(
     await client.get(f"/music?guild_id={GUILD_ID}")
 
     response = await _post(
-        client, "search", "search", value="warriors, imagine"
+        client, "search", "search_dropdown", value="warriors, imagine"
     )
 
     assert response.status_code == 200
     body = (await response.get_data()).decode()
     assert "warriors" in body
     assert "imagine" in body
-    assert "+ QUEUE" in body
-    assert "+ LAYER" in body
+    assert "QUEUE" in body
+    assert "LAYER" in body
     assert 'name="action" value="add_layer"' in body
 
 
@@ -316,6 +318,24 @@ async def test_seek_reaches_the_current_source(
     assert cast(Any, source).seek_calls == [30.0]
 
 
+async def test_session_seek_clamps_to_the_track_duration(
+    client, monkeypatch: pytest.MonkeyPatch, bot: PanelBot
+):
+    # The panel rejects targets outside 0..duration; the shared session
+    # backend still clamps whatever reaches it (the Discord command relies
+    # on that).
+    monkeypatch.setattr(session_module, "YoutubeDLSource", SeekSourceFactory)
+    await _connect(client)
+    await _post(client, "add", "queue", value=SEARCH_TERM)
+    session_obj = _session(bot)
+    source = session_obj._controller.get_queue_source()
+    assert source is not None
+
+    await run_on_bot_loop(session_obj.seek(10000, absolute=True))
+
+    assert cast(Any, source).seek_calls == [180.0]
+
+
 async def test_add_that_skips_every_track_warns_the_panel(
     client, monkeypatch: pytest.MonkeyPatch, bot: PanelBot
 ):
@@ -350,6 +370,33 @@ async def test_successful_add_does_not_warn(client, bot: PanelBot):
     assert status.current_music is not None
 
 
+async def test_successful_add_declares_the_toast_event(client, bot: PanelBot):
+    await _connect(client)
+
+    response = await _post(client, "add", "queue", value=SEARCH_TERM)
+
+    payload = json.loads(response.headers["HX-Trigger"])
+    assert payload == {"harpi:toast": {"message": "Adicionado à fila"}}
+
+
+async def test_all_skipped_add_declares_no_toast_event(
+    client, monkeypatch: pytest.MonkeyPatch, bot: PanelBot
+):
+    # The warning speaks for itself in the persistent error region; an
+    # amber "queued" toast on top of it would confirm a broken action.
+    await _connect(client)
+    monkeypatch.setattr(
+        StageSourceFactory,
+        "failures",
+        {SEARCH_TERM: ValueError("probe reprovou o stream")},
+    )
+
+    response = await _post(client, "add", "queue", value=SEARCH_TERM)
+
+    assert "nenhuma pôde ser tocada" in (await response.get_data()).decode()
+    assert "HX-Trigger" not in response.headers
+
+
 async def test_full_page_after_connect_lists_the_new_controls(
     client, bot: PanelBot
 ):
@@ -359,7 +406,7 @@ async def test_full_page_after_connect_lists_the_new_controls(
 
     assert response.status_code == 200
     body = (await response.get_data()).decode()
-    assert "04 // SEARCH" in body
+    assert "02 // QUEUE" in body
     assert "Search YouTube or paste a URL" in body
     assert "Prev" in body
     assert "LOOP OFF" in body

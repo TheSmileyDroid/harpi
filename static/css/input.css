@@ -267,16 +267,170 @@
     margin-bottom: 0.75rem;
   }
 
-  .panel-grid {
+  /* Music page grid: on desktop the now playing panel takes the main
+     column and the side panel (QUEUE | LAYERS tabs) a fixed rail on the
+     right; on mobile it collapses to one column. */
+  .music-grid {
     display: grid;
     gap: 1rem;
+    align-items: start;
     grid-template-columns: 1fr;
   }
 
   @media (min-width: 48rem) {
-    .panel-grid {
-      grid-template-columns: repeat(2, 1fr);
+    .music-grid {
+      grid-template-columns: minmax(0, 1fr) 20rem;
     }
+  }
+
+  /* Compact top lines: the link row (guild + channel + connect) and the
+     single search live on one row each. */
+  .link-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .link-line .hud-input {
+    flex: 1;
+    min-width: 8rem;
+  }
+
+  /* Search dropdown: an absolute overlay under the input — it must never
+     push page content down. Double 1px borders like any hud panel. */
+  .search-shell {
+    position: relative;
+  }
+
+  .search-line {
+    display: flex;
+    align-items: center;
+  }
+
+  .search-line .hud-input {
+    width: 100%;
+  }
+
+  .search-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 30;
+    max-height: 24rem;
+    overflow-y: auto;
+    border: 1px solid var(--color-line);
+    outline: 1px solid var(--color-line-strong);
+    outline-offset: 2px;
+    background: var(--color-surface);
+  }
+
+  .search-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--color-line);
+    font-size: 0.75rem;
+  }
+
+  .search-row:last-child {
+    border-bottom: 0;
+  }
+
+  /* Cyberpunk menu voice: the highlighted row brightens and carries a
+     1px accent line underneath — no box. */
+  .search-row.is-active {
+    background: var(--color-surface-2);
+    box-shadow: inset 0 -1px 0 var(--color-amber-bright);
+  }
+
+  .search-row.is-active .data-title {
+    color: var(--color-amber-bright);
+  }
+
+  .search-row form {
+    display: contents;
+  }
+
+  /* Small square row thumbs (48px): 16:9 YouTube art cropped square
+     without distortion, framed with a 1px line so it reads as part of
+     the panel, never "stuck on". */
+  .row-thumb,
+  .search-thumb {
+    width: 3rem;
+    height: 3rem;
+    flex-shrink: 0;
+    object-fit: cover;
+    border: 1px solid var(--color-line);
+  }
+
+  /* No thumbnail: a discreet amber-dim box in place of the image —
+     no broken-image icon, no external placeholder asset. */
+  .thumb-empty {
+    border-color: var(--color-amber-dim);
+    background: var(--color-surface-2);
+  }
+
+  /* Now playing art: large square crop leading the panel, metadata
+     below; the double 1px frame matches the hud panel language. */
+  .now-playing-art {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    margin-block-end: 0.75rem;
+    border: 1px solid var(--color-line);
+    outline: 1px solid var(--color-line-strong);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 30rem) {
+    .search-row {
+      flex-wrap: wrap;
+    }
+
+    .search-row .row-meta {
+      flex-basis: 100%;
+      justify-content: flex-end;
+    }
+  }
+
+  /* Side panel tabs: the active tab brightens and carries the 1px accent
+     underline — no box, per the design language for nav-sized text. */
+  .side-tabs {
+    display: flex;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .side-tabs form {
+    display: contents;
+  }
+
+  .side-tab {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--color-amber-dim);
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid transparent;
+    padding: 0.35rem 0.9rem;
+    cursor: pointer;
+  }
+
+  .side-tab:hover {
+    color: var(--color-primary);
+  }
+
+  .side-tab[aria-current="true"] {
+    color: var(--color-amber-bright);
+    border-bottom-color: var(--color-amber-bright);
   }
 
   .data-row {
@@ -322,7 +476,9 @@
   .hud-panel.is-playing::before,
   .hud-panel.is-playing::after,
   :is(.hud-btn, .hud-input):focus-visible::before,
-  :is(.hud-btn, .hud-input):focus-visible::after {
+  :is(.hud-btn, .hud-input):focus-visible::after,
+  .volume-control:focus-within::before,
+  .volume-control:focus-within::after {
     content: "";
     position: absolute;
     width: 0.75rem;
@@ -331,19 +487,22 @@
     border-style: solid;
   }
 
-  :is(.hud-btn, .hud-input) {
+  :is(.hud-btn, .hud-input),
+  .volume-control {
     position: relative;
   }
 
   .hud-panel.is-playing::before,
-  :is(.hud-btn, .hud-input):focus-visible::before {
+  :is(.hud-btn, .hud-input):focus-visible::before,
+  .volume-control:focus-within::before {
     top: -1px;
     left: -1px;
     border-width: 1px 0 0 1px;
   }
 
   .hud-panel.is-playing::after,
-  :is(.hud-btn, .hud-input):focus-visible::after {
+  :is(.hud-btn, .hud-input):focus-visible::after,
+  .volume-control:focus-within::after {
     right: -1px;
     bottom: -1px;
     border-width: 0 1px 1px 0;
@@ -484,14 +643,19 @@
   .progress-track {
     position: relative;
     flex: 1;
+    /* 4px visual bar inside a ~20px click target (seek-on-click). */
     height: 4px;
-    overflow: hidden;
+    padding-block: 8px;
+    margin-block: -8px;
     background: var(--color-line);
+    background-clip: content-box;
+    cursor: pointer;
+    overflow: visible;
   }
 
   .progress-fill {
     position: absolute;
-    inset-block: 0;
+    inset-block: 8px;
     left: 0;
     background: var(--color-primary);
   }
@@ -499,6 +663,101 @@
   /* Paused reads as dim amber. */
   .transport-bar.is-paused .progress-fill {
     background: var(--color-amber-dim);
+  }
+
+  /* Transport volume: same thin-track amber language as the progress
+     bar. A range input's own pseudo-elements are limited, so the corner
+     brackets live on the .volume-control wrapper via focus-within. */
+  .volume-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .volume-slider {
+    appearance: none;
+    width: 8rem;
+    height: 4px;
+    background: var(--color-line);
+    cursor: pointer;
+  }
+
+  .volume-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 3px;
+    height: 12px;
+    background: var(--color-primary);
+    border: 0;
+  }
+
+  .volume-slider::-moz-range-thumb {
+    width: 3px;
+    height: 12px;
+    background: var(--color-primary);
+    border: 0;
+    border-radius: 0;
+  }
+
+  .volume-slider:focus-visible {
+    outline: none;
+  }
+
+  .volume-value {
+    min-width: 3ch;
+    font-size: 0.7rem;
+    text-align: right;
+    color: var(--color-amber-dim);
+  }
+
+  /* Native <dialog> wearing the hud-panel skin: same double 1px frame,
+     amber ink; the backdrop dims the tube without hiding it. showModal
+     gives focus trapping and Esc for free. */
+  .hud-dialog {
+    min-width: 18rem;
+    max-width: min(90vw, 24rem);
+  }
+
+  .hud-dialog::backdrop {
+    background: rgb(0 0 0 / 0.65);
+  }
+
+  .hud-dialog .dialog-title {
+    margin-block-end: 0.75rem;
+    white-space: normal;
+  }
+
+  .hud-dialog .dialog-line {
+    margin-block-end: 0.75rem;
+  }
+
+  .confirm-text {
+    color: var(--color-primary);
+    font-size: 0.8rem;
+    padding-block: 0.25rem 0.75rem;
+  }
+
+  /* Red is reserved: the only destructive buttons. */
+  .hud-btn-danger {
+    color: var(--color-alert);
+    border-color: var(--color-alert-dim);
+  }
+
+  .hud-btn-danger:hover {
+    background: var(--color-alert);
+    color: var(--color-background);
+  }
+
+  /* A layer row is one clickable surface opening the detail dialog. */
+  .layer-row {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .layer-row:hover .data-title {
+    color: var(--color-amber-bright);
   }
 
   .progress-readout {
@@ -519,6 +778,32 @@
     font-size: 0.75rem;
     letter-spacing: 0.05em;
     padding: 0.35rem 0.6rem;
+  }
+
+  /* Transient confirmations in #toast-container: amber only, never
+     green, never errors (those stay in .panel-error). Toasts stack —
+     the container is a fixed column, each toast removes itself. */
+  .toast-container {
+    position: fixed;
+    inset-inline-end: 1rem;
+    inset-block-end: 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    z-index: 60;
+    pointer-events: none;
+  }
+
+  .toast {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line-strong);
+    border-inline-start: 3px solid var(--color-primary);
+    color: var(--color-primary);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.6rem;
+    white-space: nowrap;
   }
 
   /* Bot state chip: amber steady online, red blinking offline.
