@@ -1,5 +1,5 @@
 {
-  "digest": "341e931354322d52",
+  "digest": "81cf18c55a38f5c4",
   "overall": "pass",
   "reviewed_at": "2026-09-05",
   "model": "human:gabriel + opengo (glm-5.3-flash), cross-checked against two independent prototype reviews",
@@ -17,7 +17,7 @@
     {
       "id": "V3",
       "status": "pass",
-      "evidence": "Brackets appear only on the NOW PLAYING panel (.is-playing, the playing surface) in desktop-music/mobile-music; nav uses brighten + 1px underline, no brackets; static panels (SERVER, NAVIGATE, LINK, SEARCH, QUEUE) have none."
+      "evidence": "Brackets appear only on the NOW PLAYING panel (.is-playing) in desktop/mobile music; nav uses brighten + 1px underline; static panels carry only boxed titles (00 // LINK, 02 // QUEUE), verified by full-resolution corner crops. Wording sharpened after Mimo trial 1 conflated boxed titles with brackets."
     },
     {
       "id": "V4",
