@@ -374,10 +374,13 @@
   }
 
   /* Now playing art: large square crop leading the panel, metadata
-     below; the double 1px frame matches the hud panel language. */
+     below; the double 1px frame matches the hud panel language. Capped
+     so it never swallows the panel: the progress bar stays above the
+     fold and the page keeps its amber-on-near-black read. */
   .now-playing-art {
     display: block;
-    width: 100%;
+    width: 14rem;
+    max-width: 100%;
     height: auto;
     aspect-ratio: 1 / 1;
     object-fit: cover;
