@@ -48,6 +48,11 @@ class FailingLayerSession(FakeSession):
         raise ValueError("layer explodiu")
 
 
+class ExplodingGuildBot(FakeBot):
+    def fetch_guilds(self, limit: int | None = None):
+        raise ValueError("guild fetch falhou")
+
+
 class ExplodingManager(FakeSessionManager):
     async def connect(self, guild_id: int, channel_id: int) -> None:
         raise ValueError("Canal de voz não encontrado")
@@ -95,6 +100,15 @@ async def test_list_guilds_returns_plain_records(bot: FakeBot):
         {"id": GUILD_A, "name": "Alpha Guild"},
         {"id": 2, "name": "Beta Guild"},
     ]
+
+
+async def test_list_guilds_propagates_a_fetch_failure(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    bind(monkeypatch, ExplodingGuildBot([]))
+
+    with pytest.raises(ValueError, match="guild fetch falhou"):
+        await panel_state.list_guilds()
 
 
 async def test_list_voice_channels_for_a_known_guild(bot: FakeBot):
