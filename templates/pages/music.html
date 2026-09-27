@@ -433,7 +433,7 @@
             </p>
             <p class="data-row">
               <span class="data-label">LOOP</span>
-              <span class="data-value">{{ status.loop_mode.name }}</span>
+              <span class="data-value">{{ status.loop_mode }}</span>
             </p>
           {% else %}
             <p class="progress-readout is-empty">NO SESSION</p>
@@ -641,7 +641,7 @@
             "OFF": "track",
             "TRACK": "queue",
             "QUEUE": "off",
-          }[status.loop_mode.name]
+          }[status.loop_mode]
         %}
         <form
           hx-post="{{ url_for('music.music') }}"
@@ -655,7 +655,7 @@
             value="{{ next_loop }}"
             class="hud-btn"
           >
-            LOOP {{ status.loop_mode.name }}
+            LOOP {{ status.loop_mode }}
           </button>
         </form>
         <form
