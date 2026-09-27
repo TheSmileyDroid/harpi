@@ -66,7 +66,7 @@ Backend modules. The existing page blueprint becomes an API blueprint; the rende
 
 API contract. Endpoints cover: token exchange and session check; bot status; guild list and guild selection; connect and disconnect; search; queue, queue actions, and layer actions; transport actions (play, pause, skip, previous, loop); seek; volume. Each returns a stable JSON shape and a machine-readable error object. The exact schema is fixed at implementation time and frozen in the spec's issue tickets.
 
-Dev loop. Vite serves the frontend with HMR and proxies the API to Quart. Quart emits a reload signal over its SSE channel when shell-level assets change, so only what HMR cannot cover requires a reload. The loop work item lands on main first, with `make check` green, before the cutover branch opens.
+Dev loop. Vite serves the frontend with HMR at `:5173` and proxies `/api` to Quart at `:8000`. Quart exposes `GET /api/events` as an event stream: it opens with the comment frame `: connected`, and when a shell-level asset changes it sends `event: reload` with JSON data `{"scope": "shell"}`. Shell-level assets are `templates/`, `static/css/app.css`, and `web/src/app.html`. Status events extend this same stream in a later ticket. `make dev` boots the Tailwind watch, the Vite dev server, and Quart together. The loop work item lands on main first, with `make check` green, before the cutover branch opens.
 
 Cutover shape. One branch. Old and new do not coexist beyond the loop commit. Panel parity is not sacred: any behavior that fights the new architecture may be cut or simplified during the cutover, recorded in the cutover ticket. The existing visual design is preserved through the cutover; design improvement is a separate follow-up pass.
 

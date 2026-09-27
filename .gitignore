@@ -161,6 +161,7 @@ tailwindcss
 
 # Node_modules
 node_modules/
+.svelte-kit/
 
 # AI
 # (.pi is tracked: gates, skills, workflows all belong to the repo)

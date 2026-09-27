@@ -5,6 +5,7 @@ import sys
 from loguru import logger
 from quart import Quart
 
+from pages.events import bp as events_bp
 from pages.index import bp as index_bp
 from pages.music import bp as music_bp
 
@@ -40,6 +41,7 @@ def format_duration(seconds: int) -> str:
 
 app.register_blueprint(index_bp)
 app.register_blueprint(music_bp)
+app.register_blueprint(events_bp)
 
 
 @app.before_serving

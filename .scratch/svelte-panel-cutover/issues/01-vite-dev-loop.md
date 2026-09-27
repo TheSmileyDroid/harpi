@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] A single command boots the frontend dev server, the backend, and the CSS build
-- [ ] Editing a frontend module updates the browser without a manual refresh
-- [ ] A shell-level change triggers a browser reload through the SSE signal
-- [ ] `make check` still exits 0 on main
+- [x] A single command boots the frontend dev server, the backend, and the CSS build
+- [x] Editing a frontend module updates the browser without a manual refresh
+- [x] A shell-level change triggers a browser reload through the SSE signal
+- [x] `make check` still exits 0 on main
