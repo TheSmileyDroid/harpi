@@ -6,6 +6,6 @@
 
 **Status:** ready-for-agent
 
-- [ ] Status, guild list, connect, disconnect, search, queue, layer, and transport actions are callable without HTTP or template context
-- [ ] Existing panel behavior is identical and all current tests pass unedited
-- [ ] Tests cover each action's success and failure path
+- [x] Status, guild list, connect, disconnect, search, queue, layer, and transport actions are callable without HTTP or template context
+- [x] Existing panel behavior is identical and all current tests pass unedited
+- [x] Tests cover each action's success and failure path
