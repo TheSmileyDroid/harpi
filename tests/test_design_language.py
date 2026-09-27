@@ -1,8 +1,7 @@
-"""The design language rules a test can judge (docs/agents/design.md).
+"""The design language rules a test can judge (DESIGN.md).
 
-The vision reviewer only sees what pixels reveal; everything mechanically
-checkable lives here so no model re-judges it. Red starts these tests when a
-new rule joins (docs/adr/0001-cheap-vision-reviewer.md).
+Everything mechanically checkable lives here. Red starts these tests when a
+new rule joins.
 """
 
 from __future__ import annotations
@@ -114,7 +113,7 @@ def _scan(
 
 
 def test_no_green_anywhere() -> None:
-    """No green "success" color: OK is amber, broken is red (design.md)."""
+    """No green "success" color: OK is amber, broken is red (DESIGN.md)."""
     found = _scan([
         (
             OKLCH,

@@ -169,6 +169,5 @@ node_modules/
 # Coverage JSON report (make check)
 coverage.json
 mutants/
+.impeccable/
 
-# design review captures: regenerated every run, never read by the gate
-.scratch/design-review/shots/

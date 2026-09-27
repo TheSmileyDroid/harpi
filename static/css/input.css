@@ -6,7 +6,7 @@
 @source "../../templates";
 
 @theme {
-  /* Two families only (docs/agents/design.md): body in IBM Plex Mono,
+  /* Two families only (DESIGN.md): body in IBM Plex Mono,
      display in Rajdhani semibold uppercase wide tracking. */
   --font-sans:
     "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -25,9 +25,9 @@
   --color-line-strong: oklch(48% 0.03 85);
   --color-primary: oklch(80% 0.14 85);
   --color-amber-bright: oklch(88% 0.11 88);
-  --color-amber-dim: oklch(56% 0.08 85);
+  --color-amber-dim: oklch(63% 0.08 85);
   --color-idle: oklch(48% 0.005 85);
-  --color-alert: oklch(62% 0.19 27);
+  --color-alert: oklch(67% 0.19 27);
   --color-alert-dim: oklch(45% 0.12 27);
 
   --default-font-family: var(--font-sans);
@@ -135,8 +135,6 @@
   /* Breathing room between the frame and the page, and between blocks. */
   .main-content {
     display: block;
-    /* Clear the fixed transport bar and status strip so page content never
-       hides under them (design review V6). */
     padding-bottom: 5rem;
   }
 
@@ -261,7 +259,7 @@
     font-size: 0.7rem;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: var(--color-amber-dim);
+    color: var(--color-primary);
     background: var(--color-surface-2);
     border: 1px solid var(--color-line);
     outline: 1px solid var(--color-line-strong);
@@ -335,7 +333,7 @@
     gap: 0.5rem;
     padding: 0.35rem 0.5rem;
     border-bottom: 1px solid var(--color-line);
-    font-size: 0.75rem;
+    font-size: 0.8rem;
   }
 
   .search-row:last-child {
@@ -351,6 +349,10 @@
 
   .search-row.is-active .data-title {
     color: var(--color-amber-bright);
+  }
+
+  .search-row.is-active .row-meta {
+    color: var(--color-primary);
   }
 
   .search-row form {
@@ -582,6 +584,12 @@
     background: var(--color-surface-2);
   }
 
+  /* Dialogs keep the panel surface under their strip: Signal Red ink at
+     rest only clears 4.5:1 on surface, never on raised charcoal. */
+  .hud-dialog .action-strip {
+    background: var(--color-surface);
+  }
+
   .meter {
     height: 4px;
     margin-block-end: 0.5rem;
@@ -615,15 +623,15 @@
     border-top: 1px solid var(--color-line);
     background: var(--color-background);
     font-size: 0.65rem;
-    color: var(--color-idle);
-  }
-
-  .strip-credit a {
     color: var(--color-amber-dim);
   }
 
-  .strip-credit a:hover {
+  .strip-credit a {
     color: var(--color-primary);
+  }
+
+  .strip-credit a:hover {
+    color: var(--color-amber-bright);
   }
 
   .transport-bar {
@@ -802,7 +810,7 @@
   .toast {
     background: var(--color-surface);
     border: 1px solid var(--color-line-strong);
-    border-inline-start: 3px solid var(--color-primary);
+    border-inline-start: 1px solid var(--color-primary);
     color: var(--color-primary);
     font-size: 0.7rem;
     letter-spacing: 0.08em;

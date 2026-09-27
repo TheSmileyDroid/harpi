@@ -79,7 +79,10 @@
       <footer class="status-strip" role="contentinfo">
         <span class="strip-credit">
           made by
-          <a href="https://github.com/TheSmileyDroid" target="_blank"
+          <a
+            href="https://github.com/TheSmileyDroid"
+            target="_blank"
+            rel="noopener noreferrer"
             >smileydroid</a
           >
         </span>
@@ -128,7 +131,7 @@
       // One subtle global indicator for HTMX activity; per-action
       // feedback is the .htmx-request class htmx puts on the trigger.
       // Background pollers (hx-trigger containing "every") are excluded:
-      // the 2s status polls must be visually silent (design.md), so they
+      // the 2s status polls must be visually silent (DESIGN.md), so they
       // neither raise nor lower the bar.
       (() => {
         const bar = document.getElementById("global-indicator");

@@ -738,7 +738,7 @@ async def test_transport_polls_slow_off_the_playing_state(client, bot, status):
     ids=["playing", "paused"],
 )
 async def test_transport_poll_stays_a_background_poller(client, bot, status):
-    # design.md: the global indicator excludes triggers containing
+    # DESIGN.md: the global indicator excludes triggers containing
     # "every"; the adaptive interval must never drop that keyword.
     body = await _transport_fragment(client, bot, status)
 
