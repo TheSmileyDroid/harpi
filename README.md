@@ -15,6 +15,10 @@ manager:
 
     uv sync
 
+Install the web dependencies:
+
+    bun install --cwd web
+
 Then run the bot:
 
     uv run python -m src
@@ -23,8 +27,8 @@ For development with auto-reload:
 
     make dev
 
-The web UI (HTMX/CRT retro theme) is served directly by the backend
-at http://localhost:8000.
+In development, Vite serves the UI at http://localhost:5173 with hot
+module reload, and Quart serves the API at http://localhost:8000.
 
 To run in production, use Docker Compose:
 
