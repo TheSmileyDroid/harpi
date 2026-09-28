@@ -1,0 +1,76 @@
+export class ApiError extends Error {
+  constructor({ code, message, status }) {
+    super(message);
+    this.name = "ApiError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+export function createApiClient({
+  fetchImpl = (...args) => globalThis.fetch(...args),
+  onError,
+  credentials = "same-origin",
+} = {}) {
+  async function request(path, { method = "GET", body, silent = false } = {}) {
+    let response;
+    try {
+      response = await fetchImpl(path, {
+        method,
+        credentials,
+        headers:
+          body === undefined
+            ? undefined
+            : { "Content-Type": "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch {
+      const error = new ApiError({
+        code: "network_error",
+        message: "Cannot reach the panel API",
+        status: 0,
+      });
+      if (!silent) {
+        onError?.(error);
+      }
+      throw error;
+    }
+
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+
+    if (!response.ok) {
+      const envelope = payload?.error ?? {
+        code: "error",
+        message: "Request failed",
+      };
+      const error = new ApiError({
+        code: envelope.code,
+        message: envelope.message,
+        status: response.status,
+      });
+      if (!silent) {
+        onError?.(error);
+      }
+      throw error;
+    }
+
+    return payload;
+  }
+
+  return {
+    signIn(token) {
+      return request("/api/session", { method: "POST", body: { token } });
+    },
+    checkSession() {
+      return request("/api/session", { silent: true });
+    },
+    status() {
+      return request("/api/status");
+    },
+  };
+}

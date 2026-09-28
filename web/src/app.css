@@ -1,0 +1,308 @@
+:root {
+  --color-background: oklch(12% 0.004 85);
+  --color-surface: oklch(16% 0.008 85);
+  --color-surface-2: oklch(20% 0.01 85);
+  --color-line: oklch(32% 0.02 85);
+  --color-line-strong: oklch(48% 0.03 85);
+  --color-primary: oklch(80% 0.14 85);
+  --color-amber-bright: oklch(88% 0.11 88);
+  --color-amber-dim: oklch(63% 0.08 85);
+  --color-idle: oklch(48% 0.005 85);
+  --color-alert: oklch(67% 0.19 27);
+  --color-alert-dim: oklch(45% 0.12 27);
+  --font-body: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-display: "Rajdhani", "IBM Plex Mono", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-primary);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgb(0 0 0 / 0.12) 0 1px,
+      transparent 1px 3px
+    ),
+    radial-gradient(
+      ellipse at center,
+      transparent 60%,
+      rgb(0 0 0 / 0.35) 100%
+    );
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+@keyframes hud-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .blink {
+    animation: hud-blink 1s steps(2, start) infinite;
+  }
+}
+
+.app-container {
+  min-height: 100vh;
+  padding: 0.5rem 1.25rem 5.5rem;
+}
+
+header[role="banner"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--color-line);
+  margin-bottom: 0.75rem;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo-text {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.3em;
+  color: var(--color-primary);
+}
+
+.page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.25rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.page-title::after {
+  content: "▌";
+  margin-left: 0.25rem;
+  color: var(--color-amber-dim);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .page-title::after {
+    animation: hud-blink 1.2s steps(2, start) infinite;
+  }
+}
+
+.main-content {
+  display: block;
+  padding-bottom: 5rem;
+}
+
+.main-content > * + * {
+  margin-block-start: 1rem;
+}
+
+.hud-panel {
+  position: relative;
+  border: 1px solid var(--color-line);
+  outline: 1px solid var(--color-line-strong);
+  outline-offset: 2px;
+  background: var(--color-surface);
+  padding: 1rem;
+}
+
+.panel-label {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line);
+  outline: 1px solid var(--color-line-strong);
+  outline-offset: 2px;
+  padding: 0.15rem 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.data-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-amber-dim);
+}
+
+.data-value {
+  color: var(--color-primary);
+}
+
+.data-value.is-empty {
+  color: var(--color-idle);
+  letter-spacing: 0.15em;
+}
+
+.data-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-primary);
+}
+
+.hud-btn {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.72rem;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  background: transparent;
+  border: 1px solid var(--color-amber-dim);
+  padding: 0.45rem 1.1rem;
+  min-width: 4.5rem;
+  cursor: pointer;
+}
+
+.hud-btn:hover {
+  background: var(--color-primary);
+  color: var(--color-background);
+}
+
+.hud-btn:disabled {
+  color: var(--color-idle);
+  border-color: var(--color-line);
+  cursor: progress;
+}
+
+.hud-input {
+  background: transparent;
+  border: 1px solid var(--color-line);
+  color: var(--color-primary);
+  font-size: 0.8rem;
+  padding: 0.35rem 0.6rem;
+}
+
+.hud-input::placeholder {
+  color: var(--color-idle);
+}
+
+.bot-online {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: var(--color-primary);
+  border: 1px solid var(--color-line-strong);
+  padding: 0.1rem 0.4rem;
+}
+
+.bot-offline {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: var(--color-alert);
+  border: 1px solid var(--color-alert);
+  padding: 0.1rem 0.4rem;
+}
+
+.panel-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0;
+  border: 1px solid var(--color-alert);
+  color: var(--color-alert);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.35rem 0.6rem;
+}
+
+.error-region {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.toast-container {
+  position: fixed;
+  inset-inline-end: 1rem;
+  inset-block-end: 3rem;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line-strong);
+  border-inline-start: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.6rem;
+  white-space: nowrap;
+}
+
+.status-strip {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 0.25rem 1rem;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-background);
+  font-size: 0.65rem;
+  color: var(--color-amber-dim);
+}
