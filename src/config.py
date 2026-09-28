@@ -28,14 +28,16 @@ class Settings:
     port: int
     reload: bool
     secret_key: str | None
+    panel_token: str | None = None
 
     @classmethod
     def from_env(cls) -> Settings:
         return cls(
             discord_token=os.getenv("DISCORD_TOKEN"),
             prefix=os.getenv("PREFIX") or "-",
-            host=os.getenv("HOST", "0.0.0.0"),
+            host=os.getenv("HOST", "127.0.0.1"),
             port=_port_from_env(),
             reload=_env_flag("RELOAD"),
             secret_key=os.environ.get("SECRET_KEY"),
+            panel_token=os.getenv("PANEL_TOKEN"),
         )

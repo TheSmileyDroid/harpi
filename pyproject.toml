@@ -119,15 +119,22 @@ paths = ["app.py", "src", "pages", "tests"]
 min_confidence = 50
 sort_by_size = true
 ignore_decorators = [
+    # Route and lifecycle registration: the framework calls these, not us.
     "@app.route",
     "@app.add_template_filter",
     "@app.template_filter",
     "@commands.command",
     "@bp.route",
+    "@bp.get",
+    "@bp.post",
+    "@bp.put",
+    "@bp.patch",
+    "@bp.delete",
     "@command",
     "@Cog.listener",
     "@app.before_serving",
     "@app.before_request",
+    "@app.errorhandler",
 ]
 ignore_names = [
     # stdlib callback overrides (html.parser.HTMLParser) are invoked by
@@ -159,6 +166,12 @@ ignore_names = [
     # Module-level pytest attribute (read by pytest, not our code):
     # applies the network marker + banner fixture to network test files.
     "pytestmark",
+    # Framework-read flags: Quart's signed-session flag and URL-map slash
+    # merging (set in pages/api.py and app.py), plus uvicorn's server stop
+    # flag (set in tests); all assigned for the framework to consume.
+    "permanent",
+    "merge_slashes",
+    "should_exit",
 ]
 
 

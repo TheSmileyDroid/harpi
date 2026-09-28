@@ -2,10 +2,38 @@
 
 from __future__ import annotations
 
+import json
 import os
+from collections.abc import Awaitable, Callable
+from typing import Any
+
+from pages import events
 
 from app import app as quart_app
-from pages import events
+
+Status = dict[str, Any]
+Provider = Callable[[int | None], Awaitable[Status]]
+
+
+def _scripted(values: list[Status]) -> Provider:
+    remaining = list(values)
+    held = {"last": values[0]}
+
+    async def provider(guild_id: int | None) -> Status:
+        del guild_id
+        if remaining:
+            held["last"] = remaining.pop(0)
+        return held["last"]
+
+    return provider
+
+
+CONNECTED: Status = {
+    "bot": {"online": True},
+    "guild_id": None,
+    "connection": {"connected": False, "channel_id": None},
+    "playback": None,
+}
 
 
 def test_events_route_is_registered():
@@ -14,31 +42,56 @@ def test_events_route_is_registered():
     assert "/api/events" in paths
 
 
-def test_events_returns_an_event_stream():
-    response = events.events()
-
-    assert response.content_type.startswith("text/event-stream")
-
-
-async def test_shell_changes_emits_a_reload_when_assets_move(monkeypatch):
-    snapshots = iter([{"app.html": 1.0}, {"app.html": 2.0}])
+async def test_stream_opens_with_connected_then_a_status_snapshot(monkeypatch):
     monkeypatch.setattr(events, "POLL_SECONDS", 0)
-    monkeypatch.setattr(events, "_snapshot", lambda: next(snapshots))
+    monkeypatch.setattr(events, "_snapshot", lambda: {})
+    monkeypatch.setattr(
+        events.state, "status_snapshot", _scripted([CONNECTED])
+    )
 
-    stream = events._shell_changes()
+    stream = events._stream(None)
     assert await anext(stream) == ": connected\n\n"
     frame = await anext(stream)
 
-    assert frame == 'event: reload\ndata: {"scope": "shell"}\n\n'
+    assert frame == f"event: status\ndata: {json.dumps(CONNECTED)}\n\n"
     await stream.aclose()
 
 
-async def test_shell_changes_stays_quiet_when_assets_hold_still(monkeypatch):
+async def test_stream_emits_status_when_the_snapshot_changes(monkeypatch):
+    changed = {**CONNECTED, "bot": {"online": False}}
     monkeypatch.setattr(events, "POLL_SECONDS", 0)
-    monkeypatch.setattr(events, "_snapshot", lambda: {"app.html": 1.0})
+    monkeypatch.setattr(events, "_snapshot", lambda: {})
+    monkeypatch.setattr(
+        events.state, "status_snapshot", _scripted([CONNECTED, changed])
+    )
 
-    stream = events._shell_changes()
+    stream = events._stream(None)
     assert await anext(stream) == ": connected\n\n"
+    assert await anext(stream) == (
+        f"event: status\ndata: {json.dumps(CONNECTED)}\n\n"
+    )
+    frame = await anext(stream)
+
+    assert frame == f"event: status\ndata: {json.dumps(changed)}\n\n"
+    await stream.aclose()
+
+
+async def test_stream_emits_reload_when_shell_assets_move(monkeypatch):
+    snapshots = iter([{"app.html": 1.0}, {"app.html": 2.0}, {"app.html": 2.0}])
+    monkeypatch.setattr(events, "POLL_SECONDS", 0)
+    monkeypatch.setattr(events, "_snapshot", lambda: next(snapshots))
+    monkeypatch.setattr(
+        events.state, "status_snapshot", _scripted([CONNECTED])
+    )
+
+    stream = events._stream(None)
+    assert await anext(stream) == ": connected\n\n"
+    assert await anext(stream) == (
+        f"event: status\ndata: {json.dumps(CONNECTED)}\n\n"
+    )
+    frame = await anext(stream)
+
+    assert frame == 'event: reload\ndata: {"scope": "shell"}\n\n'
     await stream.aclose()
 
 

@@ -93,3 +93,90 @@ Two research rounds back the direction. The first covers frontend architectures 
 The auth mechanism is the one implementation decision made at spec time rather than in review: session cookie exchanged from an environment token. It was chosen because the owner asked for session or token auth and because it adds no external dependency; Discord OAuth stays out of scope unless requested.
 
 AGENTS.md's "we never compromise" rules still bind: music does not die while playing, bot state explains itself, and nothing fails in silence. The panel rewrite inherits all three, and the preserved bot tests are how the first one is enforced mechanically.
+
+## API contract
+
+Ticket 03 freezes the wire contract below. Tickets 04 to 09 consume it; any change is a spec edit, not a handler edit.
+
+### Auth
+
+`PANEL_TOKEN` (`src/config.py`, `.env.example`) is the only credential. `POST /api/session` compares it in constant time and, on match, writes a signed session cookie holding `authenticated: true` (Quart session, `HttpOnly`, `SameSite=Lax`, 30-day lifetime). The cookie is stateless, so the session survives a backend restart as long as `SECRET_KEY` is stable.
+
+The whole `/api/` surface sits behind the session guard in `app.py`. Public: `POST /api/session` and static assets only. Every other `/api/` path, defined or not (the bare `/api` included), returns `401` without a valid session. `GET /api/session` is guarded and answers `200 {"authenticated": true}` when the cookie is valid.
+
+### Error envelope
+
+Every API error uses one shape:
+
+```json
+{"error": {"code": "unauthorized", "message": "Authentication required"}}
+```
+
+Codes: `unauthorized` (401), `not_found` (404), `method_not_allowed` (405), `internal_error` (500). The `/api/` 404, 405, and 500 handlers return this envelope; non-API routes keep Quart's HTML defaults. URL slashes are not merged, so a doubled slash under `/api/` 404s through the envelope rather than redirecting to HTML.
+
+### Endpoints
+
+`POST /api/session`
+- Request: `{"token": string}`
+- `200`: `{"authenticated": true}` plus the session cookie.
+- `401`: envelope, `unauthorized`. Wrong, missing, or unconfigured token.
+
+`GET /api/session`
+- `200`: `{"authenticated": true}`.
+- `401`: envelope, `unauthorized`.
+
+`GET /api/status`
+- `200`: the status snapshot below.
+- `401`: envelope, `unauthorized`.
+
+```json
+{
+  "bot": {"online": true},
+  "guild_id": 123,
+  "connection": {"connected": true, "channel_id": 42},
+  "playback": {
+    "guild_id": 123,
+    "connected": true,
+    "is_playing": true,
+    "is_paused": false,
+    "current_music": {"title": "t", "url": "u", "uploader": "a", "duration": 120, "thumbnail": "x"},
+    "queue": [],
+    "layers": [{"id": "l1", "title": "t", "url": "u", "volume": 0.7, "thumbnail": "x"}],
+    "loop_mode": "OFF",
+    "volume": 0.7,
+    "progress": 0.0,
+    "channel_id": 42
+  }
+}
+```
+
+`bot.online` is server truth. `guild_id` is the session's selection (ticket 06 owns selection; until then it rides the existing session cookie). `connection` mirrors the session's voice state. `playback` is null when no session exists for the selection. `loop_mode` is `OFF`, `TRACK`, or `QUEUE`.
+
+`GET /api/events`
+- `200`: `text/event-stream`, guarded by the session cookie (browsers send it automatically).
+- `401`: envelope, `unauthorized`.
+
+SSE frames:
+
+| Frame | Data | When |
+| --- | --- | --- |
+| `: connected` | none | First frame of every connection. |
+| `event: status` | Full status snapshot, same shape as `GET /api/status`. | Immediately on connect, then on every change. Full snapshot each time, so a reconnect resyncs without duplicated state. |
+| `event: reload` | `{"scope": "shell"}` | A shell-level asset changed (`templates/`, `static/css/app.css`, `web/src/app.html`). |
+
+### Reserved for tickets 06 to 09
+
+These paths are part of the contract but their request and response schemas are fixed in their own ticket. All are guarded, all errors use the envelope, and each mutation answers with the fresh status snapshot so the client never guesses.
+
+- Ticket 06, connect and guild selection: `GET /api/guilds`, `GET /api/guilds/{guild_id}/channels`, `POST /api/connect`, `POST /api/disconnect`.
+- Ticket 07, search and queue: `POST /api/search`, `POST /api/queue`, `POST /api/queue/remove`, `POST /api/queue/clear`.
+- Ticket 08, transport, seek, and volume: `POST /api/playback/pause`, `POST /api/playback/resume`, `POST /api/playback/skip`, `POST /api/playback/previous`, `POST /api/playback/loop`, `POST /api/playback/seek`, `POST /api/playback/volume`.
+- Ticket 09, layers: `POST /api/layers`, `POST /api/layers/remove`, `POST /api/layers/volume`.
+
+### Coexistence on this branch
+
+The old htmx routes (`/`, `/status`, `/music`) stay open until ticket 10 deletes them, so the branch stays green at every commit. This overrides the "old and new do not coexist beyond the loop commit" line under Cutover shape. The gap is bounded: only the new `/api/` surface is a contract, and ticket 10 is the only place main would notice the old panel leave.
+
+### Binding
+
+`HOST` defaults to `127.0.0.1` and stays overridable through `HOST` or `--host`; production Docker passes `--host 0.0.0.0` explicitly.

@@ -15,7 +15,7 @@ def parse_args(settings: Settings) -> argparse.Namespace:
     parser.add_argument(
         "--host",
         default=settings.host,
-        help="Host to bind to (default: 0.0.0.0 or HOST env var)",
+        help="Host to bind to (default: 127.0.0.1 or HOST env var)",
     )
     parser.add_argument(
         "--port",

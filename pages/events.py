@@ -7,6 +7,9 @@ from pathlib import Path
 
 from quart import Blueprint, Response
 
+from pages.api import current_guild_id
+from src.panel import state
+
 bp = Blueprint("events", __name__)
 
 SHELL_ASSETS: tuple[Path, ...] = (
@@ -30,21 +33,27 @@ def _snapshot(assets: Iterable[Path] = SHELL_ASSETS) -> dict[str, float]:
     return snapshot
 
 
-def _reload_frame() -> str:
-    return f"event: reload\ndata: {json.dumps({'scope': 'shell'})}\n\n"
+def _frame(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
-async def _shell_changes() -> AsyncGenerator[str, None]:
-    previous = _snapshot()
+async def _stream(guild_id: int | None) -> AsyncGenerator[str, None]:
+    previous_shell = _snapshot()
+    previous_status = await state.status_snapshot(guild_id)
     yield ": connected\n\n"
+    yield _frame("status", previous_status)
     while True:
         await asyncio.sleep(POLL_SECONDS)
-        current = _snapshot()
-        if current != previous:
-            previous = current
-            yield _reload_frame()
+        current_shell = _snapshot()
+        if current_shell != previous_shell:
+            previous_shell = current_shell
+            yield _frame("reload", {"scope": "shell"})
+        current_status = await state.status_snapshot(guild_id)
+        if current_status != previous_status:
+            previous_status = current_status
+            yield _frame("status", current_status)
 
 
 @bp.get("/api/events")
 def events():
-    return Response(_shell_changes(), mimetype="text/event-stream")
+    return Response(_stream(current_guild_id()), mimetype="text/event-stream")
