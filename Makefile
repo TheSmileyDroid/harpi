@@ -8,7 +8,7 @@ export $(shell sed 's/=.*//' .env 2>/dev/null || true)
 .PHONY: dev start lint check check-network mutants tailwind tailwind-watch
 
 dev:
-	@trap 'kill 0' 0 2 15; \
+	@trap 'trap - 0 2 15; kill 0' 0 2 15; \
 	uv run tailwindcss -i static/css/input.css -o static/css/app.css --watch=always --minify & \
 	bun --cwd=web run dev & \
 	uv run python -m src --reload & \
