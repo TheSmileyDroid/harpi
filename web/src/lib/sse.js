@@ -1,6 +1,11 @@
 export const BASE_BACKOFF_MS = 1000;
 export const MAX_BACKOFF_MS = 30000;
 
+/**
+ * @param {number} attempt
+ * @param {number} [base]
+ * @param {number} [max]
+ */
 export function backoffDelay(
   attempt,
   base = BASE_BACKOFF_MS,
@@ -9,6 +14,10 @@ export function backoffDelay(
   return Math.min(base * 2 ** Math.max(0, attempt), max);
 }
 
+/**
+ * @param {string} type
+ * @param {string} data
+ */
 export function parseFrame(type, data) {
   try {
     return { type, data: JSON.parse(data) };
@@ -17,6 +26,21 @@ export function parseFrame(type, data) {
   }
 }
 
+/**
+ * @typedef {object} EventStreamOptions
+ * @property {string} [url]
+ * @property {new (url: string, options?: any) => any} [EventSourceImpl]
+ * @property {(event: { type: string, data: any }) => void} [onEvent]
+ * @property {(state: string) => void} [onConnectionChange]
+ * @property {(handler: () => void, timeout?: number) => any} [schedule]
+ * @property {(id: any) => void} [cancel]
+ * @property {number} [baseDelay]
+ * @property {number} [maxDelay]
+ */
+
+/**
+ * @param {EventStreamOptions} [options]
+ */
 export function createEventStream({
   url = "/api/events",
   EventSourceImpl = globalThis.EventSource,

@@ -30,7 +30,7 @@
 </script>
 
 <main class="app-container" id="shell">
-  <header role="banner">
+  <header>
     <span class="logo">
       <span class="logo-text">HARPI</span>
     </span>
@@ -143,7 +143,7 @@
     </section>
   </div>
 
-  <footer class="status-strip" role="contentinfo">
+  <footer class="status-strip">
     <span>Harpi panel</span>
   </footer>
 </main>

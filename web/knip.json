@@ -1,0 +1,5 @@
+{
+  "entry": ["src/routes/**/*.{js,svelte}", "src/app.html"],
+  "project": ["src/**/*.{js,svelte}", "e2e/**/*.js"],
+  "ignoreDependencies": []
+}

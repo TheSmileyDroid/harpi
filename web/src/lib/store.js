@@ -1,13 +1,13 @@
 import { writable } from "svelte/store";
 
-export const noStatus = {
+const noStatus = {
   guildId: null,
   bot: { online: false },
   connection: { connected: false, channel_id: null },
   playback: null,
 };
 
-export function emptySearch() {
+function emptySearch() {
   return { query: "", open: false, activeIndex: 0, results: [] };
 }
 
@@ -56,7 +56,10 @@ export function createAppStore() {
       update((state) => ({ ...state, search: { ...state.search, results } }));
     },
     openSearch() {
-      update((state) => ({ ...state, search: { ...state.search, open: true } }));
+      update((state) => ({
+        ...state,
+        search: { ...state.search, open: true },
+      }));
     },
     closeSearch() {
       update((state) => ({
@@ -65,7 +68,10 @@ export function createAppStore() {
       }));
     },
     setActiveIndex(activeIndex) {
-      update((state) => ({ ...state, search: { ...state.search, activeIndex } }));
+      update((state) => ({
+        ...state,
+        search: { ...state.search, activeIndex },
+      }));
     },
     reset() {
       set(initialState());

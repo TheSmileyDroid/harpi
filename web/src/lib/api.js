@@ -7,11 +7,32 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * @typedef {object} ApiClientOptions
+ * @property {(path: string, init?: any) => Promise<any>} [fetchImpl]
+ * @property {(error: ApiError) => void} [onError]
+ * @property {RequestCredentials} [credentials]
+ */
+
+/**
+ * @typedef {object} RequestOptions
+ * @property {string} [method]
+ * @property {unknown} [body]
+ * @property {boolean} [silent]
+ */
+
+/**
+ * @param {ApiClientOptions} [options]
+ */
 export function createApiClient({
-  fetchImpl = (...args) => globalThis.fetch(...args),
+  fetchImpl = (path, init) => globalThis.fetch(path, init),
   onError,
   credentials = "same-origin",
 } = {}) {
+  /**
+   * @param {string} path
+   * @param {RequestOptions} [options]
+   */
   async function request(path, { method = "GET", body, silent = false } = {}) {
     let response;
     try {

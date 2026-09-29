@@ -10,8 +10,9 @@
   --color-idle: oklch(48% 0.005 85);
   --color-alert: oklch(67% 0.19 27);
   --color-alert-dim: oklch(45% 0.12 27);
-  --font-body: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo,
-    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-body:
+    "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
   --font-display: "Rajdhani", "IBM Plex Mono", ui-monospace, monospace;
 }
 
@@ -46,11 +47,7 @@ body::before {
       rgb(0 0 0 / 0.12) 0 1px,
       transparent 1px 3px
     ),
-    radial-gradient(
-      ellipse at center,
-      transparent 60%,
-      rgb(0 0 0 / 0.35) 100%
-    );
+    radial-gradient(ellipse at center, transparent 60%, rgb(0 0 0 / 0.35) 100%);
 }
 
 button,

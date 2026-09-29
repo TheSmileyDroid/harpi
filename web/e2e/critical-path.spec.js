@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const PANEL_TOKEN = "e2e-panel-token";
-const BACKEND = "http://127.0.0.1:8000";
+const BACKEND = "http://127.0.0.1:8100";
 
 test("sign in, then a pushed status change lands without a reload", async ({
   page,

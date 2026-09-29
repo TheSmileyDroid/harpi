@@ -1,9 +1,15 @@
 import { writable } from "svelte/store";
 
-export function createToasts({
-  schedule = setTimeout,
-  duration = 4000,
-} = {}) {
+/**
+ * @typedef {object} ToastsOptions
+ * @property {(handler: () => void, timeout?: number) => any} [schedule]
+ * @property {number} [duration]
+ */
+
+/**
+ * @param {ToastsOptions} [options]
+ */
+export function createToasts({ schedule = setTimeout, duration = 4000 } = {}) {
   const { subscribe, update } = writable([]);
   let nextId = 0;
 

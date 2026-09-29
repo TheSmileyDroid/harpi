@@ -77,9 +77,9 @@ describe("reduceSse", () => {
   it("ignores reload frames", () => {
     const before = initialState();
 
-    expect(reduceSse(before, { type: "reload", data: { scope: "shell" } })).toBe(
-      before,
-    );
+    expect(
+      reduceSse(before, { type: "reload", data: { scope: "shell" } }),
+    ).toBe(before);
   });
 });
 

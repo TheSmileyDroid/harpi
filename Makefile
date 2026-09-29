@@ -28,6 +28,7 @@ format:
 	uv run ruff check --fix src/ pages/ app.py tools/ tests/
 	uv run ruff format src/ pages/ app.py tools/ tests/
 	bunx prettier --write ./templates/
+	cd web && bun run format
 
 check:
 	@rm -f .check-failed; \
@@ -37,9 +38,15 @@ check:
 	uv run djlint templates/ || { touch .check-failed; true; }; \
 	uv run pytest tests/ --cov=src --cov=pages --cov=app --cov-report=json --cov-report=term-missing:skip-covered --cov-fail-under=70 --tb=short -q || { touch .check-failed; true; }; \
 	uv run python tools/crap_check.py coverage.json || { touch .check-failed; true; }; \
-	bunx jscpd src/ pages/ templates/ --min-tokens 50 --threshold 1 || { touch .check-failed; true; }; \
+	bunx jscpd src/ pages/ templates/ web/src/ --min-tokens 50 --threshold 1 || { touch .check-failed; true; }; \
 	bunx prettier --check ./templates/ || { touch .check-failed; true; }; \
 	uv run vulture || { touch .check-failed; true; }; \
+	( cd web && bun run lint ) || { touch .check-failed; true; }; \
+	( cd web && bun run format:check ) || { touch .check-failed; true; }; \
+	( cd web && bun run typecheck ) || { touch .check-failed; true; }; \
+	( cd web && bun run test:coverage ) || { touch .check-failed; true; }; \
+	( cd web && bun run knip ) || { touch .check-failed; true; }; \
+	( cd web && bun run e2e ) || { touch .check-failed; true; }; \
 	if [ -f .check-failed ]; then rm -f .check-failed; exit 1; fi
 
 check-network:

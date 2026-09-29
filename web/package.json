@@ -8,14 +8,30 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "lint": "eslint src e2e",
+    "format": "prettier --write src e2e",
+    "format:check": "prettier --check src e2e",
+    "typecheck": "svelte-check --tsconfig ./jsconfig.json",
+    "test:coverage": "vitest run --coverage",
+    "knip": "knip"
   },
   "devDependencies": {
+    "@eslint/js": "^9",
     "@playwright/test": "1.61.0",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.70.3",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@vitest/coverage-v8": "5.0.2",
+    "eslint": "^9",
+    "eslint-plugin-svelte": "^3",
+    "globals": "^17.12.0",
+    "knip": "^6.38.0",
+    "prettier": "^3",
+    "prettier-plugin-svelte": "^4.1.1",
     "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "typescript": "^5",
     "vite": "^8.3.1",
     "vitest": "5.0.2"
   }

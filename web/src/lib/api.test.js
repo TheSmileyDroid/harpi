@@ -9,6 +9,17 @@ function jsonResponse(status, payload) {
   };
 }
 
+function failingClient() {
+  const reported = [];
+  const client = createApiClient({
+    fetchImpl: async () => {
+      throw new TypeError("fetch failed");
+    },
+    onError: (error) => reported.push(error),
+  });
+  return { client, reported };
+}
+
 describe("createApiClient", () => {
   it("exchanges a token for a session", async () => {
     const calls = [];
@@ -64,13 +75,7 @@ describe("createApiClient", () => {
   });
 
   it("reports a transport failure as a normalized error", async () => {
-    const reported = [];
-    const client = createApiClient({
-      fetchImpl: async () => {
-        throw new TypeError("fetch failed");
-      },
-      onError: (error) => reported.push(error),
-    });
+    const { client, reported } = failingClient();
 
     await expect(client.status()).rejects.toMatchObject({
       code: "network_error",
@@ -82,13 +87,7 @@ describe("createApiClient", () => {
   });
 
   it("stays silent on a transport failure during the session probe", async () => {
-    const reported = [];
-    const client = createApiClient({
-      fetchImpl: async () => {
-        throw new TypeError("fetch failed");
-      },
-      onError: (error) => reported.push(error),
-    });
+    const { client, reported } = failingClient();
 
     await expect(client.checkSession()).rejects.toMatchObject({
       code: "network_error",
