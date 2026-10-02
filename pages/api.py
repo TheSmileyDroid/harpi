@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import hmac
+import math
 from typing import Any
 
 from quart import Blueprint, Response, jsonify, request, session
 
 from src.config import Settings
+from src.harpi_lib.audio.session import LOOP_MODE_ALIASES
 from src.panel import actions, state
 
 bp = Blueprint("api", __name__)
@@ -33,6 +35,18 @@ def _string_field(payload: Any, field: str) -> str | None:
     if not isinstance(value, str) or not value.strip():
         return None
     return value.strip()
+
+
+def _float_field(payload: Any, field: str) -> float | None:
+    if not isinstance(payload, dict):
+        return None
+    value = payload.get(field)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    number = float(value)
+    if not math.isfinite(number):
+        return None
+    return number
 
 
 def current_guild_id() -> int | None:
@@ -160,4 +174,71 @@ async def _mutate_queue(mutation) -> Response:
     if url is None:
         return error_response("not_found", "A track URL is required", 404)
     await mutation(guild, url)
+    return jsonify(await state.status_snapshot(guild))
+
+
+async def _transport(mutation) -> Response:
+    guild = _live_guild_id()
+    if guild is None:
+        return _no_live_session()
+    await mutation(guild)
+    return jsonify(await state.status_snapshot(guild))
+
+
+@bp.post("/api/playback/pause")
+async def playback_pause() -> Response:
+    return await _transport(actions.pause)
+
+
+@bp.post("/api/playback/resume")
+async def playback_resume() -> Response:
+    return await _transport(actions.resume)
+
+
+@bp.post("/api/playback/skip")
+async def playback_skip() -> Response:
+    return await _transport(actions.skip)
+
+
+@bp.post("/api/playback/previous")
+async def playback_previous() -> Response:
+    return await _transport(actions.previous)
+
+
+@bp.post("/api/playback/loop")
+async def playback_loop() -> Response:
+    guild = _live_guild_id()
+    if guild is None:
+        return _no_live_session()
+    mode = _string_field(await request.get_json(silent=True), "mode")
+    if mode is None or mode not in LOOP_MODE_ALIASES:
+        return error_response("not_found", "Unknown loop mode", 404)
+    await actions.set_loop(guild, mode)
+    return jsonify(await state.status_snapshot(guild))
+
+
+@bp.post("/api/playback/seek")
+async def playback_seek() -> Response:
+    guild = _live_guild_id()
+    if guild is None:
+        return _no_live_session()
+    position = _float_field(await request.get_json(silent=True), "position")
+    if position is None or position < 0:
+        return error_response("not_found", "Invalid seek position", 404)
+    try:
+        await actions.seek(guild, position)
+    except ValueError:
+        return error_response("not_found", "Invalid seek position", 404)
+    return jsonify(await state.status_snapshot(guild))
+
+
+@bp.post("/api/playback/volume")
+async def playback_volume() -> Response:
+    guild = _live_guild_id()
+    if guild is None:
+        return _no_live_session()
+    volume = _float_field(await request.get_json(silent=True), "volume")
+    if volume is None:
+        return error_response("not_found", "Invalid volume", 404)
+    await actions.set_volume(guild, volume)
     return jsonify(await state.status_snapshot(guild))

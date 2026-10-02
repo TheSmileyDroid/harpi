@@ -211,4 +211,48 @@ describe("createApiClient", () => {
     expect(calls[0].options.method).toBe("POST");
     expect(calls[0].options.body).toBeUndefined();
   });
+
+  it("posts the bodyless transport verbs", async () => {
+    for (const [method, path] of [
+      ["pause", "/api/playback/pause"],
+      ["resume", "/api/playback/resume"],
+      ["skip", "/api/playback/skip"],
+      ["previous", "/api/playback/previous"],
+    ]) {
+      const { client, calls } = recordingClient({ guild_id: 7 });
+
+      await client[method]();
+
+      expect(calls[0].path).toBe(path);
+      expect(calls[0].options.method).toBe("POST");
+      expect(calls[0].options.body).toBeUndefined();
+    }
+  });
+
+  it("posts a loop mode", async () => {
+    const { client, calls } = recordingClient({ guild_id: 7 });
+
+    await client.loop("track");
+
+    expect(calls[0].path).toBe("/api/playback/loop");
+    expect(JSON.parse(calls[0].options.body)).toEqual({ mode: "track" });
+  });
+
+  it("posts an absolute seek position", async () => {
+    const { client, calls } = recordingClient({ guild_id: 7 });
+
+    await client.seek(42.5);
+
+    expect(calls[0].path).toBe("/api/playback/seek");
+    expect(JSON.parse(calls[0].options.body)).toEqual({ position: 42.5 });
+  });
+
+  it("posts a linear gain volume", async () => {
+    const { client, calls } = recordingClient({ guild_id: 7 });
+
+    await client.volume(0.25);
+
+    expect(calls[0].path).toBe("/api/playback/volume");
+    expect(JSON.parse(calls[0].options.body)).toEqual({ volume: 0.25 });
+  });
 });

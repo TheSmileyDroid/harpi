@@ -123,5 +123,35 @@ export function createApiClient({
     clearQueue() {
       return request("/api/queue/clear", { method: "POST" });
     },
+    pause() {
+      return request("/api/playback/pause", { method: "POST" });
+    },
+    resume() {
+      return request("/api/playback/resume", { method: "POST" });
+    },
+    skip() {
+      return request("/api/playback/skip", { method: "POST" });
+    },
+    previous() {
+      return request("/api/playback/previous", { method: "POST" });
+    },
+    loop(mode) {
+      return request("/api/playback/loop", {
+        method: "POST",
+        body: { mode },
+      });
+    },
+    seek(position) {
+      return request("/api/playback/seek", {
+        method: "POST",
+        body: { position },
+      });
+    },
+    volume(volume) {
+      return request("/api/playback/volume", {
+        method: "POST",
+        body: { volume },
+      });
+    },
   };
 }

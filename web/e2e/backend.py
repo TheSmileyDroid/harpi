@@ -21,7 +21,7 @@ from quart import request, session
 
 import app as app_module
 from src import bot_state
-from src.harpi_lib.audio.session import SessionStatus
+from src.harpi_lib.audio.session import LoopMode, SessionStatus
 from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel import state as panel_state
 from tests.test_music_page import (
@@ -66,6 +66,29 @@ class HarnessSession(FakeSession):
     async def clear_queue(self) -> None:
         self.calls.append("clear_queue")
         self._status = replace(self._status, queue=())
+
+    async def pause(self) -> None:
+        self.calls.append("pause")
+        self._status = replace(self._status, is_paused=True)
+
+    async def resume(self) -> None:
+        self.calls.append("resume")
+        self._status = replace(self._status, is_paused=False)
+
+    async def set_loop(self, loop_mode: LoopMode) -> None:
+        self.calls.append(("set_loop", loop_mode))
+        self._status = replace(self._status, loop_mode=loop_mode)
+
+    async def seek(self, value: float, absolute: bool = False) -> None:
+        self.calls.append(("seek", value, absolute))
+        if absolute:
+            self._status = replace(self._status, progress=value)
+
+    async def set_volume(self, value: float) -> None:
+        self.calls.append(("set_volume", value))
+        self._status = replace(
+            self._status, volume=max(0.0, min(1.0, value))
+        )
 
 
 class HarnessSessions:
@@ -168,8 +191,31 @@ async def set_bot():
 async def reset():
     bot.online = True
     session_obj._status = status_for("Now Track")
+    session_obj.calls.clear()
     bot.sessions._by_guild[GUILD_A] = session_obj
     return {"ok": True}
+
+
+@quart_app.post("/__test__/progress")
+async def set_progress():
+    payload = await request.get_json()
+    session_obj._status = replace(
+        session_obj._status, progress=float(payload["position"])
+    )
+    return {"ok": True}
+
+
+def _call_json(call):
+    if isinstance(call, tuple):
+        return [
+            item.name if isinstance(item, LoopMode) else item for item in call
+        ]
+    return call
+
+
+@quart_app.get("/__test__/calls")
+async def calls():
+    return {"calls": [_call_json(call) for call in session_obj.calls]}
 
 
 @quart_app.post("/__test__/enqueue")

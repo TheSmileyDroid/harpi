@@ -435,3 +435,129 @@ header[role="banner"] {
 .queue-index {
   color: var(--color-amber-dim);
 }
+
+.transport-bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 1.75rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-background);
+}
+
+.transport-bar > * + * {
+  border-inline-start: 1px solid var(--color-line);
+  padding-inline: 0.75rem;
+}
+
+.progress-track {
+  position: relative;
+  flex: 1;
+  height: 20px;
+  padding-block: 8px;
+  margin-block: -8px;
+  background: var(--color-line);
+  background-clip: content-box;
+  cursor: pointer;
+  overflow: visible;
+}
+
+.progress-fill {
+  position: absolute;
+  inset-block: 8px;
+  left: 0;
+  background: var(--color-primary);
+}
+
+.transport-bar.is-paused .progress-fill {
+  background: var(--color-amber-dim);
+}
+
+.volume-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.volume-slider {
+  appearance: none;
+  width: 8rem;
+  height: 4px;
+  background: var(--color-line);
+  cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 3px;
+  height: 12px;
+  background: var(--color-primary);
+  border: 0;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 3px;
+  height: 12px;
+  background: var(--color-primary);
+  border: 0;
+  border-radius: 0;
+}
+
+.volume-slider:focus-visible {
+  outline: none;
+}
+
+.volume-value {
+  min-width: 3ch;
+  font-size: 0.7rem;
+  text-align: right;
+  color: var(--color-amber-dim);
+}
+
+.volume-control:focus-within::before,
+.volume-control:focus-within::after {
+  content: "";
+  position: absolute;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-color: var(--color-amber-bright);
+  border-style: solid;
+}
+
+.volume-control:focus-within::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+
+.volume-control:focus-within::after {
+  right: -1px;
+  bottom: -1px;
+  border-width: 0 1px 1px 0;
+}
+
+.progress-readout {
+  font-size: 0.7rem;
+  white-space: nowrap;
+  color: var(--color-amber-dim);
+}
+
+.progress-readout.is-empty {
+  color: var(--color-idle);
+  letter-spacing: 0.15em;
+}
+
+@media (max-width: 30rem) {
+  .main-content {
+    padding-bottom: 10rem;
+  }
+
+  .transport-bar {
+    flex-wrap: wrap;
+  }
+}

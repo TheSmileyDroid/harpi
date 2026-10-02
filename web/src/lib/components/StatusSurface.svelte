@@ -3,9 +3,11 @@
   import { get } from "svelte/store";
   import { appStore } from "$lib/store.js";
   import { toasts } from "$lib/toasts.js";
+  import { formatDuration } from "$lib/format.js";
   import StatusChip from "./StatusChip.svelte";
   import SearchPanel from "./SearchPanel.svelte";
   import QueuePanel from "./QueuePanel.svelte";
+  import TransportBar from "./TransportBar.svelte";
 
   let { link, onrefresh, onresync, api } = $props();
   let refreshing = $state(false);
@@ -20,11 +22,6 @@
     reconnecting: "LINK LOST",
     connecting: "LINKING",
   };
-
-  function percent(value) {
-    if (typeof value !== "number" || Number.isNaN(value)) return "0%";
-    return `${Math.round(value * 100)}%`;
-  }
 
   async function loadGuilds() {
     const payload = await api.guilds().catch(() => null);
@@ -234,7 +231,9 @@
         <div class="data-row">
           <span class="data-label">Progress</span>
           <span class="data-value" data-testid="playback-progress">
-            {percent($appStore.playback.progress)}
+            {formatDuration($appStore.playback.progress)} / {formatDuration(
+              $appStore.playback.current_music?.duration,
+            )}
           </span>
         </div>
         <div class="data-row">
@@ -271,6 +270,8 @@
 
     <QueuePanel {api} />
   </div>
+
+  <TransportBar {api} />
 
   <footer class="status-strip">
     <span>Harpi panel</span>

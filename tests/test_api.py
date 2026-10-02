@@ -12,6 +12,7 @@ import json
 import socket
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from typing import Any, cast
 
 import httpx
@@ -20,6 +21,7 @@ import uvicorn
 
 from app import app as quart_app
 from src import bot_state as deps
+from src.harpi_lib.audio.session import LoopMode
 from src.harpi_lib.harpi_bot import HarpiBot
 from src.harpi_lib.music.ytmusic import YTMusicData
 from tests.test_music_page import (
@@ -59,11 +61,42 @@ class ApiBot(FakeBot):
         return self._closed
 
 
+class ApiSession(FakeSession):
+    """The panel fake plus the transport verbs the JSON API dispatches to."""
+
+    async def pause(self) -> None:
+        self.calls.append("pause")
+        if self._status is not None:
+            self._status = replace(self._status, is_paused=True)
+
+    async def resume(self) -> None:
+        self.calls.append("resume")
+        if self._status is not None:
+            self._status = replace(self._status, is_paused=False)
+
+    async def set_loop(self, loop_mode) -> None:
+        self.calls.append(("set_loop", loop_mode))
+        if self._status is not None:
+            self._status = replace(self._status, loop_mode=loop_mode)
+
+    async def seek(self, value: float, absolute: bool = False) -> None:
+        self.calls.append(("seek", value, absolute))
+        if self._status is not None and absolute:
+            self._status = replace(self._status, progress=value)
+
+    async def set_volume(self, value: float) -> None:
+        self.calls.append(("set_volume", value))
+        if self._status is not None:
+            self._status = replace(
+                self._status, volume=max(0.0, min(1.0, value))
+            )
+
+
 @pytest.fixture
 def bot() -> ApiBot:
     return ApiBot(
         [FakeGuild(GUILD_A, "Alpha Guild")],
-        FakeSession(playing_status(channel_id=CHANNEL_ID)),
+        ApiSession(playing_status(channel_id=CHANNEL_ID)),
     )
 
 
@@ -707,3 +740,145 @@ async def test_sse_stream_reports_and_resyncs_status(client, bot: ApiBot):
 
         assert second["playback"]["current_music"]["title"] == "Next Track"
         assert second["playback"]["queue"] == []
+
+
+TRANSPORT_CALLS: list[tuple[str, dict[str, Any], Any]] = [
+    ("/api/playback/pause", {}, "pause"),
+    ("/api/playback/resume", {}, "resume"),
+    ("/api/playback/skip", {}, "skip"),
+    ("/api/playback/previous", {}, "previous"),
+    ("/api/playback/loop", {"mode": "track"}, ("set_loop", LoopMode.TRACK)),
+    ("/api/playback/loop", {"mode": "fila"}, ("set_loop", LoopMode.QUEUE)),
+    ("/api/playback/seek", {"position": 30.0}, ("seek", 30.0, True)),
+    ("/api/playback/volume", {"volume": 0.5}, ("set_volume", 0.5)),
+]
+
+
+@pytest.mark.parametrize(("path", "payload", "expected"), TRANSPORT_CALLS)
+async def test_transport_dispatches_and_answers_the_same_truth_as_status(
+    client, bot: ApiBot, path: str, payload: dict[str, Any], expected: Any
+):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post(path, json=payload)
+    status = await client.get("/api/status")
+
+    assert response.status_code == 200
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert expected in session_obj.calls
+    assert json.loads(await response.get_data()) == json.loads(
+        await status.get_data()
+    )
+
+
+@pytest.mark.parametrize(
+    ("path", "payload"),
+    [
+        ("/api/playback/loop", {}),
+        ("/api/playback/loop", {"mode": 42}),
+        ("/api/playback/loop", {"mode": ""}),
+        ("/api/playback/loop", {"mode": "bogus"}),
+        ("/api/playback/seek", {}),
+        ("/api/playback/seek", {"position": "30"}),
+        ("/api/playback/seek", {"position": -5.0}),
+        ("/api/playback/seek", {"position": float("inf")}),
+        ("/api/playback/seek", {"position": 999.0}),
+        ("/api/playback/volume", {}),
+        ("/api/playback/volume", {"volume": "loud"}),
+        ("/api/playback/volume", {"volume": True}),
+        ("/api/playback/volume", {"volume": float("nan")}),
+    ],
+)
+async def test_transport_rejects_an_invalid_argument(
+    client, bot: ApiBot, path: str, payload: dict[str, Any]
+):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post(path, json=payload)
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert session_obj.calls == []
+
+
+@pytest.mark.parametrize(("path", "payload", "expected"), TRANSPORT_CALLS)
+async def test_transport_requires_a_live_session(
+    client, bot: ApiBot, path: str, payload: dict[str, Any], expected: Any
+):
+    del expected
+    await _login(client)
+    await _select_guild(client)
+    bot.sessions._session = None
+
+    response = await client.post(path, json=payload)
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+
+
+@pytest.mark.parametrize(("path", "payload", "expected"), TRANSPORT_CALLS)
+async def test_transport_requires_a_shared_selection(
+    client, path: str, payload: dict[str, Any], expected: Any
+):
+    del expected
+    await _login(client)
+    async with client.session_transaction() as stored:
+        stored["guild_id"] = "99999"
+
+    response = await client.post(path, json=payload)
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/playback/pause",
+        "/api/playback/resume",
+        "/api/playback/skip",
+        "/api/playback/previous",
+        "/api/playback/loop",
+        "/api/playback/seek",
+        "/api/playback/volume",
+    ],
+)
+async def test_transport_paths_reject_anonymous_calls(client, path: str):
+    response = await client.post(path, json={})
+
+    assert response.status_code == 401
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "unauthorized"
+
+
+async def test_seek_accepts_the_exact_track_duration(client, bot: ApiBot):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post(
+        "/api/playback/seek", json={"position": 120.0}
+    )
+
+    assert response.status_code == 200
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert ("seek", 120.0, True) in session_obj.calls
+
+
+async def test_volume_is_clamped_by_the_session(client, bot: ApiBot):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post("/api/playback/volume", json={"volume": 4.0})
+
+    assert response.status_code == 200
+    body = json.loads(await response.get_data())
+    assert body["playback"]["volume"] == pytest.approx(1.0)

@@ -167,3 +167,73 @@ test("searches, queues, and removes, with queue changes live over SSE", async ({
 
   expect(loads).toBe(1);
 });
+
+test("drives transport, seeks, and changes volume against live position", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${BACKEND}/__test__/reset`);
+  let loads = 0;
+  page.on("load", () => {
+    loads += 1;
+  });
+
+  let statusRequests = 0;
+  await page.route("**/api/status", async (route) => {
+    statusRequests += 1;
+    await route.continue();
+  });
+
+  await page.goto("/");
+  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
+  await page.getByTestId("sign-in").click();
+  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+  const bootStatusRequests = statusRequests;
+  expect(bootStatusRequests).toBe(1);
+
+  await request.post(`${BACKEND}/__test__/progress`, {
+    data: { position: 60 },
+  });
+  await expect(page.getByTestId("progress-readout")).toContainText(
+    "1:00 / 2:00",
+  );
+  expect(statusRequests).toBe(bootStatusRequests);
+
+  await page.getByTestId("play-pause").click();
+  await expect(page.getByTestId("play-pause")).toHaveText("Play");
+  await expect(page.getByTestId("playback-state")).toHaveText("Paused");
+
+  const track = page.getByTestId("seek-track");
+  const box = await track.boundingBox();
+  const midY = box.y + box.height / 2;
+  await page.mouse.click(box.x + box.width * 0.75, midY);
+  await expect(page.getByTestId("progress-readout")).toContainText(
+    "1:30 / 2:00",
+  );
+  await expect(page.getByTestId("toasts")).toContainText("Position set");
+
+  await page.mouse.move(box.x + box.width * 0.2, midY);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.41, midY);
+  await page.mouse.up();
+  await expect(page.getByTestId("progress-readout")).toContainText(
+    "0:49 / 2:00",
+  );
+
+  await page.getByTestId("volume-slider").evaluate((element) => {
+    for (const value of ["0.3", "0.4", "0.5"]) {
+      element.value = value;
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  });
+  await expect(page.getByTestId("volume-value")).toHaveText("0.25");
+  await expect(page.getByTestId("toasts")).toContainText("Volume changed");
+
+  const calls = await (await request.get(`${BACKEND}/__test__/calls`)).json();
+  const volumeCalls = calls.calls.filter(
+    (call) => Array.isArray(call) && call[0] === "set_volume",
+  );
+  expect(volumeCalls).toHaveLength(1);
+
+  expect(loads).toBe(1);
+});
