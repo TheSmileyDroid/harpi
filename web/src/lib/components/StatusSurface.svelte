@@ -7,6 +7,7 @@
   import StatusChip from "./StatusChip.svelte";
   import SearchPanel from "./SearchPanel.svelte";
   import QueuePanel from "./QueuePanel.svelte";
+  import LayersPanel from "./LayersPanel.svelte";
   import TransportBar from "./TransportBar.svelte";
 
   let { link, onrefresh, onresync, api } = $props();
@@ -269,6 +270,8 @@
     <SearchPanel {api} />
 
     <QueuePanel {api} />
+
+    <LayersPanel {api} />
   </div>
 
   <TransportBar {api} />

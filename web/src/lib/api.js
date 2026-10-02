@@ -153,5 +153,20 @@ export function createApiClient({
         body: { volume },
       });
     },
+    layer(url) {
+      return request("/api/layers", { method: "POST", body: { url } });
+    },
+    removeLayer(layerId) {
+      return request("/api/layers/remove", {
+        method: "POST",
+        body: { layer_id: layerId },
+      });
+    },
+    setLayerVolume(layerId, volume) {
+      return request("/api/layers/volume", {
+        method: "POST",
+        body: { layer_id: layerId, volume },
+      });
+    },
   };
 }

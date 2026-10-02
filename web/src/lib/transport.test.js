@@ -77,6 +77,20 @@ describe("volume mapping", () => {
     expect(volumePosition(4)).toBe(1);
     expect(volumePosition(NaN)).toBe(0);
   });
+
+  it("round-trips a layer gain through its slider position", () => {
+    const positions = [0.7, 0.4, 0.15].map(volumePosition);
+
+    expect(positions[0]).toBeCloseTo(Math.sqrt(0.7));
+    expect(positions[0]).not.toBe(0.7);
+    for (const [gain, position] of [
+      [0.7, positions[0]],
+      [0.4, positions[1]],
+      [0.15, positions[2]],
+    ]) {
+      expect(volumeGain(position)).toBeCloseTo(gain);
+    }
+  });
 });
 
 describe("nextLoopMode", () => {

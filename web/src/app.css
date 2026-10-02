@@ -423,17 +423,37 @@ header[role="banner"] {
   padding: 0;
 }
 
-.queue-row {
+.queue-row,
+.layer-row {
   border-bottom: 1px solid var(--color-line);
 }
 
-.queue-row .hud-btn {
+.queue-row .hud-btn,
+.layer-row .hud-btn {
   min-width: 0;
   padding: 0.3rem 0.6rem;
 }
 
-.queue-index {
+.queue-index,
+.layer-index {
   color: var(--color-amber-dim);
+}
+
+.layer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.layer-volume {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.layer-volume .volume-slider {
+  width: 6rem;
 }
 
 .transport-bar {

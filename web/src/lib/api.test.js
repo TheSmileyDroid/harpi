@@ -255,4 +255,39 @@ describe("createApiClient", () => {
     expect(calls[0].path).toBe("/api/playback/volume");
     expect(JSON.parse(calls[0].options.body)).toEqual({ volume: 0.25 });
   });
+
+  it("posts a layer url", async () => {
+    const { client, calls } = recordingClient({ guild_id: 7 });
+
+    await client.layer("https://example.com/layer");
+
+    expect(calls[0].path).toBe("/api/layers");
+    expect(calls[0].options.method).toBe("POST");
+    expect(JSON.parse(calls[0].options.body)).toEqual({
+      url: "https://example.com/layer",
+    });
+  });
+
+  it("posts a layer removal", async () => {
+    const { client, calls } = recordingClient({ guild_id: 7 });
+
+    await client.removeLayer("layer-1");
+
+    expect(calls[0].path).toBe("/api/layers/remove");
+    expect(JSON.parse(calls[0].options.body)).toEqual({
+      layer_id: "layer-1",
+    });
+  });
+
+  it("posts a layer volume", async () => {
+    const { client, calls } = recordingClient({ guild_id: 7 });
+
+    await client.setLayerVolume("layer-1", 0.25);
+
+    expect(calls[0].path).toBe("/api/layers/volume");
+    expect(JSON.parse(calls[0].options.body)).toEqual({
+      layer_id: "layer-1",
+      volume: 0.25,
+    });
+  });
 });

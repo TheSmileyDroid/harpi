@@ -143,12 +143,12 @@ async def api_search() -> Response:
 
 @bp.post("/api/queue")
 async def queue_track() -> Response:
-    return await _mutate_queue(actions.add_track)
+    return await _mutate_url(actions.add_track)
 
 
 @bp.post("/api/queue/remove")
 async def remove_queued_track() -> Response:
-    return await _mutate_queue(actions.remove_track)
+    return await _mutate_url(actions.remove_track)
 
 
 @bp.post("/api/queue/clear")
@@ -166,13 +166,13 @@ def _no_live_session() -> Response:
     )
 
 
-async def _mutate_queue(mutation) -> Response:
+async def _mutate_url(mutation) -> Response:
     guild = _live_guild_id()
     if guild is None:
         return _no_live_session()
     url = _string_field(await request.get_json(silent=True), "url")
     if url is None:
-        return error_response("not_found", "A track URL is required", 404)
+        return error_response("not_found", "A URL is required", 404)
     await mutation(guild, url)
     return jsonify(await state.status_snapshot(guild))
 
@@ -241,4 +241,35 @@ async def playback_volume() -> Response:
     if volume is None:
         return error_response("not_found", "Invalid volume", 404)
     await actions.set_volume(guild, volume)
+    return jsonify(await state.status_snapshot(guild))
+
+
+@bp.post("/api/layers")
+async def layer_add() -> Response:
+    return await _mutate_url(actions.add_layer)
+
+
+@bp.post("/api/layers/remove")
+async def layer_remove() -> Response:
+    guild = _live_guild_id()
+    if guild is None:
+        return _no_live_session()
+    layer_id = _string_field(await request.get_json(silent=True), "layer_id")
+    if layer_id is None or not await actions.remove_layer(guild, layer_id):
+        return error_response("not_found", "Unknown layer", 404)
+    return jsonify(await state.status_snapshot(guild))
+
+
+@bp.post("/api/layers/volume")
+async def layer_volume() -> Response:
+    guild = _live_guild_id()
+    if guild is None:
+        return _no_live_session()
+    payload = await request.get_json(silent=True)
+    layer_id = _string_field(payload, "layer_id")
+    volume = _float_field(payload, "volume")
+    if layer_id is None or volume is None:
+        return error_response("not_found", "Invalid layer volume", 404)
+    if not await actions.set_layer_volume(guild, layer_id, volume):
+        return error_response("not_found", "Unknown layer", 404)
     return jsonify(await state.status_snapshot(guild))

@@ -21,7 +21,7 @@ from quart import request, session
 
 import app as app_module
 from src import bot_state
-from src.harpi_lib.audio.session import LoopMode, SessionStatus
+from src.harpi_lib.audio.session import LayerInfo, LoopMode, SessionStatus
 from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel import state as panel_state
 from tests.test_music_page import (
@@ -89,6 +89,42 @@ class HarnessSession(FakeSession):
         self._status = replace(
             self._status, volume=max(0.0, min(1.0, value))
         )
+
+    async def add_layer(self, value: str) -> str:
+        self.calls.append(("add_layer", value))
+        layer_id = f"layer-{len(self._status.layers) + 1}"
+        layer = LayerInfo(id=layer_id, title=value, url=value, volume=0.5)
+        self._status = replace(
+            self._status, layers=(*self._status.layers, layer)
+        )
+        return layer_id
+
+    async def remove_layer(self, value: str) -> bool:
+        self.calls.append(("remove_layer", value))
+        kept = tuple(
+            layer for layer in self._status.layers if layer.id != value
+        )
+        if len(kept) == len(self._status.layers):
+            return False
+        self._status = replace(self._status, layers=kept)
+        return True
+
+    async def set_layer_volume(self, layer_id: str, value: float) -> bool:
+        self.calls.append(("set_layer_volume", layer_id, value))
+        found = False
+        layers = []
+        for layer in self._status.layers:
+            if layer.id == layer_id:
+                found = True
+                layers.append(
+                    replace(layer, volume=max(0.0, min(1.0, value)))
+                )
+            else:
+                layers.append(layer)
+        if not found:
+            return False
+        self._status = replace(self._status, layers=tuple(layers))
+        return True
 
 
 class HarnessSessions:
@@ -222,6 +258,23 @@ async def calls():
 async def enqueue():
     payload = await request.get_json()
     await session_obj.play(payload["url"])
+    return {"ok": True}
+
+
+@quart_app.post("/__test__/layer")
+async def push_layer():
+    payload = await request.get_json()
+    url = payload["url"]
+    layers = session_obj._status.layers
+    layer = LayerInfo(
+        id=f"layer-{len(layers) + 1}",
+        title=payload.get("title", url),
+        url=url,
+        volume=0.5,
+    )
+    session_obj._status = replace(
+        session_obj._status, layers=(*layers, layer)
+    )
     return {"ok": True}
 
 

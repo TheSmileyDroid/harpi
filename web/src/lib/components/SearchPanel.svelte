@@ -12,6 +12,7 @@
   let term = $state("");
   let status = $state("idle");
   let busyUrl = $state(null);
+  let layerUrl = $state(null);
   const debouncer = createDebouncer();
 
   const results = $derived($appStore.search.results);
@@ -70,6 +71,21 @@
 
   function queueTrack(track) {
     return queueUrl(track.url);
+  }
+
+  async function layerTrack(track) {
+    if (layerUrl) return;
+    layerUrl = track.url;
+    try {
+      const snapshot = await api.layer(track.url);
+      appStore.applyStatus(snapshot);
+      toasts.push("Added as layer");
+      appStore.closeSearch();
+    } catch {
+      return;
+    } finally {
+      layerUrl = null;
+    }
   }
 
   function onKeydown(event) {
@@ -142,6 +158,15 @@
                 data-testid="queue-track"
               >
                 Queue
+              </button>
+              <button
+                type="button"
+                class="hud-btn"
+                onclick={() => layerTrack(track)}
+                disabled={layerUrl === track.url}
+                data-testid="layer-track"
+              >
+                Layer
               </button>
             </div>
           {/each}

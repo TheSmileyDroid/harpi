@@ -1,16 +1,14 @@
 <script>
   import { appStore } from "$lib/store.js";
   import { toasts } from "$lib/toasts.js";
-  import { createDebouncer } from "$lib/debounce.js";
   import { formatDuration } from "$lib/format.js";
   import {
     nextLoopMode,
     pointerRatio,
     seekDisplayRatio,
     seekTarget,
-    volumeGain,
-    volumePosition,
   } from "$lib/transport.js";
+  import VolumeSlider from "./VolumeSlider.svelte";
 
   let { api } = $props();
 
@@ -18,9 +16,6 @@
   let seeking = $state(false);
   let seekRatio = $state(0);
   let track = $state(null);
-  let volumePos = $state(0);
-  let adjustingVolume = $state(false);
-  const volumeDebouncer = createDebouncer({ delay: 300 });
 
   const playback = $derived($appStore.playback);
   const ready = $derived(playback !== null);
@@ -33,12 +28,6 @@
   const displayRatio = $derived(
     seekDisplayRatio(seeking, seekRatio, serverRatio),
   );
-  const gain = $derived(volumeGain(volumePos));
-
-  $effect(() => {
-    if (adjustingVolume) return;
-    volumePos = volumePosition(playback?.volume ?? 0);
-  });
 
   async function act(fn, message) {
     if (busy) return;
@@ -114,21 +103,10 @@
     }
   }
 
-  function onVolumeInput() {
-    adjustingVolume = true;
-    volumeDebouncer.run(sendVolume);
-  }
-
-  async function sendVolume() {
-    try {
-      const snapshot = await api.volume(volumeGain(volumePos));
-      appStore.applyStatus(snapshot);
-      toasts.push("Volume changed");
-    } catch {
-      return;
-    } finally {
-      adjustingVolume = false;
-    }
+  async function sendVolume(value) {
+    const snapshot = await api.volume(value);
+    appStore.applyStatus(snapshot);
+    toasts.push("Volume changed");
   }
 </script>
 
@@ -174,22 +152,14 @@
     >
       Loop {playback.loop_mode}
     </button>
-    <label class="volume-control" data-testid="volume-control">
-      <input
-        type="range"
-        class="volume-slider"
-        min="0"
-        max="1"
-        step="0.01"
-        bind:value={volumePos}
-        oninput={onVolumeInput}
-        aria-label="Volume"
-        data-testid="volume-slider"
-      />
-      <span class="volume-value" data-testid="volume-value">
-        {gain.toFixed(2)}
-      </span>
-    </label>
+    <VolumeSlider
+      gain={playback?.volume ?? 0}
+      send={sendVolume}
+      label="Volume"
+      controlTestid="volume-control"
+      sliderTestid="volume-slider"
+      valueTestid="volume-value"
+    />
     <div
       class="progress-track"
       bind:this={track}

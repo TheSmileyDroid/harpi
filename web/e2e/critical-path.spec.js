@@ -237,3 +237,105 @@ test("drives transport, seeks, and changes volume against live position", async 
 
   expect(loads).toBe(1);
 });
+
+test("adds a layer, changes its volume, and removes it with confirmation", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${BACKEND}/__test__/reset`);
+  let loads = 0;
+  page.on("load", () => {
+    loads += 1;
+  });
+
+  await page.goto("/");
+  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
+  await page.getByTestId("sign-in").click();
+  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+
+  await page.getByTestId("search-input").fill("daft punk");
+  await expect(page.getByTestId("search-result").first()).toContainText(
+    "Found daft punk",
+  );
+
+  await page.getByTestId("layer-track").first().click();
+  await expect(page.getByTestId("toasts")).toContainText("Added as layer");
+  await expect(page.getByTestId("layer-row").first()).toContainText(
+    "daft punk",
+  );
+
+  await page
+    .getByTestId("layer-volume")
+    .first()
+    .evaluate((element) => {
+      element.value = "0.5";
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  await expect(page.getByTestId("layer-volume-value")).toHaveText("0.25");
+  await expect(page.getByTestId("toasts")).toContainText(
+    "Layer volume changed",
+  );
+
+  await page.getByTestId("layer-remove").first().click();
+  await expect(page.getByTestId("layer-confirm-dialog")).toBeVisible();
+  await expect(page.getByTestId("layer-row").first()).toContainText(
+    "daft punk",
+  );
+  await page.getByTestId("layer-confirm-cancel").click();
+  await expect(page.getByTestId("layer-confirm-dialog")).toBeHidden();
+  await expect(page.getByTestId("layer-row").first()).toContainText(
+    "daft punk",
+  );
+
+  await page.getByTestId("layer-remove").first().click();
+  await expect(page.getByTestId("layer-confirm-dialog")).toBeVisible();
+  await page.getByTestId("layer-confirm-execute").click();
+  await expect(page.getByTestId("toasts")).toContainText("Layer removed");
+  await expect(page.getByTestId("layers-empty")).toContainText("No layers");
+
+  const calls = await (await request.get(`${BACKEND}/__test__/calls`)).json();
+  const layerCalls = calls.calls.filter(
+    (call) => Array.isArray(call) && call[0].includes("layer"),
+  );
+  expect(layerCalls.map((call) => call[0])).toEqual([
+    "add_layer",
+    "set_layer_volume",
+    "remove_layer",
+  ]);
+
+  expect(loads).toBe(1);
+});
+
+test("layer state pushed server-side arrives live over SSE", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${BACKEND}/__test__/reset`);
+  let loads = 0;
+  page.on("load", () => {
+    loads += 1;
+  });
+
+  let statusRequests = 0;
+  await page.route("**/api/status", async (route) => {
+    statusRequests += 1;
+    await route.continue();
+  });
+
+  await page.goto("/");
+  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
+  await page.getByTestId("sign-in").click();
+  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+  const bootStatusRequests = statusRequests;
+  expect(bootStatusRequests).toBe(1);
+
+  await request.post(`${BACKEND}/__test__/layer`, {
+    data: { url: "https://example.com/Pushed", title: "Pushed Layer" },
+  });
+
+  await expect(page.getByTestId("layer-row").first()).toContainText(
+    "Pushed Layer",
+  );
+  expect(statusRequests).toBe(bootStatusRequests);
+  expect(loads).toBe(1);
+});

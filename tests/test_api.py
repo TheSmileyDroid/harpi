@@ -21,7 +21,7 @@ import uvicorn
 
 from app import app as quart_app
 from src import bot_state as deps
-from src.harpi_lib.audio.session import LoopMode
+from src.harpi_lib.audio.session import LayerInfo, LoopMode
 from src.harpi_lib.harpi_bot import HarpiBot
 from src.harpi_lib.music.ytmusic import YTMusicData
 from tests.test_music_page import (
@@ -90,6 +90,45 @@ class ApiSession(FakeSession):
             self._status = replace(
                 self._status, volume=max(0.0, min(1.0, value))
             )
+
+    async def add_layer(self, value: str) -> str:  # ty: ignore[invalid-method-override]
+        self.calls.append(("add_layer", value))
+        assert self._status is not None
+        layer_id = f"layer-{len(self._status.layers) + 1}"
+        layer = LayerInfo(id=layer_id, title=value, url=value, volume=0.5)
+        self._status = replace(
+            self._status, layers=(*self._status.layers, layer)
+        )
+        return layer_id
+
+    async def remove_layer(self, value: str) -> bool:  # ty: ignore[invalid-method-override]
+        self.calls.append(("remove_layer", value))
+        if self._status is None:
+            return False
+        kept = tuple(
+            layer for layer in self._status.layers if layer.id != value
+        )
+        if len(kept) == len(self._status.layers):
+            return False
+        self._status = replace(self._status, layers=kept)
+        return True
+
+    async def set_layer_volume(self, layer_id: str, value: float) -> bool:  # ty: ignore[invalid-method-override]
+        self.calls.append(("set_layer_volume", layer_id, value))
+        if self._status is None:
+            return False
+        found = False
+        layers = []
+        for layer in self._status.layers:
+            if layer.id == layer_id:
+                found = True
+                layers.append(replace(layer, volume=max(0.0, min(1.0, value))))
+            else:
+                layers.append(layer)
+        if not found:
+            return False
+        self._status = replace(self._status, layers=tuple(layers))
+        return True
 
 
 @pytest.fixture
@@ -882,3 +921,181 @@ async def test_volume_is_clamped_by_the_session(client, bot: ApiBot):
     assert response.status_code == 200
     body = json.loads(await response.get_data())
     assert body["playback"]["volume"] == pytest.approx(1.0)
+
+
+LAYER_CALLS: list[tuple[str, dict[str, Any], Any]] = [
+    (
+        "/api/layers",
+        {"url": "https://example.com/layer"},
+        (
+            "add_layer",
+            "https://example.com/layer",
+        ),
+    ),
+    (
+        "/api/layers/remove",
+        {"layer_id": "layer-1"},
+        (
+            "remove_layer",
+            "layer-1",
+        ),
+    ),
+    (
+        "/api/layers/volume",
+        {"layer_id": "layer-1", "volume": 0.25},
+        (
+            "set_layer_volume",
+            "layer-1",
+            0.25,
+        ),
+    ),
+]
+
+
+async def _seed_layer(client) -> None:
+    await client.post("/api/layers", json={"url": "https://example.com/layer"})
+
+
+@pytest.mark.parametrize(("path", "payload", "expected"), LAYER_CALLS)
+async def test_layer_dispatches_and_answers_the_same_truth_as_status(
+    client, bot: ApiBot, path: str, payload: dict[str, Any], expected: Any
+):
+    await _login(client)
+    await _select_guild(client)
+    if "layer_id" in payload:
+        await _seed_layer(client)
+
+    response = await client.post(path, json=payload)
+    status = await client.get("/api/status")
+
+    assert response.status_code == 200
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert expected in session_obj.calls
+    assert json.loads(await response.get_data()) == json.loads(
+        await status.get_data()
+    )
+
+
+async def test_layer_add_answers_the_created_layer(client, bot: ApiBot):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post(
+        "/api/layers", json={"url": "https://example.com/layer"}
+    )
+
+    body = json.loads(await response.get_data())
+    assert body["playback"]["layers"] == [
+        {
+            "id": "layer-1",
+            "title": "https://example.com/layer",
+            "url": "https://example.com/layer",
+            "volume": 0.5,
+            "thumbnail": "",
+        }
+    ]
+
+
+async def test_layer_remove_answers_the_dropped_layer(client, bot: ApiBot):
+    await _login(client)
+    await _select_guild(client)
+    await _seed_layer(client)
+
+    response = await client.post(
+        "/api/layers/remove", json={"layer_id": "layer-1"}
+    )
+
+    body = json.loads(await response.get_data())
+    assert body["playback"]["layers"] == []
+
+
+async def test_layer_volume_answers_the_new_gain(client, bot: ApiBot):
+    await _login(client)
+    await _select_guild(client)
+    await _seed_layer(client)
+
+    response = await client.post(
+        "/api/layers/volume", json={"layer_id": "layer-1", "volume": 0.25}
+    )
+
+    body = json.loads(await response.get_data())
+    assert body["playback"]["layers"][0]["volume"] == pytest.approx(0.25)
+
+
+@pytest.mark.parametrize(
+    ("path", "payload"),
+    [
+        ("/api/layers", {}),
+        ("/api/layers", {"url": ""}),
+        ("/api/layers", {"url": 42}),
+        ("/api/layers/remove", {}),
+        ("/api/layers/remove", {"layer_id": ""}),
+        ("/api/layers/remove", {"layer_id": 42}),
+        ("/api/layers/remove", {"layer_id": "missing"}),
+        ("/api/layers/volume", {}),
+        ("/api/layers/volume", {"layer_id": "layer-1"}),
+        ("/api/layers/volume", {"layer_id": "layer-1", "volume": "loud"}),
+        ("/api/layers/volume", {"layer_id": "layer-1", "volume": True}),
+        (
+            "/api/layers/volume",
+            {"layer_id": "layer-1", "volume": float("nan")},
+        ),
+        ("/api/layers/volume", {"layer_id": "missing", "volume": 0.5}),
+    ],
+)
+async def test_layer_mutations_reject_an_invalid_argument(
+    client, bot: ApiBot, path: str, payload: dict[str, Any]
+):
+    await _login(client)
+    await _select_guild(client)
+    await _seed_layer(client)
+
+    response = await client.post(path, json=payload)
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+
+
+@pytest.mark.parametrize(("path", "payload", "expected"), LAYER_CALLS)
+async def test_layer_mutations_require_a_live_session(
+    client, bot: ApiBot, path: str, payload: dict[str, Any], expected: Any
+):
+    del expected
+    await _login(client)
+    await _select_guild(client)
+    bot.sessions._session = None
+
+    response = await client.post(path, json=payload)
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+
+
+@pytest.mark.parametrize(("path", "payload", "expected"), LAYER_CALLS)
+async def test_layer_mutations_require_a_shared_selection(
+    client, path: str, payload: dict[str, Any], expected: Any
+):
+    del expected
+    await _login(client)
+    async with client.session_transaction() as stored:
+        stored["guild_id"] = "99999"
+
+    response = await client.post(path, json=payload)
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+
+
+@pytest.mark.parametrize(
+    "path", ["/api/layers", "/api/layers/remove", "/api/layers/volume"]
+)
+async def test_layer_paths_reject_anonymous_calls(client, path: str):
+    response = await client.post(path, json={})
+
+    assert response.status_code == 401
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "unauthorized"

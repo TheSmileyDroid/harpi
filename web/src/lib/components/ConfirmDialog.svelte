@@ -1,5 +1,13 @@
 <script>
-  let { open = false, message = "", onconfirm, oncancel } = $props();
+  let {
+    open = false,
+    message = "",
+    onconfirm,
+    oncancel,
+    testid = "confirm-dialog",
+    cancelTestid = "confirm-cancel",
+    executeTestid = "confirm-execute",
+  } = $props();
   let dialog = $state(null);
 
   $effect(() => {
@@ -11,7 +19,7 @@
 
 <dialog
   class="hud-panel hud-dialog"
-  data-testid="confirm-dialog"
+  data-testid={testid}
   bind:this={dialog}
   {oncancel}
   onclose={oncancel}
@@ -22,7 +30,7 @@
       type="button"
       class="hud-btn"
       onclick={oncancel}
-      data-testid="confirm-cancel"
+      data-testid={cancelTestid}
     >
       Cancel
     </button>
@@ -30,7 +38,7 @@
       type="button"
       class="hud-btn hud-btn-danger"
       onclick={onconfirm}
-      data-testid="confirm-execute"
+      data-testid={executeTestid}
     >
       Confirm
     </button>
