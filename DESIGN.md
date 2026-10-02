@@ -224,8 +224,9 @@ content.
 
 Fixed chrome stacks from the bottom: status strip at the very bottom
 (0.75rem tall band), transport bar 1.75rem above the viewport bottom,
-toasts anchored 3rem up on the right. Content padding grows to 10rem on
-mobile where the transport wraps.
+toasts stacked just above the transport bar on the right, clearing it even
+when the bar wraps on mobile. Content padding grows to 10rem on mobile
+where the transport wraps.
 
 Breakpoints (observed): 30rem (480px) collapses the header to wrapped rows,
 stacks row metadata, and stacks action strips vertically; 48rem (768px)
@@ -308,7 +309,9 @@ keys.
 ### Inputs / Fields
 - **Style:** transparent background, 1px `line` border, Phosphor Amber text,
   0.8rem, padding 0.35rem 0.6rem, square. Selects share the class.
-- **Focus:** border replaced by Hot Amber corner brackets on the field.
+- **Focus:** a Hot Amber 1px outline at 2px offset replaces the default ring.
+  Replaced elements cannot carry the L-brackets, so the offset echoes the
+  double frame instead.
 - **Placeholder:** Ash Gray (disabled ink) — placeholders are not content.
 
 ### Navigation
@@ -325,8 +328,8 @@ keys.
   repeating 1px scanlines at 12% black every 3px plus a vignette fading to
   35% black at the edges. Pointer-events none, no flicker, no curvature.
 - **Corner brackets:** the focus language. 0.75rem L-shapes in Hot Amber on
-  focus-visible buttons/inputs, the focused volume control, and the playing
-  panel. A bracket means "under operation right now", nothing else.
+  focus-visible buttons, the focused volume control, and the playing panel. A
+  bracket means "under operation right now", nothing else.
 - **Blinking caret:** `▌` after the page title in Ember Amber, 1.2s
   steps(2) — the terminal cursor.
 - **Toast:** fixed column bottom-right, surface background, `line-strong`

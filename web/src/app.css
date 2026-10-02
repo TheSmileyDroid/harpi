@@ -14,6 +14,7 @@
     "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
   --font-display: "Rajdhani", "IBM Plex Mono", ui-monospace, monospace;
+  --transport-height: 2.85rem;
 }
 
 * {
@@ -188,6 +189,7 @@ header[role="banner"] {
 }
 
 .hud-btn {
+  position: relative;
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 0.72rem;
@@ -223,6 +225,41 @@ header[role="banner"] {
 
 .hud-input::placeholder {
   color: var(--color-idle);
+}
+
+.hud-input:focus-visible {
+  outline: 1px solid var(--color-amber-bright);
+  outline-offset: 2px;
+}
+
+.hud-btn:focus-visible {
+  outline: none;
+}
+
+.hud-btn:focus-visible::before,
+.hud-btn:focus-visible::after,
+.hud-panel.is-playing::before,
+.hud-panel.is-playing::after {
+  content: "";
+  position: absolute;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-color: var(--color-amber-bright);
+  border-style: solid;
+}
+
+.hud-btn:focus-visible::before,
+.hud-panel.is-playing::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+
+.hud-btn:focus-visible::after,
+.hud-panel.is-playing::after {
+  right: -1px;
+  bottom: -1px;
+  border-width: 0 1px 1px 0;
 }
 
 .bot-online {
@@ -268,7 +305,7 @@ header[role="banner"] {
 .toast-container {
   position: fixed;
   inset-inline-end: 1rem;
-  inset-block-end: 3rem;
+  inset-block-end: calc(1.75rem + var(--transport-height) + 0.5rem);
   z-index: 60;
   display: flex;
   flex-direction: column;
@@ -573,6 +610,10 @@ header[role="banner"] {
 }
 
 @media (max-width: 30rem) {
+  :root {
+    --transport-height: 5rem;
+  }
+
   .main-content {
     padding-bottom: 10rem;
   }

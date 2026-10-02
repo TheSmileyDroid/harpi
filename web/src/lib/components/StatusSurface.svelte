@@ -206,7 +206,12 @@
       </div>
     </section>
 
-    <section class="hud-panel" data-testid="playback-panel">
+    <section
+      class="hud-panel"
+      class:is-playing={$appStore.playback?.is_playing === true &&
+        $appStore.playback?.is_paused !== true}
+      data-testid="playback-panel"
+    >
       <span class="panel-label">03 // Playback</span>
       {#if $appStore.playback === null}
         <p class="data-value is-empty" data-testid="playback-empty">
