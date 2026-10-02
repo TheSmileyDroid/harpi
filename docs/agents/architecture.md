@@ -20,7 +20,7 @@ Quart and discord.py share one process and two event loops. The panel is a Svelt
 - `src/panel/` - the domain seam the API and the bot share: `state`, `actions`, `serialization`.
 - `src/bot_state.py` - the running-bot handle and the loop bridge.
 - `src/config.py` - `Settings`, sole owner of `os.getenv`.
-- `pages/` - web blueprints: the JSON API, the SSE stream, the guilds lookup.
+- `pages/` - web blueprints: the JSON API and the SSE stream.
 - `app.py` - app assembly, the SPA asset routes, the panel's startup hook.
 - `web/` - the SvelteKit SPA (Vite build, API client, SSE client).
 - `tools/crap_check.py` - the CRAP gate itself.

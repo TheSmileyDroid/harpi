@@ -19,7 +19,6 @@ logger.remove()
 logger.add("spam.log", level="DEBUG")
 logger.add(sys.stdout, level="INFO")
 
-# The SvelteKit SPA the Vite build emits (adapter-static, SPA fallback).
 WEB_BUILD = Path(__file__).resolve().parent / "web" / "build"
 
 app = Quart(__name__, static_folder=None)

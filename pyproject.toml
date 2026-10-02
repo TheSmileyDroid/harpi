@@ -8,7 +8,6 @@ dependencies = [
     "discord.py[voice]>=2.5.2",
     "gtts>=2.5.4",
     "hypercorn>=0.18.0",
-    "jinja2>=3.1.6",
     "loguru>=0.7.3",
     "numpy>=2.4.0",
     "pillow>=11.2.1",
@@ -134,6 +133,7 @@ ignore_decorators = [
     "@app.before_serving",
     "@app.before_request",
     "@app.errorhandler",
+    "@pytest.fixture",
 ]
 ignore_names = [
     # stdlib callback overrides (html.parser.HTMLParser) are invoked by
@@ -150,12 +150,6 @@ ignore_names = [
     # ASGI entry point (imported by uvicorn via the "app:asgi_app" string in
     # src/__main__.py and the Dockerfile CMD).
     "asgi_app",
-    # pytest fixtures in tests/ (invoked via usefixtures/autouse, never
-    # by our code) print the version banner at the start of network runs.
-    "version_banner",
-    # The built-SPA fixture in tests/test_spa.py is requested only for its
-    # temp-dir setup side effect.
-    "built",
     # Module-level pytest attribute (read by pytest, not our code):
     # applies the network marker + banner fixture to network test files.
     "pytestmark",
