@@ -26,6 +26,15 @@ def _int_field(payload: Any, field: str) -> int | None:
     return value
 
 
+def _string_field(payload: Any, field: str) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    value = payload.get(field)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return value.strip()
+
+
 def current_guild_id() -> int | None:
     raw = session.get("guild_id")
     if not raw:
@@ -34,6 +43,15 @@ def current_guild_id() -> int | None:
         return int(raw)
     except (TypeError, ValueError):
         return None
+
+
+def _live_guild_id() -> int | None:
+    guild_id = current_guild_id()
+    if guild_id is None or not state.guild_visible(guild_id):
+        return None
+    if not state.session_exists(guild_id):
+        return None
+    return guild_id
 
 
 def _token_matches(candidate: Any) -> bool:
@@ -99,3 +117,47 @@ async def disconnect_voice() -> Response:
     if guild_id is not None and state.session_exists(guild_id):
         await actions.disconnect(guild_id)
     return jsonify(await state.status_snapshot(guild_id))
+
+
+@bp.post("/api/search")
+async def api_search() -> Response:
+    term = _string_field(await request.get_json(silent=True), "term")
+    if term is None:
+        return jsonify({"results": []})
+    return jsonify({"results": await actions.search_tracks(term)})
+
+
+@bp.post("/api/queue")
+async def queue_track() -> Response:
+    return await _mutate_queue(actions.add_track)
+
+
+@bp.post("/api/queue/remove")
+async def remove_queued_track() -> Response:
+    return await _mutate_queue(actions.remove_track)
+
+
+@bp.post("/api/queue/clear")
+async def clear_queued_tracks() -> Response:
+    guild = _live_guild_id()
+    if guild is None:
+        return _no_live_session()
+    await actions.clear_queue(guild)
+    return jsonify(await state.status_snapshot(guild))
+
+
+def _no_live_session() -> Response:
+    return error_response(
+        "not_found", "No active session for the selected guild", 404
+    )
+
+
+async def _mutate_queue(mutation) -> Response:
+    guild = _live_guild_id()
+    if guild is None:
+        return _no_live_session()
+    url = _string_field(await request.get_json(silent=True), "url")
+    if url is None:
+        return error_response("not_found", "A track URL is required", 404)
+    await mutation(guild, url)
+    return jsonify(await state.status_snapshot(guild))

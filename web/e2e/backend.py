@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -47,6 +48,26 @@ class HarnessBot(FakeBot):
         return not self.online
 
 
+class HarnessSession(FakeSession):
+    async def play(self, value: str) -> None:
+        self.calls.append(("play", value))
+        track = YTMusicData({"title": value, "url": value, "duration": 60})
+        self._status = replace(self._status, queue=(*self._status.queue, track))
+
+    async def remove(self, value: str) -> None:
+        self.calls.append(("remove", value))
+        self._status = replace(
+            self._status,
+            queue=tuple(
+                track for track in self._status.queue if track.url != value
+            ),
+        )
+
+    async def clear_queue(self) -> None:
+        self.calls.append("clear_queue")
+        self._status = replace(self._status, queue=())
+
+
 class HarnessSessions:
     """Guild-keyed session registry; connect and disconnect move real state."""
 
@@ -60,7 +81,7 @@ class HarnessSessions:
 
     async def connect(self, guild_id: int, channel_id: int) -> None:
         self.connect_calls.append((guild_id, channel_id))
-        self._by_guild[guild_id] = FakeSession(
+        self._by_guild[guild_id] = HarnessSession(
             status_for("Now Track", guild_id=guild_id, channel_id=channel_id)
         )
 
@@ -85,12 +106,26 @@ def status_for(
     )
 
 
-session_obj = FakeSession(status_for("Now Track"))
+session_obj = HarnessSession(status_for("Now Track"))
 bot = HarnessBot(
     [FakeGuild(GUILD_A, "Alpha Guild"), FakeGuild(GUILD_B, "Beta Guild")],
     session_obj,
 )
 bot.sessions = HarnessSessions(GUILD_A, session_obj)
+
+
+async def _canned_search(term: str) -> list[YTMusicData]:
+    return [
+        YTMusicData({
+            "title": f"Found {term}",
+            "url": f"https://example.com/{term}",
+            "uploader": "Harness",
+            "duration": 90,
+        })
+    ]
+
+
+YTMusicData.from_url = staticmethod(_canned_search)
 
 
 async def _run_inline(coro, timeout: float | None = None):
@@ -126,6 +161,21 @@ async def set_track():
 async def set_bot():
     payload = await request.get_json()
     bot.online = bool(payload["online"])
+    return {"ok": True}
+
+
+@quart_app.post("/__test__/reset")
+async def reset():
+    bot.online = True
+    session_obj._status = status_for("Now Track")
+    bot.sessions._by_guild[GUILD_A] = session_obj
+    return {"ok": True}
+
+
+@quart_app.post("/__test__/enqueue")
+async def enqueue():
+    payload = await request.get_json()
+    await session_obj.play(payload["url"])
     return {"ok": True}
 
 

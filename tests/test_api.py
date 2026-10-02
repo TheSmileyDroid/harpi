@@ -28,6 +28,8 @@ from tests.test_music_page import (
     FakeBot,
     FakeGuild,
     FakeSession,
+    found_track,
+    patch_search,
     playing_status,
 )
 
@@ -180,6 +182,20 @@ async def test_guarded_endpoints_reject_anonymous_calls(client, path: str):
 
 @pytest.mark.parametrize("path", ["/api/connect", "/api/disconnect"])
 async def test_guarded_mutations_reject_anonymous_calls(client, path: str):
+    response = await client.post(path, json={})
+
+    assert response.status_code == 401
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "unauthorized"
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/api/search", "/api/queue", "/api/queue/remove", "/api/queue/clear"],
+)
+async def test_search_and_queue_paths_reject_anonymous_calls(
+    client, path: str
+):
     response = await client.post(path, json={})
 
     assert response.status_code == 401
@@ -459,6 +475,209 @@ async def test_status_drops_a_selection_the_bot_no_longer_shares(client):
     body = json.loads(await response.get_data())
     assert body["guild_id"] is None
     assert body["connection"] == {"connected": False, "channel_id": None}
+
+
+async def test_search_returns_results(client, monkeypatch: pytest.MonkeyPatch):
+    await _login(client)
+    patch_search(monkeypatch, [found_track()])
+
+    response = await client.post("/api/search", json={"term": "found track"})
+
+    assert response.status_code == 200
+    body = json.loads(await response.get_data())
+    assert body["results"] == [
+        {
+            "title": "Found Track",
+            "url": "https://www.youtube.com/watch?v=found",
+            "uploader": "Artist",
+            "duration": 30,
+            "thumbnail": "https://img.example.com/found.jpg",
+        }
+    ]
+
+
+@pytest.mark.parametrize("payload", [{}, {"term": ""}, {"term": "   "}])
+async def test_search_without_a_term_returns_no_results(client, payload):
+    await _login(client)
+
+    response = await client.post("/api/search", json=payload)
+
+    assert response.status_code == 200
+    assert json.loads(await response.get_data()) == {"results": []}
+
+
+async def test_search_without_matches_returns_no_results(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    patch_search(monkeypatch, [])
+
+    response = await client.post("/api/search", json={"term": "nothing"})
+
+    assert response.status_code == 200
+    assert json.loads(await response.get_data()) == {"results": []}
+
+
+async def _select_guild(client) -> None:
+    async with client.session_transaction() as stored:
+        stored["guild_id"] = str(GUILD_A)
+
+
+async def test_queue_dispatches_and_answers_with_the_same_truth_as_status(
+    client, bot: ApiBot
+):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post(
+        "/api/queue", json={"url": "https://example.com/song"}
+    )
+    status = await client.get("/api/status")
+
+    assert response.status_code == 200
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert ("play", "https://example.com/song") in session_obj.calls
+    assert json.loads(await response.get_data()) == json.loads(
+        await status.get_data()
+    )
+
+
+async def test_queue_trims_a_padded_url(client, bot: ApiBot):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post(
+        "/api/queue", json={"url": "  https://example.com/song  "}
+    )
+
+    assert response.status_code == 200
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert ("play", "https://example.com/song") in session_obj.calls
+
+
+async def test_queue_remove_dispatches_and_answers_with_the_same_truth_as_status(
+    client, bot: ApiBot
+):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post(
+        "/api/queue/remove", json={"url": "https://example.com/song"}
+    )
+    status = await client.get("/api/status")
+
+    assert response.status_code == 200
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert ("remove", "https://example.com/song") in session_obj.calls
+    assert json.loads(await response.get_data()) == json.loads(
+        await status.get_data()
+    )
+
+
+async def test_queue_clear_dispatches_and_answers_with_the_same_truth_as_status(
+    client, bot: ApiBot
+):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post("/api/queue/clear")
+    status = await client.get("/api/status")
+
+    assert response.status_code == 200
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert "clear_queue" in session_obj.calls
+    assert json.loads(await response.get_data()) == json.loads(
+        await status.get_data()
+    )
+
+
+@pytest.mark.parametrize(
+    ("path", "payload"),
+    [
+        ("/api/queue", {"url": "https://example.com/song"}),
+        ("/api/queue/remove", {"url": "https://example.com/song"}),
+        ("/api/queue/clear", {}),
+    ],
+)
+async def test_queue_mutations_require_a_live_session(
+    client, bot: ApiBot, path: str, payload: dict[str, Any]
+):
+    await _login(client)
+    await _select_guild(client)
+    bot.sessions._session = None
+
+    response = await client.post(path, json=payload)
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+
+
+@pytest.mark.parametrize(
+    ("path", "payload"),
+    [
+        ("/api/queue", {"url": "https://example.com/song"}),
+        ("/api/queue/remove", {"url": "https://example.com/song"}),
+        ("/api/queue/clear", {}),
+    ],
+)
+async def test_queue_mutations_require_a_shared_selection(
+    client, path: str, payload: dict[str, Any]
+):
+    await _login(client)
+    async with client.session_transaction() as stored:
+        stored["guild_id"] = "99999"
+
+    response = await client.post(path, json=payload)
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+
+
+@pytest.mark.parametrize(
+    ("path", "payload"),
+    [
+        ("/api/queue", {}),
+        ("/api/queue", {"url": ""}),
+        ("/api/queue", {"url": 42}),
+        ("/api/queue/remove", {}),
+        ("/api/queue/remove", {"url": 42}),
+    ],
+)
+async def test_queue_mutations_require_a_url(
+    client, path: str, payload: dict[str, Any]
+):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post(path, json=payload)
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+
+
+async def test_search_maps_a_failure_to_the_error_envelope(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+
+    async def boom(term: str) -> list[dict[str, Any]]:
+        raise RuntimeError("search exploded")
+
+    monkeypatch.setattr("pages.api.actions.search_tracks", boom)
+    monkeypatch.setitem(quart_app.config, "TESTING", False)
+
+    response = await client.post("/api/search", json={"term": "anything"})
+
+    assert response.status_code == 500
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "internal_error"
 
 
 async def test_sse_stream_reports_and_resyncs_status(client, bot: ApiBot):

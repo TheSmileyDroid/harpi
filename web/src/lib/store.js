@@ -8,7 +8,7 @@ const noStatus = {
 };
 
 function emptySearch() {
-  return { query: "", open: false, activeIndex: 0, results: [] };
+  return { query: "", open: false, activeIndex: -1, results: [] };
 }
 
 export function initialState() {
@@ -83,7 +83,7 @@ export function createAppStore() {
     closeSearch() {
       update((state) => ({
         ...state,
-        search: { ...state.search, open: false, activeIndex: 0 },
+        search: { ...state.search, open: false, activeIndex: -1 },
       }));
     },
     setActiveIndex(activeIndex) {

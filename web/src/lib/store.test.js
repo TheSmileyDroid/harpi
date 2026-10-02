@@ -134,7 +134,7 @@ describe("createAppStore", () => {
     store.closeSearch();
 
     expect(get(store).search.open).toBe(false);
-    expect(get(store).search.activeIndex).toBe(0);
+    expect(get(store).search.activeIndex).toBe(-1);
   });
 
   it("owns the guild and channel selection", () => {

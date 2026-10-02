@@ -303,3 +303,135 @@ header[role="banner"] {
   font-size: 0.65rem;
   color: var(--color-amber-dim);
 }
+
+.action-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-end;
+  margin: 0.75rem -1rem -1rem;
+  padding: 0.35rem 0.5rem;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-surface-2);
+}
+
+.action-strip > * + * {
+  border-inline-start: 1px solid var(--color-line);
+}
+
+.row-meta {
+  font-size: 0.7rem;
+  color: var(--color-amber-dim);
+  white-space: nowrap;
+}
+
+.hud-btn-danger {
+  color: var(--color-alert);
+  border-color: var(--color-alert-dim);
+}
+
+.hud-btn-danger:hover {
+  background: var(--color-alert);
+  color: var(--color-background);
+}
+
+.hud-dialog {
+  color: var(--color-primary);
+  min-width: min(26rem, 90vw);
+}
+
+.hud-dialog::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+.hud-dialog .action-strip {
+  background: var(--color-surface);
+}
+
+.confirm-text {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+}
+
+.search-shell {
+  position: relative;
+}
+
+.search-input {
+  width: 100%;
+}
+
+.search-dropdown {
+  margin-top: 0.35rem;
+  border: 1px solid var(--color-line);
+  outline: 1px solid var(--color-line-strong);
+  outline-offset: 2px;
+  background: var(--color-surface-2);
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.search-row:last-child {
+  border-bottom: none;
+}
+
+.search-row.is-active {
+  border-bottom: 1px solid var(--color-amber-bright);
+}
+
+.search-thumb,
+.row-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border: 1px solid var(--color-line);
+  flex: none;
+}
+
+.row-thumb {
+  width: 32px;
+  height: 32px;
+}
+
+.thumb-empty {
+  display: inline-block;
+  background: var(--color-surface);
+}
+
+.search-status {
+  margin: 0;
+  padding: 0.5rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-idle);
+}
+
+.search-status.is-alert {
+  color: var(--color-alert);
+}
+
+.queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.queue-row {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.queue-row .hud-btn {
+  min-width: 0;
+  padding: 0.3rem 0.6rem;
+}
+
+.queue-index {
+  color: var(--color-amber-dim);
+}

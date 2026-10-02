@@ -37,12 +37,22 @@ async def disconnect(guild_id: int) -> None:
 async def search(
     term: str, track_source: type[YTMusicData] = YTMusicData
 ) -> list[dict[str, Any]]:
+    results = await search_tracks(term, track_source)
+    if not results and term.strip():
+        raise ValueError("Nenhuma música encontrada para esta busca")
+    return results
+
+
+async def search_tracks(
+    term: str, track_source: type[YTMusicData] = YTMusicData
+) -> list[dict[str, Any]]:
     term = term.strip()
     if not term:
         return []
-    results = await track_source.from_url(term)
-    if not results:
-        raise ValueError("Nenhuma música encontrada para esta busca")
+    return _track_list(await track_source.from_url(term))
+
+
+def _track_list(results: list[YTMusicData]) -> list[dict[str, Any]]:
     return [
         serialization.track_data(track)
         for track in results[:SEARCH_RESULT_LIMIT]

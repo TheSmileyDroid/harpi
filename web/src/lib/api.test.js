@@ -20,6 +20,20 @@ function failingClient() {
   return { client, reported };
 }
 
+/**
+ * @param {object} [payload]
+ */
+function recordingClient(payload = { guild_id: 7 }) {
+  const calls = [];
+  const client = createApiClient({
+    fetchImpl: async (path, options) => {
+      calls.push({ path, options });
+      return jsonResponse(200, payload);
+    },
+  });
+  return { client, calls };
+}
+
 describe("createApiClient", () => {
   it("exchanges a token for a session", async () => {
     const calls = [];
@@ -134,13 +148,7 @@ describe("createApiClient", () => {
   });
 
   it("posts a connect with the guild and channel", async () => {
-    const calls = [];
-    const client = createApiClient({
-      fetchImpl: async (path, options) => {
-        calls.push({ path, options });
-        return jsonResponse(200, { guild_id: 7 });
-      },
-    });
+    const { client, calls } = recordingClient({ guild_id: 7 });
 
     const payload = await client.connect(7, 70);
 
@@ -154,17 +162,53 @@ describe("createApiClient", () => {
   });
 
   it("posts a disconnect", async () => {
-    const calls = [];
-    const client = createApiClient({
-      fetchImpl: async (path, options) => {
-        calls.push({ path, options });
-        return jsonResponse(200, { guild_id: 7 });
-      },
-    });
+    const { client, calls } = recordingClient({ guild_id: 7 });
 
     await client.disconnect();
 
     expect(calls[0].path).toBe("/api/disconnect");
     expect(calls[0].options.method).toBe("POST");
+  });
+
+  it("posts a search term", async () => {
+    const { client, calls } = recordingClient({ results: [] });
+
+    await expect(client.search("daft punk")).resolves.toEqual({ results: [] });
+    expect(calls[0].path).toBe("/api/search");
+    expect(calls[0].options.method).toBe("POST");
+    expect(JSON.parse(calls[0].options.body)).toEqual({ term: "daft punk" });
+  });
+
+  it("posts a queue url", async () => {
+    const { client, calls } = recordingClient({ guild_id: 7 });
+
+    await client.queue("https://example.com/song");
+
+    expect(calls[0].path).toBe("/api/queue");
+    expect(calls[0].options.method).toBe("POST");
+    expect(JSON.parse(calls[0].options.body)).toEqual({
+      url: "https://example.com/song",
+    });
+  });
+
+  it("posts a queue removal", async () => {
+    const { client, calls } = recordingClient({ guild_id: 7 });
+
+    await client.removeFromQueue("https://example.com/song");
+
+    expect(calls[0].path).toBe("/api/queue/remove");
+    expect(JSON.parse(calls[0].options.body)).toEqual({
+      url: "https://example.com/song",
+    });
+  });
+
+  it("posts a queue clear without a body", async () => {
+    const { client, calls } = recordingClient({ guild_id: 7 });
+
+    await client.clearQueue();
+
+    expect(calls[0].path).toBe("/api/queue/clear");
+    expect(calls[0].options.method).toBe("POST");
+    expect(calls[0].options.body).toBeUndefined();
   });
 });

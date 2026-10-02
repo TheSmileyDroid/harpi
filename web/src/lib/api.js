@@ -108,5 +108,20 @@ export function createApiClient({
     disconnect() {
       return request("/api/disconnect", { method: "POST" });
     },
+    search(term) {
+      return request("/api/search", { method: "POST", body: { term } });
+    },
+    queue(url) {
+      return request("/api/queue", { method: "POST", body: { url } });
+    },
+    removeFromQueue(url) {
+      return request("/api/queue/remove", {
+        method: "POST",
+        body: { url },
+      });
+    },
+    clearQueue() {
+      return request("/api/queue/clear", { method: "POST" });
+    },
   };
 }

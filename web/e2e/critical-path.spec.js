@@ -127,3 +127,43 @@ test("selects a shared guild, connects to a voice channel, then disconnects", as
 
   await expect(page.getByTestId("connection")).toHaveText("Not connected");
 });
+
+test("searches, queues, and removes, with queue changes live over SSE", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${BACKEND}/__test__/reset`);
+  let loads = 0;
+  page.on("load", () => {
+    loads += 1;
+  });
+
+  await page.goto("/");
+  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
+  await page.getByTestId("sign-in").click();
+  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+
+  await page.getByTestId("search-input").fill("daft punk");
+  await expect(page.getByTestId("search-result").first()).toContainText(
+    "Found daft punk",
+  );
+
+  await page.getByTestId("queue-track").first().click();
+  await expect(page.getByTestId("toasts")).toContainText("Added to queue");
+  await expect(page.getByTestId("queue-row").first()).toContainText(
+    "daft punk",
+  );
+
+  await page.getByTestId("queue-remove").first().click();
+  await expect(page.getByTestId("confirm-dialog")).toBeVisible();
+  await page.getByTestId("confirm-execute").click();
+  await expect(page.getByTestId("toasts")).toContainText("Removed from queue");
+  await expect(page.getByTestId("queue-empty")).toContainText("Queue empty");
+
+  await request.post(`${BACKEND}/__test__/enqueue`, {
+    data: { url: "https://example.com/Live" },
+  });
+  await expect(page.getByTestId("queue-row").first()).toContainText("Live");
+
+  expect(loads).toBe(1);
+});

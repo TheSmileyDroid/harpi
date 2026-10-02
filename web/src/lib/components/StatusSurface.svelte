@@ -4,6 +4,8 @@
   import { appStore } from "$lib/store.js";
   import { toasts } from "$lib/toasts.js";
   import StatusChip from "./StatusChip.svelte";
+  import SearchPanel from "./SearchPanel.svelte";
+  import QueuePanel from "./QueuePanel.svelte";
 
   let { link, onrefresh, onresync, api } = $props();
   let refreshing = $state(false);
@@ -264,6 +266,10 @@
         </div>
       {/if}
     </section>
+
+    <SearchPanel {api} />
+
+    <QueuePanel {api} />
   </div>
 
   <footer class="status-strip">
@@ -291,20 +297,5 @@
 
   .link-state[data-link="reconnecting"] {
     color: var(--color-alert);
-  }
-
-  .action-strip {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: stretch;
-    justify-content: flex-end;
-    margin: 0.75rem -1rem -1rem;
-    padding: 0.35rem 0.5rem;
-    border-top: 1px solid var(--color-line);
-    background: var(--color-surface-2);
-  }
-
-  .action-strip > * + * {
-    border-inline-start: 1px solid var(--color-line);
   }
 </style>
