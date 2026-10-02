@@ -16,6 +16,24 @@
   let seeking = $state(false);
   let seekRatio = $state(0);
   let track = $state(null);
+  let bar = $state(null);
+
+  $effect(() => {
+    const element = bar;
+    if (!element) return;
+    const apply = () =>
+      document.documentElement.style.setProperty(
+        "--transport-height",
+        `${element.offsetHeight}px`,
+      );
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--transport-height");
+    };
+  });
 
   const playback = $derived($appStore.playback);
   const ready = $derived(playback !== null);
@@ -110,7 +128,12 @@
   }
 </script>
 
-<div class="transport-bar" class:is-paused={isPaused} data-testid="transport">
+<div
+  class="transport-bar"
+  class:is-paused={isPaused}
+  bind:this={bar}
+  data-testid="transport"
+>
   {#if !ready}
     <span class="progress-readout is-empty" data-testid="transport-empty">
       TRANSPORT // NO SESSION
