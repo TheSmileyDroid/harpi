@@ -106,4 +106,65 @@ describe("createApiClient", () => {
 
     await expect(client.status()).resolves.toEqual({ bot: { online: true } });
   });
+
+  it("reads the guild list", async () => {
+    const client = createApiClient({
+      fetchImpl: async (path) => {
+        expect(path).toBe("/api/guilds");
+        return jsonResponse(200, { guilds: [{ id: 1, name: "Alpha" }] });
+      },
+    });
+
+    await expect(client.guilds()).resolves.toEqual({
+      guilds: [{ id: 1, name: "Alpha" }],
+    });
+  });
+
+  it("reads a guild's voice channels", async () => {
+    const client = createApiClient({
+      fetchImpl: async (path) => {
+        expect(path).toBe("/api/guilds/7/channels");
+        return jsonResponse(200, { channels: [{ id: 70, name: "Voice" }] });
+      },
+    });
+
+    await expect(client.channels(7)).resolves.toEqual({
+      channels: [{ id: 70, name: "Voice" }],
+    });
+  });
+
+  it("posts a connect with the guild and channel", async () => {
+    const calls = [];
+    const client = createApiClient({
+      fetchImpl: async (path, options) => {
+        calls.push({ path, options });
+        return jsonResponse(200, { guild_id: 7 });
+      },
+    });
+
+    const payload = await client.connect(7, 70);
+
+    expect(payload).toEqual({ guild_id: 7 });
+    expect(calls[0].path).toBe("/api/connect");
+    expect(calls[0].options.method).toBe("POST");
+    expect(JSON.parse(calls[0].options.body)).toEqual({
+      guild_id: 7,
+      channel_id: 70,
+    });
+  });
+
+  it("posts a disconnect", async () => {
+    const calls = [];
+    const client = createApiClient({
+      fetchImpl: async (path, options) => {
+        calls.push({ path, options });
+        return jsonResponse(200, { guild_id: 7 });
+      },
+    });
+
+    await client.disconnect();
+
+    expect(calls[0].path).toBe("/api/disconnect");
+    expect(calls[0].options.method).toBe("POST");
+  });
 });

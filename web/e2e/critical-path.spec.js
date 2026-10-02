@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 
 const PANEL_TOKEN = "e2e-panel-token";
 const BACKEND = "http://127.0.0.1:8100";
+const GUILD_B = 2;
+const GUILD_B_CHANNEL = GUILD_B * 10;
 
 test("sign in, then a pushed status change lands without a reload", async ({
   page,
@@ -91,4 +93,37 @@ test("a valid session skips sign-in on reload", async ({ page, context }) => {
   await expect(page.getByTestId("signin")).toHaveCount(0);
   await expect(page.getByTestId("bot-status")).toBeVisible();
   expect(context.pages()).toHaveLength(1);
+});
+
+test("selects a shared guild, connects to a voice channel, then disconnects", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${BACKEND}/__test__/bot`, { data: { online: true } });
+  await page.goto("/");
+  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
+  await page.getByTestId("sign-in").click();
+  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+
+  await expect(page.getByTestId("guild-select").locator("option")).toHaveCount(
+    3,
+  );
+  await expect(page.getByTestId("guild-select")).toContainText("Beta Guild");
+
+  await page.getByTestId("guild-select").selectOption(String(GUILD_B));
+  await expect(page.getByTestId("channel-select")).toContainText("Channel 2");
+  await page
+    .getByTestId("channel-select")
+    .selectOption(String(GUILD_B_CHANNEL));
+
+  await page.getByTestId("connect").click();
+
+  await expect(page.getByTestId("connection")).toHaveText(
+    `Linked to ${GUILD_B_CHANNEL}`,
+  );
+  await expect(page.getByTestId("toasts")).toContainText("Connected");
+
+  await page.getByTestId("disconnect").click();
+
+  await expect(page.getByTestId("connection")).toHaveText("Not connected");
 });

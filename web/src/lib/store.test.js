@@ -66,6 +66,17 @@ describe("reduceStatus", () => {
   });
 });
 
+describe("guild selection", () => {
+  it("keeps a pending client selection across status frames", () => {
+    const before = { ...initialState(), pendingGuildId: 9 };
+
+    const after = reduceStatus(before, snapshot);
+
+    expect(after.guildId).toBe(7);
+    expect(after.pendingGuildId).toBe(9);
+  });
+});
+
 describe("reduceSse", () => {
   it("applies a status frame through the same reducer", () => {
     const after = reduceSse(initialState(), { type: "status", data: snapshot });
@@ -124,6 +135,20 @@ describe("createAppStore", () => {
 
     expect(get(store).search.open).toBe(false);
     expect(get(store).search.activeIndex).toBe(0);
+  });
+
+  it("owns the guild and channel selection", () => {
+    const store = createAppStore();
+
+    store.setGuilds([{ id: 1, name: "Alpha" }]);
+    store.setChannels([{ id: 10, name: "Voice" }]);
+    store.selectGuild(1);
+    store.selectChannel(10);
+
+    expect(get(store).guilds).toEqual([{ id: 1, name: "Alpha" }]);
+    expect(get(store).channels).toEqual([{ id: 10, name: "Voice" }]);
+    expect(get(store).pendingGuildId).toBe(1);
+    expect(get(store).selectedChannelId).toBe(10);
   });
 
   it("resets to the initial state", () => {

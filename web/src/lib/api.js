@@ -93,5 +93,20 @@ export function createApiClient({
     status() {
       return request("/api/status");
     },
+    guilds() {
+      return request("/api/guilds");
+    },
+    channels(guildId) {
+      return request(`/api/guilds/${guildId}/channels`);
+    },
+    connect(guildId, channelId) {
+      return request("/api/connect", {
+        method: "POST",
+        body: { guild_id: guildId, channel_id: channelId },
+      });
+    },
+    disconnect() {
+      return request("/api/disconnect", { method: "POST" });
+    },
   };
 }

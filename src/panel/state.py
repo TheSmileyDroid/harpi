@@ -14,6 +14,14 @@ def bot_connected() -> bool:
     return bool(bot.is_ready() and not bot.is_closed())
 
 
+def guild_visible(guild_id: int) -> bool:
+    return get_bot().get_guild(guild_id) is not None
+
+
+def session_exists(guild_id: int) -> bool:
+    return get_bot().sessions.get(guild_id) is not None
+
+
 async def _collect_guilds(bot: HarpiBot) -> list[Guild]:
     return [guild async for guild in bot.fetch_guilds(limit=150)]
 
@@ -45,6 +53,8 @@ async def guild_status(guild_id: int | None) -> dict[str, Any] | None:
 
 
 async def status_snapshot(guild_id: int | None) -> dict[str, Any]:
+    if guild_id is not None and not guild_visible(guild_id):
+        guild_id = None
     playback = await guild_status(guild_id)
     return {
         "bot": {"online": bot_connected()},

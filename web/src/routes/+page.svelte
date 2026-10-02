@@ -51,6 +51,11 @@
     stream.start();
   }
 
+  async function resync() {
+    await loadStatus();
+    startStream();
+  }
+
   async function loadStatus() {
     const snapshot = await api.status().catch(() => null);
     if (!snapshot) return false;
@@ -90,7 +95,7 @@
 {:else if phase === "signed-out"}
   <SignIn onsignin={signIn} />
 {:else}
-  <StatusSurface {link} onrefresh={loadStatus} />
+  <StatusSurface {link} onrefresh={loadStatus} onresync={resync} {api} />
 {/if}
 
 <style>

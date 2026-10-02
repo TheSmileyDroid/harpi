@@ -12,7 +12,14 @@ function emptySearch() {
 }
 
 export function initialState() {
-  return { ...noStatus, search: emptySearch() };
+  return {
+    ...noStatus,
+    guilds: [],
+    channels: [],
+    pendingGuildId: null,
+    selectedChannelId: null,
+    search: emptySearch(),
+  };
 }
 
 export function normalizeStatus(snapshot) {
@@ -48,6 +55,18 @@ export function createAppStore() {
     },
     applySse(frame) {
       update((state) => reduceSse(state, frame));
+    },
+    setGuilds(guilds) {
+      update((state) => ({ ...state, guilds }));
+    },
+    setChannels(channels) {
+      update((state) => ({ ...state, channels }));
+    },
+    selectGuild(pendingGuildId) {
+      update((state) => ({ ...state, pendingGuildId }));
+    },
+    selectChannel(selectedChannelId) {
+      update((state) => ({ ...state, selectedChannelId }));
     },
     setSearchQuery(query) {
       update((state) => ({ ...state, search: { ...state.search, query } }));

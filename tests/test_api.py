@@ -24,6 +24,7 @@ from src.harpi_lib.harpi_bot import HarpiBot
 from src.harpi_lib.music.ytmusic import YTMusicData
 from tests.test_music_page import (
     GUILD_A,
+    GUILD_B,
     FakeBot,
     FakeGuild,
     FakeSession,
@@ -167,10 +168,19 @@ async def test_session_exchange_rejects_when_no_token_is_configured(
 
 @pytest.mark.parametrize(
     "path",
-    ["/api", "/api/session", "/api/status", "/api/events"],
+    ["/api", "/api/session", "/api/status", "/api/events", "/api/guilds"],
 )
 async def test_guarded_endpoints_reject_anonymous_calls(client, path: str):
     response = await client.get(path)
+
+    assert response.status_code == 401
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "unauthorized"
+
+
+@pytest.mark.parametrize("path", ["/api/connect", "/api/disconnect"])
+async def test_guarded_mutations_reject_anonymous_calls(client, path: str):
+    response = await client.post(path, json={})
 
     assert response.status_code == 401
     body = json.loads(await response.get_data())
@@ -286,6 +296,169 @@ async def test_status_maps_an_unexpected_failure_to_an_envelope(
     assert response.status_code == 500
     body = json.loads(await response.get_data())
     assert body["error"]["code"] == "internal_error"
+
+
+async def test_guild_list_reports_only_shared_guilds(client):
+    await _login(client)
+
+    response = await client.get("/api/guilds")
+
+    assert response.status_code == 200
+    assert json.loads(await response.get_data()) == {
+        "guilds": [{"id": GUILD_A, "name": "Alpha Guild"}]
+    }
+
+
+async def test_guild_list_tracks_bot_membership(client, bot: ApiBot):
+    await _login(client)
+    bot._guilds[GUILD_B] = FakeGuild(GUILD_B, "Beta Guild")
+
+    added = await client.get("/api/guilds")
+    ids = [
+        guild["id"] for guild in json.loads(await added.get_data())["guilds"]
+    ]
+    assert ids == [GUILD_A, GUILD_B]
+
+    bot._guilds.pop(GUILD_A)
+    removed = await client.get("/api/guilds")
+    ids = [
+        guild["id"] for guild in json.loads(await removed.get_data())["guilds"]
+    ]
+    assert ids == [GUILD_B]
+
+
+async def test_channel_list_reports_the_guilds_voice_channels(client):
+    await _login(client)
+
+    response = await client.get(f"/api/guilds/{GUILD_A}/channels")
+
+    assert response.status_code == 200
+    assert json.loads(await response.get_data()) == {
+        "channels": [{"id": GUILD_A * 10, "name": "Channel 1"}]
+    }
+
+
+async def test_channel_list_rejects_an_unshared_guild(client):
+    await _login(client)
+
+    response = await client.get("/api/guilds/99999/channels")
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+
+
+async def test_connect_dispatches_and_records_the_selection(
+    client, bot: ApiBot
+):
+    await _login(client)
+
+    response = await client.post(
+        "/api/connect", json={"guild_id": GUILD_A, "channel_id": GUILD_A * 10}
+    )
+
+    assert response.status_code == 200
+    assert bot.sessions.connect_calls == [(GUILD_A, GUILD_A * 10)]
+    body = json.loads(await response.get_data())
+    assert body["guild_id"] == GUILD_A
+    assert body["connection"] == {"connected": True, "channel_id": CHANNEL_ID}
+    async with client.session_transaction() as stored:
+        assert stored["guild_id"] == str(GUILD_A)
+
+
+async def test_connect_rejects_an_unshared_guild(client, bot: ApiBot):
+    await _login(client)
+
+    response = await client.post(
+        "/api/connect", json={"guild_id": 99999, "channel_id": 10}
+    )
+
+    assert response.status_code == 404
+    assert bot.sessions.connect_calls == []
+
+
+async def test_connect_rejects_a_channel_outside_the_guild(
+    client, bot: ApiBot
+):
+    await _login(client)
+
+    response = await client.post(
+        "/api/connect", json={"guild_id": GUILD_A, "channel_id": 11}
+    )
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+    assert bot.sessions.connect_calls == []
+
+
+async def test_connect_answers_with_the_same_truth_as_status(
+    client, bot: ApiBot
+):
+    await _login(client)
+
+    response = await client.post(
+        "/api/connect", json={"guild_id": GUILD_A, "channel_id": GUILD_A * 10}
+    )
+    status = await client.get("/api/status")
+
+    assert json.loads(await response.get_data()) == json.loads(
+        await status.get_data()
+    )
+
+
+async def test_disconnect_answers_with_the_same_truth_as_status(
+    client, bot: ApiBot
+):
+    await _login(client)
+    async with client.session_transaction() as stored:
+        stored["guild_id"] = str(GUILD_A)
+
+    response = await client.post("/api/disconnect")
+    status = await client.get("/api/status")
+
+    assert response.status_code == 200
+    assert bot.sessions.disconnect_calls == [GUILD_A]
+    assert json.loads(await response.get_data()) == json.loads(
+        await status.get_data()
+    )
+
+
+async def test_disconnect_without_a_selection_is_idempotent(
+    client, bot: ApiBot
+):
+    await _login(client)
+
+    response = await client.post("/api/disconnect")
+
+    assert response.status_code == 200
+    assert bot.sessions.disconnect_calls == []
+    assert json.loads(await response.get_data())["guild_id"] is None
+
+
+async def test_disconnect_keeps_the_selection(client, bot: ApiBot):
+    await _login(client)
+    async with client.session_transaction() as stored:
+        stored["guild_id"] = str(GUILD_A)
+
+    await client.post("/api/disconnect")
+
+    async with client.session_transaction() as stored:
+        assert stored["guild_id"] == str(GUILD_A)
+    response = await client.get("/api/status")
+    assert json.loads(await response.get_data())["guild_id"] == GUILD_A
+
+
+async def test_status_drops_a_selection_the_bot_no_longer_shares(client):
+    await _login(client)
+    async with client.session_transaction() as stored:
+        stored["guild_id"] = "99999"
+
+    response = await client.get("/api/status")
+
+    body = json.loads(await response.get_data())
+    assert body["guild_id"] is None
+    assert body["connection"] == {"connected": False, "channel_id": None}
 
 
 async def test_sse_stream_reports_and_resyncs_status(client, bot: ApiBot):

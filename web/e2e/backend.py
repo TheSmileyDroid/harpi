@@ -25,6 +25,7 @@ from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel import state as panel_state
 from tests.test_music_page import (
     GUILD_A,
+    GUILD_B,
     FakeBot,
     FakeGuild,
     FakeSession,
@@ -46,10 +47,34 @@ class HarnessBot(FakeBot):
         return not self.online
 
 
-def status_for(title: str) -> SessionStatus:
+class HarnessSessions:
+    """Guild-keyed session registry; connect and disconnect move real state."""
+
+    def __init__(self, guild_id: int, session_obj):
+        self._by_guild = {guild_id: session_obj}
+        self.connect_calls: list[tuple[int, int]] = []
+        self.disconnect_calls: list[int] = []
+
+    def get(self, guild_id: int):
+        return self._by_guild.get(guild_id)
+
+    async def connect(self, guild_id: int, channel_id: int) -> None:
+        self.connect_calls.append((guild_id, channel_id))
+        self._by_guild[guild_id] = FakeSession(
+            status_for("Now Track", guild_id=guild_id, channel_id=channel_id)
+        )
+
+    async def disconnect(self, guild_id: int) -> None:
+        self.disconnect_calls.append(guild_id)
+        self._by_guild.pop(guild_id, None)
+
+
+def status_for(
+    title: str, guild_id: int = GUILD_A, channel_id: int = 42
+) -> SessionStatus:
     return playing_status(
-        guild_id=GUILD_A,
-        channel_id=42,
+        guild_id=guild_id,
+        channel_id=channel_id,
         current_music=YTMusicData(
             {
                 "title": title,
@@ -61,7 +86,11 @@ def status_for(title: str) -> SessionStatus:
 
 
 session_obj = FakeSession(status_for("Now Track"))
-bot = HarnessBot([FakeGuild(GUILD_A, "Alpha Guild")], session_obj)
+bot = HarnessBot(
+    [FakeGuild(GUILD_A, "Alpha Guild"), FakeGuild(GUILD_B, "Beta Guild")],
+    session_obj,
+)
+bot.sessions = HarnessSessions(GUILD_A, session_obj)
 
 
 async def _run_inline(coro, timeout: float | None = None):
@@ -89,7 +118,7 @@ async def ping():
 @quart_app.post("/__test__/track")
 async def set_track():
     payload = await request.get_json()
-    session_obj._status = status_for(payload["title"])
+    bot.sessions.get(GUILD_A)._status = status_for(payload["title"])
     return {"ok": True}
 
 

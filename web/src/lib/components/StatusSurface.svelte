@@ -1,10 +1,17 @@
 <script>
+  import { onMount } from "svelte";
+  import { get } from "svelte/store";
   import { appStore } from "$lib/store.js";
   import { toasts } from "$lib/toasts.js";
   import StatusChip from "./StatusChip.svelte";
 
-  let { link, onrefresh } = $props();
+  let { link, onrefresh, onresync, api } = $props();
   let refreshing = $state(false);
+  let busy = $state(false);
+  let lastGuildId = null;
+  let effectiveGuildId = $derived(
+    $appStore.pendingGuildId ?? $appStore.guildId,
+  );
 
   const linkLabels = {
     connected: "LINK LIVE",
@@ -17,6 +24,57 @@
     return `${Math.round(value * 100)}%`;
   }
 
+  async function loadGuilds() {
+    const payload = await api.guilds().catch(() => null);
+    if (!payload) return;
+    appStore.setGuilds(payload.guilds);
+  }
+
+  async function loadChannels(guildId) {
+    if (guildId === null) {
+      appStore.setChannels([]);
+      return;
+    }
+    const payload = await api.channels(guildId).catch(() => null);
+    if (payload) appStore.setChannels(payload.channels);
+  }
+
+  function onGuildChange(event) {
+    const value = event.currentTarget.value;
+    appStore.selectChannel(null);
+    appStore.selectGuild(value === "" ? null : Number(value));
+  }
+
+  function onChannelChange(event) {
+    const value = event.currentTarget.value;
+    appStore.selectChannel(value === "" ? null : Number(value));
+  }
+
+  async function mutate(action, message) {
+    busy = true;
+    try {
+      const snapshot = await action();
+      appStore.applyStatus(snapshot);
+      toasts.push(message);
+      await onresync();
+    } catch {
+      return;
+    } finally {
+      busy = false;
+    }
+  }
+
+  function connect() {
+    return mutate(
+      () => api.connect(effectiveGuildId, get(appStore).selectedChannelId),
+      "Connected",
+    );
+  }
+
+  function disconnect() {
+    return mutate(() => api.disconnect(), "Disconnected");
+  }
+
   async function refresh() {
     refreshing = true;
     try {
@@ -27,6 +85,17 @@
       refreshing = false;
     }
   }
+
+  onMount(() => {
+    loadGuilds();
+  });
+
+  $effect(() => {
+    const guildId = effectiveGuildId;
+    if (guildId === lastGuildId) return;
+    lastGuildId = guildId;
+    loadChannels(guildId);
+  });
 </script>
 
 <main class="app-container" id="shell">
@@ -57,6 +126,60 @@
           <span class="data-value" data-testid="guild-id">
             Guild {$appStore.guildId}
           </span>
+        {/if}
+      </div>
+      <div class="data-row">
+        <label class="data-label" for="guild-select">Guild</label>
+        <select
+          id="guild-select"
+          class="hud-input"
+          data-testid="guild-select"
+          value={effectiveGuildId ?? ""}
+          onchange={onGuildChange}
+        >
+          <option value="" disabled>Select a guild</option>
+          {#each $appStore.guilds as guild (guild.id)}
+            <option value={guild.id}>{guild.name}</option>
+          {/each}
+        </select>
+      </div>
+      {#if effectiveGuildId !== null}
+        <div class="data-row">
+          <label class="data-label" for="channel-select">Channel</label>
+          <select
+            id="channel-select"
+            class="hud-input"
+            data-testid="channel-select"
+            value={$appStore.selectedChannelId ?? ""}
+            onchange={onChannelChange}
+          >
+            <option value="" disabled>Select a channel</option>
+            {#each $appStore.channels as channel (channel.id)}
+              <option value={channel.id}>{channel.name}</option>
+            {/each}
+          </select>
+        </div>
+      {/if}
+      <div class="action-strip">
+        <button
+          class="hud-btn"
+          type="button"
+          onclick={connect}
+          disabled={busy || $appStore.selectedChannelId === null}
+          data-testid="connect"
+        >
+          Connect
+        </button>
+        {#if $appStore.connection.connected}
+          <button
+            class="hud-btn"
+            type="button"
+            onclick={disconnect}
+            disabled={busy}
+            data-testid="disconnect"
+          >
+            Disconnect
+          </button>
         {/if}
       </div>
     </section>
@@ -172,10 +295,16 @@
 
   .action-strip {
     display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
     justify-content: flex-end;
     margin: 0.75rem -1rem -1rem;
     padding: 0.35rem 0.5rem;
     border-top: 1px solid var(--color-line);
     background: var(--color-surface-2);
+  }
+
+  .action-strip > * + * {
+    border-inline-start: 1px solid var(--color-line);
   }
 </style>
