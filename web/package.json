@@ -6,13 +6,14 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "prepare": "svelte-kit sync",
     "preview": "vite preview",
     "test": "vitest run",
     "e2e": "bun run build && playwright test",
     "lint": "eslint src e2e",
     "format": "prettier --write src e2e",
     "format:check": "prettier --check src e2e",
-    "typecheck": "svelte-check --tsconfig ./jsconfig.json",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
     "test:coverage": "vitest run --coverage",
     "knip": "knip"
   },
