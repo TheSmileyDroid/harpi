@@ -6,17 +6,14 @@ authors = [{ name = "TheSmileyDroid", email = "ghsilha@gmail.com" }]
 dependencies = [
     "cryptography>=45.0.3",
     "discord.py[voice]>=2.5.2",
-    "djlint>=1.39.0,<1.39.3",
     "gtts>=2.5.4",
     "hypercorn>=0.18.0",
     "jinja2>=3.1.6",
-    "jinja2-fragments>=0.10.0",
     "loguru>=0.7.3",
     "numpy>=2.4.0",
     "pillow>=11.2.1",
     "playwright>=1.61.0",
     "psutil>=7.0.0",
-    "pytailwindcss>=0.3.1",
     "pydantic>=2.13.4",
     "pydub>=0.25.1",
     "python-dotenv>=1.1.0",
@@ -121,6 +118,8 @@ sort_by_size = true
 ignore_decorators = [
     # Route and lifecycle registration: the framework calls these, not us.
     "@app.route",
+    "@app.get",
+    "@app.post",
     "@app.add_template_filter",
     "@app.template_filter",
     "@commands.command",
@@ -146,23 +145,17 @@ ignore_names = [
     "memory_percent",
     "memory_used",
     "memory_free",
-    # Jinja2 template filters (called from templates, not Python)
-    "format_duration",
+    # YtMusicData.uploader: property consumed through panel serialization.
+    "uploader",
     # ASGI entry point (imported by uvicorn via the "app:asgi_app" string in
     # src/__main__.py and the Dockerfile CMD).
     "asgi_app",
-    # Page-module entry points: Jinja block names and HTTP verbs, dispatched
-    # dynamically (HX-Target / request.method), never referenced as Python names.
-    "selector",
-    "post",
-    # PlaybackSession.previous: session verb dispatched through the panel's
-    # verb map (getattr), never referenced as a Python attribute.
-    "previous",
-    # YtMusicData.uploader: property consumed only from Jinja templates.
-    "uploader",
     # pytest fixtures in tests/ (invoked via usefixtures/autouse, never
     # by our code) print the version banner at the start of network runs.
     "version_banner",
+    # The built-SPA fixture in tests/test_spa.py is requested only for its
+    # temp-dir setup side effect.
+    "built",
     # Module-level pytest attribute (read by pytest, not our code):
     # applies the network marker + banner fixture to network test files.
     "pytestmark",
@@ -182,8 +175,5 @@ ignore_names = [
 # import it, so it must be walked too (mutmut only copies what it walks).
 # app.py and tools/ ride along unmutated (also_copy).
 paths_to_mutate = ["src", "pages"]
-also_copy = ["app.py", "tools", "templates", "static"]
+also_copy = ["app.py", "tools"]
 pytest_add_cli_args_test_selection = ["tests/"]
-
-[tool.djlint]
-profile = "jinja"

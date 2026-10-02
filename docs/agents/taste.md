@@ -10,6 +10,6 @@ TheSmileyDroid likes simplicity and abstraction, and tests ambitious ideas in th
 - Templates over copied code. The copy-paste gate means it.
 - An invariant lives in the name, not in a comment.
 - A comment references a doc or explains a why. It never narrates the how. Docstrings that render real documentation (command help, API contracts) stay.
-- An HTMX block names its target; a page keeps its actions near.
+- A component owns its markup and its styles; an API route keeps the domain action it calls near.
 - Find the real constraint, then build the smallest thing that makes correct behavior obvious.
 - If a rule here fights the task in front of you, say so loudly and get a human sign-off before breaking it.

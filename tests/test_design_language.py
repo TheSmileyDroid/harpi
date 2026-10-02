@@ -12,21 +12,14 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SCAN_FILES: tuple[Path, ...] = (
-    REPO / "static" / "css" / "app.css",
-    REPO / "static" / "css" / "input.css",
-    *sorted((REPO / "templates").rglob("*.html")),
+    REPO / "web" / "src" / "app.css",
+    *sorted((REPO / "web" / "src").rglob("*.svelte")),
 )
 
 OKLCH = re.compile(r"oklch\(\s*([\d.]+)%?\s+([\d.]+)\s+(-?[\d.]+)", re.I)
 HEX = re.compile(r"#([0-9a-fA-F]{6})\b")
 NAMED_GREEN = re.compile(
     r"\b(green|lime|emerald|teal|mint|chartreuse|olive)\b", re.I
-)
-TAILWIND_GREEN = re.compile(
-    r"\b(?:text|bg|border|ring|fill|stroke|from|to|via)-(?:green|lime|emerald|teal)-\d{2,3}\b"
-)
-TAILWIND_RED = re.compile(
-    r"\b(?:text|bg|border|ring|fill|stroke|from|to|via)-red-\d{2,3}\b"
 )
 FONT_STACK = re.compile(r"font-family\s*:\s*([^;}]+)")
 ALLOWED_FAMILIES = (
@@ -121,7 +114,6 @@ def test_no_green_anywhere() -> None:
         ),
         (HEX, _hex_is_green),
         (NAMED_GREEN, None),
-        (TAILWIND_GREEN, None),
     ])
     assert not found, (
         "green found (OK is amber, broken is red):\n" + "\n".join(found)
@@ -136,14 +128,10 @@ def test_red_appears_only_on_alert_lines() -> None:
         for n, line in _masked_lines(path):
             if "alert" in line.lower():
                 continue
-            hits = (
-                any(
-                    _oklch_is_red(float(lig), float(c), float(h))
-                    for lig, c, h in OKLCH.findall(line)
-                )
-                or any(_hex_is_red(h) for h in HEX.findall(line))
-                or TAILWIND_RED.search(line)
-            )
+            hits = any(
+                _oklch_is_red(float(lig), float(c), float(h))
+                for lig, c, h in OKLCH.findall(line)
+            ) or any(_hex_is_red(h) for h in HEX.findall(line))
             if hits:
                 rel = path.relative_to(REPO)
                 found.append(f"{rel}:{n}: {line.strip()!r}")

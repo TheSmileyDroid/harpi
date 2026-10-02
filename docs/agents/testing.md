@@ -2,7 +2,7 @@
 
 ## The whole gate
 
-`make format` then `make check`: ruff, ty, djlint, pytest with coverage, the CRAP gate, copy-paste detection, prettier, vulture. One command, exit 0 means done. Real-network tests are not in it — they live behind the deep gate below.
+`make format` then `make check`: ruff, ty, pytest with coverage, the CRAP gate, copy-paste detection, vulture, plus the frontend gates (ESLint, Prettier, svelte-check, Vitest with coverage, knip) and Playwright. One command, exit 0 means done. Real-network tests are not in it — they live behind the deep gate below.
 
 ## Test rules
 

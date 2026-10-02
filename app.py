@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import sys
 from datetime import timedelta
+from pathlib import Path
 
 from loguru import logger
-from quart import Quart, request, session
+from quart import Quart, Response, request, send_from_directory, session
 from werkzeug.exceptions import HTTPException
 
 from pages.api import bp as api_bp
 from pages.api import error_response
 from pages.events import bp as events_bp
-from pages.index import bp as index_bp
-from pages.music import bp as music_bp
 
 from src.config import Settings
 from src.discord_bot import run_bot_in_background
@@ -20,7 +19,10 @@ logger.remove()
 logger.add("spam.log", level="DEBUG")
 logger.add(sys.stdout, level="INFO")
 
-app = Quart(__name__)
+# The SvelteKit SPA the Vite build emits (adapter-static, SPA fallback).
+WEB_BUILD = Path(__file__).resolve().parent / "web" / "build"
+
+app = Quart(__name__, static_folder=None)
 
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config["SESSION_COOKIE_HTTPONLY"] = True
@@ -66,25 +68,16 @@ def handle_http_error(error: HTTPException):
     return error_response(code, message, status)
 
 
-@app.template_filter()
-def format_duration(seconds: int) -> str:
-    """Format seconds to M:SS or H:MM:SS."""
-    if not seconds or seconds < 0:
-        return "0:00"
-    try:
-        total_sec = int(seconds)
-    except (TypeError, ValueError):
-        return "0:00"
-    hours = total_sec // 3600
-    minutes = (total_sec % 3600) // 60
-    secs = total_sec % 60
-    if hours > 0:
-        return f"{hours}:{minutes:02d}:{secs:02d}"
-    return f"{minutes}:{secs:02d}"
+@app.get("/")
+async def panel_index() -> Response:
+    return await send_from_directory(WEB_BUILD, "index.html")
 
 
-app.register_blueprint(index_bp)
-app.register_blueprint(music_bp)
+@app.get("/<path:filename>")
+async def panel_asset(filename: str) -> Response:
+    return await send_from_directory(WEB_BUILD, filename)
+
+
 app.register_blueprint(events_bp)
 app.register_blueprint(api_bp)
 

@@ -9,11 +9,11 @@ from src.harpi_lib.audio.session import LayerInfo, LoopMode, SessionStatus
 from src.panel import actions as panel_actions
 from src.panel import serialization as panel_serialization
 from src.panel import state as panel_state
-from test_index_page import FakeBot as IndexFakeBot
-from test_music_page import (
+from tests.fakes import (
     GUILD_A,
     FakeBot,
     FakeGuild,
+    FakeReadyBot,
     FakeSession,
     FakeSessionManager,
     FailingPlaySession,
@@ -36,11 +36,6 @@ class RecordingSession(FakeSession):
 
     async def set_loop(self, mode: LoopMode) -> None:
         self.calls.append(("set_loop", mode))
-
-
-class IdleSession(FakeSession):
-    async def play(self, value: str) -> None:
-        self.calls.append(("play", value))
 
 
 class FailingLayerSession(FakeSession):
@@ -84,12 +79,12 @@ def session_of(bot: FakeBot) -> RecordingSession:
 def test_bot_connected_reports_ready_and_open(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    bind(monkeypatch, IndexFakeBot(ready=True, closed=False))
+    bind(monkeypatch, FakeReadyBot(ready=True, closed=False))
     assert panel_state.bot_connected() is True
 
 
 def test_bot_connected_reports_closing(monkeypatch: pytest.MonkeyPatch):
-    bind(monkeypatch, IndexFakeBot(ready=True, closed=True))
+    bind(monkeypatch, FakeReadyBot(ready=True, closed=True))
     assert panel_state.bot_connected() is False
 
 
@@ -174,7 +169,7 @@ def test_status_data_serializes_layers_and_loop_mode():
     ]
 
 
-def test_track_data_carries_the_template_keys():
+def test_track_data_carries_the_api_keys():
     data = panel_serialization.track_data(found_track())
 
     assert data == {
@@ -212,10 +207,10 @@ async def test_disconnect_propagates_a_manager_failure(bot: FakeBot):
         await panel_actions.disconnect(GUILD_A)
 
 
-async def test_search_returns_plain_track_records(monkeypatch):
+async def test_search_tracks_returns_plain_track_records(monkeypatch):
     patch_search(monkeypatch, [found_track()])
 
-    results = await panel_actions.search("found track")
+    results = await panel_actions.search_tracks("found track")
 
     assert results == [
         {
@@ -228,33 +223,18 @@ async def test_search_returns_plain_track_records(monkeypatch):
     ]
 
 
-async def test_search_ignores_an_empty_term():
-    assert await panel_actions.search("   ") == []
+async def test_search_tracks_ignores_an_empty_term():
+    assert await panel_actions.search_tracks("   ") == []
 
 
-async def test_search_raises_when_nothing_is_found(monkeypatch):
+async def test_search_tracks_returns_empty_when_nothing_is_found(monkeypatch):
     patch_search(monkeypatch, [])
 
-    with pytest.raises(ValueError, match="Nenhuma música encontrada"):
-        await panel_actions.search("nothing")
-
-
-async def test_require_session_passes_with_a_connected_session(wired: FakeBot):
-    panel_actions.require_session(GUILD_A)
-
-
-async def test_require_session_raises_without_a_connected_session(
-    bot: FakeBot,
-):
-    with pytest.raises(ValueError, match="Não conectado"):
-        panel_actions.require_session(GUILD_A)
+    assert await panel_actions.search_tracks("nothing") == []
 
 
 NO_ARGUMENT_VERBS = [
     panel_actions.clear_queue,
-    panel_actions.stop,
-    panel_actions.clear_layers,
-    panel_actions.toggle_pause,
     panel_actions.pause,
     panel_actions.resume,
     panel_actions.skip,
@@ -298,21 +278,9 @@ async def test_set_loop_fails_without_a_session(bot: FakeBot):
 
 
 async def test_add_track_plays_the_link(wired: FakeBot):
-    warning = await panel_actions.add_track(GUILD_A, "warriors")
+    await panel_actions.add_track(GUILD_A, "warriors")
 
-    assert warning is None
     assert ("play", "warriors") in session_of(wired).calls
-
-
-async def test_add_track_warns_when_everything_was_skipped(bot: FakeBot):
-    bot.sessions._session = IdleSession(
-        playing_status(current_music=None, queue=())
-    )
-
-    warning = await panel_actions.add_track(GUILD_A, "warriors")
-
-    assert warning is not None
-    assert "nenhuma pôde ser tocada" in warning
 
 
 async def test_add_track_propagates_a_play_failure(bot: FakeBot):

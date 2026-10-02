@@ -13,6 +13,7 @@ services:
     volumes:
       - ./:/app
       - /app/.venv
+      - /app/web/build
     working_dir: /app
     restart: unless-stopped
     networks:

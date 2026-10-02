@@ -147,8 +147,6 @@ data/
 nohup.out
 /frontend/.fuse_*
 
-tailwindcss
-
 # Editor/IDE config
 .idea/
 .vscode/

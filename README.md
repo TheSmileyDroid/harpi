@@ -19,9 +19,13 @@ Install the web dependencies:
 
     bun install --cwd web
 
-Then run the bot:
+Build the frontend and run the bot:
 
+    make build
     uv run python -m src
+
+Or `make start`, which builds the SPA and runs the app. The panel is served
+at http://localhost:8000 alongside the API.
 
 For development with auto-reload:
 

@@ -24,7 +24,7 @@ from src import bot_state
 from src.harpi_lib.audio.session import LayerInfo, LoopMode, SessionStatus
 from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel import state as panel_state
-from tests.test_music_page import (
+from tests.fakes import (
     GUILD_A,
     GUILD_B,
     FakeBot,

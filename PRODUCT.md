@@ -12,17 +12,17 @@ The maintainer and their own Discord guild(s) are the primary users: the maintai
 
 ## Product Purpose
 
-Harpi replaces a pile of separate Discord bots with one simpler thing: music playback, dice rolling, and TTS in a single bot, plus an HTMX web panel for controlling music, all served by one Quart process. Success means the guild gets those features without juggling multiple bots and dashboards, and a self-hoster can run the whole thing from a repo clone.
+Harpi replaces a pile of separate Discord bots with one simpler thing: music playback, dice rolling, and TTS in a single bot, plus a Svelte web panel for controlling music, all served by one Quart process. Success means the guild gets those features without juggling multiple bots and dashboards, and a self-hoster can run the whole thing from a repo clone.
 
 ## Positioning
 
-One process, one panel. Music, dice, TTS, and an HTMX control panel share one runtime instead of a fleet of separate bots with separate dashboards. The bot and the panel are one feature on two surfaces (commands and panel), not two products.
+One process, one panel. Music, dice, TTS, and a Svelte control panel share one runtime instead of a fleet of separate bots with separate dashboards. The bot and the panel are one feature on two surfaces (commands and panel), not two products.
 
 ## Operating Context
 
 - Discord guilds: each guild has one `PlaybackSession` (playback state machine) tied to its voice connection.
 - Music enters through yt-dlp search, stream selection and probing, FFmpeg decode, and mixing into the voice client.
-- The web panel (HTMX/CRT retro theme) is served by the same process at `http://localhost:8000` in development; production runs via Docker Compose.
+- The web panel (Svelte/CRT retro theme) is served by the same process at `http://localhost:8000`; use `make build` then `make start`, and production runs via Docker Compose.
 - Development: `uv` for Python deps, `make dev` for auto-reload, `make format` / `make check` as the verification gates.
 - Tests are all fakes and all offline; the real bot must never be started to check something (it joins the maintainer's live guild).
 
@@ -30,7 +30,7 @@ One process, one panel. Music, dice, TTS, and an HTMX control panel share one ru
 
 - Features: music player (queue, layers, transport), dice roller, TTS using an external voice.
 - Single Python 3.13 process running two event loops (Quart + discord.py); panel actions cross the loop boundary through `run_on_bot_loop`.
-- Web surface renders HTML fragments for HTMX; pages are Quart blueprints plus HTMX action handlers in `pages/`.
+- Web surface is a Svelte SPA over a JSON API; `pages/` holds the Quart API blueprints that drive the domain seam in `src/panel/`.
 - Hard product rules: music does not die while playing; bot state explains itself (physically in a voice channel means connected to it); no error requires a bot restart, and the bot alerts when failing, never failing in silence.
 - `src/config.py` is the sole owner of environment configuration.
 - The bot never imports from the web layer; `harpi_lib` holds domain logic with no discord.ui or Quart imports.

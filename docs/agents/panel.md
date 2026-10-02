@@ -1,12 +1,16 @@
-# Panel and HTMX work
+# Panel and API work
 
 Commands and panel are one feature on two surfaces. Fixing one is not fixing the feature. Before calling music work done, walk this list:
 
-- **Surfaces.** play, pause, skip, seek, queue and layers are reachable from both a `MusicCog` command and a `pages/music.py` action. If you added one, check the other.
+- **Surfaces.** play, pause, skip, seek, queue and layers are reachable from both a `MusicCog` command and a `pages/api.py` endpoint. If you added one, check the other.
 - **Reverse states.** If you added a way in, add the way out. Connect needs disconnect. Loop on needs loop off. A one-way door is a bug.
-- **Both loops.** Panel code that touches discord.py internals goes through `run_on_bot_loop`, never calls the coroutine directly. See [architecture.md](architecture.md).
-- **Templates.** Panel behavior lives next to its markup (LoB): the block the HTMX request targets, the handler that serves it, in `pages/` and `templates/pages/` together.
+- **Both loops.** API code that touches discord.py internals goes through `run_on_bot_loop`, never calls the coroutine directly. See [architecture.md](architecture.md).
+- **One contract.** The Svelte client and the API cannot drift: every mutation answers the fresh `state.status_snapshot`, and the client applies it instead of guessing. pytest pins that parity.
 
-## Before writing panel patterns
+## The Svelte panel
 
-Before writing fragment handlers, `hx-*` attributes, polling, or panel scripting, read `.opencode/skills/htmx-panel/SKILL.md`: the official htmx essay patterns mapped to this stack, plus the known debt list.
+`web/` is a SvelteKit single-page app (SSR off, adapter-static) built by Vite. In development `make dev` runs Vite at `:5173` with hot module reload, proxying `/api` to Quart at `:8000`. In production `make build` emits `web/build` and Quart serves it at `/`; the Docker image builds it in a frontend stage.
+
+The client owns state in a store (`web/src/lib/store.js`), opens the SSE stream (`web/src/lib/sse.js`), and wraps fetch with the session and the error region (`web/src/lib/api.js`). Components own their own styles. Before styling a surface, read [DESIGN.md](../../DESIGN.md); the rules a test can judge live in `tests/test_design_language.py`.
+
+Mutations are JSON requests and every one answers `200` with the fresh status snapshot. Live state arrives over SSE from `GET /api/events`. A selection change restarts the stream; queue, transport and layer changes do not.

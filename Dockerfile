@@ -1,3 +1,12 @@
+FROM oven/bun:1 AS frontend
+
+WORKDIR /web
+COPY web/package.json web/bun.lock ./
+RUN bun install --frozen-lockfile
+COPY web/ ./
+RUN bun run build
+
+
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend
 
 # System deps
@@ -20,6 +29,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --upgrade --no-install-project
 
 COPY . /app
+COPY --from=frontend /web/build /app/web/build
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --upgrade
 

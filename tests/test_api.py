@@ -24,7 +24,7 @@ from src import bot_state as deps
 from src.harpi_lib.audio.session import LayerInfo, LoopMode
 from src.harpi_lib.harpi_bot import HarpiBot
 from src.harpi_lib.music.ytmusic import YTMusicData
-from tests.test_music_page import (
+from tests.fakes import (
     GUILD_A,
     GUILD_B,
     FakeBot,

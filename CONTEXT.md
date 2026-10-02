@@ -1,6 +1,6 @@
 # Harpi
 
-A Discord bot (music, dice, TTS) and an HTMX web panel sharing one process and one runtime. This glossary is the shared vocabulary for both surfaces; when code, docs, or discussion name a concept here, use this term.
+A Discord bot (music, dice, TTS) and a Svelte web panel sharing one process and one runtime. This glossary is the shared vocabulary for both surfaces; when code, docs, or discussion name a concept here, use this term.
 
 ## Language
 
@@ -60,7 +60,7 @@ The handle to the running bot (`src/bot_state.py`). The panel reads it, the boot
 A discord.py command module in `src/cogs/`. Commands stay thin: parse, delegate, format.
 
 **Page**:
-A web surface in `pages/`: a Quart blueprint plus its HTMX action handlers.
+A web surface in `pages/`: a Quart blueprint answering JSON or the SSE stream.
 
 **Design language**:
 How the panel looks and behaves (`DESIGN.md`). Mechanically checkable rules live in `tests/test_design_language.py`; the rest is judgment applied while editing.

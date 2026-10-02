@@ -9,11 +9,6 @@ from src.panel import serialization
 
 SEARCH_RESULT_LIMIT = 5
 
-_ALL_SKIPPED_WARNING = (
-    "As faixas foram adicionadas, mas nenhuma pôde ser tocada. "
-    "O motivo foi anunciado no canal do Discord."
-)
-
 
 def _session(guild_id: int) -> PlaybackSession:
     session_obj = get_bot().sessions.get(guild_id)
@@ -22,25 +17,12 @@ def _session(guild_id: int) -> PlaybackSession:
     return session_obj
 
 
-def require_session(guild_id: int) -> None:
-    _session(guild_id)
-
-
 async def connect(guild_id: int, channel_id: int) -> None:
     await run_on_bot_loop(get_bot().sessions.connect(guild_id, channel_id))
 
 
 async def disconnect(guild_id: int) -> None:
     await run_on_bot_loop(get_bot().sessions.disconnect(guild_id))
-
-
-async def search(
-    term: str, track_source: type[YTMusicData] = YTMusicData
-) -> list[dict[str, Any]]:
-    results = await search_tracks(term, track_source)
-    if not results and term.strip():
-        raise ValueError("Nenhuma música encontrada para esta busca")
-    return results
 
 
 async def search_tracks(
@@ -59,18 +41,10 @@ def _track_list(results: list[YTMusicData]) -> list[dict[str, Any]]:
     ]
 
 
-async def _skipped_warning(session_obj: PlaybackSession) -> str | None:
-    status = await run_on_bot_loop(session_obj.sample_status())
-    if status.current_music is None and not status.queue:
-        return _ALL_SKIPPED_WARNING
-    return None
-
-
-async def add_track(guild_id: int, link: str | None) -> str | None:
+async def add_track(guild_id: int, link: str | None) -> None:
     session_obj = _session(guild_id)
     if link:
         await run_on_bot_loop(session_obj.play(link))
-    return await _skipped_warning(session_obj)
 
 
 async def add_layer(guild_id: int, link: str | None) -> str | None:
@@ -96,18 +70,6 @@ async def remove_layer(guild_id: int, layer_id: str | None) -> bool:
 
 async def clear_queue(guild_id: int) -> None:
     await run_on_bot_loop(_session(guild_id).clear_queue())
-
-
-async def stop(guild_id: int) -> None:
-    await run_on_bot_loop(_session(guild_id).stop())
-
-
-async def clear_layers(guild_id: int) -> None:
-    await run_on_bot_loop(_session(guild_id).clear_layers())
-
-
-async def toggle_pause(guild_id: int) -> None:
-    await run_on_bot_loop(_session(guild_id).toggle_pause())
 
 
 async def pause(guild_id: int) -> None:

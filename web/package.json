@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "e2e": "playwright test",
+    "e2e": "bun run build && playwright test",
     "lint": "eslint src e2e",
     "format": "prettier --write src e2e",
     "format:check": "prettier --check src e2e",

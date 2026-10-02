@@ -142,7 +142,7 @@ that is nearly off, with red held in reserve for failure.
   text, progress fill, meter fill — anywhere state is read normally.
 - **Hot Amber** (`oklch(88% 0.11 88)`): the element under operation one step
   above normal text. Caret block after the page title, focus brackets, the
-  active nav/tab underline, the HTMX indicator bar, a highlighted search row.
+  active nav/tab underline, a highlighted search row.
 - **Ember Amber** (`oklch(63% 0.08 85)`): secondary text. Data labels, subtitles,
   row metadata, readouts, idle (paused) progress. Holds 4.5:1 on `surface`
   and above on the page background.
@@ -278,8 +278,8 @@ keys.
   0.72rem, tracking 0.12em, uppercase, line-height 1.
 - **Hover / Focus:** hover inverts to solid Phosphor Amber on Tube Black.
   Focus-visible swaps the border for Hot Amber corner brackets (0.75rem L
-  shapes). While an HTMX request is in flight the button blinks Hot Amber
-  (0.8s steps) — per-action feedback, no skeletons.
+  shapes). While an action is in flight the button disables — per-action
+  feedback, no skeletons.
 - **Danger:** identical structure in Signal Red ink with `alert-dim` border;
   hover inverts to solid Signal Red. Reserved for destructive actions.
 - **Ghost / tab:** `.side-tab` and nav links have no border at rest; hover
@@ -327,9 +327,6 @@ keys.
 - **Corner brackets:** the focus language. 0.75rem L-shapes in Hot Amber on
   focus-visible buttons/inputs, the focused volume control, and the playing
   panel. A bracket means "under operation right now", nothing else.
-- **Global indicator:** a 2px Hot Amber bar fixed to the viewport top during
-  user-initiated HTMX requests, animating scaleX 0.1 → 1 over 1.2s. Pollers
-  never trip it.
 - **Blinking caret:** `▌` after the page title in Ember Amber, 1.2s
   steps(2) — the terminal cursor.
 - **Toast:** fixed column bottom-right, surface background, `line-strong`

@@ -13,9 +13,8 @@ from src.panel import state
 bp = Blueprint("events", __name__)
 
 SHELL_ASSETS: tuple[Path, ...] = (
-    Path("templates"),
-    Path("static/css/app.css"),
     Path("web/src/app.html"),
+    Path("web/src/app.css"),
 )
 
 POLL_SECONDS = 0.5
