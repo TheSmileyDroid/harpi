@@ -58,7 +58,7 @@ async def status_snapshot(guild_id: int | None) -> dict[str, Any]:
     playback = await guild_status(guild_id)
     return {
         "bot": {"online": bot_connected()},
-        "guild_id": guild_id,
+        "guild_id": serialization.snowflake(guild_id),
         "connection": {
             "connected": bool(playback and playback["connected"]),
             "channel_id": playback["channel_id"] if playback else None,

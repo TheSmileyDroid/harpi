@@ -92,8 +92,8 @@ async def test_list_guilds_returns_plain_records(bot: FakeBot):
     guilds = await panel_state.list_guilds()
 
     assert guilds == [
-        {"id": GUILD_A, "name": "Alpha Guild"},
-        {"id": 2, "name": "Beta Guild"},
+        {"id": str(GUILD_A), "name": "Alpha Guild"},
+        {"id": "2", "name": "Beta Guild"},
     ]
 
 
@@ -109,7 +109,9 @@ async def test_list_guilds_propagates_a_fetch_failure(
 async def test_list_voice_channels_for_a_known_guild(bot: FakeBot):
     channels = panel_state.list_voice_channels(GUILD_A)
 
-    assert channels == [{"id": GUILD_A * 10, "name": f"Channel {GUILD_A}"}]
+    assert channels == [
+        {"id": str(GUILD_A * 10), "name": f"Channel {GUILD_A}"}
+    ]
 
 
 async def test_list_voice_channels_for_an_unknown_guild(bot: FakeBot):
@@ -158,6 +160,8 @@ def test_status_data_serializes_layers_and_loop_mode():
 
     assert data["loop_mode"] == "QUEUE"
     assert data["current_music"] is None
+    assert data["guild_id"] == str(GUILD_A)
+    assert data["channel_id"] == "10"
     assert data["layers"] == [
         {
             "id": "l1",

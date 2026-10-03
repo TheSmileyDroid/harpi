@@ -26,12 +26,13 @@ from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel import state as panel_state
 from tests.fakes import (
     GUILD_A,
-    GUILD_B,
     FakeBot,
     FakeGuild,
     FakeSession,
     playing_status,
 )
+
+SECOND_GUILD_ID = 734174030701264912
 
 quart_app = app_module.app
 
@@ -167,7 +168,10 @@ def status_for(
 
 session_obj = HarnessSession(status_for("Now Track"))
 bot = HarnessBot(
-    [FakeGuild(GUILD_A, "Alpha Guild"), FakeGuild(GUILD_B, "Beta Guild")],
+    [
+        FakeGuild(GUILD_A, "Alpha Guild"),
+        FakeGuild(SECOND_GUILD_ID, "Beta Guild"),
+    ],
     session_obj,
 )
 bot.sessions = HarnessSessions(GUILD_A, session_obj)

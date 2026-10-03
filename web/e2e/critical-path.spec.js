@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 
 const PANEL_TOKEN = "e2e-panel-token";
 const BACKEND = "http://127.0.0.1:8100";
-const GUILD_B = 2;
-const GUILD_B_CHANNEL = GUILD_B * 10;
+const GUILD_B = "734174030701264912";
+const GUILD_B_CHANNEL = `${GUILD_B}0`;
 
 test("sign in, then a pushed status change lands without a reload", async ({
   page,
@@ -111,7 +111,9 @@ test("selects a shared guild, connects to a voice channel, then disconnects", as
   await expect(page.getByTestId("guild-select")).toContainText("Beta Guild");
 
   await page.getByTestId("guild-select").selectOption(String(GUILD_B));
-  await expect(page.getByTestId("channel-select")).toContainText("Channel 2");
+  await expect(page.getByTestId("channel-select")).toContainText(
+    "Channel 734174030701264912",
+  );
   await page
     .getByTestId("channel-select")
     .selectOption(String(GUILD_B_CHANNEL));

@@ -42,12 +42,12 @@
   function onGuildChange(event) {
     const value = event.currentTarget.value;
     appStore.selectChannel(null);
-    appStore.selectGuild(value === "" ? null : Number(value));
+    appStore.selectGuild(value === "" ? null : value);
   }
 
   function onChannelChange(event) {
     const value = event.currentTarget.value;
-    appStore.selectChannel(value === "" ? null : Number(value));
+    appStore.selectChannel(value === "" ? null : value);
   }
 
   async function mutate(action, message) {

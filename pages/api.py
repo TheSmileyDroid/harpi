@@ -19,13 +19,20 @@ def error_response(code: str, message: str, status: int) -> Response:
     return response
 
 
-def _int_field(payload: Any, field: str) -> int | None:
+def _snowflake_field(payload: Any, field: str) -> int | None:
     if not isinstance(payload, dict):
         return None
     value = payload.get(field)
-    if isinstance(value, bool) or not isinstance(value, int):
+    if isinstance(value, bool):
         return None
-    return value
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if not text.isascii() or not text.isdigit():
+            return None
+        return int(text)
+    return None
 
 
 def _string_field(payload: Any, field: str) -> str | None:
@@ -111,14 +118,14 @@ def read_channels(guild_id: int) -> Response:
 @bp.post("/api/connect")
 async def connect_voice() -> Response:
     payload = await request.get_json(silent=True)
-    guild_id = _int_field(payload, "guild_id")
-    channel_id = _int_field(payload, "channel_id")
+    guild_id = _snowflake_field(payload, "guild_id")
+    channel_id = _snowflake_field(payload, "channel_id")
     if guild_id is None or not state.guild_visible(guild_id):
         return error_response("not_found", "Guild not found", 404)
     channel_ids = {
         channel["id"] for channel in state.list_voice_channels(guild_id)
     }
-    if channel_id is None or channel_id not in channel_ids:
+    if channel_id is None or str(channel_id) not in channel_ids:
         return error_response("not_found", "Channel not found", 404)
     await actions.connect(guild_id, channel_id)
     session["guild_id"] = str(guild_id)

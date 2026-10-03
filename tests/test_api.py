@@ -38,6 +38,7 @@ from tests.fakes import (
 PANEL_TOKEN = "test-panel-token"
 SECRET = "test-secret"
 CHANNEL_ID = 42
+SNOWFLAKE = 734174030701264912
 
 
 class ApiBot(FakeBot):
@@ -350,10 +351,10 @@ async def test_status_reports_the_selected_guild_playback(client):
 
     assert response.status_code == 200
     body = json.loads(await response.get_data())
-    assert body["guild_id"] == GUILD_A
+    assert body["guild_id"] == str(GUILD_A)
     assert body["connection"] == {
         "connected": True,
-        "channel_id": CHANNEL_ID,
+        "channel_id": str(CHANNEL_ID),
     }
     assert body["playback"]["current_music"]["title"] == "Now Track"
     assert body["playback"]["is_playing"] is True
@@ -393,7 +394,7 @@ async def test_guild_list_reports_only_shared_guilds(client):
 
     assert response.status_code == 200
     assert json.loads(await response.get_data()) == {
-        "guilds": [{"id": GUILD_A, "name": "Alpha Guild"}]
+        "guilds": [{"id": str(GUILD_A), "name": "Alpha Guild"}]
     }
 
 
@@ -405,14 +406,14 @@ async def test_guild_list_tracks_bot_membership(client, bot: ApiBot):
     ids = [
         guild["id"] for guild in json.loads(await added.get_data())["guilds"]
     ]
-    assert ids == [GUILD_A, GUILD_B]
+    assert ids == [str(GUILD_A), str(GUILD_B)]
 
     bot._guilds.pop(GUILD_A)
     removed = await client.get("/api/guilds")
     ids = [
         guild["id"] for guild in json.loads(await removed.get_data())["guilds"]
     ]
-    assert ids == [GUILD_B]
+    assert ids == [str(GUILD_B)]
 
 
 async def test_channel_list_reports_the_guilds_voice_channels(client):
@@ -422,7 +423,7 @@ async def test_channel_list_reports_the_guilds_voice_channels(client):
 
     assert response.status_code == 200
     assert json.loads(await response.get_data()) == {
-        "channels": [{"id": GUILD_A * 10, "name": "Channel 1"}]
+        "channels": [{"id": str(GUILD_A * 10), "name": "Channel 1"}]
     }
 
 
@@ -436,20 +437,50 @@ async def test_channel_list_rejects_an_unshared_guild(client):
     assert body["error"]["code"] == "not_found"
 
 
+async def test_snowflake_ids_stay_exact_over_the_json_api(client, bot: ApiBot):
+    await _login(client)
+    bot._guilds[SNOWFLAKE] = FakeGuild(SNOWFLAKE, "The Nosbor's Hand")
+
+    response = await client.get("/api/guilds")
+    guilds = json.loads(await response.get_data())["guilds"]
+    served = next(g for g in guilds if g["name"] == "The Nosbor's Hand")
+    assert served["id"] == str(SNOWFLAKE)
+
+    channels = await client.get(f"/api/guilds/{SNOWFLAKE}/channels")
+    assert channels.status_code == 200
+    listed = json.loads(await channels.get_data())["channels"]
+    assert listed[0]["id"] == str(SNOWFLAKE * 10)
+
+    connected = await client.post(
+        "/api/connect",
+        json={
+            "guild_id": str(SNOWFLAKE),
+            "channel_id": str(SNOWFLAKE * 10),
+        },
+    )
+    assert connected.status_code == 200
+    assert json.loads(await connected.get_data())["guild_id"] == str(SNOWFLAKE)
+    assert bot.sessions.connect_calls == [(SNOWFLAKE, SNOWFLAKE * 10)]
+
+
 async def test_connect_dispatches_and_records_the_selection(
     client, bot: ApiBot
 ):
     await _login(client)
 
     response = await client.post(
-        "/api/connect", json={"guild_id": GUILD_A, "channel_id": GUILD_A * 10}
+        "/api/connect",
+        json={"guild_id": str(GUILD_A), "channel_id": str(GUILD_A * 10)},
     )
 
     assert response.status_code == 200
     assert bot.sessions.connect_calls == [(GUILD_A, GUILD_A * 10)]
     body = json.loads(await response.get_data())
-    assert body["guild_id"] == GUILD_A
-    assert body["connection"] == {"connected": True, "channel_id": CHANNEL_ID}
+    assert body["guild_id"] == str(GUILD_A)
+    assert body["connection"] == {
+        "connected": True,
+        "channel_id": str(CHANNEL_ID),
+    }
     async with client.session_transaction() as stored:
         assert stored["guild_id"] == str(GUILD_A)
 
@@ -458,7 +489,18 @@ async def test_connect_rejects_an_unshared_guild(client, bot: ApiBot):
     await _login(client)
 
     response = await client.post(
-        "/api/connect", json={"guild_id": 99999, "channel_id": 10}
+        "/api/connect", json={"guild_id": "99999", "channel_id": "10"}
+    )
+
+    assert response.status_code == 404
+    assert bot.sessions.connect_calls == []
+
+
+async def test_connect_rejects_a_non_numeric_guild_id(client, bot: ApiBot):
+    await _login(client)
+
+    response = await client.post(
+        "/api/connect", json={"guild_id": "\u00b2", "channel_id": "10"}
     )
 
     assert response.status_code == 404
@@ -471,7 +513,7 @@ async def test_connect_rejects_a_channel_outside_the_guild(
     await _login(client)
 
     response = await client.post(
-        "/api/connect", json={"guild_id": GUILD_A, "channel_id": 11}
+        "/api/connect", json={"guild_id": str(GUILD_A), "channel_id": "11"}
     )
 
     assert response.status_code == 404
@@ -486,7 +528,8 @@ async def test_connect_answers_with_the_same_truth_as_status(
     await _login(client)
 
     response = await client.post(
-        "/api/connect", json={"guild_id": GUILD_A, "channel_id": GUILD_A * 10}
+        "/api/connect",
+        json={"guild_id": str(GUILD_A), "channel_id": str(GUILD_A * 10)},
     )
     status = await client.get("/api/status")
 
@@ -534,7 +577,7 @@ async def test_disconnect_keeps_the_selection(client, bot: ApiBot):
     async with client.session_transaction() as stored:
         assert stored["guild_id"] == str(GUILD_A)
     response = await client.get("/api/status")
-    assert json.loads(await response.get_data())["guild_id"] == GUILD_A
+    assert json.loads(await response.get_data())["guild_id"] == str(GUILD_A)
 
 
 async def test_status_drops_a_selection_the_bot_no_longer_shares(client):
@@ -767,10 +810,10 @@ async def test_sse_stream_reports_and_resyncs_status(client, bot: ApiBot):
     ):
         first = await _read_status_frame(http)
         assert first["bot"] == {"online": True}
-        assert first["guild_id"] == GUILD_A
+        assert first["guild_id"] == str(GUILD_A)
         assert first["connection"] == {
             "connected": True,
-            "channel_id": CHANNEL_ID,
+            "channel_id": str(CHANNEL_ID),
         }
         assert first["playback"]["current_music"]["title"] == "Now Track"
 

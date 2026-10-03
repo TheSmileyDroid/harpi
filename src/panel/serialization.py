@@ -8,6 +8,10 @@ from src.harpi_lib.audio.session import LayerInfo, SessionStatus
 from src.harpi_lib.music.ytmusic import YTMusicData
 
 
+def snowflake(value: int | None) -> str | None:
+    return str(value) if value is not None else None
+
+
 def track_data(track: YTMusicData) -> dict[str, Any]:
     return {
         "title": track.title,
@@ -30,7 +34,7 @@ def layer_data(layer: LayerInfo) -> dict[str, Any]:
 
 def status_data(status: SessionStatus) -> dict[str, Any]:
     return {
-        "guild_id": status.guild_id,
+        "guild_id": snowflake(status.guild_id),
         "connected": status.connected,
         "is_playing": status.is_playing,
         "is_paused": status.is_paused,
@@ -42,13 +46,13 @@ def status_data(status: SessionStatus) -> dict[str, Any]:
         "loop_mode": status.loop_mode.name,
         "volume": status.volume,
         "progress": status.progress,
-        "channel_id": status.channel_id,
+        "channel_id": snowflake(status.channel_id),
     }
 
 
 def guild_data(guild: Guild) -> dict[str, Any]:
-    return {"id": guild.id, "name": guild.name}
+    return {"id": snowflake(guild.id), "name": guild.name}
 
 
 def channel_data(channel: VoiceChannel) -> dict[str, Any]:
-    return {"id": channel.id, "name": channel.name}
+    return {"id": snowflake(channel.id), "name": channel.name}

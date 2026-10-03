@@ -10,10 +10,10 @@ import {
 
 const snapshot = {
   bot: { online: true },
-  guild_id: 7,
-  connection: { connected: true, channel_id: 42 },
+  guild_id: "7",
+  connection: { connected: true, channel_id: "42" },
   playback: {
-    guild_id: 7,
+    guild_id: "7",
     connected: true,
     is_playing: true,
     is_paused: false,
@@ -23,16 +23,16 @@ const snapshot = {
     loop_mode: "OFF",
     volume: 0.7,
     progress: 0.25,
-    channel_id: 42,
+    channel_id: "42",
   },
 };
 
 describe("normalizeStatus", () => {
   it("keeps server truth for a selected guild", () => {
     expect(normalizeStatus(snapshot)).toEqual({
-      guildId: 7,
+      guildId: "7",
       bot: { online: true },
-      connection: { connected: true, channel_id: 42 },
+      connection: { connected: true, channel_id: "42" },
       playback: snapshot.playback,
     });
   });
@@ -60,7 +60,7 @@ describe("reduceStatus", () => {
 
     const after = reduceStatus(before, snapshot);
 
-    expect(after.guildId).toBe(7);
+    expect(after.guildId).toBe("7");
     expect(after.playback).toBe(snapshot.playback);
     expect(after.search).toEqual({ query: "abc" });
   });
@@ -68,12 +68,12 @@ describe("reduceStatus", () => {
 
 describe("guild selection", () => {
   it("keeps a pending client selection across status frames", () => {
-    const before = { ...initialState(), pendingGuildId: 9 };
+    const before = { ...initialState(), pendingGuildId: "9" };
 
     const after = reduceStatus(before, snapshot);
 
-    expect(after.guildId).toBe(7);
-    expect(after.pendingGuildId).toBe(9);
+    expect(after.guildId).toBe("7");
+    expect(after.pendingGuildId).toBe("9");
   });
 });
 
@@ -81,7 +81,7 @@ describe("reduceSse", () => {
   it("applies a status frame through the same reducer", () => {
     const after = reduceSse(initialState(), { type: "status", data: snapshot });
 
-    expect(after.guildId).toBe(7);
+    expect(after.guildId).toBe("7");
     expect(after.bot).toEqual({ online: true });
   });
 
@@ -104,8 +104,8 @@ describe("createAppStore", () => {
 
     store.applyStatus(snapshot);
 
-    expect(get(store).guildId).toBe(7);
-    expect(get(store).connection.channel_id).toBe(42);
+    expect(get(store).guildId).toBe("7");
+    expect(get(store).connection.channel_id).toBe("42");
   });
 
   it("applies SSE status frames", () => {
@@ -140,15 +140,15 @@ describe("createAppStore", () => {
   it("owns the guild and channel selection", () => {
     const store = createAppStore();
 
-    store.setGuilds([{ id: 1, name: "Alpha" }]);
-    store.setChannels([{ id: 10, name: "Voice" }]);
-    store.selectGuild(1);
-    store.selectChannel(10);
+    store.setGuilds([{ id: "1", name: "Alpha" }]);
+    store.setChannels([{ id: "10", name: "Voice" }]);
+    store.selectGuild("1");
+    store.selectChannel("10");
 
-    expect(get(store).guilds).toEqual([{ id: 1, name: "Alpha" }]);
-    expect(get(store).channels).toEqual([{ id: 10, name: "Voice" }]);
-    expect(get(store).pendingGuildId).toBe(1);
-    expect(get(store).selectedChannelId).toBe(10);
+    expect(get(store).guilds).toEqual([{ id: "1", name: "Alpha" }]);
+    expect(get(store).channels).toEqual([{ id: "10", name: "Voice" }]);
+    expect(get(store).pendingGuildId).toBe("1");
+    expect(get(store).selectedChannelId).toBe("10");
   });
 
   it("resets to the initial state", () => {

@@ -178,13 +178,13 @@ describe("stream recovery", () => {
     FakeEventSource.instances[1].emit("status", {
       data: JSON.stringify({
         bot: { online: true },
-        guild_id: 5,
-        connection: { connected: true, channel_id: 9 },
+        guild_id: "5",
+        connection: { connected: true, channel_id: "9" },
         playback: null,
       }),
     });
 
-    expect(get(store).guildId).toBe(5);
+    expect(get(store).guildId).toBe("5");
     expect(get(store).connection.connected).toBe(true);
     expect(get(store).bot).toEqual({ online: true });
   });

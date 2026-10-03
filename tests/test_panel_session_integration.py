@@ -171,7 +171,7 @@ async def test_connect_through_the_api_starts_a_real_session(
     assert isinstance(session_obj, PlaybackSession)
     assert body["connection"] == {
         "connected": True,
-        "channel_id": CHANNEL_ID,
+        "channel_id": str(CHANNEL_ID),
     }
 
 
