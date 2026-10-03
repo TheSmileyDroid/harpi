@@ -65,3 +65,9 @@ A web surface in `pages/`: a Quart blueprint answering JSON or the SSE stream.
 **Design language**:
 How the panel looks and behaves (`DESIGN.md`). Mechanically checkable rules live in `tests/test_design_language.py`; the rest is judgment applied while editing.
 _Avoid_: design review, verdict (the gate is gone)
+
+### Identity
+
+**Snowflake**:
+A 64-bit Discord entity identifier (guild, channel, user, message). Harpi treats one as an opaque label, never as a quantity.
+_Avoid_: ID, Discord ID, entity id
