@@ -150,6 +150,7 @@ nohup.out
 # Editor/IDE config
 .idea/
 .vscode/
+*.sublime-workspace
 
 
 # Playwright

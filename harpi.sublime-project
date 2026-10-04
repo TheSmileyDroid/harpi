@@ -1,0 +1,88 @@
+{
+	"folders":
+	[
+		{
+			"path": ".",
+			"folder_exclude_patterns":
+			[
+				".venv",
+				"node_modules",
+				"__pycache__",
+				".pytest_cache",
+				".ruff_cache",
+				".mypy_cache",
+				".svelte-kit",
+				"mutants",
+				".worktrees",
+				".playwright",
+				"web/build",
+				"web/test-results"
+			],
+			"file_exclude_patterns":
+			[
+				"*.log",
+				"coverage.json",
+				".coverage"
+			]
+		}
+	],
+	"settings":
+	{
+		"python_interpreter": "$project_path/.venv/bin/python"
+	},
+	"build_systems":
+	[
+		{
+			"name": "harpi-python",
+			"selector": "source.python",
+			"working_dir": "$project_path",
+			"cmd": ["uv", "run", "pytest", "$file", "-q", "--tb=short"],
+			"file_regex": "^([^\\s].*?\\.py):(\\d+):(\\d+): (.+)$",
+			"variants":
+			[
+				{
+					"name": "Current test",
+					"cmd": ["uv", "run", "pytest", "$file", "-q", "--tb=short", "-k", "$selection"]
+				},
+				{
+					"name": "Last failed",
+					"cmd": ["uv", "run", "pytest", "-q", "--tb=short", "--lf"]
+				}
+			]
+		},
+		{
+			"name": "harpi-web",
+			"selector": "source.js, source.ts, source.svelte",
+			"working_dir": "$project_path/web",
+			"cmd": ["bunx", "vitest", "run", "$file"],
+			"file_regex": "^\\s*.*?(\\S+?):(\\d+):(\\d+)",
+			"variants":
+			[
+				{
+					"name": "Watch file",
+					"cmd": ["bunx", "vitest", "$file"]
+				}
+			]
+		},
+		{
+			"name": "harpi-make-check",
+			"working_dir": "$project_path",
+			"cmd": ["make", "check"]
+		},
+		{
+			"name": "harpi-make-check-network",
+			"working_dir": "$project_path",
+			"cmd": ["make", "check-network"]
+		},
+		{
+			"name": "harpi-make-format",
+			"working_dir": "$project_path",
+			"cmd": ["make", "format"]
+		},
+		{
+			"name": "harpi-make-dev",
+			"working_dir": "$project_path",
+			"cmd": ["make", "dev"]
+		}
+	]
+}
