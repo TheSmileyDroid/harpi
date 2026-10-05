@@ -463,6 +463,20 @@ async def test_snowflake_ids_stay_exact_over_the_json_api(client, bot: ApiBot):
     assert bot.sessions.connect_calls == [(SNOWFLAKE, SNOWFLAKE * 10)]
 
 
+async def test_connect_tolerates_a_leading_zero_digit_string(
+    client, bot: ApiBot
+):
+    await _login(client)
+
+    response = await client.post(
+        "/api/connect",
+        json={"guild_id": str(GUILD_A), "channel_id": f"0{GUILD_A * 10}"},
+    )
+
+    assert response.status_code == 200
+    assert bot.sessions.connect_calls == [(GUILD_A, GUILD_A * 10)]
+
+
 async def test_connect_dispatches_and_records_the_selection(
     client, bot: ApiBot
 ):

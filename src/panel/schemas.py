@@ -14,7 +14,7 @@ def _as_snowflake(value: Any) -> str:
     if isinstance(value, str):
         text = value.strip()
         if text.isascii() and text.isdigit():
-            return text
+            return str(int(text))
     raise ValueError("not a snowflake")
 
 
