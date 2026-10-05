@@ -177,3 +177,9 @@ class LayerIdRequest(BaseModel):
 class LayerVolumeRequest(BaseModel):
     layer_id: TextInput = None
     volume: NumberInput = None
+
+
+SSE_EVENTS: dict[str, type[BaseModel]] = {
+    "status": StatusSnapshot,
+    "reload": ReloadEvent,
+}

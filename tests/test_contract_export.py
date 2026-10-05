@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
+from src.panel.schemas import SSE_EVENTS
 from tools.export_contract import build_document
 
 ROOT = Path(__file__).resolve().parents[1]
+SSE_CLIENT = ROOT / "web" / "src" / "lib" / "sse.ts"
 
 EXPORT_SNIPPET = "\n".join([
     "import pathlib",
@@ -64,3 +67,16 @@ def test_top_level_models_are_hoisted_into_components():
         "ErrorEnvelope",
         "SseEnvelope",
     } <= schemas
+
+
+def test_emitted_sse_event_names_match_the_client_schema_map():
+    block = re.search(
+        r"const SSE_SCHEMAS = \{(?P<body>.*?)\} as const;",
+        SSE_CLIENT.read_text(),
+        re.DOTALL,
+    )
+
+    assert block is not None, "SSE_SCHEMAS map not found in sse.ts"
+    client_names = set(re.findall(r"(\w+)\s*:", block.group("body")))
+
+    assert client_names == set(SSE_EVENTS)

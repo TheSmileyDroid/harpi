@@ -22,6 +22,7 @@ build:
 
 contract:
 	uv run python tools/export_contract.py
+	uv run python tools/emit_contract_fixtures.py
 	cd web && bun run gen:contract
 
 format:

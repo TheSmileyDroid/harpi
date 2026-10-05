@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { get } from "svelte/store";
 import { ApiError } from "./api";
+import fixtures from "./contract/fixtures/fixtures.json";
 import { createAppStore } from "./store";
 import {
   backoffDelay,
@@ -12,12 +13,8 @@ import {
   type SseFrame,
 } from "./sse";
 
-const SNAPSHOT = {
-  bot: { online: true },
-  guild_id: "5",
-  connection: { connected: false, channel_id: null },
-  playback: null,
-};
+const SNAPSHOT = fixtures.StatusSnapshot;
+const RELOAD = fixtures.ReloadEvent;
 
 class FakeEventSource implements EventSourceLike {
   static instances: FakeEventSource[] = [];
@@ -90,9 +87,9 @@ describe("parseFrame", () => {
   });
 
   it("parses a reload frame through its schema", () => {
-    expect(parseFrame("reload", '{"scope":"shell"}')).toEqual({
+    expect(parseFrame("reload", JSON.stringify(RELOAD))).toEqual({
       type: "reload",
-      data: { scope: "shell" },
+      data: RELOAD,
     });
   });
 
@@ -124,11 +121,11 @@ describe("createEventStream", () => {
     const source = FakeEventSource.instances[0]!;
 
     source.emit("status", { data: JSON.stringify(SNAPSHOT) });
-    source.emit("reload", { data: '{"scope":"shell"}' });
+    source.emit("reload", { data: JSON.stringify(RELOAD) });
 
     expect(events).toEqual([
       { type: "status", data: SNAPSHOT },
-      { type: "reload", data: { scope: "shell" } },
+      { type: "reload", data: RELOAD },
     ]);
     expect(errors).toHaveLength(0);
   });
@@ -140,9 +137,9 @@ describe("createEventStream", () => {
 
     source.emit("status", { data: '{"bot":{"online":true}}' });
     source.emit("status", { data: "broken" });
-    source.emit("reload", { data: '{"scope":"shell"}' });
+    source.emit("reload", { data: JSON.stringify(RELOAD) });
 
-    expect(events).toEqual([{ type: "reload", data: { scope: "shell" } }]);
+    expect(events).toEqual([{ type: "reload", data: RELOAD }]);
     expect(errors).toHaveLength(2);
     expect(errors[0]).toBeInstanceOf(ApiError);
     expect(errors[0]!.code).toBe("contract_violation");
@@ -220,15 +217,10 @@ describe("stream recovery", () => {
     FakeEventSource.instances[0]!.emit("error");
     scheduled[0]!.fn();
     FakeEventSource.instances[1]!.emit("status", {
-      data: JSON.stringify({
-        bot: { online: true },
-        guild_id: "5",
-        connection: { connected: true, channel_id: "9" },
-        playback: null,
-      }),
+      data: JSON.stringify(SNAPSHOT),
     });
 
-    expect(get(store).guildId).toBe("5");
+    expect(get(store).guildId).toBe("7");
     expect(get(store).connection.connected).toBe(true);
     expect(get(store).bot).toEqual({ online: true });
   });

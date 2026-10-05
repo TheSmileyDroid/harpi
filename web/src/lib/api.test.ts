@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ApiError, createApiClient, type FetchResponse } from "./api";
+import fixtures from "./contract/fixtures/fixtures.json";
 
-const SNAPSHOT = {
-  bot: { online: true },
-  guild_id: "7",
-  connection: { connected: false, channel_id: null },
-  playback: null,
-};
+const SNAPSHOT = fixtures.StatusSnapshot;
 
 function jsonResponse(status: number, payload: unknown): FetchResponse {
   return {
@@ -44,13 +40,13 @@ describe("createApiClient", () => {
     const client = createApiClient({
       fetchImpl: async (path, options) => {
         calls.push({ path, options: options ?? {} });
-        return jsonResponse(200, { authenticated: true });
+        return jsonResponse(200, fixtures.Authenticated);
       },
     });
 
     const payload = await client.signIn("secret-token");
 
-    expect(payload).toEqual({ authenticated: true });
+    expect(payload).toEqual(fixtures.Authenticated);
     expect(calls[0]!.path).toBe("/api/session");
     expect(calls[0]!.options.method).toBe("POST");
     expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
@@ -129,26 +125,22 @@ describe("createApiClient", () => {
     const client = createApiClient({
       fetchImpl: async (path) => {
         expect(path).toBe("/api/guilds");
-        return jsonResponse(200, { guilds: [{ id: "1", name: "Alpha" }] });
+        return jsonResponse(200, fixtures.GuildList);
       },
     });
 
-    await expect(client.guilds()).resolves.toEqual({
-      guilds: [{ id: "1", name: "Alpha" }],
-    });
+    await expect(client.guilds()).resolves.toEqual(fixtures.GuildList);
   });
 
   it("reads a guild's voice channels", async () => {
     const client = createApiClient({
       fetchImpl: async (path) => {
         expect(path).toBe("/api/guilds/7/channels");
-        return jsonResponse(200, { channels: [{ id: "70", name: "Voice" }] });
+        return jsonResponse(200, fixtures.ChannelList);
       },
     });
 
-    await expect(client.channels("7")).resolves.toEqual({
-      channels: [{ id: "70", name: "Voice" }],
-    });
+    await expect(client.channels("7")).resolves.toEqual(fixtures.ChannelList);
   });
 
   it("posts a connect with the guild and channel", async () => {

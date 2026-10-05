@@ -1,0 +1,86 @@
+{
+  "Authenticated": {
+    "authenticated": true
+  },
+  "ChannelList": {
+    "channels": [
+      {
+        "id": "10",
+        "name": "Voice"
+      }
+    ]
+  },
+  "ErrorEnvelope": {
+    "error": {
+      "code": "not_found",
+      "message": "Not found"
+    }
+  },
+  "GuildList": {
+    "guilds": [
+      {
+        "id": "1",
+        "name": "Alpha"
+      }
+    ]
+  },
+  "ReloadEvent": {
+    "scope": "shell"
+  },
+  "SearchResults": {
+    "results": [
+      {
+        "duration": 354,
+        "thumbnail": "https://example.com/thumb.jpg",
+        "title": "Bohemian Rhapsody",
+        "uploader": "Queen",
+        "url": "https://example.com/track"
+      }
+    ]
+  },
+  "StatusSnapshot": {
+    "bot": {
+      "online": true
+    },
+    "connection": {
+      "channel_id": "42",
+      "connected": true
+    },
+    "guild_id": "7",
+    "playback": {
+      "channel_id": "42",
+      "connected": true,
+      "current_music": {
+        "duration": 354,
+        "thumbnail": "https://example.com/thumb.jpg",
+        "title": "Bohemian Rhapsody",
+        "uploader": "Queen",
+        "url": "https://example.com/track"
+      },
+      "guild_id": "7",
+      "is_paused": false,
+      "is_playing": true,
+      "layers": [
+        {
+          "id": "layer-1",
+          "thumbnail": "https://example.com/layer.jpg",
+          "title": "Rain",
+          "url": "https://example.com/layer",
+          "volume": 0.25
+        }
+      ],
+      "loop_mode": "QUEUE",
+      "progress": 42.5,
+      "queue": [
+        {
+          "duration": 354,
+          "thumbnail": "https://example.com/thumb.jpg",
+          "title": "Bohemian Rhapsody",
+          "uploader": "Queen",
+          "url": "https://example.com/track"
+        }
+      ],
+      "volume": 0.7
+    }
+  }
+}

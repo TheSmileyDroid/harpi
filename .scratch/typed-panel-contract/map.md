@@ -32,6 +32,8 @@ The panel runs strict TypeScript at maximum strictness against a generated, runt
 
 - [08 Type and validate the client and SSE against the contract](issues/08-typed-client-and-sse.md): `web/src/lib/types.ts` deleted in favor of the generated module; one generic `request()` with bodyless and body overloads returns `z.infer` of each response schema and parses the body through its request schema; a failed response parse becomes `ApiError{contract_violation}` through `onError` unless silent, then throws, and error bodies parse through `ErrorEnvelope` with a generic fallback; SSE validates through the private `SSE_SCHEMAS` name map and reports a dropped frame through a new `createEventStream` `onError` into the error region; the stale `zod` knip ignore is removed.
 
+- [09 Emit contract fixtures and pin the contract tests](issues/09-contract-tests-and-fixtures.md): `tools/emit_contract_fixtures.py` writes one keyed `fixtures.json` from `model_dump(mode="json")` in `make contract`; `web/src/lib/fixtures.test.ts` parses every fixture through its generated schema; a single Python `SSE_EVENTS` registry (name to model) backs `pages/events.py` and a pytest reads the `SSE_SCHEMAS` keys from `sse.ts` to pin event-name parity; generated fixtures replace the hand-written wire literals in the client and SSE tests.
+
 ## Not yet specified
 
 - Whether the contract and generation approach deserves an ADR. It is hard to reverse and a real trade-off, so it likely qualifies. Decide after the route is walked.
