@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { looksLikeUrl } from "./url.js";
+import { looksLikeUrl } from "./url";
 
 describe("looksLikeUrl", () => {
   it("accepts a pasted http(s) link", () => {

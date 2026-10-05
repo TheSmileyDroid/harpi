@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { get } from "svelte/store";
-import { createErrorRegion } from "./errors.js";
-import { createToasts } from "./toasts.js";
+import { createErrorRegion } from "./errors";
+import { createToasts } from "./toasts";
 
 describe("createErrorRegion", () => {
   it("keeps failures until they are dismissed", () => {
@@ -33,13 +33,13 @@ describe("createErrorRegion", () => {
 
 describe("createToasts", () => {
   it("pushes a confirmation and removes it when its time is up", () => {
-    const pending = [];
+    const pending: (() => void)[] = [];
     const toasts = createToasts({ schedule: (fn) => pending.push(fn) });
 
     toasts.push("Signed in");
     expect(get(toasts)).toHaveLength(1);
 
-    pending[0]();
+    pending[0]!();
 
     expect(get(toasts)).toHaveLength(0);
   });

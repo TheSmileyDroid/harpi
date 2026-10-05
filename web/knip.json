@@ -1,5 +1,5 @@
 {
-  "entry": ["src/routes/**/*.{js,svelte}", "src/app.html"],
-  "project": ["src/**/*.{js,svelte}", "e2e/**/*.js"],
-  "ignoreDependencies": []
+  "entry": ["src/routes/**/*.{ts,svelte}", "src/app.html"],
+  "project": ["src/**/*.{ts,svelte}", "e2e/**/*.ts", "!src/lib/contract/**"],
+  "ignoreDependencies": ["zod"]
 }

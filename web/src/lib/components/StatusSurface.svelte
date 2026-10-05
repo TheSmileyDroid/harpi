@@ -1,24 +1,36 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
   import { get } from "svelte/store";
-  import { appStore } from "$lib/store.js";
-  import { toasts } from "$lib/toasts.js";
-  import { formatDuration } from "$lib/format.js";
+  import { appStore } from "$lib/store";
+  import { toasts } from "$lib/toasts";
+  import { formatDuration } from "$lib/format";
+  import type { ApiClient } from "$lib/api";
+  import type { StatusSnapshot } from "$lib/types";
   import StatusChip from "./StatusChip.svelte";
   import SearchPanel from "./SearchPanel.svelte";
   import QueuePanel from "./QueuePanel.svelte";
   import LayersPanel from "./LayersPanel.svelte";
   import TransportBar from "./TransportBar.svelte";
 
-  let { link, onrefresh, onresync, api } = $props();
+  let {
+    link,
+    onrefresh,
+    onresync,
+    api,
+  }: {
+    link: string;
+    onrefresh: () => Promise<boolean>;
+    onresync: () => Promise<void>;
+    api: ApiClient;
+  } = $props();
   let refreshing = $state(false);
   let busy = $state(false);
-  let lastGuildId = null;
-  let effectiveGuildId = $derived(
+  let lastGuildId: string | null = null;
+  const effectiveGuildId = $derived(
     $appStore.pendingGuildId ?? $appStore.guildId,
   );
 
-  const linkLabels = {
+  const linkLabels: Record<string, string> = {
     connected: "LINK LIVE",
     reconnecting: "LINK LOST",
     connecting: "LINKING",
@@ -30,7 +42,7 @@
     appStore.setGuilds(payload.guilds);
   }
 
-  async function loadChannels(guildId) {
+  async function loadChannels(guildId: string | null) {
     if (guildId === null) {
       appStore.setChannels([]);
       return;
@@ -39,18 +51,23 @@
     if (payload) appStore.setChannels(payload.channels);
   }
 
-  function onGuildChange(event) {
-    const value = event.currentTarget.value;
+  function onGuildChange(event: Event) {
+    const select = event.currentTarget as HTMLSelectElement;
+    const value = select.value;
     appStore.selectChannel(null);
     appStore.selectGuild(value === "" ? null : value);
   }
 
-  function onChannelChange(event) {
-    const value = event.currentTarget.value;
+  function onChannelChange(event: Event) {
+    const select = event.currentTarget as HTMLSelectElement;
+    const value = select.value;
     appStore.selectChannel(value === "" ? null : value);
   }
 
-  async function mutate(action, message) {
+  async function mutate(
+    action: () => Promise<StatusSnapshot>,
+    message: string,
+  ) {
     busy = true;
     try {
       const snapshot = await action();

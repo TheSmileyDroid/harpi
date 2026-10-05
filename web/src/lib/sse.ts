@@ -1,24 +1,24 @@
+import type { ReloadFrame, StatusFrame } from "./types";
+
 export const BASE_BACKOFF_MS = 1000;
 export const MAX_BACKOFF_MS = 30000;
 
-/**
- * @param {number} attempt
- * @param {number} [base]
- * @param {number} [max]
- */
+type Timer = ReturnType<typeof setTimeout>;
+
 export function backoffDelay(
-  attempt,
+  attempt: number,
   base = BASE_BACKOFF_MS,
   max = MAX_BACKOFF_MS,
-) {
+): number {
   return Math.min(base * 2 ** Math.max(0, attempt), max);
 }
 
-/**
- * @param {string} type
- * @param {string} data
- */
-export function parseFrame(type, data) {
+export function parseFrame(type: "status", data: string): StatusFrame | null;
+export function parseFrame(type: "reload", data: string): ReloadFrame | null;
+export function parseFrame(
+  type: string,
+  data: string,
+): { type: string; data: unknown } | null {
   try {
     return { type, data: JSON.parse(data) };
   } catch {
@@ -26,21 +26,27 @@ export function parseFrame(type, data) {
   }
 }
 
-/**
- * @typedef {object} EventStreamOptions
- * @property {string} [url]
- * @property {new (url: string, options?: any) => any} [EventSourceImpl]
- * @property {(event: { type: string, data: any }) => void} [onEvent]
- * @property {(state: string) => void} [onConnectionChange]
- * @property {(handler: () => void, timeout?: number) => any} [schedule]
- * @property {(id: any) => void} [cancel]
- * @property {number} [baseDelay]
- * @property {number} [maxDelay]
- */
+export interface EventSourceLike {
+  addEventListener(type: string, listener: (event: Event) => void): void;
+  close(): void;
+}
 
-/**
- * @param {EventStreamOptions} [options]
- */
+type EventSourceCtor = new (
+  url: string,
+  options?: { withCredentials?: boolean },
+) => EventSourceLike;
+
+export interface EventStreamOptions {
+  url?: string;
+  EventSourceImpl?: EventSourceCtor;
+  onEvent?: (frame: StatusFrame | ReloadFrame) => void;
+  onConnectionChange?: (state: string) => void;
+  schedule?: (fn: () => void, timeout: number) => Timer;
+  cancel?: (id: Timer) => void;
+  baseDelay?: number;
+  maxDelay?: number;
+}
+
 export function createEventStream({
   url = "/api/events",
   EventSourceImpl = globalThis.EventSource,
@@ -50,9 +56,9 @@ export function createEventStream({
   cancel = clearTimeout,
   baseDelay = BASE_BACKOFF_MS,
   maxDelay = MAX_BACKOFF_MS,
-} = {}) {
-  let source = null;
-  let timer = null;
+}: EventStreamOptions = {}) {
+  let source: EventSourceLike | null = null;
+  let timer: Timer | null = null;
   let attempt = 0;
   let stopped = true;
 
@@ -66,12 +72,12 @@ export function createEventStream({
     });
 
     source.addEventListener("status", (event) => {
-      const frame = parseFrame("status", event.data);
+      const frame = parseFrame("status", (event as MessageEvent).data);
       if (frame) onEvent?.(frame);
     });
 
     source.addEventListener("reload", (event) => {
-      const frame = parseFrame("reload", event.data);
+      const frame = parseFrame("reload", (event as MessageEvent).data);
       if (frame) onEvent?.(frame);
     });
 

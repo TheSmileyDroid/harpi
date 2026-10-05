@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { createDebouncer } from "./debounce.js";
+import { createDebouncer } from "./debounce";
 
 function controlledSchedule() {
-  const pending = new Map();
+  const pending = new Map<number, () => void>();
   let nextId = 0;
   return {
     pending,
-    schedule(fn) {
+    schedule(fn: () => void) {
       const id = ++nextId;
       pending.set(id, fn);
       return id;
     },
-    cancel(id) {
+    cancel(id: number) {
       pending.delete(id);
     },
-    fire(id) {
+    fire(id: number) {
       const fn = pending.get(id);
       pending.delete(id);
-      fn();
+      fn?.();
     },
   };
 }
@@ -38,7 +38,7 @@ describe("createDebouncer", () => {
 
     expect(calls).toBe(0);
     expect(clock.pending.size).toBe(1);
-    clock.fire([...clock.pending.keys()][0]);
+    clock.fire([...clock.pending.keys()][0]!);
 
     expect(calls).toBe(1);
   });

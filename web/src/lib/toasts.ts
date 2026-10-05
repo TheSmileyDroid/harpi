@@ -1,21 +1,25 @@
 import { writable } from "svelte/store";
 
-/**
- * @typedef {object} ToastsOptions
- * @property {(handler: () => void, timeout?: number) => any} [schedule]
- * @property {number} [duration]
- */
+export interface Toast {
+  id: number;
+  message: string;
+}
 
-/**
- * @param {ToastsOptions} [options]
- */
-export function createToasts({ schedule = setTimeout, duration = 4000 } = {}) {
-  const { subscribe, update } = writable([]);
+export interface ToastsOptions {
+  schedule?: (fn: () => void, timeout: number) => unknown;
+  duration?: number;
+}
+
+export function createToasts({
+  schedule = setTimeout,
+  duration = 4000,
+}: ToastsOptions = {}) {
+  const { subscribe, update } = writable<Toast[]>([]);
   let nextId = 0;
 
   return {
     subscribe,
-    push(message) {
+    push(message: string): number {
       const id = ++nextId;
       update((toasts) => [...toasts, { id, message }]);
       schedule(() => {
@@ -23,7 +27,7 @@ export function createToasts({ schedule = setTimeout, duration = 4000 } = {}) {
       }, duration);
       return id;
     },
-    dismiss(id) {
+    dismiss(id: number): void {
       update((toasts) => toasts.filter((toast) => toast.id !== id));
     },
   };

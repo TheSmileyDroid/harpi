@@ -1,8 +1,9 @@
 import js from "@eslint/js";
 import svelte from "eslint-plugin-svelte";
 import globals from "globals";
+import tseslint from "typescript-eslint";
 
-export default [
+export default tseslint.config(
   {
     ignores: [
       "node_modules/",
@@ -11,15 +12,22 @@ export default [
       "playwright-report/",
       "coverage/",
       "build/",
+      "src/lib/contract/",
     ],
   },
-  {
-    files: ["**/*.js"],
-    ...js.configs.recommended,
-  },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
   ...svelte.configs.recommended,
   {
-    files: ["src/**/*.{js,svelte}"],
+    files: ["**/*.svelte"],
+    languageOptions: {
+      parserOptions: {
+        parser: tseslint.parser,
+      },
+    },
+  },
+  {
+    files: ["src/**/*.{ts,svelte}"],
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -27,11 +35,11 @@ export default [
     },
   },
   {
-    files: ["e2e/**/*.js", "*.config.js"],
+    files: ["e2e/**/*.ts", "*.config.js"],
     languageOptions: {
       globals: {
         ...globals.node,
       },
     },
   },
-];
+);

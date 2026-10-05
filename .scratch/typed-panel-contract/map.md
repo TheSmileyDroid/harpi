@@ -28,6 +28,8 @@ The panel runs strict TypeScript at maximum strictness against a generated, runt
 
 - [06 Author the export script and the make target](issues/06-export-script-and-make-target.md): `tools/export_contract.py` imports the app and dumps `sort_keys`; `ContractOpenAPIProvider` hoists request and response models into `components.schemas` and documents `/api/events` as `text/event-stream`; the SSE union is a plain union (event name out of band); `make contract` regenerates, `make check` diffs the contract directory; generated `openapi.json` and `panel.gen.ts` committed; fixtures stay in 09.
 
+- [07 Migrate the panel to strict TypeScript](issues/07-strict-ts-migration.md): big-bang rename of `web/src/**` and the e2e spec to `.ts`; `web/tsconfig.json` extends `.svelte-kit` with all seven strict flags plus `skipLibCheck` and includes `src/**/*.ts`, `src/**/*.svelte`, `e2e/**/*.ts`; `jsconfig.json` deleted, no `allowJs`; `typescript-eslint` wired; knip and Vitest globs moved to `.ts`; `zod ^4` declared and the generated contract excluded from ESLint, knip, and coverage; the e2e spec is type-checked, not just transpiled.
+
 ## Not yet specified
 
 - Whether the contract and generation approach deserves an ADR. It is hard to reverse and a real trade-off, so it likely qualifies. Decide after the route is walked.

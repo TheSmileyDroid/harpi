@@ -1,24 +1,28 @@
-<script>
+<script lang="ts">
   import { get } from "svelte/store";
-  import { appStore } from "$lib/store.js";
-  import { toasts } from "$lib/toasts.js";
-  import { createDebouncer } from "$lib/debounce.js";
-  import { formatDuration } from "$lib/format.js";
-  import { looksLikeUrl } from "$lib/url.js";
+  import { appStore } from "$lib/store";
+  import { toasts } from "$lib/toasts";
+  import { createDebouncer } from "$lib/debounce";
+  import { formatDuration } from "$lib/format";
+  import { looksLikeUrl } from "$lib/url";
+  import type { ApiClient } from "$lib/api";
+  import type { Track } from "$lib/types";
   import Thumbnail from "./Thumbnail.svelte";
 
-  let { api } = $props();
+  let { api }: { api: ApiClient } = $props();
 
   let term = $state("");
-  let status = $state("idle");
-  let busyUrl = $state(null);
-  let layerUrl = $state(null);
+  let status = $state<"idle" | "searching" | "ready" | "empty" | "error">(
+    "idle",
+  );
+  let busyUrl = $state<string | null>(null);
+  let layerUrl = $state<string | null>(null);
   const debouncer = createDebouncer();
 
   const results = $derived($appStore.search.results);
   const activeIndex = $derived($appStore.search.activeIndex);
 
-  async function runSearch(value) {
+  async function runSearch(value: string) {
     const trimmed = value.trim();
     status = "searching";
     try {
@@ -55,7 +59,7 @@
     debouncer.run(() => runSearch(term));
   }
 
-  async function queueUrl(url) {
+  async function queueUrl(url: string) {
     busyUrl = url;
     try {
       const snapshot = await api.queue(url);
@@ -69,11 +73,11 @@
     }
   }
 
-  function queueTrack(track) {
+  function queueTrack(track: Track) {
     return queueUrl(track.url);
   }
 
-  async function layerTrack(track) {
+  async function layerTrack(track: Track) {
     if (layerUrl) return;
     layerUrl = track.url;
     try {
@@ -88,7 +92,7 @@
     }
   }
 
-  function onKeydown(event) {
+  function onKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       appStore.closeSearch();
       return;

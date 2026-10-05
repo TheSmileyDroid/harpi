@@ -1,14 +1,16 @@
-<script>
-  import { appStore } from "$lib/store.js";
-  import { toasts } from "$lib/toasts.js";
+<script lang="ts">
+  import { appStore } from "$lib/store";
+  import { toasts } from "$lib/toasts";
   import Thumbnail from "./Thumbnail.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import VolumeSlider from "./VolumeSlider.svelte";
+  import type { ApiClient } from "$lib/api";
+  import type { Layer } from "$lib/types";
 
-  let { api } = $props();
+  let { api }: { api: ApiClient } = $props();
 
   let busy = $state(false);
-  let pending = $state(null);
+  let pending = $state<Layer | null>(null);
 
   const layers = $derived($appStore.playback?.layers ?? []);
   const hasSession = $derived($appStore.playback !== null);
@@ -16,13 +18,13 @@
     pending ? `Remove layer "${pending.title}"?` : "Remove this layer?",
   );
 
-  async function sendLayerVolume(id, value) {
+  async function sendLayerVolume(id: string, value: number) {
     const snapshot = await api.setLayerVolume(id, value);
     appStore.applyStatus(snapshot);
     toasts.push("Layer volume changed");
   }
 
-  function askRemove(layer) {
+  function askRemove(layer: Layer) {
     pending = layer;
   }
 

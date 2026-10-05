@@ -1,14 +1,17 @@
-<script>
-  import { appStore } from "$lib/store.js";
-  import { toasts } from "$lib/toasts.js";
+<script lang="ts">
+  import { appStore } from "$lib/store";
+  import { toasts } from "$lib/toasts";
   import ConfirmDialog from "./ConfirmDialog.svelte";
-  import { formatDuration } from "$lib/format.js";
+  import { formatDuration } from "$lib/format";
+  import type { ApiClient } from "$lib/api";
   import Thumbnail from "./Thumbnail.svelte";
 
-  let { api } = $props();
+  type Pending = { kind: "remove"; url: string } | { kind: "clear"; url: null };
+
+  let { api }: { api: ApiClient } = $props();
 
   let busy = $state(false);
-  let pending = $state(null);
+  let pending = $state<Pending | null>(null);
 
   const queue = $derived($appStore.playback?.queue ?? []);
   const hasSession = $derived($appStore.playback !== null);
@@ -16,7 +19,7 @@
     pending?.kind === "clear" ? "Clear the whole queue?" : "Remove this track?",
   );
 
-  function askRemove(url) {
+  function askRemove(url: string) {
     pending = { kind: "remove", url };
   }
 

@@ -1,23 +1,24 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
-  import { appStore } from "$lib/store.js";
-  import { errorRegion } from "$lib/errors.js";
-  import { toasts } from "$lib/toasts.js";
-  import { createApiClient } from "$lib/api.js";
-  import { createEventStream } from "$lib/sse.js";
+  import { appStore } from "$lib/store";
+  import { errorRegion } from "$lib/errors";
+  import { toasts } from "$lib/toasts";
+  import { ApiError, createApiClient } from "$lib/api";
+  import { createEventStream } from "$lib/sse";
+  import type { SseFrame } from "$lib/types";
   import SignIn from "$lib/components/SignIn.svelte";
   import StatusSurface from "$lib/components/StatusSurface.svelte";
 
-  let phase = $state("checking");
+  let phase = $state<"checking" | "signed-out" | "signed-in">("checking");
   let link = $state("connecting");
-  let stream = null;
+  let stream: { start(): void; stop(): void } | null = null;
   let probingSession = false;
 
   const api = createApiClient({
     onError: (error) => errorRegion.report(error),
   });
 
-  function handleEvent(event) {
+  function handleEvent(event: SseFrame) {
     if (event.type === "status") {
       appStore.applyStatus(event.data);
     } else if (event.type === "reload") {
@@ -25,14 +26,14 @@
     }
   }
 
-  async function handleConnectionChange(state) {
+  async function handleConnectionChange(state: string) {
     link = state;
     if (state !== "reconnecting" || probingSession) return;
     probingSession = true;
     try {
       await api.checkSession();
     } catch (error) {
-      if (error.status === 401) {
+      if (error instanceof ApiError && error.status === 401) {
         stream?.stop();
         errorRegion.report(error);
         phase = "signed-out";
@@ -56,14 +57,14 @@
     startStream();
   }
 
-  async function loadStatus() {
+  async function loadStatus(): Promise<boolean> {
     const snapshot = await api.status().catch(() => null);
     if (!snapshot) return false;
     appStore.applyStatus(snapshot);
     return true;
   }
 
-  async function signIn(token) {
+  async function signIn(token: string) {
     await api.signIn(token);
     errorRegion.clear();
     phase = "signed-in";

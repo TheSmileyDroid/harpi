@@ -1,17 +1,46 @@
 import { writable } from "svelte/store";
+import type {
+  BotStatus,
+  Channel,
+  Connection,
+  Guild,
+  PlaybackStatus,
+  SseFrame,
+  StatusSnapshot,
+  Track,
+} from "./types";
+
+interface SearchState {
+  query: string;
+  open: boolean;
+  activeIndex: number;
+  results: Track[];
+}
+
+export interface AppState {
+  guildId: string | null;
+  bot: BotStatus;
+  connection: Connection;
+  playback: PlaybackStatus | null;
+  guilds: Guild[];
+  channels: Channel[];
+  pendingGuildId: string | null;
+  selectedChannelId: string | null;
+  search: SearchState;
+}
 
 const noStatus = {
   guildId: null,
   bot: { online: false },
   connection: { connected: false, channel_id: null },
   playback: null,
-};
+} satisfies Pick<AppState, "guildId" | "bot" | "connection" | "playback">;
 
-function emptySearch() {
+function emptySearch(): SearchState {
   return { query: "", open: false, activeIndex: -1, results: [] };
 }
 
-export function initialState() {
+export function initialState(): AppState {
   return {
     ...noStatus,
     guilds: [],
@@ -22,7 +51,9 @@ export function initialState() {
   };
 }
 
-export function normalizeStatus(snapshot) {
+export function normalizeStatus(
+  snapshot: StatusSnapshot | null | undefined,
+): Pick<AppState, "guildId" | "bot" | "connection" | "playback"> {
   return {
     guildId: snapshot?.guild_id ?? null,
     bot: snapshot?.bot ?? { online: false },
@@ -34,65 +65,68 @@ export function normalizeStatus(snapshot) {
   };
 }
 
-export function reduceStatus(state, snapshot) {
+export function reduceStatus(
+  state: AppState,
+  snapshot: StatusSnapshot | null | undefined,
+): AppState {
   return { ...state, ...normalizeStatus(snapshot) };
 }
 
-export function reduceSse(state, frame) {
-  if (frame?.type === "status") {
+export function reduceSse(state: AppState, frame: SseFrame): AppState {
+  if (frame.type === "status") {
     return reduceStatus(state, frame.data);
   }
   return state;
 }
 
 export function createAppStore() {
-  const { subscribe, update, set } = writable(initialState());
+  const { subscribe, update, set } = writable<AppState>(initialState());
 
   return {
     subscribe,
-    applyStatus(snapshot) {
+    applyStatus(snapshot: StatusSnapshot): void {
       update((state) => reduceStatus(state, snapshot));
     },
-    applySse(frame) {
+    applySse(frame: SseFrame): void {
       update((state) => reduceSse(state, frame));
     },
-    setGuilds(guilds) {
+    setGuilds(guilds: Guild[]): void {
       update((state) => ({ ...state, guilds }));
     },
-    setChannels(channels) {
+    setChannels(channels: Channel[]): void {
       update((state) => ({ ...state, channels }));
     },
-    selectGuild(pendingGuildId) {
+    selectGuild(pendingGuildId: string | null): void {
       update((state) => ({ ...state, pendingGuildId }));
     },
-    selectChannel(selectedChannelId) {
+    selectChannel(selectedChannelId: string | null): void {
       update((state) => ({ ...state, selectedChannelId }));
     },
-    setSearchQuery(query) {
+    setSearchQuery(query: string): void {
       update((state) => ({ ...state, search: { ...state.search, query } }));
     },
-    setSearchResults(results) {
+    setSearchResults(results: Track[]): void {
       update((state) => ({ ...state, search: { ...state.search, results } }));
     },
-    openSearch() {
+    openSearch(): void {
       update((state) => ({
         ...state,
         search: { ...state.search, open: true },
       }));
     },
-    closeSearch() {
+    closeSearch(): void {
       update((state) => ({
         ...state,
         search: { ...state.search, open: false, activeIndex: -1 },
       }));
     },
-    setActiveIndex(activeIndex) {
+    setActiveIndex(activeIndex: number): void {
       update((state) => ({
         ...state,
         search: { ...state.search, activeIndex },
       }));
     },
-    reset() {
+    reset(): void {
       set(initialState());
     },
   };

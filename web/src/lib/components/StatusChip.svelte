@@ -1,5 +1,5 @@
-<script>
-  let { online } = $props();
+<script lang="ts">
+  let { online }: { online: boolean } = $props();
 </script>
 
 <span

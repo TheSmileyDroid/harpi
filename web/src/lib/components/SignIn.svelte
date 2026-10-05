@@ -1,9 +1,9 @@
-<script>
-  let { onsignin } = $props();
+<script lang="ts">
+  let { onsignin }: { onsignin: (token: string) => Promise<void> } = $props();
   let token = $state("");
   let busy = $state(false);
 
-  async function submit(event) {
+  async function submit(event: Event) {
     event.preventDefault();
     busy = true;
     try {

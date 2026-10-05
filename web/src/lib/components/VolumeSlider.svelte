@@ -1,6 +1,6 @@
-<script>
-  import { createDebouncer } from "$lib/debounce.js";
-  import { volumeGain, volumePosition } from "$lib/transport.js";
+<script lang="ts">
+  import { createDebouncer } from "$lib/debounce";
+  import { volumeGain, volumePosition } from "$lib/transport";
 
   let {
     gain = 0,
@@ -10,20 +10,29 @@
     valueTestid,
     controlTestid,
     className = "volume-control",
+  }: {
+    gain?: number;
+    send: (value: number) => Promise<void>;
+    label?: string;
+    sliderTestid?: string;
+    valueTestid?: string;
+    controlTestid?: string;
+    className?: string;
   } = $props();
 
-  let dragging = $state(null);
+  let dragging = $state<number | null>(null);
   const debouncer = createDebouncer({ delay: 300 });
 
   const position = $derived(dragging ?? volumePosition(gain ?? 0));
   const displayGain = $derived(volumeGain(position));
 
-  function onInput(event) {
+  function onInput(event: Event & { currentTarget: HTMLInputElement }) {
     dragging = Number(event.currentTarget.value);
     debouncer.run(commit);
   }
 
   async function commit() {
+    if (dragging === null) return;
     try {
       await send(volumeGain(dragging));
     } catch {

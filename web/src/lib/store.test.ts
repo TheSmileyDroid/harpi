@@ -1,12 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { get } from "svelte/store";
+import type { Track } from "./types";
 import {
   createAppStore,
   initialState,
   normalizeStatus,
   reduceSse,
   reduceStatus,
-} from "./store.js";
+} from "./store";
+
+function track(title: string): Track {
+  return {
+    url: "https://example.com/track",
+    title,
+    uploader: "Uploader",
+    duration: 200,
+    thumbnail: "https://example.com/thumb.jpg",
+  };
+}
 
 const snapshot = {
   bot: { online: true },
@@ -17,7 +28,7 @@ const snapshot = {
     connected: true,
     is_playing: true,
     is_paused: false,
-    current_music: { title: "Track" },
+    current_music: track("Track"),
     queue: [],
     layers: [],
     loop_mode: "OFF",
@@ -56,13 +67,21 @@ describe("normalizeStatus", () => {
 
 describe("reduceStatus", () => {
   it("replaces status fields and leaves search untouched", () => {
-    const before = { ...initialState(), search: { query: "abc" } };
+    const before = {
+      ...initialState(),
+      search: { query: "abc", open: false, activeIndex: -1, results: [] },
+    };
 
     const after = reduceStatus(before, snapshot);
 
     expect(after.guildId).toBe("7");
     expect(after.playback).toBe(snapshot.playback);
-    expect(after.search).toEqual({ query: "abc" });
+    expect(after.search).toEqual({
+      query: "abc",
+      open: false,
+      activeIndex: -1,
+      results: [],
+    });
   });
 });
 
@@ -120,13 +139,13 @@ describe("createAppStore", () => {
     const store = createAppStore();
 
     store.setSearchQuery("queen");
-    store.setSearchResults([{ title: "Bohemian Rhapsody" }]);
+    store.setSearchResults([track("Bohemian Rhapsody")]);
     store.openSearch();
     store.setActiveIndex(1);
 
     expect(get(store).search).toEqual({
       query: "queen",
-      results: [{ title: "Bohemian Rhapsody" }],
+      results: [track("Bohemian Rhapsody")],
       open: true,
       activeIndex: 1,
     });

@@ -1,5 +1,5 @@
-<script>
-  import { toasts } from "$lib/toasts.js";
+<script lang="ts">
+  import { toasts } from "$lib/toasts";
 </script>
 
 <div

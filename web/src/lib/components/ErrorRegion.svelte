@@ -1,5 +1,5 @@
-<script>
-  import { errorRegion } from "$lib/errors.js";
+<script lang="ts">
+  import { errorRegion } from "$lib/errors";
 </script>
 
 {#if $errorRegion.length}

@@ -6,7 +6,7 @@ import {
   seekTarget,
   volumeGain,
   volumePosition,
-} from "./transport.js";
+} from "./transport";
 
 describe("pointerRatio", () => {
   it("maps a pointer x to a clamped 0-1 ratio", () => {
@@ -81,13 +81,13 @@ describe("volume mapping", () => {
   it("round-trips a layer gain through its slider position", () => {
     const positions = [0.7, 0.4, 0.15].map(volumePosition);
 
-    expect(positions[0]).toBeCloseTo(Math.sqrt(0.7));
-    expect(positions[0]).not.toBe(0.7);
+    expect(positions[0]!).toBeCloseTo(Math.sqrt(0.7));
+    expect(positions[0]!).not.toBe(0.7);
     for (const [gain, position] of [
-      [0.7, positions[0]],
-      [0.4, positions[1]],
-      [0.15, positions[2]],
-    ]) {
+      [0.7, positions[0]!],
+      [0.4, positions[1]!],
+      [0.15, positions[2]!],
+    ] as const) {
       expect(volumeGain(position)).toBeCloseTo(gain);
     }
   });

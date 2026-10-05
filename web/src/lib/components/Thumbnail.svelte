@@ -1,5 +1,15 @@
-<script>
-  let { src = "", alt = "", className = "search-thumb", size = 48 } = $props();
+<script lang="ts">
+  let {
+    src = "",
+    alt = "",
+    className = "search-thumb",
+    size = 48,
+  }: {
+    src?: string;
+    alt?: string;
+    className?: string;
+    size?: number;
+  } = $props();
 </script>
 
 {#if src}

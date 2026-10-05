@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   let {
     open = false,
     message = "",
@@ -7,8 +7,16 @@
     testid = "confirm-dialog",
     cancelTestid = "confirm-cancel",
     executeTestid = "confirm-execute",
+  }: {
+    open?: boolean;
+    message?: string;
+    onconfirm?: () => void;
+    oncancel?: () => void;
+    testid?: string;
+    cancelTestid?: string;
+    executeTestid?: string;
   } = $props();
-  let dialog = $state(null);
+  let dialog = $state<HTMLDialogElement | null>(null);
 
   $effect(() => {
     if (!dialog) return;

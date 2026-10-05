@@ -1,18 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { get } from "svelte/store";
-import { createAppStore } from "./store.js";
+import { createAppStore } from "./store";
+import type { SseFrame } from "./types";
 import {
   backoffDelay,
   createEventStream,
   parseFrame,
   BASE_BACKOFF_MS,
   MAX_BACKOFF_MS,
-} from "./sse.js";
+  type EventSourceLike,
+} from "./sse";
 
-class FakeEventSource {
-  static instances = [];
+class FakeEventSource implements EventSourceLike {
+  static instances: FakeEventSource[] = [];
 
-  constructor(url, options) {
+  url: string;
+  options: { withCredentials?: boolean } | undefined;
+  listeners = new Map<string, ((event: Event) => void)[]>();
+  closed = false;
+
+  constructor(url: string, options?: { withCredentials?: boolean }) {
     this.url = url;
     this.options = options;
     this.listeners = new Map();
@@ -20,28 +27,29 @@ class FakeEventSource {
     FakeEventSource.instances.push(this);
   }
 
-  addEventListener(type, handler) {
+  addEventListener(type: string, handler: (event: Event) => void): void {
     const handlers = this.listeners.get(type) ?? [];
     handlers.push(handler);
     this.listeners.set(type, handlers);
   }
 
-  emit(type, payload) {
+  emit(type: string, payload?: { data?: string }): void {
+    const event = payload as unknown as Event;
     for (const handler of this.listeners.get(type) ?? []) {
-      handler(payload);
+      handler(event);
     }
   }
 
-  close() {
+  close(): void {
     this.closed = true;
   }
 }
 
 function harness() {
   FakeEventSource.instances = [];
-  const scheduled = [];
-  const events = [];
-  const connection = [];
+  const scheduled: { fn: () => void; delay: number }[] = [];
+  const events: SseFrame[] = [];
+  const connection: string[] = [];
   const stream = createEventStream({
     EventSourceImpl: FakeEventSource,
     onEvent: (event) => events.push(event),
@@ -83,8 +91,8 @@ describe("createEventStream", () => {
     stream.start();
 
     expect(FakeEventSource.instances).toHaveLength(1);
-    expect(FakeEventSource.instances[0].url).toBe("/api/events");
-    expect(FakeEventSource.instances[0].options).toEqual({
+    expect(FakeEventSource.instances[0]!.url).toBe("/api/events");
+    expect(FakeEventSource.instances[0]!.options).toEqual({
       withCredentials: true,
     });
   });
@@ -92,7 +100,7 @@ describe("createEventStream", () => {
   it("dispatches parsed status and reload frames", () => {
     const { stream, events } = harness();
     stream.start();
-    const source = FakeEventSource.instances[0];
+    const source = FakeEventSource.instances[0]!;
 
     source.emit("status", { data: '{"bot":{"online":true}}' });
     source.emit("reload", { data: '{"scope":"shell"}' });
@@ -108,10 +116,10 @@ describe("createEventStream", () => {
     const { stream, scheduled, connection } = harness();
     stream.start();
 
-    FakeEventSource.instances[0].emit("open");
-    FakeEventSource.instances[0].emit("error");
-    scheduled[0].fn();
-    FakeEventSource.instances[1].emit("open");
+    FakeEventSource.instances[0]!.emit("open");
+    FakeEventSource.instances[0]!.emit("error");
+    scheduled[0]!.fn();
+    FakeEventSource.instances[1]!.emit("open");
 
     expect(connection).toEqual(["connected", "reconnecting", "connected"]);
   });
@@ -120,40 +128,40 @@ describe("createEventStream", () => {
     const { stream, scheduled } = harness();
     stream.start();
 
-    FakeEventSource.instances[0].emit("error");
-    expect(scheduled[0].delay).toBe(BASE_BACKOFF_MS);
+    FakeEventSource.instances[0]!.emit("error");
+    expect(scheduled[0]!.delay).toBe(BASE_BACKOFF_MS);
 
-    scheduled[0].fn();
-    FakeEventSource.instances[1].emit("error");
-    expect(scheduled[1].delay).toBe(2 * BASE_BACKOFF_MS);
+    scheduled[0]!.fn();
+    FakeEventSource.instances[1]!.emit("error");
+    expect(scheduled[1]!.delay).toBe(2 * BASE_BACKOFF_MS);
 
-    scheduled[1].fn();
-    FakeEventSource.instances[2].emit("error");
-    expect(scheduled[2].delay).toBe(4 * BASE_BACKOFF_MS);
+    scheduled[1]!.fn();
+    FakeEventSource.instances[2]!.emit("error");
+    expect(scheduled[2]!.delay).toBe(4 * BASE_BACKOFF_MS);
   });
 
   it("resets backoff after a successful reconnect", () => {
     const { stream, scheduled } = harness();
     stream.start();
-    FakeEventSource.instances[0].emit("error");
-    scheduled[0].fn();
-    FakeEventSource.instances[1].emit("open");
+    FakeEventSource.instances[0]!.emit("error");
+    scheduled[0]!.fn();
+    FakeEventSource.instances[1]!.emit("open");
 
-    FakeEventSource.instances[1].emit("error");
+    FakeEventSource.instances[1]!.emit("error");
 
-    expect(scheduled[1].delay).toBe(BASE_BACKOFF_MS);
+    expect(scheduled[1]!.delay).toBe(BASE_BACKOFF_MS);
   });
 
   it("stops the current stream and any pending reconnect", () => {
     const { stream, scheduled } = harness();
     stream.start();
-    FakeEventSource.instances[0].emit("error");
+    FakeEventSource.instances[0]!.emit("error");
 
     stream.stop();
-    scheduled[0].fn();
+    scheduled[0]!.fn();
 
     expect(FakeEventSource.instances).toHaveLength(1);
-    expect(FakeEventSource.instances[0].closed).toBe(true);
+    expect(FakeEventSource.instances[0]!.closed).toBe(true);
   });
 });
 
@@ -161,7 +169,7 @@ describe("stream recovery", () => {
   it("resyncs the store from the full snapshot after a drop", () => {
     FakeEventSource.instances = [];
     const store = createAppStore();
-    const scheduled = [];
+    const scheduled: { fn: () => void; delay: number }[] = [];
     const stream = createEventStream({
       EventSourceImpl: FakeEventSource,
       onEvent: (event) => store.applySse(event),
@@ -173,9 +181,9 @@ describe("stream recovery", () => {
     });
 
     stream.start();
-    FakeEventSource.instances[0].emit("error");
-    scheduled[0].fn();
-    FakeEventSource.instances[1].emit("status", {
+    FakeEventSource.instances[0]!.emit("error");
+    scheduled[0]!.fn();
+    FakeEventSource.instances[1]!.emit("status", {
       data: JSON.stringify({
         bot: { online: true },
         guild_id: "5",

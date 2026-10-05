@@ -207,6 +207,7 @@ test("drives transport, seeks, and changes volume against live position", async 
 
   const track = page.getByTestId("seek-track");
   const box = await track.boundingBox();
+  if (!box) throw new Error("seek track has no bounding box");
   const midY = box.y + box.height / 2;
   await page.mouse.click(box.x + box.width * 0.75, midY);
   await expect(page.getByTestId("progress-readout")).toContainText(
@@ -223,17 +224,25 @@ test("drives transport, seeks, and changes volume against live position", async 
   );
 
   await page.getByTestId("volume-slider").evaluate((element) => {
+    const input = element as HTMLInputElement;
     for (const value of ["0.3", "0.4", "0.5"]) {
-      element.value = value;
-      element.dispatchEvent(new Event("input", { bubbles: true }));
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
     }
   });
   await expect(page.getByTestId("volume-value")).toHaveText("0.25");
   await expect(page.getByTestId("toasts")).toContainText("Volume changed");
 
-  const calls = await (await request.get(`${BACKEND}/__test__/calls`)).json();
+  const calls = (await (
+    await request.get(`${BACKEND}/__test__/calls`)
+  ).json()) as {
+    calls: unknown[];
+  };
   const volumeCalls = calls.calls.filter(
-    (call) => Array.isArray(call) && call[0] === "set_volume",
+    (call): call is [string, ...unknown[]] =>
+      Array.isArray(call) &&
+      typeof call[0] === "string" &&
+      call[0] === "set_volume",
   );
   expect(volumeCalls).toHaveLength(1);
 
@@ -270,8 +279,9 @@ test("adds a layer, changes its volume, and removes it with confirmation", async
     .getByTestId("layer-volume")
     .first()
     .evaluate((element) => {
-      element.value = "0.5";
-      element.dispatchEvent(new Event("input", { bubbles: true }));
+      const input = element as HTMLInputElement;
+      input.value = "0.5";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
     });
   await expect(page.getByTestId("layer-volume-value")).toHaveText("0.25");
   await expect(page.getByTestId("toasts")).toContainText(
@@ -295,9 +305,16 @@ test("adds a layer, changes its volume, and removes it with confirmation", async
   await expect(page.getByTestId("toasts")).toContainText("Layer removed");
   await expect(page.getByTestId("layers-empty")).toContainText("No layers");
 
-  const calls = await (await request.get(`${BACKEND}/__test__/calls`)).json();
+  const calls = (await (
+    await request.get(`${BACKEND}/__test__/calls`)
+  ).json()) as {
+    calls: unknown[];
+  };
   const layerCalls = calls.calls.filter(
-    (call) => Array.isArray(call) && call[0].includes("layer"),
+    (call): call is [string, ...unknown[]] =>
+      Array.isArray(call) &&
+      typeof call[0] === "string" &&
+      call[0].includes("layer"),
   );
   expect(layerCalls.map((call) => call[0])).toEqual([
     "add_layer",

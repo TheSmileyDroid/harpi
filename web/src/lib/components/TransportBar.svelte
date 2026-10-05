@@ -1,22 +1,24 @@
-<script>
-  import { appStore } from "$lib/store.js";
-  import { toasts } from "$lib/toasts.js";
-  import { formatDuration } from "$lib/format.js";
+<script lang="ts">
+  import { appStore } from "$lib/store";
+  import { toasts } from "$lib/toasts";
+  import { formatDuration } from "$lib/format";
   import {
     nextLoopMode,
     pointerRatio,
     seekDisplayRatio,
     seekTarget,
-  } from "$lib/transport.js";
+  } from "$lib/transport";
+  import type { ApiClient } from "$lib/api";
+  import type { StatusSnapshot } from "$lib/types";
   import VolumeSlider from "./VolumeSlider.svelte";
 
-  let { api } = $props();
+  let { api }: { api: ApiClient } = $props();
 
   let busy = $state(false);
   let seeking = $state(false);
   let seekRatio = $state(0);
-  let track = $state(null);
-  let bar = $state(null);
+  let track = $state<HTMLElement | null>(null);
+  let bar = $state<HTMLElement | null>(null);
 
   $effect(() => {
     const element = bar;
@@ -47,7 +49,7 @@
     seekDisplayRatio(seeking, seekRatio, serverRatio),
   );
 
-  async function act(fn, message) {
+  async function act(fn: () => Promise<StatusSnapshot>, message: string) {
     if (busy) return;
     busy = true;
     try {
@@ -82,25 +84,25 @@
     );
   }
 
-  function ratioAt(clientX) {
+  function ratioAt(clientX: number): number {
     if (!track) return 0;
     const rect = track.getBoundingClientRect();
     return pointerRatio(clientX - rect.left, rect.width);
   }
 
-  function onSeekDown(event) {
+  function onSeekDown(event: PointerEvent) {
     if (!duration || busy) return;
     seeking = true;
     seekRatio = ratioAt(event.clientX);
     track?.setPointerCapture?.(event.pointerId);
   }
 
-  function onSeekMove(event) {
+  function onSeekMove(event: PointerEvent) {
     if (!seeking) return;
     seekRatio = ratioAt(event.clientX);
   }
 
-  async function onSeekUp(event) {
+  async function onSeekUp(event: PointerEvent) {
     if (!seeking) return;
     seekRatio = ratioAt(event.clientX);
     const target = seekTarget(seekRatio, duration);
@@ -121,7 +123,7 @@
     }
   }
 
-  async function sendVolume(value) {
+  async function sendVolume(value: number) {
     const snapshot = await api.volume(value);
     appStore.applyStatus(snapshot);
     toasts.push("Volume changed");
@@ -173,7 +175,7 @@
       disabled={busy}
       data-testid="loop"
     >
-      Loop {playback.loop_mode}
+      Loop {playback?.loop_mode}
     </button>
     <VolumeSlider
       gain={playback?.volume ?? 0}
