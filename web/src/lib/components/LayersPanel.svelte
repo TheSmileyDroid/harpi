@@ -5,7 +5,7 @@
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import VolumeSlider from "./VolumeSlider.svelte";
   import type { ApiClient } from "$lib/api";
-  import type { Layer } from "$lib/types";
+  import type { Layer } from "$lib/contract/panel.gen";
 
   let { api }: { api: ApiClient } = $props();
 

@@ -5,7 +5,7 @@
   import { toasts } from "$lib/toasts";
   import { formatDuration } from "$lib/format";
   import type { ApiClient } from "$lib/api";
-  import type { StatusSnapshot } from "$lib/types";
+  import type { StatusSnapshot } from "$lib/contract/panel.gen";
   import StatusChip from "./StatusChip.svelte";
   import SearchPanel from "./SearchPanel.svelte";
   import QueuePanel from "./QueuePanel.svelte";

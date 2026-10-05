@@ -6,7 +6,7 @@
   import { formatDuration } from "$lib/format";
   import { looksLikeUrl } from "$lib/url";
   import type { ApiClient } from "$lib/api";
-  import type { Track } from "$lib/types";
+  import type { Track } from "$lib/contract/panel.gen";
   import Thumbnail from "./Thumbnail.svelte";
 
   let { api }: { api: ApiClient } = $props();

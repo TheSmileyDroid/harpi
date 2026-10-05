@@ -9,7 +9,7 @@
     seekTarget,
   } from "$lib/transport";
   import type { ApiClient } from "$lib/api";
-  import type { StatusSnapshot } from "$lib/types";
+  import type { StatusSnapshot } from "$lib/contract/panel.gen";
   import VolumeSlider from "./VolumeSlider.svelte";
 
   let { api }: { api: ApiClient } = $props();

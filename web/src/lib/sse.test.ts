@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { get } from "svelte/store";
+import { ApiError } from "./api";
 import { createAppStore } from "./store";
-import type { SseFrame } from "./types";
 import {
   backoffDelay,
   createEventStream,
@@ -9,7 +9,15 @@ import {
   BASE_BACKOFF_MS,
   MAX_BACKOFF_MS,
   type EventSourceLike,
+  type SseFrame,
 } from "./sse";
+
+const SNAPSHOT = {
+  bot: { online: true },
+  guild_id: "5",
+  connection: { connected: false, channel_id: null },
+  playback: null,
+};
 
 class FakeEventSource implements EventSourceLike {
   static instances: FakeEventSource[] = [];
@@ -50,9 +58,11 @@ function harness() {
   const scheduled: { fn: () => void; delay: number }[] = [];
   const events: SseFrame[] = [];
   const connection: string[] = [];
+  const errors: ApiError[] = [];
   const stream = createEventStream({
     EventSourceImpl: FakeEventSource,
     onEvent: (event) => events.push(event),
+    onError: (error) => errors.push(error),
     onConnectionChange: (state) => connection.push(state),
     schedule: (fn, delay) => {
       scheduled.push({ fn, delay });
@@ -60,7 +70,7 @@ function harness() {
     },
     cancel: () => {},
   });
-  return { stream, scheduled, events, connection };
+  return { stream, scheduled, events, connection, errors };
 }
 
 describe("backoffDelay", () => {
@@ -72,11 +82,22 @@ describe("backoffDelay", () => {
 });
 
 describe("parseFrame", () => {
-  it("parses a JSON frame", () => {
-    expect(parseFrame("status", '{"bot":{"online":true}}')).toEqual({
+  it("parses a status frame through its schema", () => {
+    expect(parseFrame("status", JSON.stringify(SNAPSHOT))).toEqual({
       type: "status",
-      data: { bot: { online: true } },
+      data: SNAPSHOT,
     });
+  });
+
+  it("parses a reload frame through its schema", () => {
+    expect(parseFrame("reload", '{"scope":"shell"}')).toEqual({
+      type: "reload",
+      data: { scope: "shell" },
+    });
+  });
+
+  it("drops a frame that fails its schema", () => {
+    expect(parseFrame("status", '{"bot":{"online":true}}')).toBeNull();
   });
 
   it("drops a malformed frame", () => {
@@ -97,19 +118,34 @@ describe("createEventStream", () => {
     });
   });
 
-  it("dispatches parsed status and reload frames", () => {
-    const { stream, events } = harness();
+  it("routes each event name to its schema", () => {
+    const { stream, events, errors } = harness();
+    stream.start();
+    const source = FakeEventSource.instances[0]!;
+
+    source.emit("status", { data: JSON.stringify(SNAPSHOT) });
+    source.emit("reload", { data: '{"scope":"shell"}' });
+
+    expect(events).toEqual([
+      { type: "status", data: SNAPSHOT },
+      { type: "reload", data: { scope: "shell" } },
+    ]);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("drops an invalid frame and reports the contract violation", () => {
+    const { stream, events, errors } = harness();
     stream.start();
     const source = FakeEventSource.instances[0]!;
 
     source.emit("status", { data: '{"bot":{"online":true}}' });
-    source.emit("reload", { data: '{"scope":"shell"}' });
     source.emit("status", { data: "broken" });
+    source.emit("reload", { data: '{"scope":"shell"}' });
 
-    expect(events).toEqual([
-      { type: "status", data: { bot: { online: true } } },
-      { type: "reload", data: { scope: "shell" } },
-    ]);
+    expect(events).toEqual([{ type: "reload", data: { scope: "shell" } }]);
+    expect(errors).toHaveLength(2);
+    expect(errors[0]).toBeInstanceOf(ApiError);
+    expect(errors[0]!.code).toBe("contract_violation");
   });
 
   it("reports connection state on open and reconnect", () => {

@@ -1,7 +1,19 @@
-import type { ReloadFrame, StatusFrame } from "./types";
+import { ApiError } from "./api";
+import { ReloadEvent, StatusSnapshot } from "./contract/panel.gen";
 
 export const BASE_BACKOFF_MS = 1000;
 export const MAX_BACKOFF_MS = 30000;
+
+type StatusFrame = { type: "status"; data: StatusSnapshot };
+type ReloadFrame = { type: "reload"; data: ReloadEvent };
+export type SseFrame = StatusFrame | ReloadFrame;
+
+const SSE_SCHEMAS = {
+  status: StatusSnapshot,
+  reload: ReloadEvent,
+} as const;
+
+export type SseEventName = keyof typeof SSE_SCHEMAS;
 
 type Timer = ReturnType<typeof setTimeout>;
 
@@ -13,17 +25,18 @@ export function backoffDelay(
   return Math.min(base * 2 ** Math.max(0, attempt), max);
 }
 
-export function parseFrame(type: "status", data: string): StatusFrame | null;
-export function parseFrame(type: "reload", data: string): ReloadFrame | null;
-export function parseFrame(
-  type: string,
-  data: string,
-): { type: string; data: unknown } | null {
+export function parseFrame(name: SseEventName, data: string): SseFrame | null {
+  let payload: unknown;
   try {
-    return { type, data: JSON.parse(data) };
+    payload = JSON.parse(data);
   } catch {
     return null;
   }
+  const result = SSE_SCHEMAS[name].safeParse(payload);
+  if (!result.success) {
+    return null;
+  }
+  return { type: name, data: result.data } as SseFrame;
 }
 
 export interface EventSourceLike {
@@ -39,7 +52,8 @@ type EventSourceCtor = new (
 export interface EventStreamOptions {
   url?: string;
   EventSourceImpl?: EventSourceCtor;
-  onEvent?: (frame: StatusFrame | ReloadFrame) => void;
+  onEvent?: (frame: SseFrame) => void;
+  onError?: (error: ApiError) => void;
   onConnectionChange?: (state: string) => void;
   schedule?: (fn: () => void, timeout: number) => Timer;
   cancel?: (id: Timer) => void;
@@ -51,6 +65,7 @@ export function createEventStream({
   url = "/api/events",
   EventSourceImpl = globalThis.EventSource,
   onEvent,
+  onError,
   onConnectionChange,
   schedule = setTimeout,
   cancel = clearTimeout,
@@ -62,6 +77,21 @@ export function createEventStream({
   let attempt = 0;
   let stopped = true;
 
+  function dispatch(name: SseEventName, event: Event) {
+    const frame = parseFrame(name, (event as MessageEvent).data);
+    if (frame) {
+      onEvent?.(frame);
+      return;
+    }
+    onError?.(
+      new ApiError({
+        code: "contract_violation",
+        message: `Unexpected ${name} event`,
+        status: 0,
+      }),
+    );
+  }
+
   function connect() {
     if (stopped) return;
     source = new EventSourceImpl(url, { withCredentials: true });
@@ -71,15 +101,9 @@ export function createEventStream({
       onConnectionChange?.("connected");
     });
 
-    source.addEventListener("status", (event) => {
-      const frame = parseFrame("status", (event as MessageEvent).data);
-      if (frame) onEvent?.(frame);
-    });
+    source.addEventListener("status", (event) => dispatch("status", event));
 
-    source.addEventListener("reload", (event) => {
-      const frame = parseFrame("reload", (event as MessageEvent).data);
-      if (frame) onEvent?.(frame);
-    });
+    source.addEventListener("reload", (event) => dispatch("reload", event));
 
     source.addEventListener("error", () => {
       drop();

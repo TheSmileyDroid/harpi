@@ -5,10 +5,10 @@ import type {
   Connection,
   Guild,
   PlaybackStatus,
-  SseFrame,
   StatusSnapshot,
   Track,
-} from "./types";
+} from "./contract/panel.gen";
+import type { SseFrame } from "./sse";
 
 interface SearchState {
   query: string;

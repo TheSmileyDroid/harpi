@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { ApiError, createApiClient, type FetchResponse } from "./api";
 
+const SNAPSHOT = {
+  bot: { online: true },
+  guild_id: "7",
+  connection: { connected: false, channel_id: null },
+  playback: null,
+};
+
 function jsonResponse(status: number, payload: unknown): FetchResponse {
   return {
     ok: status >= 200 && status < 300,
@@ -20,7 +27,7 @@ function failingClient() {
   return { client, reported };
 }
 
-function recordingClient(payload: unknown = { guild_id: "7" }) {
+function recordingClient(payload: unknown = SNAPSHOT) {
   const calls: { path: string; options: RequestInit }[] = [];
   const client = createApiClient({
     fetchImpl: async (path, options) => {
@@ -111,11 +118,11 @@ describe("createApiClient", () => {
     const client = createApiClient({
       fetchImpl: async (path) => {
         expect(path).toBe("/api/status");
-        return jsonResponse(200, { bot: { online: true } });
+        return jsonResponse(200, SNAPSHOT);
       },
     });
 
-    await expect(client.status()).resolves.toEqual({ bot: { online: true } });
+    await expect(client.status()).resolves.toEqual(SNAPSHOT);
   });
 
   it("reads the guild list", async () => {
@@ -145,11 +152,11 @@ describe("createApiClient", () => {
   });
 
   it("posts a connect with the guild and channel", async () => {
-    const { client, calls } = recordingClient({ guild_id: "7" });
+    const { client, calls } = recordingClient();
 
     const payload = await client.connect("7", "70");
 
-    expect(payload).toEqual({ guild_id: "7" });
+    expect(payload).toEqual(SNAPSHOT);
     expect(calls[0]!.path).toBe("/api/connect");
     expect(calls[0]!.options.method).toBe("POST");
     expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
@@ -159,7 +166,7 @@ describe("createApiClient", () => {
   });
 
   it("posts a disconnect", async () => {
-    const { client, calls } = recordingClient({ guild_id: "7" });
+    const { client, calls } = recordingClient();
 
     await client.disconnect();
 
@@ -179,7 +186,7 @@ describe("createApiClient", () => {
   });
 
   it("posts a queue url", async () => {
-    const { client, calls } = recordingClient({ guild_id: "7" });
+    const { client, calls } = recordingClient();
 
     await client.queue("https://example.com/song");
 
@@ -191,7 +198,7 @@ describe("createApiClient", () => {
   });
 
   it("posts a queue removal", async () => {
-    const { client, calls } = recordingClient({ guild_id: "7" });
+    const { client, calls } = recordingClient();
 
     await client.removeFromQueue("https://example.com/song");
 
@@ -202,7 +209,7 @@ describe("createApiClient", () => {
   });
 
   it("posts a queue clear without a body", async () => {
-    const { client, calls } = recordingClient({ guild_id: "7" });
+    const { client, calls } = recordingClient();
 
     await client.clearQueue();
 
@@ -218,7 +225,7 @@ describe("createApiClient", () => {
       ["skip", "/api/playback/skip"],
       ["previous", "/api/playback/previous"],
     ] as const) {
-      const { client, calls } = recordingClient({ guild_id: "7" });
+      const { client, calls } = recordingClient();
 
       await client[method]();
 
@@ -229,7 +236,7 @@ describe("createApiClient", () => {
   });
 
   it("posts a loop mode", async () => {
-    const { client, calls } = recordingClient({ guild_id: "7" });
+    const { client, calls } = recordingClient();
 
     await client.loop("track");
 
@@ -240,7 +247,7 @@ describe("createApiClient", () => {
   });
 
   it("posts an absolute seek position", async () => {
-    const { client, calls } = recordingClient({ guild_id: "7" });
+    const { client, calls } = recordingClient();
 
     await client.seek(42.5);
 
@@ -251,7 +258,7 @@ describe("createApiClient", () => {
   });
 
   it("posts a linear gain volume", async () => {
-    const { client, calls } = recordingClient({ guild_id: "7" });
+    const { client, calls } = recordingClient();
 
     await client.volume(0.25);
 
@@ -262,7 +269,7 @@ describe("createApiClient", () => {
   });
 
   it("posts a layer url", async () => {
-    const { client, calls } = recordingClient({ guild_id: "7" });
+    const { client, calls } = recordingClient();
 
     await client.layer("https://example.com/layer");
 
@@ -274,7 +281,7 @@ describe("createApiClient", () => {
   });
 
   it("posts a layer removal", async () => {
-    const { client, calls } = recordingClient({ guild_id: "7" });
+    const { client, calls } = recordingClient();
 
     await client.removeLayer("layer-1");
 
@@ -285,7 +292,7 @@ describe("createApiClient", () => {
   });
 
   it("posts a layer volume", async () => {
-    const { client, calls } = recordingClient({ guild_id: "7" });
+    const { client, calls } = recordingClient();
 
     await client.setLayerVolume("layer-1", 0.25);
 
@@ -294,5 +301,52 @@ describe("createApiClient", () => {
       layer_id: "layer-1",
       volume: 0.25,
     });
+  });
+
+  it("rejects a drifted response as a contract violation", async () => {
+    const reported: ApiError[] = [];
+    const client = createApiClient({
+      fetchImpl: async () => jsonResponse(200, { bot: { online: true } }),
+      onError: (error) => reported.push(error),
+    });
+
+    await expect(client.status()).rejects.toMatchObject({
+      code: "contract_violation",
+      status: 200,
+    });
+
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toBeInstanceOf(ApiError);
+    expect(reported[0]!.code).toBe("contract_violation");
+  });
+
+  it("keeps the session probe silent on a contract violation", async () => {
+    const reported: ApiError[] = [];
+    const client = createApiClient({
+      fetchImpl: async () => jsonResponse(200, { authenticated: "yes" }),
+      onError: (error) => reported.push(error),
+    });
+
+    await expect(client.checkSession()).rejects.toMatchObject({
+      code: "contract_violation",
+    });
+
+    expect(reported).toHaveLength(0);
+  });
+
+  it("falls back to a generic envelope for an unmodeled error body", async () => {
+    const reported: ApiError[] = [];
+    const client = createApiClient({
+      fetchImpl: async () => jsonResponse(500, { unexpected: true }),
+      onError: (error) => reported.push(error),
+    });
+
+    await expect(client.status()).rejects.toMatchObject({
+      code: "error",
+      message: "Request failed",
+      status: 500,
+    });
+
+    expect(reported).toHaveLength(1);
   });
 });

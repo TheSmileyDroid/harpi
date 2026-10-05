@@ -5,7 +5,7 @@
   import { toasts } from "$lib/toasts";
   import { ApiError, createApiClient } from "$lib/api";
   import { createEventStream } from "$lib/sse";
-  import type { SseFrame } from "$lib/types";
+  import type { SseFrame } from "$lib/sse";
   import SignIn from "$lib/components/SignIn.svelte";
   import StatusSurface from "$lib/components/StatusSurface.svelte";
 
@@ -47,6 +47,7 @@
     stream?.stop();
     stream = createEventStream({
       onEvent: handleEvent,
+      onError: (error) => errorRegion.report(error),
       onConnectionChange: handleConnectionChange,
     });
     stream.start();

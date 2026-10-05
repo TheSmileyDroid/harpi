@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { get } from "svelte/store";
-import type { Track } from "./types";
+import type { Track } from "./contract/panel.gen";
 import {
   createAppStore,
   initialState,

@@ -30,6 +30,8 @@ The panel runs strict TypeScript at maximum strictness against a generated, runt
 
 - [07 Migrate the panel to strict TypeScript](issues/07-strict-ts-migration.md): big-bang rename of `web/src/**` and the e2e spec to `.ts`; `web/tsconfig.json` extends `.svelte-kit` with all seven strict flags plus `skipLibCheck` and includes `src/**/*.ts`, `src/**/*.svelte`, `e2e/**/*.ts`; `jsconfig.json` deleted, no `allowJs`; `typescript-eslint` wired; knip and Vitest globs moved to `.ts`; `zod ^4` declared and the generated contract excluded from ESLint, knip, and coverage; the e2e spec is type-checked, not just transpiled.
 
+- [08 Type and validate the client and SSE against the contract](issues/08-typed-client-and-sse.md): `web/src/lib/types.ts` deleted in favor of the generated module; one generic `request()` with bodyless and body overloads returns `z.infer` of each response schema and parses the body through its request schema; a failed response parse becomes `ApiError{contract_violation}` through `onError` unless silent, then throws, and error bodies parse through `ErrorEnvelope` with a generic fallback; SSE validates through the private `SSE_SCHEMAS` name map and reports a dropped frame through a new `createEventStream` `onError` into the error region; the stale `zod` knip ignore is removed.
+
 ## Not yet specified
 
 - Whether the contract and generation approach deserves an ADR. It is hard to reverse and a real trade-off, so it likely qualifies. Decide after the route is walked.
