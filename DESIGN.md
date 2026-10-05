@@ -1,6 +1,6 @@
 ---
 name: Harpi
-description: One process, one panel — an amber-phosphor CRT console for a Discord bot.
+description: One process, one panel, an amber-phosphor CRT console for a Discord bot.
 colors:
   background: "oklch(12% 0.004 85)"
   surface: "oklch(16% 0.008 85)"
