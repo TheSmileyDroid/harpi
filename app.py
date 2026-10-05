@@ -11,6 +11,7 @@ from werkzeug.exceptions import HTTPException
 
 from pages.api import bp as api_bp
 from pages.api import error_response
+from pages.contract import ContractOpenAPIProvider
 from pages.events import bp as events_bp
 
 from src.config import Settings
@@ -31,7 +32,7 @@ app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 app.secret_key = Settings.from_env().secret_key
 app.url_map.merge_slashes = False
 
-QuartSchema(app)
+QuartSchema(app, openapi_provider_class=ContractOpenAPIProvider)
 
 PUBLIC_API_ROUTES: frozenset[tuple[str, str]] = frozenset({
     ("POST", "/api/session"),

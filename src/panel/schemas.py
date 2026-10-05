@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import Annotated, Any
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict
+from pydantic import BaseModel, BeforeValidator, ConfigDict, RootModel
 
 
 def _as_snowflake(value: Any) -> str:
@@ -129,6 +129,16 @@ class ErrorDetail(_Response):
 
 class ErrorEnvelope(_Response):
     error: ErrorDetail
+
+
+class ReloadEvent(_Response):
+    scope: str
+
+
+class SseEnvelope(RootModel[StatusSnapshot | ReloadEvent]):
+    """Frames emitted by GET /api/events; the event name travels out of band."""
+
+    __sse__ = True
 
 
 class ConnectRequest(BaseModel):

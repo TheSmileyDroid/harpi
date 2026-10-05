@@ -5,7 +5,7 @@ SHELL := /bin/bash
 -include .env
 export $(shell sed 's/=.*//' .env 2>/dev/null || true)
 
-.PHONY: dev start build lint check check-network mutants
+.PHONY: dev start build contract lint check check-network mutants
 
 dev:
 	@trap 'trap - 0 2 15; kill 0' 0 2 15; \
@@ -20,6 +20,10 @@ start:
 build:
 	( cd web && bun run build )
 
+contract:
+	uv run python tools/export_contract.py
+	cd web && bun run gen:contract
+
 format:
 	uv run ruff check --fix src/ pages/ app.py tools/ tests/
 	uv run ruff format src/ pages/ app.py tools/ tests/
@@ -32,8 +36,10 @@ check:
 	uv run ty check src/ tests/ pages/ app.py tools/ || { touch .check-failed; true; }; \
 	uv run pytest tests/ --cov=src --cov=pages --cov=app --cov-report=json --cov-report=term-missing:skip-covered --cov-fail-under=70 --tb=short -q || { touch .check-failed; true; }; \
 	uv run python tools/crap_check.py coverage.json || { touch .check-failed; true; }; \
-	bunx jscpd src/ pages/ web/src/ --min-tokens 50 --threshold 1 || { touch .check-failed; true; }; \
+	bunx jscpd src/ pages/ web/src/ --ignore "**/lib/contract/**" --min-tokens 50 --threshold 1 || { touch .check-failed; true; }; \
 	uv run vulture || { touch .check-failed; true; }; \
+	$(MAKE) contract || { touch .check-failed; true; }; \
+	git diff --exit-code -- web/src/lib/contract || { touch .check-failed; true; }; \
 	( cd web && bun run lint ) || { touch .check-failed; true; }; \
 	( cd web && bun run format:check ) || { touch .check-failed; true; }; \
 	( cd web && bun run typecheck ) || { touch .check-failed; true; }; \

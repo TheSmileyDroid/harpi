@@ -145,6 +145,7 @@ ignore_names = [
     "online",
     "connection",
     "authenticated",
+    "scope",
     # YtMusicData.uploader: property consumed through panel serialization.
     "uploader",
     # ASGI entry point (imported by uvicorn via the "app:asgi_app" string in

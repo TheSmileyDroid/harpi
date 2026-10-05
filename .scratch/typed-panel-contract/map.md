@@ -26,12 +26,15 @@ The panel runs strict TypeScript at maximum strictness against a generated, runt
 
 - [05 Rewrite the panel models and convert the API routes](issues/05-panel-models-and-routes.md): models are the single source of truth for every request and response; `serialization`/`state`/`actions` return the models; requests validate in-handler through the same model to keep the pinned `404`/`401`/`200 []` wire; success responses use `@validate_response`, error statuses use `@document_response`; wire bytes proven unchanged.
 
+- [06 Author the export script and the make target](issues/06-export-script-and-make-target.md): `tools/export_contract.py` imports the app and dumps `sort_keys`; `ContractOpenAPIProvider` hoists request and response models into `components.schemas` and documents `/api/events` as `text/event-stream`; the SSE union is a plain union (event name out of band); `make contract` regenerates, `make check` diffs the contract directory; generated `openapi.json` and `panel.gen.ts` committed; fixtures stay in 09.
+
 ## Not yet specified
 
 - Whether the contract and generation approach deserves an ADR. It is hard to reverse and a real trade-off, so it likely qualifies. Decide after the route is walked.
 - The exact shape of the `Snowflake` annotated type and its before-validator, and whether the int-or-digit-string acceptance needs a dedicated test beyond the existing ADR 0003 test.
 - Whether Vitest coverage exclusion of the contract directory needs any config beyond an exclude glob, and how generated files interact with the coverage floor.
 - Whether the strictness flags force a scoped change to SvelteKit's generated tsconfig, and how that is recorded.
+- Declaring `zod` ^4 and excluding `web/src/lib/contract/` from knip when ticket 08 starts importing the generated module; `zod` is currently only transitive through knip, and the generated `panel.gen.ts` imports it.
 
 ## Out of scope
 

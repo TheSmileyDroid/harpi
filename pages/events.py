@@ -6,10 +6,11 @@ from collections.abc import AsyncGenerator, Iterable
 from pathlib import Path
 
 from quart import Blueprint, Response
+from quart_schema import document_response
 
 from pages.api import current_guild_id
 from src.panel import state
-from src.panel.schemas import StatusSnapshot
+from src.panel.schemas import SseEnvelope, StatusSnapshot
 
 bp = Blueprint("events", __name__)
 
@@ -56,5 +57,6 @@ async def _stream(guild_id: int | None) -> AsyncGenerator[str, None]:
 
 
 @bp.get("/api/events")
+@document_response(SseEnvelope, 200)
 def events():
     return Response(_stream(current_guild_id()), mimetype="text/event-stream")
