@@ -34,6 +34,8 @@ The panel runs strict TypeScript at maximum strictness against a generated, runt
 
 - [09 Emit contract fixtures and pin the contract tests](issues/09-contract-tests-and-fixtures.md): `tools/emit_contract_fixtures.py` writes one keyed `fixtures.json` from `model_dump(mode="json")` in `make contract`; `web/src/lib/fixtures.test.ts` parses every fixture through its generated schema; a single Python `SSE_EVENTS` registry (name to model) backs `pages/events.py` and a pytest reads the `SSE_SCHEMAS` keys from `sse.ts` to pin event-name parity; generated fixtures replace the hand-written wire literals in the client and SSE tests.
 
+- [10 Exclude generated artifacts from the quality gates](issues/10-gate-exclusions.md): audit only, no config change; the five exclusions already landed across 07/08 and each was proven to skip `web/src/lib/contract/` while the type-check include keeps it; a corrupted `panel.gen.ts` passes lint, format, knip, coverage, and jscpd and fails only `typecheck`; no guard added because five config formats share no single entry and a config-grep test would assert text not behavior; coverage floor stays 70.
+
 ## Not yet specified
 
 - Whether the contract and generation approach deserves an ADR. It is hard to reverse and a real trade-off, so it likely qualifies. Decide after the route is walked.
