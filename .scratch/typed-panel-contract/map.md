@@ -24,6 +24,8 @@ The panel runs strict TypeScript at maximum strictness against a generated, runt
 - [03 Decide the export mechanics and gate ordering](issues/03-export-and-gate-mechanics.md): export imports the real app and dumps `openapi_provider.schema()` with `sort_keys`; `make contract` regenerates in tree and `make check` diffs the contract directory before the frontend gates; determinism and validity are ordinary pytest; the production build consumes committed artifacts.
 - [04 Shape the generated module and the typed client](issues/04-generated-module-and-client.md): committed `web/src/lib/contract/{openapi.json,panel.gen.ts,fixtures/}`; one generic `request()` takes each method's schemas; a failed parse becomes `ApiError{contract_violation}` into the error region then throws; error bodies use the envelope schema; zod 4; SSE maps the out-of-band event name to its payload schema.
 
+- [05 Rewrite the panel models and convert the API routes](issues/05-panel-models-and-routes.md): models are the single source of truth for every request and response; `serialization`/`state`/`actions` return the models; requests validate in-handler through the same model to keep the pinned `404`/`401`/`200 []` wire; success responses use `@validate_response`, error statuses use `@document_response`; wire bytes proven unchanged.
+
 ## Not yet specified
 
 - Whether the contract and generation approach deserves an ADR. It is hard to reverse and a real trade-off, so it likely qualifies. Decide after the route is walked.
