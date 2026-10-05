@@ -4,7 +4,7 @@
 
 **Blocked by:** 01, 03
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] The sign-in flow establishes the session and the session persists across a backend restart
 - [x] The status surface renders guild, connection, and playback state from server truth

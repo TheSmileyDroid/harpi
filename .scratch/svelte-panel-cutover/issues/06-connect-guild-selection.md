@@ -4,7 +4,7 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] The guild selector lists only guilds the bot shares, matching bot state
 - [x] Selection persists for the session

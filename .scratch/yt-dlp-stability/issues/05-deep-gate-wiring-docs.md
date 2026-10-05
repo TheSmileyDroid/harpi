@@ -4,7 +4,7 @@
 
 **Blocked by:** 02: Distinct-videos stability run, 03: Repeat-play freshness test, 04: Upstream-evidence failure report.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] `make check-network` runs every network-marked test and exits nonzero on failure.
 - [x] `make check` output and duration are unchanged (network tests excluded by default).

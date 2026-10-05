@@ -4,11 +4,11 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The three near-identical parse routines collapse into one shared finite-float helper owned by the domain layer; no command or page hand-rolls the try-float-reject-non-finite shape anymore.
-- [ ] A Discord seek command with a non-finite number is rejected with a clear error reply (tested at the command level with a fake message).
-- [ ] A Discord volume command behaves the same way, through the same helper.
-- [ ] A panel seek or volume action with a non-finite number is rejected through the same helper (tested at the page-handler level).
-- [ ] The helper's name says what it does without a comment.
-- [ ] `make format` then `make check` passes.
+- [x] The three near-identical parse routines collapse into one shared finite-float helper owned by the domain layer; no command or page hand-rolls the try-float-reject-non-finite shape anymore.
+- [x] A Discord seek command with a non-finite number is rejected with a clear error reply (tested at the command level with a fake message).
+- [x] A Discord volume command behaves the same way, through the same helper.
+- [x] A panel seek or volume action with a non-finite number is rejected through the same helper (tested at the page-handler level).
+- [x] The helper's name says what it does without a comment.
+- [x] `make format` then `make check` passes.

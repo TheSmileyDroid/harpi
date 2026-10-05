@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Token exchange issues an HttpOnly session cookie; missing or bad tokens are rejected
 - [x] Every non-public endpoint returns 401 without a valid session

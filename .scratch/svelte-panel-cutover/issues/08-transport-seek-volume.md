@@ -4,7 +4,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Play, pause, skip, previous, and loop act on the session
 - [x] Position updates arrive over SSE and the UI advances without polling

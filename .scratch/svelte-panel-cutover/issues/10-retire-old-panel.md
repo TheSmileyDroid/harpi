@@ -4,7 +4,7 @@
 
 **Blocked by:** 05, 09
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] htmx, the Jinja panel templates, the fragments dependency, and all HX plumbing are removed
 - [x] Template-oriented tests are removed or rewritten at the API seam; no test asserts a deleted surface

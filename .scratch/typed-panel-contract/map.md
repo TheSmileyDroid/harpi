@@ -40,11 +40,13 @@ The panel runs strict TypeScript at maximum strictness against a generated, runt
 
 ## Not yet specified
 
-- Whether the contract and generation approach deserves an ADR. It is hard to reverse and a real trade-off, so it likely qualifies. Decide after the route is walked.
-- The exact shape of the `Snowflake` annotated type and its before-validator, and whether the int-or-digit-string acceptance needs a dedicated test beyond the existing ADR 0003 test.
-- Whether Vitest coverage exclusion of the contract directory needs any config beyond an exclude glob, and how generated files interact with the coverage floor.
-- Whether the strictness flags force a scoped change to SvelteKit's generated tsconfig, and how that is recorded.
-- Declaring `zod` ^4 and excluding `web/src/lib/contract/` from knip when ticket 08 starts importing the generated module; `zod` is currently only transitive through knip, and the generated `panel.gen.ts` imports it.
+All five items were resolved during execution; kept for history. The resolving ticket is named on each line.
+
+- Whether the contract and generation approach deserves an ADR. It is hard to reverse and a real trade-off, so it likely qualifies. Decide after the route is walked. *(Resolved by 11: ADR `docs/adr/0004-generated-panel-contract.md`.)*
+- The exact shape of the `Snowflake` annotated type and its before-validator, and whether the int-or-digit-string acceptance needs a dedicated test beyond the existing ADR 0003 test. *(Resolved by 05; ADR 0003 gained a consequence in 11.)*
+- Whether Vitest coverage exclusion of the contract directory needs any config beyond an exclude glob, and how generated files interact with the coverage floor. *(Resolved by 10: audit only, the existing exclusions suffice.)*
+- Whether the strictness flags force a scoped change to SvelteKit's generated tsconfig, and how that is recorded. *(Resolved by 07: `web/tsconfig.json` extends `.svelte-kit` with the seven strict flags plus `skipLibCheck`.)*
+- Declaring `zod` ^4 and excluding `web/src/lib/contract/` from knip when ticket 08 starts importing the generated module; `zod` is currently only transitive through knip, and the generated `panel.gen.ts` imports it. *(Resolved by 07/08: `zod ^4` declared and the generated directory excluded from knip.)*
 
 ## Out of scope
 

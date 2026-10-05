@@ -4,7 +4,7 @@
 
 **Blocked by:** 10
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Every surface reviewed at desktop and mobile widths
 - [x] The fixed chrome rules for status strip, transport bar, and toasts hold at mobile widths

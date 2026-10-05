@@ -4,12 +4,12 @@
 
 **Blocked by:** 05, 06.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `make format` and `make check` exit 0 with no skipped or lowered gates.
-- [ ] Review pack saved: desktop and mobile captures of home, music (idle and playing), and the offline state.
-- [ ] Each capture shot at the same viewport sizes so the maintainer can compare against `references/` side by side.
-- [ ] Any known deviations from the design doc are listed explicitly in the ticket comments rather than left silent.
+- [x] `make format` and `make check` exit 0 with no skipped or lowered gates.
+- [x] Review pack saved: desktop and mobile captures of home, music (idle and playing), and the offline state.
+- [x] Each capture shot at the same viewport sizes so the maintainer can compare against `references/` side by side.
+- [x] Any known deviations from the design doc are listed explicitly in the ticket comments rather than left silent.
 
 ## Agent deviations (explicit, not silent)
 

@@ -4,11 +4,11 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The `time.sleep` and the mid-test fixed-moment assertion are gone.
-- [ ] The fake source records an overlap flag: set if it sees the second seek position before the first releases.
-- [ ] The test asserts, after both threads join, that the overlap flag is false.
-- [ ] The test still proves ordering (first seek completes, then second runs) and final position.
-- [ ] Core audio touched: `make mutants` was run and survivors triaged (fixed or explained) before calling this done.
-- [ ] `make format` then `make check` passes.
+- [x] The `time.sleep` and the mid-test fixed-moment assertion are gone.
+- [x] The fake source records an overlap flag: set if it sees the second seek position before the first releases.
+- [x] The test asserts, after both threads join, that the overlap flag is false.
+- [x] The test still proves ordering (first seek completes, then second runs) and final position.
+- [x] Core audio touched: `make mutants` was run and survivors triaged (fixed or explained) before calling this done.
+- [x] `make format` then `make check` passes.

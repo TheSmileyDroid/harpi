@@ -4,11 +4,11 @@
 
 **Blocked by:** 01 (indicator uses the new tokens).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Global indicator element exists, is subtle, and clears when requests finish.
-- [ ] Every explicit action button declares its own loading feedback.
-- [ ] Status polling produces no visible change when the state is unchanged.
-- [ ] No skeleton or entrance animation on polling fragments.
-- [ ] Quart-client tests assert the indicator element and indicator attributes in rendered pages.
-- [ ] Playwriter loop (panel running via `make dev`): observe several poll cycles for stillness, then trigger an action and capture the indicator firing.
+- [x] Global indicator element exists, is subtle, and clears when requests finish.
+- [x] Every explicit action button declares its own loading feedback.
+- [x] Status polling produces no visible change when the state is unchanged.
+- [x] No skeleton or entrance animation on polling fragments.
+- [x] Quart-client tests assert the indicator element and indicator attributes in rendered pages.
+- [x] Playwriter loop (panel running via `make dev`): observe several poll cycles for stillness, then trigger an action and capture the indicator firing.

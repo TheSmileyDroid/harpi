@@ -4,7 +4,7 @@
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Lint, format, type check, frontend coverage floor, duplication check, and dead-code check run inside `make check`
 - [x] Playwright runs inside `make check` and blocks on failure

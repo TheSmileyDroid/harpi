@@ -4,10 +4,10 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The module-level forever-cache and its None sentinel are gone; the guild list is computed per request.
-- [ ] A page-handler test proves the list changes when the bot's guild set changes between two requests.
-- [ ] The first request after boot shows the correct guild list.
-- [ ] The dead `if not bot` branch after the assert-based lookup no longer exists.
-- [ ] `make format` then `make check` passes.
+- [x] The module-level forever-cache and its None sentinel are gone; the guild list is computed per request.
+- [x] A page-handler test proves the list changes when the bot's guild set changes between two requests.
+- [x] The first request after boot shows the correct guild list.
+- [x] The dead `if not bot` branch after the assert-based lookup no longer exists.
+- [x] `make format` then `make check` passes.

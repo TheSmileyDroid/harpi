@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Network-marker harness + single-track smoke test.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] A simulated extraction failure and a simulated stream failure each produce a diagnosis block naming the failed layer.
 - [x] Known upstream breakage patterns match to a linked yt-dlp GitHub issue; unknown patterns report the verbatim error and say no upstream match was found.

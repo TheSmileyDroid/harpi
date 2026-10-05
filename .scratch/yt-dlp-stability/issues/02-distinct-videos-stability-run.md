@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Network-marker harness + single-track smoke test.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] 10 distinct videos each extract, stream, and pass the silence probe through the production seam.
 - [x] The test reports which video failed when it does, using titles/ids (no signed URLs).

@@ -1,6 +1,6 @@
 # Strict TypeScript and a typed panel contract
 
-Status: ready-for-agent
+Status: resolved
 
 ## Problem Statement
 

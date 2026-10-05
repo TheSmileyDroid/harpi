@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Network-marker harness + single-track smoke test.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] 3 consecutive plays of one video each pass the silence probe and deliver PCM bytes.
 - [x] The test fails with the probe's error vocabulary (silence / timeout / unplayable) when the CDN rejects a reused or fresh URL beyond the retry budget.

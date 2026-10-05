@@ -4,7 +4,7 @@
 
 **Blocked by:** 06
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Typing in search queries the API with debouncing and shows results
 - [x] Queueing a result adds it, and the queue view updates live over SSE

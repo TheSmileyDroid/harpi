@@ -4,9 +4,9 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Target validation is a set of valid names; membership, not identity mapping.
-- [ ] An unknown target is still rejected (existing page-test behavior unchanged).
-- [ ] All known targets pass validation exactly as before.
-- [ ] `make format` then `make check` passes.
+- [x] Target validation is a set of valid names; membership, not identity mapping.
+- [x] An unknown target is still rejected (existing page-test behavior unchanged).
+- [x] All known targets pass validation exactly as before.
+- [x] `make format` then `make check` passes.

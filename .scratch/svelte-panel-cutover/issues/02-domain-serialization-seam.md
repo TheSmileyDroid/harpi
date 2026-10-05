@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Status, guild list, connect, disconnect, search, queue, layer, and transport actions are callable without HTTP or template context
 - [x] Existing panel behavior is identical and all current tests pass unedited

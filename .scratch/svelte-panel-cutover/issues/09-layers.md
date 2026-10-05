@@ -4,7 +4,7 @@
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Layers can be added, removed, and given a volume
 - [x] Removal requires explicit confirmation

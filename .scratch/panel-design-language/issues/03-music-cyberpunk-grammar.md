@@ -4,11 +4,11 @@
 
 **Blocked by:** 02 (bracket on the playing row).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Queue rows show a right-hand metadata column; row title truncates without breaking layout.
-- [ ] Music cards use double borders, boxed titles, and a bottom-edge segmented action strip.
-- [ ] Transport bar uses the new tokens; paused reads dim amber; errors use only `alert` tokens.
-- [ ] Quart-client tests assert the queue/transport markup carries the new structure.
-- [ ] Playwriter loop with the test bot playing: screenshot before/after, computed-style check on tokens and fonts, mobile-width sanity look.
-- [ ] `make format` and `make check` exit 0.
+- [x] Queue rows show a right-hand metadata column; row title truncates without breaking layout.
+- [x] Music cards use double borders, boxed titles, and a bottom-edge segmented action strip.
+- [x] Transport bar uses the new tokens; paused reads dim amber; errors use only `alert` tokens.
+- [x] Quart-client tests assert the queue/transport markup carries the new structure.
+- [x] Playwriter loop with the test bot playing: screenshot before/after, computed-style check on tokens and fonts, mobile-width sanity look.
+- [x] `make format` and `make check` exit 0.

@@ -4,10 +4,10 @@
 
 **Blocked by:** 02 (bracket on the current nav item and focused card).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Home cards: double borders, boxed titles, segmented action strip, right-hand metadata where lists appear.
-- [ ] Status chip: amber steady when online, `alert` red + blink only when offline (with the existing reduced-motion guard).
-- [ ] Whole home page contains no red outside the offline/error surfaces.
-- [ ] Quart-client tests assert home and status markup carry the new structure and states (fake bot both ways, prior art exists).
-- [ ] Playwriter loop (`make dev` running with the test bot): capture the chip online; capture offline however the test guild allows (or via the fake-bot page test); `make format` and `make check` exit 0.
+- [x] Home cards: double borders, boxed titles, segmented action strip, right-hand metadata where lists appear.
+- [x] Status chip: amber steady when online, `alert` red + blink only when offline (with the existing reduced-motion guard).
+- [x] Whole home page contains no red outside the offline/error surfaces.
+- [x] Quart-client tests assert home and status markup carry the new structure and states (fake bot both ways, prior art exists).
+- [x] Playwriter loop (`make dev` running with the test bot): capture the chip online; capture offline however the test guild allows (or via the fake-bot page test); `make format` and `make check` exit 0.

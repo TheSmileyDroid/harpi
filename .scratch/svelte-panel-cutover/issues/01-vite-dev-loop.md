@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] A single command boots the frontend dev server, the backend, and the CSS build
 - [x] Editing a frontend module updates the browser without a manual refresh

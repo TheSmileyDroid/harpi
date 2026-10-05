@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] `uv run pytest` (as `make check` runs it) never executes the network tests and stays green offline.
 - [x] `uv run pytest -m network` runs the suite; it skips cleanly (clear reason each) without network, without `cookies.txt`, or without ffmpeg.

@@ -1,6 +1,6 @@
 # Spec: Apply the panel design language
 
-Status: ready-for-agent
+Status: done
 
 ## Problem Statement
 
@@ -71,3 +71,12 @@ The source of truth for every visual decision is `docs/agents/design.md`. Where 
 - Reference images live in `references/`; the two that matter are the TVA terminal shots and the Cyberpunk menu screenshot.
 - The current CSS already contains scanlines, view transitions, and a caret blink — keep what conforms, correct what doesn't; this is a conformance pass, not a rewrite.
 - Rollout order suggestion: tokens + fonts first (one commit), then bracket rule, then components one by one with playwriter verification each step.
+
+## Comments
+
+The migration landed in commit `a7e6095` (2026-09-01, "apply the panel design language"), with follow-ups `dda0b82`, `d310ed3`, and `ace4a7e`. The ticket statuses and checkboxes were left at `ready-for-agent`/unchecked and are corrected here retroactively.
+
+This spec is HTMX-era and its surface was replaced by the `svelte-panel-cutover` effort (commit `085978e`). What survives:
+
+- The design language is now normative in `DESIGN.md` (relocated from `docs/agents/design.md`) and enforced by `tests/test_design_language.py` against `web/src/app.css` and `web/src/**/*.svelte`.
+- The HTMX-only chrome named by ticket 05 (the global indicator bar and the `.htmx-request` button blink) was retired with the HTMX panel; per-action feedback in the Svelte panel reads through the disabled button.

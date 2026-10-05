@@ -1,6 +1,6 @@
 # Review fixes: panel truthfulness, shared parsing, deterministic tests
 
-Status: ready-for-agent
+Status: done
 
 ## Problem Statement
 
@@ -62,3 +62,12 @@ The panel fetches the guild list fresh on every request, so what it displays alw
 - This spec came out of a two-axis code review of the working tree against HEAD; the Spec axis was skipped, so all findings here are standards-driven.
 - The domain glossary now lives in CONTEXT.md at the repo root; Session, Session manager, Audio controller, Probe, and Source chain are defined there and should be used verbatim.
 - After implementation, run the full gate (`make format` then `make check`); the seek change touches core audio logic, so `make mutants` also applies and survivors must be triaged.
+
+## Comments
+
+All five fixes landed in commit `67a2845` (2026-08-30, "panel truthfulness, shared parsing, deterministic tests"). The ticket statuses and checkboxes were left at `ready-for-agent`/unchecked and are corrected here retroactively.
+
+Two panel-side seams this spec names were later replaced, so those criteria are historical:
+
+- The per-request guild listing now lives in `src/panel/state.py` (`list_guilds`); the shared float helper is `src/harpi_lib/parse.py:parse_finite_float`. Both survive.
+- The HTMX target allowlist (`_TARGET_BLOCKS` frozenset) and the page-handler seams were deleted with the HTMX panel in the `svelte-panel-cutover` effort (commit `085978e`); the seek-serialization property is still pinned at `tests/test_music_seek.py::test_seek_serializes_concurrent_calls`.

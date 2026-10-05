@@ -4,9 +4,9 @@
 
 **Blocked by:** 03, 04 (the components being collapsed).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Music and home pages render one column at mobile width with no horizontal scroll.
-- [ ] Action strips and metadata columns degrade legibly (no truncation dead-ends).
-- [ ] Status chip, transport bar, and header keep their identity at mobile width.
-- [ ] Playwriter loop at mobile viewport (`make dev` running): screenshots of both pages, plus one landscape-ish tablet width for the two-column grid.
+- [x] Music and home pages render one column at mobile width with no horizontal scroll.
+- [x] Action strips and metadata columns degrade legibly (no truncation dead-ends).
+- [x] Status chip, transport bar, and header keep their identity at mobile width.
+- [x] Playwriter loop at mobile viewport (`make dev` running): screenshots of both pages, plus one landscape-ish tablet width for the two-column grid.
