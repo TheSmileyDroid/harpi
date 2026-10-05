@@ -6,6 +6,7 @@ from pathlib import Path
 
 from loguru import logger
 from quart import Quart, Response, request, send_from_directory, session
+from quart_schema import QuartSchema
 from werkzeug.exceptions import HTTPException
 
 from pages.api import bp as api_bp
@@ -29,6 +30,8 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 app.secret_key = Settings.from_env().secret_key
 app.url_map.merge_slashes = False
+
+QuartSchema(app)
 
 PUBLIC_API_ROUTES: frozenset[tuple[str, str]] = frozenset({
     ("POST", "/api/session"),

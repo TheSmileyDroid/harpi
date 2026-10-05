@@ -91,7 +91,7 @@ def test_bot_connected_reports_closing(monkeypatch: pytest.MonkeyPatch):
 async def test_list_guilds_returns_plain_records(bot: FakeBot):
     guilds = await panel_state.list_guilds()
 
-    assert guilds == [
+    assert [guild.model_dump() for guild in guilds] == [
         {"id": str(GUILD_A), "name": "Alpha Guild"},
         {"id": "2", "name": "Beta Guild"},
     ]
@@ -109,7 +109,7 @@ async def test_list_guilds_propagates_a_fetch_failure(
 async def test_list_voice_channels_for_a_known_guild(bot: FakeBot):
     channels = panel_state.list_voice_channels(GUILD_A)
 
-    assert channels == [
+    assert [channel.model_dump() for channel in channels] == [
         {"id": str(GUILD_A * 10), "name": f"Channel {GUILD_A}"}
     ]
 
@@ -130,9 +130,10 @@ async def test_guild_status_serializes_the_snapshot(wired: FakeBot):
     status = await panel_state.guild_status(GUILD_A)
 
     assert status is not None
-    assert status["loop_mode"] == "OFF"
-    assert status["current_music"]["title"] == "Now Track"
-    assert status["queue"] == []
+    assert status.loop_mode == "OFF"
+    assert status.current_music is not None
+    assert status.current_music.title == "Now Track"
+    assert status.queue == []
 
 
 def test_status_data_serializes_layers_and_loop_mode():
@@ -156,7 +157,7 @@ def test_status_data_serializes_layers_and_loop_mode():
         channel_id=10,
     )
 
-    data = panel_serialization.status_data(status)
+    data = panel_serialization.status_data(status).model_dump()
 
     assert data["loop_mode"] == "QUEUE"
     assert data["current_music"] is None
@@ -174,7 +175,7 @@ def test_status_data_serializes_layers_and_loop_mode():
 
 
 def test_track_data_carries_the_api_keys():
-    data = panel_serialization.track_data(found_track())
+    data = panel_serialization.track_data(found_track()).model_dump()
 
     assert data == {
         "title": "Found Track",
@@ -216,7 +217,7 @@ async def test_search_tracks_returns_plain_track_records(monkeypatch):
 
     results = await panel_actions.search_tracks("found track")
 
-    assert results == [
+    assert [track.model_dump() for track in results] == [
         {
             "title": "Found Track",
             "url": "https://www.youtube.com/watch?v=found",

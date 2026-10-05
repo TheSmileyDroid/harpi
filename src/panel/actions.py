@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
-
 from src.bot_state import get_bot, run_on_bot_loop
 from src.harpi_lib.audio.session import LOOP_MODE_ALIASES, PlaybackSession
 from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel import serialization
+from src.panel.schemas import Track
 
 SEARCH_RESULT_LIMIT = 5
 
@@ -27,14 +26,14 @@ async def disconnect(guild_id: int) -> None:
 
 async def search_tracks(
     term: str, track_source: type[YTMusicData] = YTMusicData
-) -> list[dict[str, Any]]:
+) -> list[Track]:
     term = term.strip()
     if not term:
         return []
     return _track_list(await track_source.from_url(term))
 
 
-def _track_list(results: list[YTMusicData]) -> list[dict[str, Any]]:
+def _track_list(results: list[YTMusicData]) -> list[Track]:
     return [
         serialization.track_data(track)
         for track in results[:SEARCH_RESULT_LIMIT]

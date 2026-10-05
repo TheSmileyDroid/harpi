@@ -1,14 +1,31 @@
 from __future__ import annotations
 
 import hmac
-import math
 from typing import Any
 
 from quart import Blueprint, Response, jsonify, request, session
+from quart_schema import document_request, document_response, validate_response
 
 from src.config import Settings
 from src.harpi_lib.audio.session import LOOP_MODE_ALIASES
 from src.panel import actions, state
+from src.panel.schemas import (
+    Authenticated,
+    ChannelList,
+    ConnectRequest,
+    ErrorEnvelope,
+    GuildList,
+    LayerIdRequest,
+    LayerVolumeRequest,
+    LoopRequest,
+    SearchRequest,
+    SearchResults,
+    SeekRequest,
+    SessionRequest,
+    StatusSnapshot,
+    UrlRequest,
+    VolumeRequest,
+)
 
 bp = Blueprint("api", __name__)
 
@@ -19,41 +36,8 @@ def error_response(code: str, message: str, status: int) -> Response:
     return response
 
 
-def _snowflake_field(payload: Any, field: str) -> int | None:
-    if not isinstance(payload, dict):
-        return None
-    value = payload.get(field)
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str):
-        text = value.strip()
-        if not text.isascii() or not text.isdigit():
-            return None
-        return int(text)
-    return None
-
-
-def _string_field(payload: Any, field: str) -> str | None:
-    if not isinstance(payload, dict):
-        return None
-    value = payload.get(field)
-    if not isinstance(value, str) or not value.strip():
-        return None
-    return value.strip()
-
-
-def _float_field(payload: Any, field: str) -> float | None:
-    if not isinstance(payload, dict):
-        return None
-    value = payload.get(field)
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    number = float(value)
-    if not math.isfinite(number):
-        return None
-    return number
+def _parse(model: type[Any], payload: Any) -> Any:
+    return model.model_validate(payload if isinstance(payload, dict) else {})
 
 
 def current_guild_id() -> int | None:
@@ -83,88 +67,82 @@ def _token_matches(candidate: Any) -> bool:
 
 
 @bp.post("/api/session")
-async def create_session() -> Response:
+@document_request(SessionRequest)
+@document_response(ErrorEnvelope, 401)
+@validate_response(Authenticated, 200)
+async def create_session() -> Any:
     payload = await request.get_json(silent=True)
     token = payload.get("token") if isinstance(payload, dict) else None
     if not _token_matches(token):
         return error_response("unauthorized", "Invalid panel token", 401)
     session.permanent = True
     session["authenticated"] = True
-    return jsonify({"authenticated": True})
+    return {"authenticated": True}
 
 
 @bp.get("/api/session")
-def read_session() -> Response:
-    return jsonify({"authenticated": True})
+@validate_response(Authenticated, 200)
+def read_session() -> Any:
+    return {"authenticated": True}
 
 
 @bp.get("/api/status")
-async def read_status() -> Response:
-    return jsonify(await state.status_snapshot(current_guild_id()))
+@validate_response(StatusSnapshot, 200)
+async def read_status() -> Any:
+    return await state.status_snapshot(current_guild_id())
 
 
 @bp.get("/api/guilds")
-async def read_guilds() -> Response:
-    return jsonify({"guilds": await state.list_guilds()})
+@validate_response(GuildList, 200)
+async def read_guilds() -> Any:
+    return {"guilds": await state.list_guilds()}
 
 
 @bp.get("/api/guilds/<int:guild_id>/channels")
-def read_channels(guild_id: int) -> Response:
+@document_response(ErrorEnvelope, 404)
+@validate_response(ChannelList, 200)
+def read_channels(guild_id: int) -> Any:
     if not state.guild_visible(guild_id):
         return error_response("not_found", "Guild not found", 404)
-    return jsonify({"channels": state.list_voice_channels(guild_id)})
+    return {"channels": state.list_voice_channels(guild_id)}
 
 
 @bp.post("/api/connect")
-async def connect_voice() -> Response:
-    payload = await request.get_json(silent=True)
-    guild_id = _snowflake_field(payload, "guild_id")
-    channel_id = _snowflake_field(payload, "channel_id")
-    if guild_id is None or not state.guild_visible(guild_id):
+@document_request(ConnectRequest)
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def connect_voice() -> Any:
+    data = _parse(ConnectRequest, await request.get_json(silent=True))
+    if data.guild_id is None or not state.guild_visible(int(data.guild_id)):
         return error_response("not_found", "Guild not found", 404)
+    guild_id = int(data.guild_id)
     channel_ids = {
-        channel["id"] for channel in state.list_voice_channels(guild_id)
+        channel.id for channel in state.list_voice_channels(guild_id)
     }
-    if channel_id is None or str(channel_id) not in channel_ids:
+    if data.channel_id is None or data.channel_id not in channel_ids:
         return error_response("not_found", "Channel not found", 404)
-    await actions.connect(guild_id, channel_id)
+    await actions.connect(guild_id, int(data.channel_id))
     session["guild_id"] = str(guild_id)
-    return jsonify(await state.status_snapshot(guild_id))
+    return await state.status_snapshot(guild_id)
 
 
 @bp.post("/api/disconnect")
-async def disconnect_voice() -> Response:
+@validate_response(StatusSnapshot, 200)
+async def disconnect_voice() -> Any:
     guild_id = current_guild_id()
     if guild_id is not None and state.session_exists(guild_id):
         await actions.disconnect(guild_id)
-    return jsonify(await state.status_snapshot(guild_id))
+    return await state.status_snapshot(guild_id)
 
 
 @bp.post("/api/search")
-async def api_search() -> Response:
-    term = _string_field(await request.get_json(silent=True), "term")
-    if term is None:
-        return jsonify({"results": []})
-    return jsonify({"results": await actions.search_tracks(term)})
-
-
-@bp.post("/api/queue")
-async def queue_track() -> Response:
-    return await _mutate_url(actions.add_track)
-
-
-@bp.post("/api/queue/remove")
-async def remove_queued_track() -> Response:
-    return await _mutate_url(actions.remove_track)
-
-
-@bp.post("/api/queue/clear")
-async def clear_queued_tracks() -> Response:
-    guild = _live_guild_id()
-    if guild is None:
-        return _no_live_session()
-    await actions.clear_queue(guild)
-    return jsonify(await state.status_snapshot(guild))
+@document_request(SearchRequest)
+@validate_response(SearchResults, 200)
+async def api_search() -> Any:
+    data = _parse(SearchRequest, await request.get_json(silent=True))
+    if data.term is None:
+        return {"results": []}
+    return {"results": await actions.search_tracks(data.term)}
 
 
 def _no_live_session() -> Response:
@@ -173,110 +151,163 @@ def _no_live_session() -> Response:
     )
 
 
-async def _mutate_url(mutation) -> Response:
+async def _mutate_url(mutation: Any) -> Any:
     guild = _live_guild_id()
     if guild is None:
         return _no_live_session()
-    url = _string_field(await request.get_json(silent=True), "url")
-    if url is None:
+    data = _parse(UrlRequest, await request.get_json(silent=True))
+    if data.url is None:
         return error_response("not_found", "A URL is required", 404)
-    await mutation(guild, url)
-    return jsonify(await state.status_snapshot(guild))
+    await mutation(guild, data.url)
+    return await state.status_snapshot(guild)
 
 
-async def _transport(mutation) -> Response:
+async def _transport(mutation: Any) -> Any:
     guild = _live_guild_id()
     if guild is None:
         return _no_live_session()
     await mutation(guild)
-    return jsonify(await state.status_snapshot(guild))
+    return await state.status_snapshot(guild)
+
+
+@bp.post("/api/queue")
+@document_request(UrlRequest)
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def queue_track() -> Any:
+    return await _mutate_url(actions.add_track)
+
+
+@bp.post("/api/queue/remove")
+@document_request(UrlRequest)
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def remove_queued_track() -> Any:
+    return await _mutate_url(actions.remove_track)
+
+
+@bp.post("/api/queue/clear")
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def clear_queued_tracks() -> Any:
+    guild = _live_guild_id()
+    if guild is None:
+        return _no_live_session()
+    await actions.clear_queue(guild)
+    return await state.status_snapshot(guild)
 
 
 @bp.post("/api/playback/pause")
-async def playback_pause() -> Response:
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def playback_pause() -> Any:
     return await _transport(actions.pause)
 
 
 @bp.post("/api/playback/resume")
-async def playback_resume() -> Response:
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def playback_resume() -> Any:
     return await _transport(actions.resume)
 
 
 @bp.post("/api/playback/skip")
-async def playback_skip() -> Response:
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def playback_skip() -> Any:
     return await _transport(actions.skip)
 
 
 @bp.post("/api/playback/previous")
-async def playback_previous() -> Response:
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def playback_previous() -> Any:
     return await _transport(actions.previous)
 
 
 @bp.post("/api/playback/loop")
-async def playback_loop() -> Response:
+@document_request(LoopRequest)
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def playback_loop() -> Any:
     guild = _live_guild_id()
     if guild is None:
         return _no_live_session()
-    mode = _string_field(await request.get_json(silent=True), "mode")
-    if mode is None or mode not in LOOP_MODE_ALIASES:
+    data = _parse(LoopRequest, await request.get_json(silent=True))
+    if data.mode is None or data.mode not in LOOP_MODE_ALIASES:
         return error_response("not_found", "Unknown loop mode", 404)
-    await actions.set_loop(guild, mode)
-    return jsonify(await state.status_snapshot(guild))
+    await actions.set_loop(guild, data.mode)
+    return await state.status_snapshot(guild)
 
 
 @bp.post("/api/playback/seek")
-async def playback_seek() -> Response:
+@document_request(SeekRequest)
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def playback_seek() -> Any:
     guild = _live_guild_id()
     if guild is None:
         return _no_live_session()
-    position = _float_field(await request.get_json(silent=True), "position")
-    if position is None or position < 0:
+    data = _parse(SeekRequest, await request.get_json(silent=True))
+    if data.position is None or data.position < 0:
         return error_response("not_found", "Invalid seek position", 404)
     try:
-        await actions.seek(guild, position)
+        await actions.seek(guild, data.position)
     except ValueError:
         return error_response("not_found", "Invalid seek position", 404)
-    return jsonify(await state.status_snapshot(guild))
+    return await state.status_snapshot(guild)
 
 
 @bp.post("/api/playback/volume")
-async def playback_volume() -> Response:
+@document_request(VolumeRequest)
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def playback_volume() -> Any:
     guild = _live_guild_id()
     if guild is None:
         return _no_live_session()
-    volume = _float_field(await request.get_json(silent=True), "volume")
-    if volume is None:
+    data = _parse(VolumeRequest, await request.get_json(silent=True))
+    if data.volume is None:
         return error_response("not_found", "Invalid volume", 404)
-    await actions.set_volume(guild, volume)
-    return jsonify(await state.status_snapshot(guild))
+    await actions.set_volume(guild, data.volume)
+    return await state.status_snapshot(guild)
 
 
 @bp.post("/api/layers")
-async def layer_add() -> Response:
+@document_request(UrlRequest)
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def layer_add() -> Any:
     return await _mutate_url(actions.add_layer)
 
 
 @bp.post("/api/layers/remove")
-async def layer_remove() -> Response:
+@document_request(LayerIdRequest)
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def layer_remove() -> Any:
     guild = _live_guild_id()
     if guild is None:
         return _no_live_session()
-    layer_id = _string_field(await request.get_json(silent=True), "layer_id")
-    if layer_id is None or not await actions.remove_layer(guild, layer_id):
+    data = _parse(LayerIdRequest, await request.get_json(silent=True))
+    if data.layer_id is None or not await actions.remove_layer(
+        guild, data.layer_id
+    ):
         return error_response("not_found", "Unknown layer", 404)
-    return jsonify(await state.status_snapshot(guild))
+    return await state.status_snapshot(guild)
 
 
 @bp.post("/api/layers/volume")
-async def layer_volume() -> Response:
+@document_request(LayerVolumeRequest)
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def layer_volume() -> Any:
     guild = _live_guild_id()
     if guild is None:
         return _no_live_session()
-    payload = await request.get_json(silent=True)
-    layer_id = _string_field(payload, "layer_id")
-    volume = _float_field(payload, "volume")
-    if layer_id is None or volume is None:
+    data = _parse(LayerVolumeRequest, await request.get_json(silent=True))
+    if data.layer_id is None or data.volume is None:
         return error_response("not_found", "Invalid layer volume", 404)
-    if not await actions.set_layer_volume(guild, layer_id, volume):
+    if not await actions.set_layer_volume(guild, data.layer_id, data.volume):
         return error_response("not_found", "Unknown layer", 404)
-    return jsonify(await state.status_snapshot(guild))
+    return await state.status_snapshot(guild)

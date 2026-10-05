@@ -139,12 +139,12 @@ ignore_names = [
     # stdlib callback overrides (html.parser.HTMLParser) are invoked by
     # the parser, not by our code; vulture cannot see the call.
     "handle_*",
-    # Pydantic model fields in app.py ServerStatusModel (serialized by framework)
-    "memory_total",
-    "memory_available",
-    "memory_percent",
-    "memory_used",
-    "memory_free",
+    # Pydantic model fields are consumed by the framework, not by our code;
+    # vulture sees no reader for a field whose name appears only once.
+    "model_config",
+    "online",
+    "connection",
+    "authenticated",
     # YtMusicData.uploader: property consumed through panel serialization.
     "uploader",
     # ASGI entry point (imported by uvicorn via the "app:asgi_app" string in

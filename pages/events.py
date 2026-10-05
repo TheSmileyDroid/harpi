@@ -9,6 +9,7 @@ from quart import Blueprint, Response
 
 from pages.api import current_guild_id
 from src.panel import state
+from src.panel.schemas import StatusSnapshot
 
 bp = Blueprint("events", __name__)
 
@@ -32,8 +33,9 @@ def _snapshot(assets: Iterable[Path] = SHELL_ASSETS) -> dict[str, float]:
     return snapshot
 
 
-def _frame(event: str, data: dict) -> str:
-    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+def _frame(event: str, data: dict | StatusSnapshot) -> str:
+    payload = data.model_dump() if isinstance(data, StatusSnapshot) else data
+    return f"event: {event}\ndata: {json.dumps(payload)}\n\n"
 
 
 async def _stream(guild_id: int | None) -> AsyncGenerator[str, None]:
