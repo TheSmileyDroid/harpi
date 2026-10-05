@@ -9,5 +9,5 @@ Volume everywhere in Harpi means one thing: linear gain applied to the source, a
 
 ## Consequences
 
-- The slider renders `√gain` client-side and squares position before posting (`volumeGain`/`volumePosition` in `web/src/lib/transport.js`, the shared `web/src/lib/components/VolumeSlider.svelte`); the transport and the layer dialog both follow the same mapping.
+- The slider renders `√gain` client-side and squares position before posting (`volumeGain`/`volumePosition` in `web/src/lib/transport.ts`, the shared `web/src/lib/components/VolumeSlider.svelte`); the transport and the layer dialog both follow the same mapping.
 - Slider max 100% = gain 1.0 = source loudness, unmodified. A genuinely quiet source stays quiet — that is a source problem, and the Probe already measures stream loudness.

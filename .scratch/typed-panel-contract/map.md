@@ -36,6 +36,8 @@ The panel runs strict TypeScript at maximum strictness against a generated, runt
 
 - [10 Exclude generated artifacts from the quality gates](issues/10-gate-exclusions.md): audit only, no config change; the five exclusions already landed across 07/08 and each was proven to skip `web/src/lib/contract/` while the type-check include keeps it; a corrupted `panel.gen.ts` passes lint, format, knip, coverage, and jscpd and fails only `typecheck`; no guard added because five config formats share no single entry and a config-grep test would assert text not behavior; coverage floor stays 70.
 
+- [11 Record the contract decision and clean up](issues/11-adr-and-cleanup.md): the approach clears the ADR bar, so `docs/adr/0004-generated-panel-contract.md` records it; ADR 0003 gains a Snowflake-type consequence; `panel.md`, `testing.md`, `CONTEXT.md`, and `architecture.md` document the contract; the stale vulture names were already gone and the two stale `.js` doc paths moved to `.ts`; `code-review` found and fixed a leading-zero snowflake regression, and recorded two non-defect spec notes.
+
 ## Not yet specified
 
 - Whether the contract and generation approach deserves an ADR. It is hard to reverse and a real trade-off, so it likely qualifies. Decide after the route is walked.

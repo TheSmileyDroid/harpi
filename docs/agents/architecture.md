@@ -17,7 +17,7 @@ Quart and discord.py share one process and two event loops. The panel is a Svelt
 
 - `src/cogs/` - Discord commands. Thin handlers over session methods.
 - `src/harpi_lib/` - domain logic: `audio/` (session, mixer, sources), `music/` (yt-dlp, probing, ffmpeg), `math/` (dice parser). No discord.ui or Quart imports.
-- `src/panel/` - the domain seam the API and the bot share: `state`, `actions`, `serialization`.
+- `src/panel/` - the domain seam the API and the bot share: `state`, `actions`, `serialization`, and `schemas` (the Pydantic wire models that are the panel contract, ADR 0004).
 - `src/bot_state.py` - the running-bot handle and the loop bridge.
 - `src/config.py` - `Settings`, sole owner of `os.getenv`.
 - `pages/` - web blueprints: the JSON API and the SSE stream.

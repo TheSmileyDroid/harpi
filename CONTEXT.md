@@ -62,6 +62,10 @@ A discord.py command module in `src/cogs/`. Commands stay thin: parse, delegate,
 **Page**:
 A web surface in `pages/`: a Quart blueprint answering JSON or the SSE stream.
 
+**Contract**:
+The panel's wire shape. Pydantic models in `src/panel/schemas.py` are the single source of truth, and `make contract` generates the OpenAPI document, the client TypeScript types and zod validators, and the test fixtures into `web/src/lib/contract/`. Both halves validate against it, and `make check` fails on drift.
+_Avoid_: API spec, types file
+
 **Design language**:
 How the panel looks and behaves (`DESIGN.md`). Mechanically checkable rules live in `tests/test_design_language.py`; the rest is judgment applied while editing.
 _Avoid_: design review, verdict (the gate is gone)
