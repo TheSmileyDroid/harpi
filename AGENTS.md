@@ -2,17 +2,6 @@
 
 Discord bot (music, dice, TTS) with a Svelte panel served as static assets by Quart in one process. Python 3.13, uv, pytest.
 
-## Hard limits (every task)
-
-- Never commit secrets: `.env` and `cookies.txt` stay gitignored; fake values in tests.
-- Never fake a gate: if `make check` fails, fix the cause or delete the dead thing. Leaving it red and saying so beats a threshold lowered to pass.
-
-## We never compromise
-
-- music does not die while playing
-- bot state explains itself: physically in a voice channel means connected to it
-- no error requires a bot restart; the bot alerts when failing — never fail in silence
-
 ## Verify
 
 `make format` then `make check`. Exit 0 means done.
