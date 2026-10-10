@@ -10,7 +10,7 @@ call.
 
 import asyncio
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 
 import discord
 import pytest
@@ -172,7 +172,7 @@ async def test_connect_adopts_a_bot_already_in_the_channel():
     assert guild._channels[CHANNEL_ID].connect_calls == 1
 
 
-async def test_connect_cleans_up_a_session_when_moving_channels():
+async def test_connect_moves_the_bot_and_keeps_the_session():
     manager, guild = _make_manager()
     other = FakeChannel(guild)
     other.id = CHANNEL_ID + 1
@@ -180,13 +180,36 @@ async def test_connect_cleans_up_a_session_when_moving_channels():
     first = await manager.connect(GUILD_ID, CHANNEL_ID)
     source = FakeSource()
     first._controller.set_queue_source(source)
+    voice_client = guild.voice_client
+    assert voice_client is not None
 
     second = await manager.connect(GUILD_ID, other.id)
 
-    assert second is not first
-    assert source.cleaned_up is True
-    assert first._mixer._shutdown is True
-    assert other.connect_calls == 1
+    assert second is first
+    assert source.cleaned_up is False
+    assert first._mixer._shutdown is False
+    assert voice_client.move_to_calls == 1
+    assert voice_client.disconnected is False
+    assert voice_client.channel is other
+    assert other.connect_calls == 0
+
+
+async def test_a_failed_move_leaves_the_bot_in_voice():
+    manager, guild = _make_manager()
+    other = FakeChannel(guild)
+    other.id = CHANNEL_ID + 1
+    guild._channels[other.id] = other
+    first = await manager.connect(GUILD_ID, CHANNEL_ID)
+    failing = FailingMoveVoiceClient(
+        guild, channel=guild._channels[CHANNEL_ID]
+    )
+    guild.voice_client = failing
+
+    with pytest.raises(ValueError, match="timed out"):
+        await manager.connect(GUILD_ID, other.id)
+
+    assert failing.disconnected is False
+    assert manager.get(GUILD_ID) is first
 
 
 async def test_connect_raises_when_guild_not_found():
@@ -201,6 +224,15 @@ async def test_connect_raises_when_channel_not_found():
 
     with pytest.raises(ValueError):
         await manager.connect(GUILD_ID, 99)
+
+
+class FailingMoveVoiceClient(FakeVoiceClient):
+    """A voice client whose move always times out."""
+
+    async def move_to(
+        self, channel: Any, *, timeout: float | None = 30.0
+    ) -> None:
+        raise asyncio.TimeoutError
 
 
 class FailingConnectChannel(FakeChannel):

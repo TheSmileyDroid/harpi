@@ -51,13 +51,8 @@ def current_guild_id() -> int | None:
 
 
 def _live_guild_id() -> int | None:
-    guild_id = current_guild_id()
-    if guild_id is None or not state.guild_visible(guild_id):
-        active = state.active_voice()
-        if active is None:
-            return None
-        guild_id = active[0]
-    if not state.session_exists(guild_id):
+    guild_id = state.resolve_guild_id(current_guild_id())
+    if guild_id is None or not state.session_exists(guild_id):
         return None
     return guild_id
 
@@ -133,19 +128,11 @@ async def connect_voice() -> Any:
 @validate_response(StatusSnapshot, 200)
 async def disconnect_voice() -> Any:
     guild_id = current_guild_id()
-    target = (
-        guild_id
-        if guild_id is not None and state.guild_visible(guild_id)
-        else None
-    )
+    target = state.resolve_guild_id(guild_id)
     if target is not None and (
         state.session_exists(target) or state.voice_active(target)
     ):
         await actions.disconnect(target)
-    else:
-        active = state.active_voice()
-        if active is not None:
-            await actions.disconnect(active[0])
     return await state.status_snapshot(guild_id)
 
 

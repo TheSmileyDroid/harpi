@@ -35,6 +35,7 @@ class FakeVoiceClient(discord.VoiceClient):
         self.channel = channel  # type: ignore
         self.played_source: discord.AudioSource | None = None
         self.disconnected = False
+        self.move_to_calls = 0
         self._playing = False
         self._paused = False
 
@@ -60,6 +61,14 @@ class FakeVoiceClient(discord.VoiceClient):
 
     def resume(self) -> None:
         self._paused = False
+
+    async def move_to(
+        self, channel: Any, *, timeout: float | None = 30.0
+    ) -> None:
+        self.move_to_calls += 1
+        self.channel = channel
+        if self._guild is not None:
+            self._guild.voice_client = self
 
     async def disconnect(self, *, force: bool = False) -> None:
         self.disconnected = True

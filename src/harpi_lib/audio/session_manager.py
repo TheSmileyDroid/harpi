@@ -46,10 +46,10 @@ class SessionManager:
         When the bot already occupies the requested channel the existing
         voice client is adopted rather than rejoined, so a panel reconnect
         while the bot is in voice is cheap and never fails on a duplicate
-        connection.  Moving to a different channel retires the old client
-        first.  A prior manager session is reused when it already wraps the
-        adopted client, otherwise it is cleaned up once the new client is
-        secured.
+        connection.  Moving to a different channel reuses the same client, so
+        a failed move never drops the bot and any audio keeps flowing.  A
+        prior manager session is reused when it already wraps the adopted
+        client, otherwise it is cleaned up once the new client is secured.
         """
         guild = self.resolve_guild(self._bot, guild_id)
         channel = self.resolve_voice_channel(guild, channel_id)
@@ -87,16 +87,29 @@ class SessionManager:
     ) -> discord.VoiceClient:
         """Return a voice client for *channel*, adopting a live connection.
 
-        A bot already sitting in *channel* yields its client untouched; a bot
-        in another channel is disconnected before the new join, which keeps
+        A bot already sitting in *channel* yields its client untouched.  A bot
+        in another channel is moved onto the new one, reusing the client so a
+        failed move never leaves the bot out of voice.  A stale client that is
+        no longer connected is released before a fresh join, which keeps
         ``channel.connect`` from raising on a duplicate connection.
         """
         current = cast("discord.VoiceClient | None", guild.voice_client)
         if current is not None and current.is_connected():
             if getattr(current.channel, "id", None) == channel.id:
                 return current
+            await self._move_voice_client(current, channel)
+            return current
+        if current is not None:
             await self._release_voice_client(current, guild.id)
         return await self._join_channel(channel)
+
+    async def _move_voice_client(
+        self, voice_client: discord.VoiceClient, channel: discord.VoiceChannel
+    ) -> None:
+        try:
+            await voice_client.move_to(channel)
+        except asyncio.TimeoutError as e:
+            raise ValueError("Voice connection timed out") from e
 
     async def _release_voice_client(
         self, voice_client: discord.VoiceClient, guild_id: int

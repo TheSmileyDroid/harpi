@@ -427,6 +427,23 @@ async def test_disconnect_clears_an_orphaned_voice_client(client, bot: ApiBot):
     assert bot.sessions.disconnect_calls == [GUILD_A]
 
 
+async def test_disconnect_does_not_reach_another_guild(client, bot: ApiBot):
+    await _login(client)
+    bot.sessions._session = None
+    async with client.session_transaction() as stored:
+        stored["guild_id"] = str(GUILD_A)
+    bot._guilds[GUILD_B] = FakeGuild(GUILD_B, "Beta Guild")
+    bot._guilds[GUILD_B].voice_client = SimpleNamespace(
+        channel=SimpleNamespace(id=CHANNEL_ID),
+        is_connected=lambda: True,
+    )
+
+    response = await client.post("/api/disconnect")
+
+    assert response.status_code == 200
+    assert bot.sessions.disconnect_calls == []
+
+
 async def test_status_reports_the_bot_offline(client, bot: ApiBot):
     await _login(client)
     bot._closed = True
