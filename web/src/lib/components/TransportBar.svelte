@@ -17,6 +17,7 @@
   let busy = $state(false);
   let seeking = $state(false);
   let seekRatio = $state(0);
+  let activePointer = $state<number | null>(null);
   let track = $state<HTMLElement | null>(null);
   let bar = $state<HTMLElement | null>(null);
 
@@ -91,36 +92,49 @@
   }
 
   function onSeekDown(event: PointerEvent) {
-    if (!duration || busy) return;
+    if (!duration || busy || seeking) return;
     seeking = true;
+    activePointer = event.pointerId;
     seekRatio = ratioAt(event.clientX);
     track?.setPointerCapture?.(event.pointerId);
   }
 
   function onSeekMove(event: PointerEvent) {
-    if (!seeking) return;
+    if (!seeking || event.pointerId !== activePointer) return;
     seekRatio = ratioAt(event.clientX);
   }
 
+  function cancelSeek() {
+    seeking = false;
+    activePointer = null;
+  }
+
   async function onSeekUp(event: PointerEvent) {
-    if (!seeking) return;
+    if (!seeking || event.pointerId !== activePointer) return;
     seekRatio = ratioAt(event.clientX);
     const target = seekTarget(seekRatio, duration);
-    if (busy) {
-      seeking = false;
-      return;
-    }
-    busy = true;
-    try {
-      const snapshot = await api.seek(target);
-      appStore.applyStatus(snapshot);
-      toasts.push("Position set");
-    } catch {
-      return;
-    } finally {
-      busy = false;
-      seeking = false;
-    }
+    seeking = false;
+    activePointer = null;
+    await act(() => api.seek(target), "Position set");
+  }
+
+  function seekTo(position: number) {
+    return act(() => api.seek(position), "Position set");
+  }
+
+  function onSeekKeydown(event: KeyboardEvent) {
+    if (!duration || busy || seeking) return;
+    const current = displayRatio * duration;
+    let target: number | null = null;
+    if (event.key === "ArrowRight") target = current + 5;
+    else if (event.key === "ArrowLeft") target = current - 5;
+    else if (event.key === "PageUp") target = current + 15;
+    else if (event.key === "PageDown") target = current - 15;
+    else if (event.key === "Home") target = 0;
+    else if (event.key === "End") target = duration;
+    if (target === null) return;
+    event.preventDefault();
+    seekTo(Math.max(0, Math.min(duration, target)));
   }
 
   async function sendVolume(value: number) {
@@ -199,7 +213,9 @@
       onpointerdown={onSeekDown}
       onpointermove={onSeekMove}
       onpointerup={onSeekUp}
-      onpointercancel={onSeekUp}
+      onpointercancel={cancelSeek}
+      onlostpointercapture={cancelSeek}
+      onkeydown={onSeekKeydown}
       data-testid="seek-track"
     >
       <div

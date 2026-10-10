@@ -40,12 +40,12 @@ Linear gain applied to a source, 0.0–1.0, where 1.0 is unity: the ceiling neve
 _Avoid_: loudness (perception, not the value), level
 
 **Search results**:
-The transient list of candidates returned by the single search on the Music page, shown as an overlay dropdown. Ephemeral by design: they live in the page, not in the Session, and vanish on close or navigation.
+The transient list of candidates returned by the single search on the Music page, shown in the search palette (a modal dialog). Ephemeral by design: they live in the page, not in the Session, and vanish on close or navigation.
 _Avoid_: search panel (there is only one search), results page
 
-**Side panel**:
-The right-hand column of the Music page holding the Queue and Layers as tabs. One panel, two views.
-_Avoid_: queue panel, layers panel (those are the tabs)
+**Layers rail**:
+The collapsible right-hand column of the Music page (20rem, above 48rem) holding the Layers. The Queue lives in the main column under Now Playing.
+_Avoid_: side panel, queue panel, layers panel
 
 **Toast**:
 A transient amber confirmation that fades on its own (action succeeded). The opposite of the persistent error region: errors stay until resolved, toasts die quietly. Toasts are never green.

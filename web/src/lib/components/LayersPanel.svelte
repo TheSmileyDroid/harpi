@@ -50,43 +50,52 @@
 </script>
 
 <section class="hud-panel" data-testid="layers-panel">
-  <span class="panel-label">06 // Layers</span>
+  <span class="panel-label">03 // Layers</span>
   {#if !hasSession}
-    <p class="data-value is-empty" data-testid="layers-empty">No session</p>
+    <p class="data-value is-empty" data-testid="layers-empty">
+      No active session
+    </p>
   {:else if layers.length === 0}
-    <p class="data-value is-empty" data-testid="layers-empty">No layers</p>
+    <p class="data-value is-empty" data-testid="layers-empty">
+      No layers — add one from Search.
+    </p>
   {:else}
     <ul class="layer-list">
       {#each layers as layer, index (layer.id)}
-        <li class="data-row layer-row" data-testid="layer-row">
-          <span class="row-meta layer-index">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <Thumbnail
-            src={layer.thumbnail}
-            alt={layer.title}
-            className="row-thumb"
-            size={32}
-          />
-          <span class="data-title">{layer.title}</span>
-          <VolumeSlider
-            gain={layer.volume}
-            send={(value) => sendLayerVolume(layer.id, value)}
-            label="Layer volume"
-            className="layer-volume"
-            controlTestid="layer-volume-control"
-            sliderTestid="layer-volume"
-            valueTestid="layer-volume-value"
-          />
-          <button
-            type="button"
-            class="hud-btn hud-btn-danger"
-            onclick={() => askRemove(layer)}
-            disabled={busy}
-            data-testid="layer-remove"
-          >
-            Del
-          </button>
+        <li class="layer-row" data-testid="layer-row">
+          <div class="layer-row__head">
+            <span class="row-meta layer-index">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <Thumbnail
+              src={layer.thumbnail}
+              alt={layer.title}
+              className="row-thumb"
+              size={32}
+            />
+            <span class="data-title">{layer.title}</span>
+          </div>
+          <div class="layer-row__controls">
+            <VolumeSlider
+              gain={layer.volume}
+              send={(value) => sendLayerVolume(layer.id, value)}
+              label="Layer volume"
+              className="layer-volume"
+              controlTestid="layer-volume-control"
+              sliderTestid="layer-volume"
+              valueTestid="layer-volume-value"
+            />
+            <button
+              type="button"
+              class="hud-btn hud-btn-danger"
+              onclick={() => askRemove(layer)}
+              disabled={busy}
+              aria-label={`Remove layer ${layer.title}`}
+              data-testid="layer-remove"
+            >
+              Remove
+            </button>
+          </div>
         </li>
       {/each}
     </ul>
@@ -102,3 +111,27 @@
   onconfirm={confirm}
   oncancel={cancel}
 />
+
+<style>
+  .layer-row {
+    padding-block: 0.5rem;
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .layer-row__head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .layer-row__controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-block-start: 0.35rem;
+  }
+
+  .layer-row__controls :global(.layer-volume) {
+    flex: 1;
+  }
+</style>

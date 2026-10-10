@@ -7,16 +7,6 @@
   let { children }: { children: Snippet } = $props();
 </script>
 
-<div class="error-slot">
-  <ErrorRegion />
-</div>
+<ErrorRegion />
 {@render children()}
 <ToastRegion />
-
-<style>
-  .error-slot {
-    max-width: 72rem;
-    margin: 0 auto;
-    padding: 0.5rem 1.25rem 0;
-  }
-</style>

@@ -54,11 +54,15 @@
 </script>
 
 <section class="hud-panel" data-testid="queue-panel">
-  <span class="panel-label">05 // Queue</span>
+  <span class="panel-label">02 // Queue</span>
   {#if !hasSession}
-    <p class="data-value is-empty" data-testid="queue-empty">No session</p>
+    <p class="data-value is-empty" data-testid="queue-empty">
+      No active session
+    </p>
   {:else if queue.length === 0}
-    <p class="data-value is-empty" data-testid="queue-empty">Queue empty</p>
+    <p class="data-value is-empty" data-testid="queue-empty">
+      Queue empty — search to add tracks.
+    </p>
   {:else}
     <ul class="queue-list">
       {#each queue as track, index (track.url)}
@@ -81,9 +85,10 @@
             class="hud-btn hud-btn-danger"
             onclick={() => askRemove(track.url)}
             disabled={busy}
+            aria-label={`Remove ${track.title} from queue`}
             data-testid="queue-remove"
           >
-            Del
+            Remove
           </button>
         </li>
       {/each}
@@ -108,3 +113,10 @@
   onconfirm={confirm}
   oncancel={cancel}
 />
+
+<style>
+  .queue-list {
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+</style>

@@ -144,8 +144,8 @@ that is nearly off, with red held in reserve for failure.
   above normal text. Caret block after the page title, focus brackets, the
   active nav/tab underline, a highlighted search row.
 - **Ember Amber** (`oklch(63% 0.08 85)`): secondary text. Data labels, subtitles,
-  row metadata, readouts, idle (paused) progress. Holds 4.5:1 on `surface`
-  and above on the page background.
+  row metadata, readouts, placeholders, empty-state readouts, idle (paused)
+  progress. Holds 4.5:1 on `surface` and above on the page background.
 
 ### Neutral
 - **Tube Black** (`oklch(12% 0.004 85)`): page background. Near-black with a
@@ -157,9 +157,9 @@ that is nearly off, with red held in reserve for failure.
   double frame, separators, meter and slider tracks (`line`).
 - **Bright Line** (`oklch(48% 0.03 85)`): outer line of the double frame,
   toast border, status chip border (`line-strong`).
-- **Ash Gray** (`oklch(48% 0.005 85)`): disabled text and empty readouts
-  (`idle`). Its low contrast is intentional and must not leak into readable
-  content.
+- **Ash Gray** (`oklch(48% 0.005 85)`): disabled control text (`idle`). Its low
+  contrast is intentional and must not leak into readable content. Empty
+  readouts and placeholders take Ember Amber instead, so they clear 4.5:1.
 
 ### Tertiary
 - **Signal Red** (`oklch(67% 0.19 27)`): errors and alerts only — panel error
@@ -213,23 +213,25 @@ Sentence case is reserved for content values and confirm sentences.
 
 ## Layout
 
-Single column that splits once. The app shell (`.app-container`) pads
-0.5rem top, 1.25rem sides, and reserves 5.5rem at the bottom for the fixed
-chrome; consecutive blocks in the main column stack with a 1rem gap.
+Single column that splits once, capped at 72rem and centred. The app shell
+(`.app-container`) pads 0.5rem top, 1.25rem sides, and reserves the fixed
+chrome at the bottom: 1.75rem plus the measured transport height plus 1rem.
+Consecutive blocks in the main column stack with a 1rem gap.
 
-The Music page is the only split layout: a two-column grid (fluid main
-column + fixed 20rem side rail) above 48rem (768px), single column below.
-Panel interiors pad 1rem; the boxed title plate sits 0.75rem above panel
-content.
+The Music page is the only split layout: above 48rem (768px) a two-column
+grid pairs a fluid main column (Now Playing over Queue) with a fixed 20rem
+Layers rail; below it, one column. The rail collapses with a Hide/Show
+control. Panel interiors pad 1rem; the boxed title plate sits 0.75rem above
+panel content.
 
 Fixed chrome stacks from the bottom: status strip at the very bottom
 (0.75rem tall band), transport bar 1.75rem above the viewport bottom,
-toasts stacked just above the transport bar on the right, clearing it even
-when the bar wraps on mobile. Content padding grows to 10rem on mobile
-where the transport wraps.
+toasts stacked just above the transport bar on the right, the error region
+mirrored on the left. Both clear the bar through `--transport-height`, the
+bar's measured height, so a wrapped bar on mobile never covers content.
 
 Breakpoints (observed): 30rem (480px) collapses the header to wrapped rows,
-stacks row metadata, and stacks action strips vertically; 48rem (768px)
+stacks search rows and action strips, and wraps the transport; 48rem (768px)
 enables the Music two-column grid. The design language never switches off at
 either — density collapses, identity stays.
 
@@ -261,7 +263,7 @@ base reset and maintained by every component (the range slider thumb is a
 1px only — thick borders have no place in this grammar. Frames come in two
 flavors: single 1px (`line`) for rows, inputs, thumbnails; double (1px
 `line` + 1px `line-strong` outline offset 2px) for panels, boxed titles, the
-now-playing art, the search dropdown. The recurring silhouette is the corner
+now-playing art, the search palette. The recurring silhouette is the corner
 bracket: two 0.75rem L-shapes in Hot Amber sitting on the corners of the
 element under operation.
 
@@ -312,7 +314,8 @@ keys.
 - **Focus:** a Hot Amber 1px outline at 2px offset replaces the default ring.
   Replaced elements cannot carry the L-brackets, so the offset echoes the
   double frame instead.
-- **Placeholder:** Ash Gray (disabled ink) — placeholders are not content.
+- **Placeholder:** Ember Amber (secondary ink) — placeholders are not content,
+  but the hint still clears 4.5:1 at 0.8rem.
 
 ### Navigation
 - **Main nav:** Rajdhani 600, 0.8rem, tracking 0.15em, uppercase, Ember
@@ -335,6 +338,9 @@ keys.
 - **Toast:** fixed column bottom-right, surface background, `line-strong`
   border with a 1px Phosphor Amber left edge, uppercase mono 0.7rem. Amber
   only, confirmations only — errors never arrive here.
+- **Search palette:** a modal `<dialog>` capped at 42rem, holding the search
+  field over a results listbox inside a double frame. The backdrop dims the
+  tube; Escape or an outside click closes it.
 - **Panel error:** persistent 1px `alert` box, Signal Red text, 0.75rem.
   Stays until the server re-renders it away.
 

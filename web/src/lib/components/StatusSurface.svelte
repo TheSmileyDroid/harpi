@@ -1,12 +1,9 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { get } from "svelte/store";
   import { appStore } from "$lib/store";
   import { toasts } from "$lib/toasts";
-  import { formatDuration } from "$lib/format";
   import type { ApiClient } from "$lib/api";
-  import type { StatusSnapshot } from "$lib/contract/panel.gen";
-  import StatusChip from "./StatusChip.svelte";
+  import OutputPicker from "./OutputPicker.svelte";
+  import NowPlaying from "./NowPlaying.svelte";
   import SearchPanel from "./SearchPanel.svelte";
   import QueuePanel from "./QueuePanel.svelte";
   import LayersPanel from "./LayersPanel.svelte";
@@ -23,74 +20,18 @@
     onresync: () => Promise<void>;
     api: ApiClient;
   } = $props();
+
   let refreshing = $state(false);
-  let busy = $state(false);
-  let lastGuildId: string | null = null;
-  const effectiveGuildId = $derived(
-    $appStore.pendingGuildId ?? $appStore.guildId,
+  let layersOpen = $state(true);
+
+  const botOnline = $derived($appStore.bot.online);
+  const voiceLabel = $derived(
+    !botOnline
+      ? "Unavailable"
+      : $appStore.connection.connected
+        ? `Linked to ${$appStore.connection.channel_id}`
+        : "Not connected",
   );
-
-  const linkLabels: Record<string, string> = {
-    connected: "LINK LIVE",
-    reconnecting: "LINK LOST",
-    connecting: "LINKING",
-  };
-
-  async function loadGuilds() {
-    const payload = await api.guilds().catch(() => null);
-    if (!payload) return;
-    appStore.setGuilds(payload.guilds);
-  }
-
-  async function loadChannels(guildId: string | null) {
-    if (guildId === null) {
-      appStore.setChannels([]);
-      return;
-    }
-    const payload = await api.channels(guildId).catch(() => null);
-    if (payload) appStore.setChannels(payload.channels);
-  }
-
-  function onGuildChange(event: Event) {
-    const select = event.currentTarget as HTMLSelectElement;
-    const value = select.value;
-    appStore.selectChannel(null);
-    appStore.selectGuild(value === "" ? null : value);
-  }
-
-  function onChannelChange(event: Event) {
-    const select = event.currentTarget as HTMLSelectElement;
-    const value = select.value;
-    appStore.selectChannel(value === "" ? null : value);
-  }
-
-  async function mutate(
-    action: () => Promise<StatusSnapshot>,
-    message: string,
-  ) {
-    busy = true;
-    try {
-      const snapshot = await action();
-      appStore.applyStatus(snapshot);
-      toasts.push(message);
-      await onresync();
-    } catch {
-      return;
-    } finally {
-      busy = false;
-    }
-  }
-
-  function connect() {
-    return mutate(
-      () => api.connect(effectiveGuildId, get(appStore).selectedChannelId),
-      "Connected",
-    );
-  }
-
-  function disconnect() {
-    return mutate(() => api.disconnect(), "Disconnected");
-  }
 
   async function refresh() {
     refreshing = true;
@@ -103,106 +44,76 @@
     }
   }
 
-  onMount(() => {
-    loadGuilds();
-  });
-
-  $effect(() => {
-    const guildId = effectiveGuildId;
-    if (guildId === lastGuildId) return;
-    lastGuildId = guildId;
-    loadChannels(guildId);
-  });
+  function onGlobalKeydown(event: KeyboardEvent) {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      appStore.openSearch();
+    }
+  }
 </script>
 
+<svelte:window onkeydown={onGlobalKeydown} />
+
 <main class="app-container" id="shell">
-  <header>
+  <header class="topbar">
     <span class="logo">
       <span class="logo-text">HARPI</span>
     </span>
-    <span class="link-state" data-testid="link-state" data-link={link}>
-      {linkLabels[link] ?? "LINKING"}
-    </span>
-    <StatusChip online={$appStore.bot.online} />
+    <OutputPicker {api} {link} {onresync} />
+    <button
+      type="button"
+      class="hud-btn topbar__search"
+      onclick={() => appStore.openSearch()}
+      data-testid="open-search"
+    >
+      Search <span class="topbar__kbd">Ctrl K</span>
+    </button>
   </header>
 
-  <div class="main-content">
-    <div class="page-header">
-      <h1 class="page-title">System status</h1>
-    </div>
+  <span class="visually-hidden" role="status" aria-live="polite">
+    Bot {botOnline ? "online" : "offline"}; panel link {link}
+  </span>
 
-    <section class="hud-panel" data-testid="guild-panel">
-      <span class="panel-label">01 // Guild</span>
-      <div class="data-row">
-        <span class="data-label">Selection</span>
-        {#if $appStore.guildId === null}
-          <span class="data-value is-empty" data-testid="guild-id">
-            No guild selected
-          </span>
-        {:else}
-          <span class="data-value" data-testid="guild-id">
-            Guild {$appStore.guildId}
-          </span>
-        {/if}
+  <section class="region" aria-labelledby="region-music-title">
+    <h1 class="page-title region-heading" id="region-music-title">Music</h1>
+    <div class="music-layout">
+      <div class="music-main">
+        <NowPlaying />
+        <QueuePanel {api} />
       </div>
-      <div class="data-row">
-        <label class="data-label" for="guild-select">Guild</label>
-        <select
-          id="guild-select"
-          class="hud-input"
-          data-testid="guild-select"
-          value={effectiveGuildId ?? ""}
-          onchange={onGuildChange}
-        >
-          <option value="" disabled>Select a guild</option>
-          {#each $appStore.guilds as guild (guild.id)}
-            <option value={guild.id}>{guild.name}</option>
-          {/each}
-        </select>
-      </div>
-      {#if effectiveGuildId !== null}
-        <div class="data-row">
-          <label class="data-label" for="channel-select">Channel</label>
-          <select
-            id="channel-select"
-            class="hud-input"
-            data-testid="channel-select"
-            value={$appStore.selectedChannelId ?? ""}
-            onchange={onChannelChange}
-          >
-            <option value="" disabled>Select a channel</option>
-            {#each $appStore.channels as channel (channel.id)}
-              <option value={channel.id}>{channel.name}</option>
-            {/each}
-          </select>
-        </div>
+      {#if layersOpen}
+        <aside class="layers-rail" aria-labelledby="region-layers-title">
+          <div class="layers-rail__head">
+            <h2 class="region-title" id="region-layers-title">Layers</h2>
+            <button
+              type="button"
+              class="hud-btn"
+              onclick={() => (layersOpen = false)}
+              data-testid="layers-toggle"
+            >
+              Hide
+            </button>
+          </div>
+          <LayersPanel {api} />
+        </aside>
       {/if}
-      <div class="action-strip">
-        <button
-          class="hud-btn"
-          type="button"
-          onclick={connect}
-          disabled={busy || $appStore.selectedChannelId === null}
-          data-testid="connect"
-        >
-          Connect
-        </button>
-        {#if $appStore.connection.connected}
-          <button
-            class="hud-btn"
-            type="button"
-            onclick={disconnect}
-            disabled={busy}
-            data-testid="disconnect"
-          >
-            Disconnect
-          </button>
-        {/if}
-      </div>
-    </section>
+    </div>
+    {#if !layersOpen}
+      <button
+        type="button"
+        class="hud-btn rail-reopen"
+        onclick={() => (layersOpen = true)}
+        data-testid="layers-reopen"
+      >
+        Show layers
+      </button>
+    {/if}
+  </section>
 
+  <section class="region" aria-labelledby="region-system-title">
+    <h2 class="region-title" id="region-system-title">System</h2>
     <section class="hud-panel" data-testid="connection-panel">
-      <span class="panel-label">02 // Bot</span>
+      <span class="panel-label">04 // Session</span>
       <div class="data-row">
         <span class="data-label">Bot</span>
         <span class="data-value" data-testid="bot-online">
@@ -216,85 +127,27 @@
           data-testid="connection"
           data-connected={$appStore.connection.connected}
         >
-          {$appStore.connection.connected
-            ? `Linked to ${$appStore.connection.channel_id}`
-            : "Not connected"}
+          {voiceLabel}
         </span>
       </div>
-    </section>
-
-    <section
-      class="hud-panel"
-      class:is-playing={$appStore.playback?.is_playing === true &&
-        $appStore.playback?.is_paused !== true}
-      data-testid="playback-panel"
-    >
-      <span class="panel-label">03 // Playback</span>
-      {#if $appStore.playback === null}
-        <p class="data-value is-empty" data-testid="playback-empty">
-          No active session
+      {#if !botOnline}
+        <p class="system-note" data-testid="bot-offline-note">
+          Bot offline — playback and voice are unavailable until it reconnects.
         </p>
-      {:else}
-        <div class="data-row">
-          <span class="data-label">Track</span>
-          <span class="data-title" data-testid="now-playing">
-            {$appStore.playback.current_music?.title ?? "Nothing playing"}
-          </span>
-        </div>
-        <div class="data-row">
-          <span class="data-label">State</span>
-          <span class="data-value" data-testid="playback-state">
-            {$appStore.playback.is_playing
-              ? $appStore.playback.is_paused
-                ? "Paused"
-                : "Playing"
-              : "Stopped"}
-          </span>
-        </div>
-        <div class="data-row">
-          <span class="data-label">Progress</span>
-          <span class="data-value" data-testid="playback-progress">
-            {formatDuration($appStore.playback.progress)} / {formatDuration(
-              $appStore.playback.current_music?.duration,
-            )}
-          </span>
-        </div>
-        <div class="data-row">
-          <span class="data-label">Volume</span>
-          <span class="data-value">{$appStore.playback.volume}</span>
-        </div>
-        <div class="data-row">
-          <span class="data-label">Loop</span>
-          <span class="data-value">{$appStore.playback.loop_mode}</span>
-        </div>
-        <div class="data-row">
-          <span class="data-label">Queue</span>
-          <span class="data-value">{$appStore.playback.queue.length}</span>
-        </div>
-        <div class="data-row">
-          <span class="data-label">Layers</span>
-          <span class="data-value">{$appStore.playback.layers.length}</span>
-        </div>
-        <div class="action-strip">
-          <button
-            class="hud-btn"
-            type="button"
-            onclick={refresh}
-            disabled={refreshing}
-            data-testid="refresh"
-          >
-            {refreshing ? "Checking…" : "Refresh"}
-          </button>
-        </div>
       {/if}
+      <div class="action-strip">
+        <button
+          type="button"
+          class="hud-btn"
+          onclick={refresh}
+          disabled={refreshing}
+          data-testid="refresh"
+        >
+          {refreshing ? "Checking…" : "Refresh"}
+        </button>
+      </div>
     </section>
-
-    <SearchPanel {api} />
-
-    <QueuePanel {api} />
-
-    <LayersPanel {api} />
-  </div>
+  </section>
 
   <TransportBar {api} />
 
@@ -303,25 +156,128 @@
   </footer>
 </main>
 
+<SearchPanel {api} />
+
 <style>
-  .page-header {
-    margin-block: 0.5rem 0.25rem;
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--color-line);
+    margin-bottom: 1rem;
   }
 
-  header .logo-text {
-    font-size: 1rem;
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-inline-end: auto;
   }
 
-  .link-state {
+  .logo-text {
     font-family: var(--font-display);
     font-weight: 600;
-    font-size: 0.7rem;
+    font-size: 1rem;
+    letter-spacing: 0.3em;
+    color: var(--color-primary);
+  }
+
+  .topbar__search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: none;
+  }
+
+  .topbar__kbd {
+    font-size: 0.6rem;
     letter-spacing: 0.15em;
-    text-transform: uppercase;
     color: var(--color-amber-dim);
   }
 
-  .link-state[data-link="reconnecting"] {
-    color: var(--color-alert);
+  .hud-btn:hover .topbar__kbd {
+    color: var(--color-background);
+  }
+
+  .region {
+    margin-block-start: 1.5rem;
+  }
+
+  .region-heading {
+    margin: 0 0 0.5rem;
+  }
+
+  .region-title {
+    margin: 0 0 0.5rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+  }
+
+  .music-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .music-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  .layers-rail {
+    min-width: 0;
+  }
+
+  .layers-rail__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .layers-rail__head .region-title {
+    margin: 0;
+  }
+
+  .system-note {
+    margin: 0.35rem 0 0;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    color: var(--color-amber-dim);
+  }
+
+  .rail-reopen {
+    display: block;
+    margin-inline-start: auto;
+    margin-block-start: 0.75rem;
+  }
+
+  @media (min-width: 48rem) {
+    .music-layout {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+      align-items: start;
+    }
+  }
+
+  @media (max-width: 30rem) {
+    .topbar {
+      flex-wrap: wrap;
+    }
+
+    .topbar__kbd {
+      display: none;
+    }
+
+    .region {
+      margin-block-start: 1rem;
+    }
   }
 </style>

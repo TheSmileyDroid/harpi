@@ -2,14 +2,16 @@
   let { onsignin }: { onsignin: (token: string) => Promise<void> } = $props();
   let token = $state("");
   let busy = $state(false);
+  let invalid = $state(false);
 
   async function submit(event: Event) {
     event.preventDefault();
     busy = true;
+    invalid = false;
     try {
       await onsignin(token);
     } catch {
-      token = "";
+      invalid = true;
     } finally {
       busy = false;
     }
@@ -27,6 +29,7 @@
         class="hud-input"
         type="password"
         autocomplete="current-password"
+        aria-invalid={invalid}
         bind:value={token}
         data-testid="panel-token"
       />

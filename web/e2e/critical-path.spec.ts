@@ -5,6 +5,23 @@ const BACKEND = "http://127.0.0.1:8100";
 const GUILD_B = "734174030701264912";
 const GUILD_B_CHANNEL = `${GUILD_B}0`;
 
+async function signIn(page: import("@playwright/test").Page) {
+  await page.goto("/");
+  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
+  await page.getByTestId("sign-in").click();
+  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+}
+
+async function openSearch(page: import("@playwright/test").Page) {
+  await page.getByTestId("open-search").click();
+  await expect(page.getByTestId("search-input")).toBeVisible();
+}
+
+async function openOutput(page: import("@playwright/test").Page) {
+  await page.getByTestId("output-picker").click();
+  await expect(page.getByTestId("guild-select")).toBeVisible();
+}
+
 test("sign in, then a pushed status change lands without a reload", async ({
   page,
   request,
@@ -30,7 +47,7 @@ test("sign in, then a pushed status change lands without a reload", async ({
 
   await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
   await expect(page.getByTestId("link-state")).toHaveText("LINK LIVE");
-  await expect(page.getByTestId("guild-id")).toContainText("Guild 1");
+  await expect(page.getByTestId("guild-id")).toContainText("Alpha Guild");
   await expect(page.getByTestId("connection")).toHaveText("Linked to 42");
   await expect(page.getByTestId("now-playing")).toHaveText("Now Track");
 
@@ -100,10 +117,10 @@ test("selects a shared guild, connects to a voice channel, then disconnects", as
   request,
 }) => {
   await request.post(`${BACKEND}/__test__/bot`, { data: { online: true } });
-  await page.goto("/");
-  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
-  await page.getByTestId("sign-in").click();
-  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+  await signIn(page);
+
+  await expect(page.getByTestId("guild-id")).toContainText("Alpha Guild");
+  await openOutput(page);
 
   await expect(page.getByTestId("guild-select").locator("option")).toHaveCount(
     3,
@@ -124,6 +141,7 @@ test("selects a shared guild, connects to a voice channel, then disconnects", as
     `Linked to ${GUILD_B_CHANNEL}`,
   );
   await expect(page.getByTestId("toasts")).toContainText("Connected");
+  await expect(page.getByTestId("guild-id")).toContainText("Beta Guild");
 
   await page.getByTestId("disconnect").click();
 
@@ -140,11 +158,9 @@ test("searches, queues, and removes, with queue changes live over SSE", async ({
     loads += 1;
   });
 
-  await page.goto("/");
-  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
-  await page.getByTestId("sign-in").click();
-  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+  await signIn(page);
 
+  await openSearch(page);
   await page.getByTestId("search-input").fill("daft punk");
   await expect(page.getByTestId("search-result").first()).toContainText(
     "Found daft punk",
@@ -186,10 +202,7 @@ test("drives transport, seeks, and changes volume against live position", async 
     await route.continue();
   });
 
-  await page.goto("/");
-  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
-  await page.getByTestId("sign-in").click();
-  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+  await signIn(page);
   const bootStatusRequests = statusRequests;
   expect(bootStatusRequests).toBe(1);
 
@@ -259,11 +272,9 @@ test("adds a layer, changes its volume, and removes it with confirmation", async
     loads += 1;
   });
 
-  await page.goto("/");
-  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
-  await page.getByTestId("sign-in").click();
-  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+  await signIn(page);
 
+  await openSearch(page);
   await page.getByTestId("search-input").fill("daft punk");
   await expect(page.getByTestId("search-result").first()).toContainText(
     "Found daft punk",
@@ -325,6 +336,34 @@ test("adds a layer, changes its volume, and removes it with confirmation", async
   expect(loads).toBe(1);
 });
 
+test("seek is keyboard-operable and results expose a listbox", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${BACKEND}/__test__/reset`);
+  await signIn(page);
+
+  const seek = page.getByTestId("seek-track");
+  await seek.focus();
+  await expect(seek).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(page.getByTestId("toasts")).toContainText("Position set");
+  await expect(page.getByTestId("progress-readout")).toContainText(
+    "2:00 / 2:00",
+  );
+
+  await openSearch(page);
+  await page.getByTestId("search-input").fill("daft punk");
+  await expect(
+    page.getByRole("listbox", { name: "Search results" }),
+  ).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("option").first()).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+});
+
 test("layer state pushed server-side arrives live over SSE", async ({
   page,
   request,
@@ -341,10 +380,7 @@ test("layer state pushed server-side arrives live over SSE", async ({
     await route.continue();
   });
 
-  await page.goto("/");
-  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
-  await page.getByTestId("sign-in").click();
-  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+  await signIn(page);
   const bootStatusRequests = statusRequests;
   expect(bootStatusRequests).toBe(1);
 
