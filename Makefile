@@ -5,7 +5,11 @@ SHELL := /bin/bash
 -include .env
 export $(shell sed 's/=.*//' .env 2>/dev/null || true)
 
-.PHONY: dev start build contract lint check check-network mutants
+.PHONY: bootstrap dev start build contract lint check check-network mutants
+
+bootstrap:
+	uv sync --upgrade
+	( cd web && bun update )
 
 dev:
 	@trap 'trap - 0 2 15; kill 0' 0 2 15; \

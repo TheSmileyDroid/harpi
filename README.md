@@ -9,15 +9,13 @@ in a simplier way with features like:
 
 ## Running
 
-To run Harpi locally you will need to install the dependencies from
-the pyproject into your virtual environment. Use the `uv` package
-manager:
+To run Harpi locally, install and upgrade the Python and web
+dependencies in one step:
 
-    uv sync
+    make bootstrap
 
-Install the web dependencies:
-
-    bun install --cwd web
+This runs `uv sync --upgrade` for the backend and `bun update` in `web/`
+for the frontend. Run it again whenever you want to pull newer versions.
 
 Build the frontend and run the bot:
 
