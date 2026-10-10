@@ -178,4 +178,22 @@ describe("createAppStore", () => {
 
     expect(get(store)).toEqual(initialState());
   });
+
+  it("owns the output picker visibility", () => {
+    const store = createAppStore();
+
+    expect(get(store).outputOpen).toBe(false);
+
+    store.openOutput();
+    expect(get(store).outputOpen).toBe(true);
+
+    store.toggleOutput();
+    expect(get(store).outputOpen).toBe(false);
+
+    store.toggleOutput();
+    expect(get(store).outputOpen).toBe(true);
+
+    store.closeOutput();
+    expect(get(store).outputOpen).toBe(false);
+  });
 });

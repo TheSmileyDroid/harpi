@@ -6,45 +6,56 @@
   import type { ApiClient } from "$lib/api";
   import Thumbnail from "./Thumbnail.svelte";
 
-  type Pending = { kind: "remove"; url: string } | { kind: "clear"; url: null };
-
   let { api }: { api: ApiClient } = $props();
 
   let busy = $state(false);
-  let pending = $state<Pending | null>(null);
+  let confirmingClear = $state(false);
 
   const queue = $derived($appStore.playback?.queue ?? []);
   const hasSession = $derived($appStore.playback !== null);
-  const confirmMessage = $derived(
-    pending?.kind === "clear" ? "Clear the whole queue?" : "Remove this track?",
-  );
 
-  function askRemove(url: string) {
-    pending = { kind: "remove", url };
+  async function removeTrack(url: string) {
+    if (busy) return;
+    busy = true;
+    try {
+      const snapshot = await api.removeFromQueue(url);
+      appStore.applyStatus(snapshot);
+      toasts.push("Removed from queue", {
+        label: "Undo",
+        run: () => undoRemove(url),
+      });
+    } catch {
+      return;
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function undoRemove(url: string) {
+    try {
+      const snapshot = await api.queue(url);
+      appStore.applyStatus(snapshot);
+    } catch {
+      return;
+    }
   }
 
   function askClear() {
-    pending = { kind: "clear", url: null };
+    confirmingClear = true;
   }
 
-  function cancel() {
-    pending = null;
+  function cancelClear() {
+    confirmingClear = false;
   }
 
-  async function confirm() {
-    const action = pending;
-    pending = null;
-    if (!action || busy) return;
+  async function confirmClear() {
+    confirmingClear = false;
+    if (busy) return;
     busy = true;
     try {
-      const snapshot =
-        action.kind === "clear"
-          ? await api.clearQueue()
-          : await api.removeFromQueue(action.url);
+      const snapshot = await api.clearQueue();
       appStore.applyStatus(snapshot);
-      toasts.push(
-        action.kind === "clear" ? "Queue cleared" : "Removed from queue",
-      );
+      toasts.push("Queue cleared");
     } catch {
       return;
     } finally {
@@ -83,7 +94,7 @@
           <button
             type="button"
             class="hud-btn hud-btn-danger"
-            onclick={() => askRemove(track.url)}
+            onclick={() => removeTrack(track.url)}
             disabled={busy}
             aria-label={`Remove ${track.title} from queue`}
             data-testid="queue-remove"
@@ -108,10 +119,10 @@
 </section>
 
 <ConfirmDialog
-  open={pending !== null}
-  message={confirmMessage}
-  onconfirm={confirm}
-  oncancel={cancel}
+  open={confirmingClear}
+  message="Clear the whole queue?"
+  onconfirm={confirmClear}
+  oncancel={cancelClear}
 />
 
 <style>

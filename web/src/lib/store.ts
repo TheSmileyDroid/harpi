@@ -27,6 +27,7 @@ export interface AppState {
   pendingGuildId: string | null;
   selectedChannelId: string | null;
   search: SearchState;
+  outputOpen: boolean;
 }
 
 const noStatus = {
@@ -48,6 +49,7 @@ export function initialState(): AppState {
     pendingGuildId: null,
     selectedChannelId: null,
     search: emptySearch(),
+    outputOpen: false,
   };
 }
 
@@ -125,6 +127,15 @@ export function createAppStore() {
         ...state,
         search: { ...state.search, activeIndex },
       }));
+    },
+    openOutput(): void {
+      update((state) => ({ ...state, outputOpen: true }));
+    },
+    closeOutput(): void {
+      update((state) => ({ ...state, outputOpen: false }));
+    },
+    toggleOutput(): void {
+      update((state) => ({ ...state, outputOpen: !state.outputOpen }));
     },
     reset(): void {
       set(initialState());

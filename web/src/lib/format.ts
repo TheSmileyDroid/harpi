@@ -9,3 +9,10 @@ export function formatDuration(seconds: number | null | undefined): string {
     ? `${hours}:${pad(minutes)}:${pad(secs)}`
     : `${minutes}:${pad(secs)}`;
 }
+
+export function formatVolume(gain: number | null | undefined): string {
+  const value = Number(gain);
+  if (!Number.isFinite(value)) return "0%";
+  const clamped = Math.min(Math.max(value, 0), 1);
+  return `${Math.round(clamped * 100)}%`;
+}

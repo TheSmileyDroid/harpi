@@ -3,6 +3,12 @@ import { writable } from "svelte/store";
 export interface Toast {
   id: number;
   message: string;
+  action?: ToastAction | undefined;
+}
+
+export interface ToastAction {
+  label: string;
+  run: () => void;
 }
 
 export interface ToastsOptions {
@@ -19,9 +25,9 @@ export function createToasts({
 
   return {
     subscribe,
-    push(message: string): number {
+    push(message: string, action?: ToastAction): number {
       const id = ++nextId;
-      update((toasts) => [...toasts, { id, message }]);
+      update((toasts) => [...toasts, { id, message, action }]);
       schedule(() => {
         update((toasts) => toasts.filter((toast) => toast.id !== id));
       }, duration);

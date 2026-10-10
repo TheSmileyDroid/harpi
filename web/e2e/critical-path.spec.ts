@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const PANEL_TOKEN = "e2e-panel-token";
 const BACKEND = "http://127.0.0.1:8100";
 const GUILD_B = "734174030701264912";
-const GUILD_B_CHANNEL = `${GUILD_B}0`;
+const GUILD_B_CHANNEL_NAME = `Channel ${GUILD_B}`;
 
 async function signIn(page: import("@playwright/test").Page) {
   await page.goto("/");
@@ -122,28 +122,41 @@ test("selects a shared guild, connects to a voice channel, then disconnects", as
   await expect(page.getByTestId("guild-id")).toContainText("Alpha Guild");
   await openOutput(page);
 
-  await expect(page.getByTestId("guild-select").locator("option")).toHaveCount(
-    3,
-  );
+  await page.getByTestId("guild-select").click();
+  await expect(page.getByTestId("guild-option")).toHaveCount(2);
+  await page
+    .getByTestId("guild-option")
+    .filter({ hasText: "Beta Guild" })
+    .click();
   await expect(page.getByTestId("guild-select")).toContainText("Beta Guild");
 
-  await page.getByTestId("guild-select").selectOption(String(GUILD_B));
-  await expect(page.getByTestId("channel-select")).toContainText(
-    "Channel 734174030701264912",
-  );
+  await page.getByTestId("channel-select").click();
   await page
-    .getByTestId("channel-select")
-    .selectOption(String(GUILD_B_CHANNEL));
+    .getByTestId("channel-option")
+    .filter({ hasText: GUILD_B_CHANNEL_NAME })
+    .click();
+  await expect(page.getByTestId("channel-select")).toContainText(
+    GUILD_B_CHANNEL_NAME,
+  );
 
   await page.getByTestId("connect").click();
 
   await expect(page.getByTestId("connection")).toHaveText(
-    `Linked to ${GUILD_B_CHANNEL}`,
+    `Linked to ${GUILD_B_CHANNEL_NAME}`,
   );
   await expect(page.getByTestId("toasts")).toContainText("Connected");
   await expect(page.getByTestId("guild-id")).toContainText("Beta Guild");
 
   await page.getByTestId("disconnect").click();
+  await expect(page.getByTestId("disconnect-confirm")).toBeVisible();
+  await page.getByTestId("disconnect-confirm-cancel").click();
+  await expect(page.getByTestId("disconnect-confirm")).toBeHidden();
+  await expect(page.getByTestId("connection")).toHaveText(
+    `Linked to ${GUILD_B_CHANNEL_NAME}`,
+  );
+
+  await page.getByTestId("disconnect").click();
+  await page.getByTestId("disconnect-confirm-execute").click();
 
   await expect(page.getByTestId("connection")).toHaveText("Not connected");
 });
@@ -165,17 +178,30 @@ test("searches, queues, and removes, with queue changes live over SSE", async ({
   await expect(page.getByTestId("search-result").first()).toContainText(
     "Found daft punk",
   );
+  await expect(page.getByTestId("search-result").first()).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.getByTestId("search-selection")).toContainText(
+    "Found daft punk",
+  );
 
-  await page.getByTestId("queue-track").first().click();
+  await page.getByTestId("queue-track").click();
   await expect(page.getByTestId("toasts")).toContainText("Added to queue");
   await expect(page.getByTestId("queue-row").first()).toContainText(
     "daft punk",
   );
 
   await page.getByTestId("queue-remove").first().click();
-  await expect(page.getByTestId("confirm-dialog")).toBeVisible();
-  await page.getByTestId("confirm-execute").click();
   await expect(page.getByTestId("toasts")).toContainText("Removed from queue");
+  await expect(page.getByTestId("queue-empty")).toContainText("Queue empty");
+
+  await page.getByTestId("toast-action").click();
+  await expect(page.getByTestId("queue-row").first()).toContainText(
+    "daft punk",
+  );
+
+  await page.getByTestId("queue-remove").first().click();
   await expect(page.getByTestId("queue-empty")).toContainText("Queue empty");
 
   await request.post(`${BACKEND}/__test__/enqueue`, {
@@ -184,6 +210,66 @@ test("searches, queues, and removes, with queue changes live over SSE", async ({
   await expect(page.getByTestId("queue-row").first()).toContainText("Live");
 
   expect(loads).toBe(1);
+});
+
+test("a pasted link resolves to a row and waits for confirmation", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${BACKEND}/__test__/reset`);
+  await signIn(page);
+
+  await openSearch(page);
+  await page.getByTestId("search-input").fill("https://example.com/song");
+
+  await expect(page.getByTestId("search-result").first()).toContainText(
+    "Found https://example.com/song",
+  );
+  await expect(page.getByTestId("search-selection")).toContainText(
+    "Found https://example.com/song",
+  );
+  await expect(page.getByTestId("queue-row")).toHaveCount(0);
+
+  await page.getByTestId("queue-track").click();
+  await expect(page.getByTestId("toasts")).toContainText("Added to queue");
+  await expect(page.getByTestId("queue-row").first()).toContainText(
+    "https://example.com/song",
+  );
+});
+
+test("the search dialog closes only on the backdrop, not on inner clicks", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${BACKEND}/__test__/reset`);
+  await signIn(page);
+
+  await openSearch(page);
+  await page.getByTestId("search-input").fill("daft punk");
+  await expect(page.getByTestId("search-result").first()).toBeVisible();
+
+  const panel = page.getByTestId("search-panel");
+  const box = await panel.boundingBox();
+  if (!box) throw new Error("search panel has no box");
+  await panel.click({ position: { x: box.width - 2, y: 2 } });
+  await expect(panel).toBeVisible();
+  await expect(page.getByTestId("search-input")).toBeVisible();
+
+  const input = page.getByTestId("search-input");
+  const inputBox = await input.boundingBox();
+  if (!inputBox) throw new Error("search input has no box");
+  await page.mouse.move(inputBox.x + 8, inputBox.y + inputBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(2, 2);
+  await page.mouse.up();
+  await expect(panel).toBeVisible();
+
+  await page.getByTestId("search-clear").click();
+  await expect(input).toHaveValue("");
+  await expect(panel).toBeVisible();
+
+  await page.mouse.click(2, 2);
+  await expect(panel).toBeHidden();
 });
 
 test("drives transport, seeks, and changes volume against live position", async ({
@@ -226,7 +312,6 @@ test("drives transport, seeks, and changes volume against live position", async 
   await expect(page.getByTestId("progress-readout")).toContainText(
     "1:30 / 2:00",
   );
-  await expect(page.getByTestId("toasts")).toContainText("Position set");
 
   await page.mouse.move(box.x + box.width * 0.2, midY);
   await page.mouse.down();
@@ -236,6 +321,9 @@ test("drives transport, seeks, and changes volume against live position", async 
     "0:49 / 2:00",
   );
 
+  const volumeSent = page.waitForResponse((response) =>
+    response.url().includes("/api/playback/volume"),
+  );
   await page.getByTestId("volume-slider").evaluate((element) => {
     const input = element as HTMLInputElement;
     for (const value of ["0.3", "0.4", "0.5"]) {
@@ -243,8 +331,8 @@ test("drives transport, seeks, and changes volume against live position", async 
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }
   });
-  await expect(page.getByTestId("volume-value")).toHaveText("0.25");
-  await expect(page.getByTestId("toasts")).toContainText("Volume changed");
+  await volumeSent;
+  await expect(page.getByTestId("volume-value")).toHaveText("25%");
 
   const calls = (await (
     await request.get(`${BACKEND}/__test__/calls`)
@@ -280,12 +368,16 @@ test("adds a layer, changes its volume, and removes it with confirmation", async
     "Found daft punk",
   );
 
+  await page.getByTestId("search-result").first().hover();
   await page.getByTestId("layer-track").first().click();
   await expect(page.getByTestId("toasts")).toContainText("Added as layer");
   await expect(page.getByTestId("layer-row").first()).toContainText(
     "daft punk",
   );
 
+  const layerVolumeSent = page.waitForResponse((response) =>
+    response.url().includes("/api/layers/volume"),
+  );
   await page
     .getByTestId("layer-volume")
     .first()
@@ -294,10 +386,8 @@ test("adds a layer, changes its volume, and removes it with confirmation", async
       input.value = "0.5";
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
-  await expect(page.getByTestId("layer-volume-value")).toHaveText("0.25");
-  await expect(page.getByTestId("toasts")).toContainText(
-    "Layer volume changed",
-  );
+  await layerVolumeSent;
+  await expect(page.getByTestId("layer-volume-value")).toHaveText("25%");
 
   await page.getByTestId("layer-remove").first().click();
   await expect(page.getByTestId("layer-confirm-dialog")).toBeVisible();
@@ -347,7 +437,6 @@ test("seek is keyboard-operable and results expose a listbox", async ({
   await seek.focus();
   await expect(seek).toBeFocused();
   await page.keyboard.press("End");
-  await expect(page.getByTestId("toasts")).toContainText("Position set");
   await expect(page.getByTestId("progress-readout")).toContainText(
     "2:00 / 2:00",
   );

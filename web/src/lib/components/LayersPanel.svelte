@@ -21,7 +21,6 @@
   async function sendLayerVolume(id: string, value: number) {
     const snapshot = await api.setLayerVolume(id, value);
     appStore.applyStatus(snapshot);
-    toasts.push("Layer volume changed");
   }
 
   function askRemove(layer: Layer) {

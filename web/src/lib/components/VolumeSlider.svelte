@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createDebouncer } from "$lib/debounce";
   import { volumeGain, volumePosition } from "$lib/transport";
+  import { formatVolume } from "$lib/format";
 
   let {
     gain = 0,
@@ -56,6 +57,6 @@
     data-testid={sliderTestid}
   />
   <span class="volume-value" data-testid={valueTestid}>
-    {displayGain.toFixed(2)}
+    {formatVolume(displayGain)}
   </span>
 </label>

@@ -4,9 +4,7 @@
   import { toasts } from "$lib/toasts";
   import { createDebouncer } from "$lib/debounce";
   import { formatDuration } from "$lib/format";
-  import { looksLikeUrl } from "$lib/url";
   import type { ApiClient } from "$lib/api";
-  import type { Track } from "$lib/contract/panel.gen";
   import Thumbnail from "./Thumbnail.svelte";
 
   let { api }: { api: ApiClient } = $props();
@@ -24,6 +22,7 @@
   const open = $derived($appStore.search.open);
   const results = $derived($appStore.search.results);
   const activeIndex = $derived($appStore.search.activeIndex);
+  const activeResult = $derived(results[activeIndex] ?? null);
   const showResults = $derived(status === "ready" && results.length > 0);
 
   async function runSearch(value: string) {
@@ -33,7 +32,7 @@
       const payload = await api.search(trimmed);
       if (get(appStore).search.query.trim() !== trimmed) return;
       appStore.setSearchResults(payload.results);
-      appStore.setActiveIndex(-1);
+      appStore.setActiveIndex(payload.results.length ? 0 : -1);
       status = payload.results.length ? "ready" : "empty";
     } catch {
       status = "error";
@@ -41,20 +40,25 @@
     }
   }
 
+  function resetSearch() {
+    debouncer.cancel();
+    appStore.setSearchQuery("");
+    appStore.setSearchResults([]);
+    appStore.setActiveIndex(-1);
+    status = "idle";
+  }
+
+  function clearSearch() {
+    term = "";
+    resetSearch();
+    input?.focus();
+  }
+
   function onInput() {
     appStore.setSearchQuery(term);
     const trimmed = term.trim();
     if (!trimmed) {
-      debouncer.cancel();
-      appStore.setSearchResults([]);
-      status = "idle";
-      return;
-    }
-    if (looksLikeUrl(trimmed)) {
-      status = "idle";
-      debouncer.run(() => {
-        if (get(appStore).search.query.trim() === trimmed) queueUrl(trimmed);
-      });
+      resetSearch();
       return;
     }
     debouncer.run(() => runSearch(term));
@@ -74,12 +78,14 @@
     }
   }
 
-  function queueTrack(track: Track) {
-    return queueUrl(track.url);
+  function queueTrack() {
+    if (activeResult) return queueUrl(activeResult.url);
+    return Promise.resolve();
   }
 
-  async function layerTrack(track: Track) {
-    if (layerUrl) return;
+  async function layerTrack() {
+    const track = activeResult;
+    if (!track || layerUrl) return;
     layerUrl = track.url;
     try {
       const snapshot = await api.layer(track.url);
@@ -91,6 +97,17 @@
     } finally {
       layerUrl = null;
     }
+  }
+
+  function onBackdropPointerDown(event: PointerEvent) {
+    if (!dialog || event.target !== dialog) return;
+    const box = dialog.getBoundingClientRect();
+    const onBackdrop =
+      event.clientX < box.left ||
+      event.clientX > box.right ||
+      event.clientY < box.top ||
+      event.clientY > box.bottom;
+    if (onBackdrop) appStore.closeSearch();
   }
 
   function onKeydown(event: KeyboardEvent) {
@@ -109,8 +126,9 @@
       );
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const track = results[activeIndex];
-      if (track) queueTrack(track);
+      if (!activeResult) return;
+      if (event.shiftKey) layerTrack();
+      else queueTrack();
     }
   }
 
@@ -122,38 +140,54 @@
     }
     if (!open && dialog.open) dialog.close();
   });
+
+  $effect(() => {
+    if (activeIndex < 0) return;
+    document
+      .getElementById(`search-option-${activeIndex}`)
+      ?.scrollIntoView({ block: "nearest" });
+  });
 </script>
 
 <dialog
   class="palette hud-panel"
   bind:this={dialog}
   onclose={() => appStore.closeSearch()}
-  onclick={(event) => {
-    if (event.target === dialog) appStore.closeSearch();
-  }}
+  onpointerdown={onBackdropPointerDown}
   aria-label="Search"
   data-testid="search-panel"
 >
   <span class="panel-label">Search</span>
-  <input
-    bind:this={input}
-    class="hud-input search-input"
-    type="search"
-    placeholder="Search YouTube or paste a URL"
-    autocomplete="off"
-    aria-label="Search YouTube"
-    role="combobox"
-    aria-expanded={showResults}
-    aria-controls={showResults ? "search-results" : undefined}
-    aria-activedescendant={activeIndex >= 0
-      ? `search-option-${activeIndex}`
-      : undefined}
-    aria-autocomplete="list"
-    bind:value={term}
-    oninput={onInput}
-    onkeydown={onKeydown}
-    data-testid="search-input"
-  />
+  <div class="search-field">
+    <input
+      bind:this={input}
+      class="hud-input search-input"
+      type="search"
+      placeholder="Search YouTube or paste a URL"
+      autocomplete="off"
+      aria-label="Search YouTube"
+      role="combobox"
+      aria-expanded={showResults}
+      aria-controls={showResults ? "search-results" : undefined}
+      aria-activedescendant={activeIndex >= 0
+        ? `search-option-${activeIndex}`
+        : undefined}
+      aria-autocomplete="list"
+      bind:value={term}
+      oninput={onInput}
+      onkeydown={onKeydown}
+      data-testid="search-input"
+    />
+    {#if term}
+      <button
+        type="button"
+        class="search-clear"
+        aria-label="Clear search"
+        onclick={clearSearch}
+        data-testid="search-clear"
+      ></button>
+    {/if}
+  </div>
   {#if status === "searching"}
     <p class="search-status" role="status" data-testid="search-status">
       Searching…
@@ -183,6 +217,8 @@
           role="option"
           aria-selected={index === activeIndex}
           id={`search-option-${index}`}
+          tabindex="-1"
+          onpointerdown={() => appStore.setActiveIndex(index)}
           data-testid="search-result"
         >
           <Thumbnail
@@ -194,26 +230,40 @@
           <span class="row-meta">
             {track.uploader} · {formatDuration(track.duration)}
           </span>
-          <button
-            type="button"
-            class="hud-btn"
-            onclick={() => queueTrack(track)}
-            disabled={busyUrl === track.url}
-            data-testid="queue-track"
-          >
-            Queue
-          </button>
-          <button
-            type="button"
-            class="hud-btn"
-            onclick={() => layerTrack(track)}
-            disabled={layerUrl === track.url}
-            data-testid="layer-track"
-          >
-            Layer
-          </button>
         </div>
       {/each}
+    </div>
+    <div class="search-actions" data-testid="search-actions">
+      <span class="search-selection">
+        <span class="data-label">Selected</span>
+        <span
+          class="data-value"
+          class:is-empty={!activeResult}
+          data-testid="search-selection"
+        >
+          {activeResult ? activeResult.title : "No track selected"}
+        </span>
+      </span>
+      <span class="search-buttons">
+        <button
+          type="button"
+          class="hud-btn"
+          onclick={queueTrack}
+          disabled={!activeResult || busyUrl !== null}
+          data-testid="queue-track"
+        >
+          Queue
+        </button>
+        <button
+          type="button"
+          class="hud-btn"
+          onclick={layerTrack}
+          disabled={!activeResult || layerUrl !== null}
+          data-testid="layer-track"
+        >
+          Layer
+        </button>
+      </span>
     </div>
   {/if}
 </dialog>
@@ -230,11 +280,99 @@
 
   .palette .search-input {
     width: 100%;
+    padding-inline-end: 2rem;
+  }
+
+  .palette .search-input::-webkit-search-cancel-button,
+  .palette .search-input::-webkit-search-decoration {
+    appearance: none;
+    display: none;
+  }
+
+  .search-field {
+    position: relative;
+  }
+
+  .search-clear {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-end: 0.35rem;
+    inline-size: 1.4rem;
+    block-size: 1.4rem;
+    padding: 0;
+    background: none;
+    border: none;
+    color: var(--color-amber-dim);
+    cursor: pointer;
+    translate: 0 -50%;
+  }
+
+  .search-clear::before,
+  .search-clear::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    inline-size: 0.8rem;
+    block-size: 1px;
+    background: currentColor;
+  }
+
+  .search-clear::before {
+    transform: rotate(45deg);
+  }
+
+  .search-clear::after {
+    transform: rotate(-45deg);
+  }
+
+  .search-clear:hover {
+    color: var(--color-amber-bright);
+  }
+
+  .search-clear:focus-visible {
+    outline: 1px solid var(--color-amber-bright);
+    outline-offset: 2px;
   }
 
   .palette .search-dropdown {
     margin-top: 0.5rem;
     max-height: 60vh;
     overflow-y: auto;
+  }
+
+  .search-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .search-selection {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .search-selection .data-label {
+    flex: none;
+    inline-size: auto;
+  }
+
+  .search-selection .data-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+  }
+
+  .search-buttons {
+    display: flex;
+    flex: none;
+    gap: 0.35rem;
   }
 </style>

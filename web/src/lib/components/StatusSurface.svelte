@@ -25,11 +25,20 @@
   let layersOpen = $state(true);
 
   const botOnline = $derived($appStore.bot.online);
+  const voiceChannel = $derived(
+    $appStore.channels.find(
+      (channel) => channel.id === $appStore.connection.channel_id,
+    ) ?? null,
+  );
   const voiceLabel = $derived(
     !botOnline
       ? "Unavailable"
       : $appStore.connection.connected
-        ? `Linked to ${$appStore.connection.channel_id}`
+        ? voiceChannel
+          ? `Linked to ${voiceChannel.name}`
+          : $appStore.connection.channel_id
+            ? `Linked to ${$appStore.connection.channel_id}`
+            : "Linked"
         : "Not connected",
   );
 
@@ -57,6 +66,7 @@
 <main class="app-container" id="shell">
   <header class="topbar">
     <span class="logo">
+      <img class="logo-mark" src="/harpi-logo.svg" alt="" aria-hidden="true" />
       <span class="logo-text">HARPI</span>
     </span>
     <OutputPicker {api} {link} {onresync} />
@@ -181,6 +191,13 @@
     font-size: 1rem;
     letter-spacing: 0.3em;
     color: var(--color-primary);
+  }
+
+  .logo-mark {
+    display: block;
+    height: 1.5rem;
+    width: auto;
+    image-rendering: pixelated;
   }
 
   .topbar__search {

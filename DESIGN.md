@@ -310,12 +310,21 @@ keys.
 
 ### Inputs / Fields
 - **Style:** transparent background, 1px `line` border, Phosphor Amber text,
-  0.8rem, padding 0.35rem 0.6rem, square. Selects share the class.
-- **Focus:** a Hot Amber 1px outline at 2px offset replaces the default ring.
-  Replaced elements cannot carry the L-brackets, so the offset echoes the
-  double frame instead.
+  0.8rem, padding 0.35rem 0.6rem, square.
+- **Select:** the panel never renders a native `<select>`; its popup is drawn
+  by the OS and carries no design. A select is a button trigger (label or
+  Ember Amber placeholder, a 1px `amber-dim` chevron that flips while open)
+  over a `surface` listbox in the double frame, options separated by 1px
+  `line`, the active option on a `surface-2` tint in Hot Amber. Keyboard,
+  typeahead, and outside-click all behave like the native control.
+- **Focus:** a Hot Amber 1px outline at 2px offset for text inputs. The select
+  trigger is a button and takes the L-brackets.
 - **Placeholder:** Ember Amber (secondary ink) — placeholders are not content,
   but the hint still clears 4.5:1 at 0.8rem.
+- **Clear:** a field with content shows a 1px `amber-dim` cross at its trailing
+  edge, lifting to Hot Amber on hover. The native `::-webkit-search-cancel-button`
+  is hidden — it renders in the OS's own colors. Clearing empties the field and
+  returns focus; it never expands the field or the panel.
 
 ### Navigation
 - **Main nav:** Rajdhani 600, 0.8rem, tracking 0.15em, uppercase, Ember
@@ -339,7 +348,11 @@ keys.
   border with a 1px Phosphor Amber left edge, uppercase mono 0.7rem. Amber
   only, confirmations only — errors never arrive here.
 - **Search palette:** a modal `<dialog>` capped at 42rem, holding the search
-  field over a results listbox inside a double frame. The backdrop dims the
+  field over a results listbox inside a double frame. The first result
+  arrives selected, the active row tints to `surface` under a Hot Amber
+  title, and a strip beneath names the selected track beside the Queue and
+  Layer buttons. A pasted link resolves through the same search and appears
+  as a row — nothing is added until the user confirms. The backdrop dims the
   tube; Escape or an outside click closes it.
 - **Panel error:** persistent 1px `alert` box, Signal Red text, 0.75rem.
   Stays until the server re-renders it away.

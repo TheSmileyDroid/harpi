@@ -1,6 +1,6 @@
 <script lang="ts">
   import { appStore } from "$lib/store";
-  import { formatDuration } from "$lib/format";
+  import { formatDuration, formatVolume } from "$lib/format";
   import Thumbnail from "./Thumbnail.svelte";
 
   const playback = $derived($appStore.playback);
@@ -27,6 +27,17 @@
     <p class="data-value is-empty" data-testid="playback-empty">
       No active session
     </p>
+    <button
+      type="button"
+      class="hud-btn now-playing__connect"
+      onclick={(event) => {
+        event.stopPropagation();
+        appStore.openOutput();
+      }}
+      data-testid="connect-output"
+    >
+      Connect output to begin
+    </button>
   {:else}
     <div class="now-playing__body">
       <Thumbnail
@@ -51,7 +62,7 @@
           <span class="data-label">Loop</span>
           <span class="data-value">{playback.loop_mode}</span>
           <span class="data-label">Volume</span>
-          <span class="data-value">{playback.volume}</span>
+          <span class="data-value">{formatVolume(playback.volume)}</span>
         </div>
       </div>
     </div>
@@ -97,6 +108,10 @@
     grid-template-columns: max-content max-content;
     justify-content: start;
     gap: 0.25rem 0.75rem;
+  }
+
+  .now-playing__connect {
+    margin-block-start: 0.75rem;
   }
 
   .now-playing__readouts :global(.data-label) {

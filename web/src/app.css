@@ -33,7 +33,13 @@ body {
   font-family: var(--font-body);
   font-size: 1rem;
   line-height: 1.5;
+  caret-color: var(--color-primary);
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-primary);
+  color: var(--color-background);
 }
 
 body::before {
@@ -217,7 +223,14 @@ select {
 }
 
 .hud-btn:focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .hud-btn:focus-visible {
+    outline: 2px solid Highlight;
+  }
 }
 
 .bot-online {
@@ -371,14 +384,28 @@ select {
   gap: 0.5rem;
   padding: 0.35rem 0.5rem;
   border-bottom: 1px solid var(--color-line);
+  cursor: pointer;
 }
 
 .search-row:last-child {
   border-bottom: none;
 }
 
+.search-row:hover {
+  background: color-mix(
+    in oklab,
+    var(--color-surface) 55%,
+    var(--color-surface-2)
+  );
+}
+
 .search-row.is-active {
-  border-bottom: 1px solid var(--color-amber-bright);
+  background: var(--color-surface);
+  border-bottom-color: var(--color-amber-bright);
+}
+
+.search-row.is-active .data-title {
+  color: var(--color-amber-bright);
 }
 
 .search-thumb,
@@ -556,6 +583,8 @@ select {
 .volume-control:focus-within::after,
 .hud-btn:focus-visible::before,
 .hud-btn:focus-visible::after,
+.hud-select__trigger:focus-visible::before,
+.hud-select__trigger:focus-visible::after,
 .hud-panel.is-playing::before,
 .hud-panel.is-playing::after {
   content: "";
@@ -568,6 +597,7 @@ select {
 
 .volume-control:focus-within::before,
 .hud-btn:focus-visible::before,
+.hud-select__trigger:focus-visible::before,
 .hud-panel.is-playing::before {
   top: -1px;
   left: -1px;
@@ -576,6 +606,7 @@ select {
 
 .volume-control:focus-within::after,
 .hud-btn:focus-visible::after,
+.hud-select__trigger:focus-visible::after,
 .hud-panel.is-playing::after {
   right: -1px;
   bottom: -1px;

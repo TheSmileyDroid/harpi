@@ -1,6 +1,5 @@
 <script lang="ts">
   import { appStore } from "$lib/store";
-  import { toasts } from "$lib/toasts";
   import { formatDuration } from "$lib/format";
   import {
     nextLoopMode,
@@ -50,13 +49,12 @@
     seekDisplayRatio(seeking, seekRatio, serverRatio),
   );
 
-  async function act(fn: () => Promise<StatusSnapshot>, message: string) {
+  async function act(fn: () => Promise<StatusSnapshot>) {
     if (busy) return;
     busy = true;
     try {
       const snapshot = await fn();
       appStore.applyStatus(snapshot);
-      toasts.push(message);
     } catch {
       return;
     } finally {
@@ -65,24 +63,19 @@
   }
 
   function togglePlay() {
-    return isPaused
-      ? act(() => api.resume(), "Resumed")
-      : act(() => api.pause(), "Paused");
+    return isPaused ? act(() => api.resume()) : act(() => api.pause());
   }
 
   function skip() {
-    return act(() => api.skip(), "Skipped");
+    return act(() => api.skip());
   }
 
   function previous() {
-    return act(() => api.previous(), "Previous track");
+    return act(() => api.previous());
   }
 
   function cycleLoop() {
-    return act(
-      () => api.loop(nextLoopMode(playback?.loop_mode)),
-      "Loop changed",
-    );
+    return act(() => api.loop(nextLoopMode(playback?.loop_mode)));
   }
 
   function ratioAt(clientX: number): number {
@@ -115,11 +108,11 @@
     const target = seekTarget(seekRatio, duration);
     seeking = false;
     activePointer = null;
-    await act(() => api.seek(target), "Position set");
+    await act(() => api.seek(target));
   }
 
   function seekTo(position: number) {
-    return act(() => api.seek(position), "Position set");
+    return act(() => api.seek(position));
   }
 
   function onSeekKeydown(event: KeyboardEvent) {
@@ -140,7 +133,6 @@
   async function sendVolume(value: number) {
     const snapshot = await api.volume(value);
     appStore.applyStatus(snapshot);
-    toasts.push("Volume changed");
   }
 </script>
 

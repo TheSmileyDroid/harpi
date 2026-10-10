@@ -134,7 +134,7 @@ export function createApiClient({
     if (!parsed.success) {
       const error = new ApiError({
         code: "contract_violation",
-        message: `Unexpected ${method} ${path} response`,
+        message: "The panel got an unexpected response",
         status: response.status,
       });
       if (!silent) {

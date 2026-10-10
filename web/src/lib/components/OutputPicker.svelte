@@ -4,6 +4,8 @@
   import { appStore } from "$lib/store";
   import { toasts } from "$lib/toasts";
   import StatusChip from "./StatusChip.svelte";
+  import ConfirmDialog from "./ConfirmDialog.svelte";
+  import Select from "./Select.svelte";
   import type { ApiClient } from "$lib/api";
   import type { StatusSnapshot } from "$lib/contract/panel.gen";
 
@@ -13,12 +15,12 @@
     onresync,
   }: { api: ApiClient; link: string; onresync: () => Promise<void> } = $props();
 
-  let open = $state(false);
   let busy = $state(false);
+  let confirmingDisconnect = $state(false);
   let root = $state<HTMLElement | null>(null);
-  let firstSelect = $state<HTMLSelectElement | null>(null);
   let lastGuildId: string | null = null;
 
+  const open = $derived($appStore.outputOpen);
   const effectiveGuildId = $derived(
     $appStore.pendingGuildId ?? $appStore.guildId,
   );
@@ -34,6 +36,15 @@
     activeGuild
       ? `${activeGuild.name}${activeChannel ? ` · ${activeChannel.name}` : ""}`
       : "Select output",
+  );
+  const connectHint = $derived(
+    !$appStore.bot.online
+      ? "Bot offline"
+      : effectiveGuildId === null
+        ? "Select a guild"
+        : $appStore.selectedChannelId === null
+          ? "Select a channel"
+          : null,
   );
 
   const linkLabels: Record<string, string> = {
@@ -57,15 +68,13 @@
     if (payload) appStore.setChannels(payload.channels);
   }
 
-  function onGuildChange(event: Event) {
-    const value = (event.currentTarget as HTMLSelectElement).value;
+  function onGuildChange(id: string | null) {
     appStore.selectChannel(null);
-    appStore.selectGuild(value === "" ? null : value);
+    appStore.selectGuild(id);
   }
 
-  function onChannelChange(event: Event) {
-    const value = (event.currentTarget as HTMLSelectElement).value;
-    appStore.selectChannel(value === "" ? null : value);
+  function onChannelChange(id: string | null) {
+    appStore.selectChannel(id);
   }
 
   async function mutate(
@@ -93,22 +102,39 @@
     );
   }
 
-  function disconnect() {
+  function askDisconnect() {
+    confirmingDisconnect = true;
+  }
+
+  function cancelDisconnect() {
+    confirmingDisconnect = false;
+  }
+
+  function confirmDisconnect() {
+    confirmingDisconnect = false;
     return mutate(() => api.disconnect(), "Disconnected");
   }
 
   function onWindowClick(event: MouseEvent) {
-    if (open && root && !root.contains(event.target as Node)) open = false;
+    if (open && root && !root.contains(event.target as Node)) {
+      appStore.closeOutput();
+    }
   }
 
   function onWindowKeydown(event: KeyboardEvent) {
-    if (event.key === "Escape") open = false;
+    if (event.key === "Escape") appStore.closeOutput();
   }
 
   onMount(loadGuilds);
 
   $effect(() => {
-    if (open) tick().then(() => firstSelect?.focus());
+    if (open) {
+      tick().then(() =>
+        root
+          ?.querySelector<HTMLButtonElement>('[data-testid="guild-select"]')
+          ?.focus(),
+      );
+    }
   });
 
   $effect(() => {
@@ -128,7 +154,7 @@
     aria-expanded={open}
     aria-haspopup="dialog"
     aria-controls="output-picker-popover"
-    onclick={() => (open = !open)}
+    onclick={() => appStore.toggleOutput()}
     data-testid="output-picker"
   >
     <span class="data-label">Output</span>
@@ -147,37 +173,41 @@
       aria-label="Output"
     >
       <div class="data-row">
-        <label class="data-label" for="guild-select">Guild</label>
-        <select
-          id="guild-select"
-          class="hud-input"
-          bind:this={firstSelect}
-          data-testid="guild-select"
-          value={effectiveGuildId ?? ""}
+        <span class="data-label">Guild</span>
+        <Select
+          label="Guild"
+          placeholder="Select a guild"
+          testid="guild-select"
+          optionTestid="guild-option"
+          disabled={busy}
+          value={effectiveGuildId}
+          options={$appStore.guilds.map((guild) => ({
+            id: guild.id,
+            label: guild.name,
+          }))}
           onchange={onGuildChange}
-        >
-          <option value="" disabled>Select a guild</option>
-          {#each $appStore.guilds as guild (guild.id)}
-            <option value={guild.id}>{guild.name}</option>
-          {/each}
-        </select>
+        />
       </div>
       {#if effectiveGuildId !== null}
         <div class="data-row">
-          <label class="data-label" for="channel-select">Channel</label>
-          <select
-            id="channel-select"
-            class="hud-input"
-            data-testid="channel-select"
-            value={$appStore.selectedChannelId ?? ""}
+          <span class="data-label">Channel</span>
+          <Select
+            label="Channel"
+            placeholder="Select a channel"
+            testid="channel-select"
+            optionTestid="channel-option"
+            disabled={busy}
+            value={$appStore.selectedChannelId}
+            options={$appStore.channels.map((channel) => ({
+              id: channel.id,
+              label: channel.name,
+            }))}
             onchange={onChannelChange}
-          >
-            <option value="" disabled>Select a channel</option>
-            {#each $appStore.channels as channel (channel.id)}
-              <option value={channel.id}>{channel.name}</option>
-            {/each}
-          </select>
+          />
         </div>
+      {/if}
+      {#if connectHint}
+        <p class="system-note" data-testid="connect-hint">{connectHint}</p>
       {/if}
       <div class="action-strip">
         <button
@@ -195,7 +225,7 @@
           <button
             type="button"
             class="hud-btn"
-            onclick={disconnect}
+            onclick={askDisconnect}
             disabled={busy}
             data-testid="disconnect"
           >
@@ -205,6 +235,16 @@
       </div>
     </div>
   {/if}
+
+  <ConfirmDialog
+    open={confirmingDisconnect}
+    message="Disconnect the bot from voice?"
+    testid="disconnect-confirm"
+    cancelTestid="disconnect-confirm-cancel"
+    executeTestid="disconnect-confirm-execute"
+    onconfirm={confirmDisconnect}
+    oncancel={cancelDisconnect}
+  />
 </div>
 
 <style>
@@ -261,13 +301,20 @@
     padding-block: 0.35rem;
   }
 
-  .output-picker__popover .hud-input {
+  .output-picker__popover :global(.hud-select) {
     flex: 1;
     min-width: 0;
   }
 
   .output-picker__popover .action-strip {
     margin: 0.75rem -0.75rem -0.75rem;
+  }
+
+  .output-picker__popover .system-note {
+    margin: 0.35rem 0 0;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    color: var(--color-amber-dim);
   }
 
   @media (max-width: 30rem) {
