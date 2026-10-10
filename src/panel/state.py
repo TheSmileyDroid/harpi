@@ -28,6 +28,35 @@ def session_exists(guild_id: int) -> bool:
     return get_bot().sessions.get(guild_id) is not None
 
 
+def _occupied_channel_id(guild: Guild) -> int | None:
+    voice_client = getattr(guild, "voice_client", None)
+    if voice_client is None or not voice_client.is_connected():
+        return None
+    return getattr(getattr(voice_client, "channel", None), "id", None)
+
+
+def active_voice() -> tuple[int, int] | None:
+    """The guild and channel the bot physically occupies, if any."""
+    for guild in get_bot().guilds:
+        channel_id = _occupied_channel_id(guild)
+        if channel_id is not None:
+            return guild.id, channel_id
+    return None
+
+
+def voice_active(guild_id: int) -> bool:
+    guild = get_bot().get_guild(guild_id)
+    return guild is not None and _occupied_channel_id(guild) is not None
+
+
+def resolve_guild_id(guild_id: int | None) -> int | None:
+    """The guild a snapshot should describe: the selection, else the voice one."""
+    if guild_id is not None and guild_visible(guild_id):
+        return guild_id
+    active = active_voice()
+    return active[0] if active is not None else None
+
+
 async def _collect_guilds(bot: HarpiBot) -> list[Guild]:
     return [guild async for guild in bot.fetch_guilds(limit=150)]
 
@@ -59,15 +88,25 @@ async def guild_status(guild_id: int | None) -> PlaybackStatus | None:
 
 
 async def status_snapshot(guild_id: int | None) -> StatusSnapshot:
-    if guild_id is not None and not guild_visible(guild_id):
-        guild_id = None
-    playback = await guild_status(guild_id)
+    resolved = resolve_guild_id(guild_id)
+    playback = await guild_status(resolved)
+
+    if playback is not None:
+        connected = playback.connected
+        channel_id = playback.channel_id
+    else:
+        connected = False
+        channel_id = None
+
+    if not connected:
+        active = active_voice()
+        if active is not None and active[0] == resolved:
+            connected = True
+            channel_id = serialization.optional_snowflake(active[1])
+
     return StatusSnapshot(
         bot=BotStatus(online=bot_connected()),
-        guild_id=serialization.optional_snowflake(guild_id),
-        connection=Connection(
-            connected=bool(playback and playback.connected),
-            channel_id=playback.channel_id if playback else None,
-        ),
+        guild_id=serialization.optional_snowflake(resolved),
+        connection=Connection(connected=connected, channel_id=channel_id),
         playback=playback,
     )

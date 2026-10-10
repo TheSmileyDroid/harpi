@@ -8,6 +8,7 @@ so the manager is exercised through the same verbs the cogs and routes will
 call.
 """
 
+import asyncio
 from types import SimpleNamespace
 from typing import cast
 
@@ -25,6 +26,7 @@ from tests.conftest import (
     FakeChannel,
     FakeGuild,
     FakeSource,
+    FakeVoiceClient,
 )
 
 
@@ -104,6 +106,18 @@ async def test_disconnect_raises_when_guild_not_connected():
         await manager.disconnect(GUILD_ID)
 
 
+async def test_disconnect_clears_an_orphaned_voice_client():
+    manager, guild = _make_manager()
+    guild.voice_client = FakeVoiceClient(
+        guild, channel=guild._channels[CHANNEL_ID]
+    )
+
+    await manager.disconnect(GUILD_ID)
+
+    assert guild.voice_client is None
+    assert manager.get(GUILD_ID) is None
+
+
 async def test_unexpected_voice_disconnect_tears_the_session_down():
     manager, guild = _make_manager()
     session = await manager.connect(GUILD_ID, CHANNEL_ID)
@@ -145,29 +159,34 @@ async def test_voice_state_update_keeps_session_when_bot_moves_channels():
     assert manager.get(GUILD_ID) is session
 
 
-async def test_connect_reconnects_over_an_existing_voice_client():
+async def test_connect_adopts_a_bot_already_in_the_channel():
     manager, guild = _make_manager()
     first = await manager.connect(GUILD_ID, CHANNEL_ID)
-    old_client = guild.voice_client
-    assert old_client is not None
+    voice_client = guild.voice_client
+    assert voice_client is not None
 
     second = await manager.connect(GUILD_ID, CHANNEL_ID)
 
-    assert old_client.disconnected is True
-    assert manager.get(GUILD_ID) is second
-    assert second is not first
+    assert second is first
+    assert voice_client.disconnected is False
+    assert guild._channels[CHANNEL_ID].connect_calls == 1
 
 
-async def test_connect_cleans_up_an_existing_manager_session():
-    manager, _ = _make_manager()
+async def test_connect_cleans_up_a_session_when_moving_channels():
+    manager, guild = _make_manager()
+    other = FakeChannel(guild)
+    other.id = CHANNEL_ID + 1
+    guild._channels[other.id] = other
     first = await manager.connect(GUILD_ID, CHANNEL_ID)
     source = FakeSource()
     first._controller.set_queue_source(source)
 
-    await manager.connect(GUILD_ID, CHANNEL_ID)
+    second = await manager.connect(GUILD_ID, other.id)
 
+    assert second is not first
     assert source.cleaned_up is True
     assert first._mixer._shutdown is True
+    assert other.connect_calls == 1
 
 
 async def test_connect_raises_when_guild_not_found():
@@ -182,3 +201,36 @@ async def test_connect_raises_when_channel_not_found():
 
     with pytest.raises(ValueError):
         await manager.connect(GUILD_ID, 99)
+
+
+class FailingConnectChannel(FakeChannel):
+    """A channel whose join always raises, to exercise the error mapping."""
+
+    def __init__(self, guild: FakeGuild, error: Exception) -> None:
+        super().__init__(guild)
+        self.id = CHANNEL_ID + 5
+        self._error = error
+
+    async def connect(self) -> FakeVoiceClient:
+        self.connect_calls += 1
+        raise self._error
+
+
+async def test_connect_translates_a_client_exception():
+    manager, guild = _make_manager()
+    channel = FailingConnectChannel(
+        guild, discord.ClientException("already connected")
+    )
+    guild._channels[channel.id] = channel
+
+    with pytest.raises(ValueError, match="Cannot connect to voice channel"):
+        await manager.connect(GUILD_ID, channel.id)
+
+
+async def test_connect_translates_a_timeout():
+    manager, guild = _make_manager()
+    channel = FailingConnectChannel(guild, asyncio.TimeoutError())
+    guild._channels[channel.id] = channel
+
+    with pytest.raises(ValueError, match="timed out"):
+        await manager.connect(GUILD_ID, channel.id)

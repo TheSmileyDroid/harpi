@@ -4,6 +4,7 @@
   import Thumbnail from "./Thumbnail.svelte";
 
   const playback = $derived($appStore.playback);
+  const connected = $derived($appStore.connection.connected);
   const track = $derived(playback?.current_music ?? null);
   const state = $derived(
     playback === null
@@ -25,7 +26,7 @@
   <span class="panel-label">01 // Now Playing</span>
   {#if playback === null}
     <p class="data-value is-empty" data-testid="playback-empty">
-      No active session
+      {connected ? "Voice link up, no session" : "No active session"}
     </p>
     <button
       type="button"
@@ -36,7 +37,7 @@
       }}
       data-testid="connect-output"
     >
-      Connect output to begin
+      {connected ? "Reconnect output" : "Connect output to begin"}
     </button>
   {:else}
     <div class="now-playing__body">

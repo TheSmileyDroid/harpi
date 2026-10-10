@@ -30,6 +30,7 @@ class FakeGuild:
     def __init__(self, guild_id: int, name: str) -> None:
         self.id = guild_id
         self.name = name
+        self.voice_client = None
         self.voice_channels = [
             FakeVoiceChannel(guild_id * 10, f"Channel {guild_id}")
         ]
@@ -119,6 +120,10 @@ class FakeBot:
     @property
     def loop(self):
         return asyncio.get_running_loop()
+
+    @property
+    def guilds(self) -> list[FakeGuild]:
+        return list(self._guilds.values())
 
     def get_guild(self, guild_id: int) -> FakeGuild | None:
         return self._guilds.get(guild_id)

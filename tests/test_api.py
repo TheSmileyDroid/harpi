@@ -10,9 +10,10 @@ from __future__ import annotations
 import asyncio
 import json
 import socket
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import replace
+from types import SimpleNamespace
 from typing import Any, cast
 
 import httpx
@@ -170,7 +171,7 @@ async def _refresh_current_music(bot: ApiBot, title: str) -> None:
 
 
 @asynccontextmanager
-async def _running_app(app) -> AsyncIterator[int]:
+async def _running_app(app) -> AsyncGenerator[int]:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(("127.0.0.1", 0))
@@ -358,6 +359,72 @@ async def test_status_reports_the_selected_guild_playback(client):
     }
     assert body["playback"]["current_music"]["title"] == "Now Track"
     assert body["playback"]["is_playing"] is True
+
+
+def _occupy_voice(bot: ApiBot, channel_id: int = CHANNEL_ID) -> None:
+    bot._guilds[GUILD_A].voice_client = SimpleNamespace(
+        channel=SimpleNamespace(id=channel_id),
+        is_connected=lambda: True,
+    )
+
+
+async def test_status_falls_back_to_the_voice_guild(client, bot: ApiBot):
+    await _login(client)
+    _occupy_voice(bot)
+
+    response = await client.get("/api/status")
+
+    body = json.loads(await response.get_data())
+    assert body["guild_id"] == str(GUILD_A)
+    assert body["connection"] == {
+        "connected": True,
+        "channel_id": str(CHANNEL_ID),
+    }
+
+
+async def test_status_shows_physical_voice_without_a_session(
+    client, bot: ApiBot
+):
+    await _login(client)
+    bot.sessions._session = None
+    _occupy_voice(bot)
+
+    response = await client.get("/api/status")
+
+    body = json.loads(await response.get_data())
+    assert body["guild_id"] == str(GUILD_A)
+    assert body["connection"] == {
+        "connected": True,
+        "channel_id": str(CHANNEL_ID),
+    }
+    assert body["playback"] is None
+
+
+async def test_mutations_reach_the_voice_guild_without_a_selection(
+    client, bot: ApiBot
+):
+    await _login(client)
+    _occupy_voice(bot)
+
+    response = await client.post(
+        "/api/queue", json={"url": "https://example.com/song"}
+    )
+
+    assert response.status_code == 200
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert ("play", "https://example.com/song") in session_obj.calls
+
+
+async def test_disconnect_clears_an_orphaned_voice_client(client, bot: ApiBot):
+    await _login(client)
+    bot.sessions._session = None
+    _occupy_voice(bot)
+
+    response = await client.post("/api/disconnect")
+
+    assert response.status_code == 200
+    assert bot.sessions.disconnect_calls == [GUILD_A]
 
 
 async def test_status_reports_the_bot_offline(client, bot: ApiBot):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -124,6 +125,54 @@ async def test_guild_status_without_a_selection(bot: FakeBot):
 
 async def test_guild_status_without_a_session(bot: FakeBot):
     assert await panel_state.guild_status(GUILD_A) is None
+
+
+class OccupiedVoiceGuild(FakeGuild):
+    """A guild whose bot physically sits in a voice channel."""
+
+    def __init__(self, guild_id: int, name: str, channel_id: int) -> None:
+        super().__init__(guild_id, name)
+        self.voice_client = SimpleNamespace(
+            channel=SimpleNamespace(id=channel_id),
+            is_connected=lambda: True,
+        )
+
+
+class ReadyFakeBot(FakeBot):
+    def is_ready(self) -> bool:
+        return True
+
+    def is_closed(self) -> bool:
+        return False
+
+
+async def test_status_reports_physical_voice_without_a_session(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    bot = ReadyFakeBot([OccupiedVoiceGuild(GUILD_A, "Alpha Guild", 42)])
+    bind(monkeypatch, bot)
+
+    snapshot = await panel_state.status_snapshot(None)
+
+    assert snapshot.guild_id == str(GUILD_A)
+    assert snapshot.connection.connected is True
+    assert snapshot.connection.channel_id == "42"
+    assert snapshot.playback is None
+
+
+async def test_status_prefers_the_selection_over_a_voice_guild(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    bot = ReadyFakeBot([
+        FakeGuild(GUILD_A, "Alpha Guild"),
+        OccupiedVoiceGuild(2, "Beta Guild", 20),
+    ])
+    bind(monkeypatch, bot)
+
+    snapshot = await panel_state.status_snapshot(GUILD_A)
+
+    assert snapshot.guild_id == str(GUILD_A)
+    assert snapshot.connection.connected is False
 
 
 async def test_guild_status_serializes_the_snapshot(wired: FakeBot):

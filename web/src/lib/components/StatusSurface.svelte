@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { get } from "svelte/store";
   import { appStore } from "$lib/store";
   import { toasts } from "$lib/toasts";
   import type { ApiClient } from "$lib/api";
@@ -22,9 +23,12 @@
   } = $props();
 
   let refreshing = $state(false);
+  let reconnecting = $state(false);
   let layersOpen = $state(true);
 
   const botOnline = $derived($appStore.bot.online);
+  const connected = $derived($appStore.connection.connected);
+  const hasSession = $derived($appStore.playback !== null);
   const voiceChannel = $derived(
     $appStore.channels.find(
       (channel) => channel.id === $appStore.connection.channel_id,
@@ -33,7 +37,7 @@
   const voiceLabel = $derived(
     !botOnline
       ? "Unavailable"
-      : $appStore.connection.connected
+      : connected
         ? voiceChannel
           ? `Linked to ${voiceChannel.name}`
           : $appStore.connection.channel_id
@@ -50,6 +54,27 @@
       }
     } finally {
       refreshing = false;
+    }
+  }
+
+  async function reconnect() {
+    const state = get(appStore);
+    const guildId = state.guildId;
+    const channelId = state.connection.channel_id;
+    if (!guildId || !channelId) {
+      appStore.openOutput();
+      return;
+    }
+    reconnecting = true;
+    try {
+      const snapshot = await api.connect(guildId, channelId);
+      appStore.applyStatus(snapshot);
+      toasts.push("Reconnected");
+      await onresync();
+    } catch {
+      return;
+    } finally {
+      reconnecting = false;
     }
   }
 
@@ -144,8 +169,23 @@
         <p class="system-note" data-testid="bot-offline-note">
           Bot offline — playback and voice are unavailable until it reconnects.
         </p>
+      {:else if connected && !hasSession}
+        <p class="system-note" data-testid="session-idle-note">
+          Voice link up, session idle — reconnect to take control.
+        </p>
       {/if}
       <div class="action-strip">
+        {#if connected}
+          <button
+            type="button"
+            class="hud-btn"
+            onclick={reconnect}
+            disabled={reconnecting}
+            data-testid="reconnect"
+          >
+            {reconnecting ? "Reconnecting…" : "Reconnect"}
+          </button>
+        {/if}
         <button
           type="button"
           class="hud-btn"

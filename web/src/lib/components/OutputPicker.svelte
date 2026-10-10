@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { get } from "svelte/store";
   import { onMount, tick } from "svelte";
   import { appStore } from "$lib/store";
   import { toasts } from "$lib/toasts";
@@ -32,6 +31,11 @@
       (channel) => channel.id === $appStore.selectedChannelId,
     ) ?? null,
   );
+  const connected = $derived($appStore.connection.connected);
+  const hasSession = $derived($appStore.playback !== null);
+  const targetChannelId = $derived(
+    $appStore.selectedChannelId ?? $appStore.connection.channel_id,
+  );
   const summary = $derived(
     activeGuild
       ? `${activeGuild.name}${activeChannel ? ` · ${activeChannel.name}` : ""}`
@@ -42,7 +46,7 @@
       ? "Bot offline"
       : effectiveGuildId === null
         ? "Select a guild"
-        : $appStore.selectedChannelId === null
+        : targetChannelId === null
           ? "Select a channel"
           : null,
   );
@@ -97,7 +101,7 @@
 
   function connect() {
     return mutate(
-      () => api.connect(effectiveGuildId, get(appStore).selectedChannelId),
+      () => api.connect(effectiveGuildId, targetChannelId),
       "Connected",
     );
   }
@@ -209,19 +213,22 @@
       {#if connectHint}
         <p class="system-note" data-testid="connect-hint">{connectHint}</p>
       {/if}
+      {#if connected && !hasSession}
+        <p class="system-note" data-testid="session-idle-note">
+          Voice link up, session idle — reconnect to take control.
+        </p>
+      {/if}
       <div class="action-strip">
         <button
           type="button"
           class="hud-btn"
           onclick={connect}
-          disabled={busy ||
-            !$appStore.bot.online ||
-            $appStore.selectedChannelId === null}
+          disabled={busy || !$appStore.bot.online || targetChannelId === null}
           data-testid="connect"
         >
-          Connect
+          {connected ? "Reconnect" : "Connect"}
         </button>
-        {#if $appStore.connection.connected}
+        {#if connected}
           <button
             type="button"
             class="hud-btn"
