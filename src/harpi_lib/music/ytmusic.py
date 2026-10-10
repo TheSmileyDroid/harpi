@@ -206,7 +206,7 @@ class YTMusicData:
                 and "watch?v=" in item.url
             ]
         video = result
-        return cast(list[YTMusicData], [cls(dict(video))])
+        return [cls(dict(video))]
 
     @property
     def video_data(self) -> dict[str, Any]:
