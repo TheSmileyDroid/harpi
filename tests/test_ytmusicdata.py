@@ -396,6 +396,7 @@ def test_ffmpegpcm_spawn_sends_headers_for_stream_urls(
         def __init__(self, args, **kwargs):
             captured.extend(args)
             self.stdout = None
+            self.stderr = None
 
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
 
@@ -415,6 +416,7 @@ def test_ffmpegpcm_spawn_omits_headers_for_local_paths(
         def __init__(self, args, **kwargs):
             captured.extend(args)
             self.stdout = None
+            self.stderr = None
 
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
 
@@ -687,6 +689,7 @@ def test_ffmpegpcm_spawn_headers_with_existing_reconnect_options(
         def __init__(self, args, **kwargs):
             captured.extend(args)
             self.stdout = None
+            self.stderr = None
 
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
 
@@ -1130,18 +1133,54 @@ def test_detect_js_runtimes_follows_ytdlp_priority_order():
     installed = {"deno", "bun"}
 
     found = ytmusic.detect_js_runtimes(
-        lambda name: f"/usr/bin/{name}" if name in installed else None
+        lambda name: f"/usr/bin/{name}" if name in installed else None,
+        dirs=[],
     )
 
-    assert found == ["deno", "bun"]
+    assert found == {"deno": "/usr/bin/deno", "bun": "/usr/bin/bun"}
 
 
 def test_detect_js_runtimes_finds_nothing_when_none_installed():
-    assert ytmusic.detect_js_runtimes(lambda name: None) == []
+    assert ytmusic.detect_js_runtimes(lambda name: None, dirs=[]) == {}
+
+
+def test_detect_js_runtimes_searches_dirs_without_path(tmp_path: Path):
+    runtime = tmp_path / "deno"
+    runtime.write_text("#!/bin/sh\n")
+    runtime.chmod(0o755)
+
+    found = ytmusic.detect_js_runtimes(lambda name: None, dirs=[tmp_path])
+
+    assert found == {"deno": str(runtime)}
+
+
+def test_detect_js_runtimes_ignores_non_executable_files(tmp_path: Path):
+    (tmp_path / "deno").write_text("not executable\n")
+
+    found = ytmusic.detect_js_runtimes(lambda name: None, dirs=[tmp_path])
+
+    assert found == {}
+
+
+def test_js_runtime_search_dirs_puts_configured_first():
+    dirs = ytmusic.js_runtime_search_dirs("/opt/a:/opt/b")
+
+    assert dirs[0] == Path("/opt/a")
+    assert dirs[1] == Path("/opt/b")
+    assert Path("~/.deno/bin").expanduser() in dirs
+
+
+def test_js_runtime_search_dirs_dedupes_entries():
+    dirs = ytmusic.js_runtime_search_dirs("/opt/a:/opt/a")
+
+    assert dirs.count(Path("/opt/a")) == 1
 
 
 def test_js_runtimes_option_uses_ytdlp_dict_shape():
-    assert ytmusic.js_runtimes_option(["node", "bun"]) == {
-        "node": {},
-        "bun": {},
+    assert ytmusic.js_runtimes_option({
+        "node": "/x/node",
+        "bun": "/y/bun",
+    }) == {
+        "node": {"path": "/x/node"},
+        "bun": {"path": "/y/bun"},
     }

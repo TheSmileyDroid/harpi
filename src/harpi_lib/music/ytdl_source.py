@@ -4,16 +4,24 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 import uuid
-from typing import Any, NoReturn, override
+from typing import Any, NoReturn, cast, override
 
 import discord
+from loguru import logger
 
-from src.harpi_lib.music import stream_probe, ytmusic
+from src.harpi_lib.music import (
+    cookie_store,
+    debug_capture,
+    stream_probe,
+    ytmusic,
+)
 from src.harpi_lib.music.ffmpeg_source import FFmpegPCMAudio, ffmpeg_options
 from src.harpi_lib.music.ytmusic import YTMusicData, pick_thumbnail
 
 BYTES_PER_SECOND = 48000 * 2 * 2
+EARLY_STOP_GRACE_SECONDS = 5.0
 
 
 class UniqueAudioSource(discord.PCMVolumeTransformer):
@@ -39,13 +47,45 @@ class YoutubeDLSource(UniqueAudioSource):
         self._position_bytes: int = 0
         self._position_lock: threading.Lock = threading.Lock()
         self._seek_lock: threading.Lock = threading.Lock()
+        self._stop_reported: bool = False
 
     @override
     def read(self) -> bytes:
         data = super().read()
         with self._position_lock:
             self._position_bytes += len(data)
+            position = self._position_bytes
+            ended = not data
+        if ended and not self._stop_reported:
+            self._stop_reported = True
+            self._record_stop(position)
         return data
+
+    def _record_stop(self, position_bytes: int) -> None:
+        played = position_bytes / BYTES_PER_SECOND
+        expected = float(self.data.get("duration") or 0)
+        early = expected > 0 and played < expected - EARLY_STOP_GRACE_SECONDS
+        debug_capture.record(
+            "track-stop",
+            title=self.title,
+            played=f"{played:.1f}",
+            expected=f"{expected:.1f}",
+            early=early,
+        )
+        tail = self._stderr_tail()
+        if tail:
+            debug_capture.record("ffmpeg-stderr", title=self.title, tail=tail)
+        if early:
+            logger.warning(
+                f"Track ended early after {played:.1f}s of "
+                f"{expected:.1f}s: {self.title!r}"
+            )
+
+    def _stderr_tail(self) -> str:
+        getter = getattr(self.original, "stderr_tail", None)
+        if callable(getter):
+            return cast(str, getter())
+        return ""
 
     def position_seconds(self) -> float:
         with self._position_lock:
@@ -111,6 +151,7 @@ class YoutubeDLSource(UniqueAudioSource):
 
     @staticmethod
     def _reject_unplayable(musicdata: YTMusicData) -> NoReturn:
+        debug_capture.record("stream-reject", url=musicdata.get_url())
         raise ValueError(
             f"No playable stream found for URL: {musicdata.get_url()}"
         )
@@ -157,8 +198,10 @@ class YoutubeDLSource(UniqueAudioSource):
         if reused is not None and reused_url is not None:
             picked = await cls._probe_or_none(reused, reused_url)
             if picked is not None:
+                debug_capture.record("stream-pick", path="reused")
                 return picked
 
+        debug_capture.record("stream-pick", path="fresh")
         return await cls._probe_fresh_stream(musicdata)
 
     @classmethod
@@ -200,12 +243,21 @@ class YoutubeDLSource(UniqueAudioSource):
     async def _extract_fresh(cls, url: str) -> dict[str, Any]:
         """Extract yt-dlp info with a timeout on the single ytdl worker."""
         loop = asyncio.get_running_loop()
-        return await asyncio.wait_for(
-            loop.run_in_executor(
-                ytmusic._YTDL_SERIAL_EXECUTOR, cls._extract_info, url
-            ),
-            timeout=ytmusic.YT_EXTRACT_TIMEOUT,
+        start = time.monotonic()
+        try:
+            info = await asyncio.wait_for(
+                loop.run_in_executor(
+                    ytmusic._YTDL_SERIAL_EXECUTOR, cls._extract_info, url
+                ),
+                timeout=ytmusic.YT_EXTRACT_TIMEOUT,
+            )
+        except Exception as exc:
+            debug_capture.record("extract-fresh-failed", error=repr(exc))
+            raise
+        debug_capture.record(
+            "extract-fresh", seconds=f"{time.monotonic() - start:.1f}"
         )
+        return info
 
     @staticmethod
     def _probe_failure_is_transient(exc: Exception) -> bool:
@@ -228,6 +280,7 @@ class YoutubeDLSource(UniqueAudioSource):
     def _extract_info(url: str) -> dict[str, Any]:
         """Extract yt-dlp info for *url* and unwrap playlist/search entries to the first video."""
         data = ytmusic.ytdl.extract_info(url, download=False)
+        cookie_store.save_cookie_version()
         if not isinstance(data, dict):
             raise ValueError("Invalid data from ytdl: expected dict")
         info: dict[str, Any] = dict(data)
@@ -261,6 +314,12 @@ class YoutubeDLSource(UniqueAudioSource):
         if not candidates:
             return None
         best = min(candidates, key=cls._stream_score)
+        debug_capture.record(
+            "stream-best",
+            ext=best.get("ext"),
+            abr=best.get("abr"),
+            acodec=best.get("acodec"),
+        )
         url = best.get("url")
         return url if isinstance(url, str) else None
 

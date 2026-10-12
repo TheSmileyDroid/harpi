@@ -4,15 +4,19 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import os
 import re
 import shutil
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, cast
 
 import yt_dlp
 from loguru import logger
 
+from src.config import Settings
+from src.harpi_lib.music import cookie_store
 from src.harpi_lib.music.nothing_found import NothingFoundError
 
 ytdl_format_options: dict[str, Any] = {
@@ -24,29 +28,94 @@ ytdl_format_options: dict[str, Any] = {
     "verbose": True,
     "no_warnings": False,
     "default_search": "auto_warning",
-    "cookiefile": "cookies.txt",
     "socket_timeout": 15,
     "retries": 1,
     "fragment_retries": 1,
     "extractor_retries": 1,
 }
 
-# yt-dlp's own priority order for JS challenge runtimes; only deno is
-# enabled by default, so without this option node/bun are ignored even
-# when installed and YouTube degrades to clients whose streams fail.
+_work_cookie = cookie_store.prepare_cookie_file()
+if _work_cookie is not None:
+    ytdl_format_options["cookiefile"] = str(_work_cookie)
+
 JS_RUNTIME_PRIORITY = ("deno", "node", "quickjs", "bun")
+
+JS_RUNTIME_BINARIES = {
+    "deno": "deno",
+    "node": "node",
+    "quickjs": "qjs",
+    "bun": "bun",
+}
+
+DEFAULT_JS_RUNTIME_DIRS = (
+    "~/.deno/bin",
+    "~/.bun/bin",
+    "~/.local/bin",
+    "/usr/local/bin",
+)
+
+
+def js_runtime_search_dirs(configured: str = "") -> list[Path]:
+    """Return directories to search for runtimes, configured ones first.
+
+    *configured* is a path-separator list (from ``HARPI_JS_RUNTIME_DIRS``)
+    prepended to the defaults; it exists because services such as systemd
+    start Harpi with a PATH that omits per-user install directories.
+    """
+    directives = [entry for entry in configured.split(os.pathsep) if entry]
+    directives.extend(DEFAULT_JS_RUNTIME_DIRS)
+    resolved: list[Path] = []
+    seen: set[str] = set()
+    for directive in directives:
+        path = Path(directive).expanduser()
+        if str(path) not in seen:
+            seen.add(str(path))
+            resolved.append(path)
+    return resolved
+
+
+def _is_executable_file(path: Path) -> bool:
+    return path.is_file() and os.access(path, os.X_OK)
+
+
+def find_js_runtime(
+    name: str,
+    dirs: list[Path],
+    lookup: Callable[[str], str | None] = shutil.which,
+) -> str | None:
+    """Resolve *name* to an executable path, PATH first then *dirs*."""
+    binary = JS_RUNTIME_BINARIES[name]
+    found = lookup(binary)
+    if found:
+        return found
+    for directory in dirs:
+        candidate = directory / binary
+        if _is_executable_file(candidate):
+            return str(candidate)
+    return None
 
 
 def detect_js_runtimes(
     lookup: Callable[[str], str | None] = shutil.which,
-) -> list[str]:
-    """Find installed JS runtimes, in yt-dlp's priority order."""
-    return [name for name in JS_RUNTIME_PRIORITY if lookup(name)]
+    dirs: list[Path] | None = None,
+) -> dict[str, str]:
+    """Resolve installed runtimes to executable paths, in priority order."""
+    search_dirs = (
+        js_runtime_search_dirs(Settings.from_env().js_runtime_dirs)
+        if dirs is None
+        else dirs
+    )
+    resolved: dict[str, str] = {}
+    for name in JS_RUNTIME_PRIORITY:
+        path = find_js_runtime(name, search_dirs, lookup)
+        if path:
+            resolved[name] = path
+    return resolved
 
 
-def js_runtimes_option(runtimes: list[str]) -> dict[str, dict[str, Any]]:
-    """Build yt-dlp's ``js_runtimes`` option ({runtime: config})."""
-    return {name: {} for name in runtimes}
+def js_runtimes_option(runtimes: dict[str, str]) -> dict[str, dict[str, Any]]:
+    """Build yt-dlp's ``js_runtimes`` option with an explicit path each."""
+    return {name: {"path": path} for name, path in runtimes.items()}
 
 
 _detected_js_runtimes = detect_js_runtimes()
@@ -55,7 +124,10 @@ if _detected_js_runtimes:
         _detected_js_runtimes
     )
     logger.info(
-        f"yt-dlp JS challenge runtimes: {', '.join(_detected_js_runtimes)}"
+        "yt-dlp JS challenge runtimes: "
+        + ", ".join(
+            f"{name} ({path})" for name, path in _detected_js_runtimes.items()
+        )
     )
 else:
     logger.warning(

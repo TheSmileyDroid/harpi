@@ -171,3 +171,6 @@ coverage.json
 mutants/
 .impeccable/
 
+# yt-dlp diagnostic capture
+.scratch/ytdl-debug/
+
