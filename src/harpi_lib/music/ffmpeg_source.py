@@ -14,6 +14,12 @@ from discord.opus import Encoder
 from loguru import logger
 from yt_dlp.utils.networking import std_headers
 
+from src.harpi_lib.music.debug_capture import (
+    StderrTail,
+    record,
+    redact_source,
+)
+
 # Reconnect flags for flaky remote streams, shared by probe and playback.
 _RECONNECT_OPTIONS = (
     "-reconnect",
@@ -60,6 +66,8 @@ class FFmpegPCMAudio(discord.AudioSource):
         self._generation: int = 0
         self._seek_offset: float = 0.0
         self._shutdown: bool = False
+        self._stderr_tail: StderrTail = StderrTail()
+        self._stderr_thread: threading.Thread | None = None
 
     def _input_stage_args(self) -> list[str]:
         args: list[str] = []
@@ -94,13 +102,41 @@ class FFmpegPCMAudio(discord.AudioSource):
     def _pipe_input(self) -> IO[bytes]:
         return cast(IO[bytes], cast(object, self.source))
 
+    def _start_stderr_drain(self, proc: subprocess.Popen[bytes]) -> None:
+        stream = proc.stderr
+        if stream is None:
+            return
+        self._stderr_tail = StderrTail()
+        thread = threading.Thread(
+            target=self._drain_stderr,
+            args=(stream,),
+            name="ffmpeg-stderr",
+            daemon=True,
+        )
+        self._stderr_thread = thread
+        thread.start()
+
+    def _drain_stderr(self, stream: IO[bytes]) -> None:
+        for raw in iter(stream.readline, b""):
+            self._stderr_tail.add(raw.decode("utf-8", "replace"))
+
+    def _join_stderr_drain(self) -> None:
+        thread = self._stderr_thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=0.5)
+
+    def stderr_tail(self) -> str:
+        return self._stderr_tail.tail()
+
     def _start_process(self, args: list[str]) -> subprocess.Popen[bytes]:
         input_stream: IO[bytes] | int | None = (
             self._pipe_input() if self.pipe else subprocess.DEVNULL
         )
         try:
-            stderr_dest = self.stderr if self.stderr else subprocess.DEVNULL
-            return subprocess.Popen(
+            stderr_dest: IO[str] | int = (
+                self.stderr if self.stderr else subprocess.PIPE
+            )
+            proc = subprocess.Popen(
                 args,
                 stdin=input_stream,
                 stdout=subprocess.PIPE,
@@ -114,6 +150,8 @@ class FFmpegPCMAudio(discord.AudioSource):
             raise discord.ClientException(
                 f"Failed to start Popen: {exc}"
             ) from exc
+        self._start_stderr_drain(proc)
+        return proc
 
     def _spawn_process(self) -> subprocess.Popen[bytes]:
         args: list[str] = [self.executable, *self._input_stage_args()]
@@ -135,6 +173,12 @@ class FFmpegPCMAudio(discord.AudioSource):
 
         logger.debug(
             f"Starting FFmpeg (seek={self._seek_offset:.2f}s, pipe={self.pipe})"
+        )
+        record(
+            "ffmpeg-spawn",
+            seek=f"{self._seek_offset:.2f}",
+            pipe=self.pipe,
+            source=redact_source(self.source),
         )
         return self._start_process(args)
 
@@ -247,6 +291,7 @@ class FFmpegPCMAudio(discord.AudioSource):
             self._process = None
             self._generation += 1
         self._terminate(proc)
+        self._join_stderr_drain()
 
 
 class FastStartFFmpegPCMAudio(discord.FFmpegPCMAudio):

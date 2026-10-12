@@ -29,6 +29,8 @@ class Settings:
     reload: bool
     secret_key: str | None
     panel_token: str | None = None
+    ytdl_debug: bool = False
+    js_runtime_dirs: str = ""
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -40,4 +42,6 @@ class Settings:
             reload=_env_flag("RELOAD"),
             secret_key=os.environ.get("SECRET_KEY"),
             panel_token=os.getenv("PANEL_TOKEN"),
+            ytdl_debug=_env_flag("HARPI_YTDL_DEBUG"),
+            js_runtime_dirs=os.getenv("HARPI_JS_RUNTIME_DIRS") or "",
         )

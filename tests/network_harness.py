@@ -69,6 +69,32 @@ def assert_pcm_flows(total: int, nonzero: int, label: str) -> None:
     assert nonzero > 0, f"{label}: PCM stream is all-zero bytes"
 
 
+TRACK_MAX_SECONDS = 360.0
+
+
+def read_to_end(
+    source: Any,
+    max_seconds: float = TRACK_MAX_SECONDS,
+) -> tuple[int, int, bool]:
+    """Read *source* until it ends or *max_seconds* elapse.
+
+    Returns ``(total, nonzero, ended)`` where ``ended`` is True only when
+    the source signalled end-of-stream before the window ran out. Unlike
+    :func:`read_pcm`, this keeps reading past one second so a stream that
+    starts and then dies mid-track is observed as an early end.
+    """
+    limit = int(max_seconds * BYTES_PER_SECOND)
+    total = 0
+    nonzero = 0
+    while total < limit:
+        chunk = source.read()
+        if not chunk:
+            return total, nonzero, True
+        total += len(chunk)
+        nonzero += sum(1 for b in chunk if b)
+    return total, nonzero, False
+
+
 def redact_url(url: str) -> str:
     """Render *url* safe for test output and failure messages.
 

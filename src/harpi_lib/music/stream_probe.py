@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 
 from loguru import logger
 
+from src.harpi_lib.music.debug_capture import record
 from src.harpi_lib.music.ffmpeg_source import (
     _FFMPEG_HEADERS,
     _RECONNECT_OPTIONS,
@@ -153,11 +154,23 @@ def _volume_probe_verdict(
             f"Probe failed for stream {_redact_stream_url(stream_url)}: "
             f"{_redact_signed_tokens(tail)}"
         )
+        record(
+            "probe-fail",
+            host=_redact_stream_url(stream_url),
+            rc=proc.returncode,
+            tail=_redact_signed_tokens(tail),
+        )
         raise ValueError("stream not playable")
     max_volume = _parse_max_volume(stderr)
     if max_volume is None:
+        record("probe-fail", host=_redact_stream_url(stream_url), rc=0)
         raise ValueError("could not determine stream volume")
     if max_volume < SILENCE_MAX_VOLUME_DB:
+        record(
+            "probe-silence",
+            host=_redact_stream_url(stream_url),
+            max_volume=f"{max_volume:.1f}",
+        )
         raise ProbeSilenceError(
             f"stream is silent (max_volume={max_volume:.1f} dB)"
         )
@@ -174,6 +187,31 @@ def _probe_stream_once(stream_url: str, timeout: float) -> float:
     proc = _spawn_volume_probe(_ffmpeg_probe_args(stream_url))
     stderr = _collect_probe_stderr(proc, timeout)
     return _volume_probe_verdict(proc, stderr, stream_url)
+
+
+def _probe_attempt(
+    stream_url: str, timeout: float, attempt: int, attempts: int
+) -> float:
+    """Run one probe attempt, recording its verdict before returning."""
+    try:
+        volume = _probe_stream_once(stream_url, timeout=timeout)
+    except (ProbeSilenceError, ProbeEnvironmentError):
+        raise
+    except ValueError:
+        record(
+            "probe-attempt-fail",
+            host=_redact_stream_url(stream_url),
+            attempt=attempt + 1,
+        )
+        _log_probe_retry(attempt, attempts, stream_url)
+        raise
+    record(
+        "probe-ok",
+        host=_redact_stream_url(stream_url),
+        attempt=attempt + 1,
+        max_volume=f"{volume:.1f}",
+    )
+    return volume
 
 
 def _probe_with_retries(
@@ -195,12 +233,11 @@ def _probe_with_retries(
         if remaining <= 0:
             break
         try:
-            return _probe_stream_once(stream_url, timeout=remaining)
+            return _probe_attempt(stream_url, remaining, attempt, attempts)
         except (ProbeSilenceError, ProbeEnvironmentError):
             raise
         except ValueError as exc:
             last_error = exc
-            _log_probe_retry(attempt, attempts, stream_url)
     if last_error is None:
         raise ProbeTimeoutError("stream probe timed out")
     raise last_error

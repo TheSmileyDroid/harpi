@@ -5,7 +5,7 @@ SHELL := /bin/bash
 -include .env
 export $(shell sed 's/=.*//' .env 2>/dev/null || true)
 
-.PHONY: bootstrap dev start build contract lint check check-network mutants
+.PHONY: bootstrap dev start build contract lint check check-network soak mutants
 
 bootstrap:
 	uv sync --upgrade
@@ -57,6 +57,9 @@ check-network:
 	@rm -f .check-failed; \
 	uv run pytest -m network -s --tb=short || { touch .check-failed; true; }; \
 	if [ -f .check-failed ]; then rm -f .check-failed; exit 1; fi
+
+soak:
+	HARPI_YTDL_DEBUG=1 uv run python -m tools.soak_playback $(SOAK_ARGS)
 
 mutants:
 	# mutmut_run.py patches mutmut's mutant naming for this repo's src.*

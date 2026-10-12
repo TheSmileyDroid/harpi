@@ -18,6 +18,7 @@ CHUNK_SIZE = Encoder.FRAME_SIZE
 class FakeProc:
     def __init__(self, chunks: list[bytes]) -> None:
         self.stdout = io.BytesIO(b"".join(chunks))
+        self.stderr = io.BytesIO(b"")
         self.terminated = False
 
     def terminate(self) -> None:

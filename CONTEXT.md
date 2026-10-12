@@ -31,6 +31,14 @@ How music plays: yt-dlp search → stream selection and probing → FFmpeg decod
 A short FFmpeg pre-flight that confirms a stream URL actually decodes audio (with retries and a time budget) before playback commits to it. Probe failure means the source is rejected, not that playback dies.
 _Avoid_: check, validate, ping
 
+**JS challenge runtime**:
+The external JavaScript engine (deno, node, bun, or quickjs) that solves YouTube's challenge scripts on yt-dlp's behalf. A missing runtime is the difference between a playable and an unplayable track (ADR 0005).
+_Avoid_: JS engine, node, deno (those name instances, not the role)
+
+**Cookie file**:
+The master logged-in YouTube cookie set (`cookies.txt`) used for extraction. It is input only: yt-dlp reads a copy and any edit it makes is kept as a backup (ADR 0006).
+_Avoid_: cookie jar, session store
+
 **Transport**:
 The fixed bottom bar of the Music page: progress bar, play/pause, skip/previous, loop, volume. The Session's controls, rendered as one surface.
 _Avoid_: player (reserved), playback bar, control bar
