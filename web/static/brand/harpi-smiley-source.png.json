@@ -1,0 +1,6 @@
+{
+  "asset": "harpi-smiley-source.png",
+  "kind": "pre-existing",
+  "origin": "Repo brand asset added 2025-06-15, before this build; the pixel-art smiley mark from which web/static/harpi-logo.svg is traced. Not produced by the UNMARKED CARRIER build; kept unchanged except for the logo SVG's palette, which was recoloured from amber to the signal palette by editing the SVG paths.",
+  "provenance": "pre-existing repository file"
+}

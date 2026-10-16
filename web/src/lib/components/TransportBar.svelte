@@ -39,6 +39,8 @@
 
   const playback = $derived($appStore.playback);
   const ready = $derived(playback !== null);
+  const botOnline = $derived($appStore.bot.online);
+  const keysDisabled = $derived(busy || !botOnline);
   const duration = $derived(playback?.current_music?.duration ?? 0);
   const title = $derived(playback?.current_music?.title ?? "Nothing playing");
   const isPaused = $derived(playback?.is_paused === true);
@@ -85,7 +87,7 @@
   }
 
   function onSeekDown(event: PointerEvent) {
-    if (!duration || busy || seeking) return;
+    if (!duration || busy || seeking || !botOnline) return;
     seeking = true;
     activePointer = event.pointerId;
     seekRatio = ratioAt(event.clientX);
@@ -116,7 +118,7 @@
   }
 
   function onSeekKeydown(event: KeyboardEvent) {
-    if (!duration || busy || seeking) return;
+    if (!duration || busy || seeking || !botOnline) return;
     const current = displayRatio * duration;
     let target: number | null = null;
     if (event.key === "ArrowRight") target = current + 5;
@@ -139,6 +141,8 @@
 <div
   class="transport-bar"
   class:is-paused={isPaused}
+  class:is-seeking={seeking}
+  class:is-offline={!botOnline}
   bind:this={bar}
   data-testid="transport"
 >
@@ -151,7 +155,8 @@
       type="button"
       class="hud-btn"
       onclick={previous}
-      disabled={busy}
+      disabled={keysDisabled}
+      title={botOnline ? undefined : "Bot offline"}
       data-testid="previous"
     >
       Prev
@@ -160,7 +165,8 @@
       type="button"
       class="hud-btn"
       onclick={togglePlay}
-      disabled={busy}
+      disabled={keysDisabled}
+      title={botOnline ? undefined : "Bot offline"}
       data-testid="play-pause"
     >
       {isPaused ? "Play" : "Pause"}
@@ -169,7 +175,8 @@
       type="button"
       class="hud-btn"
       onclick={skip}
-      disabled={busy}
+      disabled={keysDisabled}
+      title={botOnline ? undefined : "Bot offline"}
       data-testid="skip"
     >
       Skip
@@ -178,7 +185,8 @@
       type="button"
       class="hud-btn"
       onclick={cycleLoop}
-      disabled={busy}
+      disabled={keysDisabled}
+      title={`Loop ${playback?.loop_mode} — next ${nextLoopMode(playback?.loop_mode)}`}
       data-testid="loop"
     >
       Loop {playback?.loop_mode}
@@ -187,6 +195,7 @@
       gain={playback?.volume ?? 0}
       send={sendVolume}
       label="Volume"
+      disabled={!botOnline}
       controlTestid="volume-control"
       sliderTestid="volume-slider"
       valueTestid="volume-value"
@@ -199,6 +208,7 @@
       role="slider"
       tabindex="0"
       aria-label="Seek"
+      aria-disabled={!botOnline}
       aria-valuemin="0"
       aria-valuemax={duration}
       aria-valuenow={Math.round(displayRatio * duration)}
@@ -216,8 +226,12 @@
       ></div>
     </div>
     <span class="progress-readout" data-testid="progress-readout">
-      {formatDuration(displayRatio * duration)} / {formatDuration(duration)} //
-      {title}
+      {#if !botOnline}<span class="transport-warn">Bot offline</span>
+      {/if}<span class="readout-time"
+        >{formatDuration(displayRatio * duration)} / {formatDuration(
+          duration,
+        )}</span
+      ><span class="readout-title">{title}</span>
     </span>
   {/if}
 </div>

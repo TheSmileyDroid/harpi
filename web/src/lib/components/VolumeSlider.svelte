@@ -7,6 +7,7 @@
     gain = 0,
     send,
     label = "Volume",
+    disabled = false,
     sliderTestid,
     valueTestid,
     controlTestid,
@@ -15,6 +16,7 @@
     gain?: number;
     send: (value: number) => Promise<void>;
     label?: string;
+    disabled?: boolean;
     sliderTestid?: string;
     valueTestid?: string;
     controlTestid?: string;
@@ -54,6 +56,7 @@
     value={position}
     oninput={onInput}
     aria-label={label}
+    {disabled}
     data-testid={sliderTestid}
   />
   <span class="volume-value" data-testid={valueTestid}>

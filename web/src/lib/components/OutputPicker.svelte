@@ -266,18 +266,21 @@
     gap: 0.6rem;
     max-width: 28rem;
     padding: 0.3rem 0.6rem;
-    background: transparent;
-    border: 1px solid var(--color-line);
-    color: var(--color-primary);
+    background: var(--rail-deep);
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
     cursor: pointer;
+    transition:
+      border-color var(--motion-quick) ease,
+      color var(--motion-quick) ease;
   }
 
   .output-picker__trigger:hover {
-    border-color: var(--color-amber-dim);
+    border-color: var(--lamp-dim);
   }
 
   .output-picker__trigger:focus-visible {
-    outline: 1px solid var(--color-amber-bright);
+    outline: 1px solid var(--lamp);
     outline-offset: 2px;
   }
 
@@ -298,10 +301,16 @@
     z-index: 40;
     min-width: min(22rem, 90vw);
     padding: 0.75rem;
-    background: var(--color-surface-2);
-    border: 1px solid var(--color-line);
-    outline: 1px solid var(--color-line-strong);
-    outline-offset: 2px;
+    background: var(--plate-2);
+    border: 1px solid var(--line-strong);
+    border-block-start-width: 2px;
+    border-block-start-color: var(--lamp);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .output-picker__popover {
+      animation: overlay-wipe 200ms var(--ease-arrive);
+    }
   }
 
   .output-picker__popover .data-row {
@@ -321,7 +330,7 @@
     margin: 0.35rem 0 0;
     font-size: 0.7rem;
     letter-spacing: 0.05em;
-    color: var(--color-amber-dim);
+    color: var(--ink-dim);
   }
 
   @media (max-width: 30rem) {
@@ -333,6 +342,22 @@
     .output-picker__trigger {
       width: 100%;
       max-width: none;
+      gap: 0.4rem;
+      row-gap: 0.25rem;
+    }
+
+    .output-picker__trigger .data-label {
+      display: none;
+    }
+
+    .output-picker__trigger .data-value {
+      flex: 1 1 60%;
+    }
+
+    .output-picker__trigger :global(.bot-online),
+    .output-picker__trigger :global(.bot-offline),
+    .output-picker__trigger .link-state {
+      flex: none;
     }
   }
 </style>

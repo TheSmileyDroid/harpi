@@ -15,8 +15,20 @@
   let probingSession = false;
 
   const api = createApiClient({
-    onError: (error) => errorRegion.report(error),
+    onError: handleApiError,
   });
+
+  function handleApiError(error: unknown) {
+    endSessionIfUnauthorized(error);
+    errorRegion.report(error);
+  }
+
+  function endSessionIfUnauthorized(error: unknown): boolean {
+    if (!(error instanceof ApiError) || error.status !== 401) return false;
+    stream?.stop();
+    phase = "signed-out";
+    return true;
+  }
 
   function handleEvent(event: SseFrame) {
     if (event.type === "status") {
@@ -33,11 +45,7 @@
     try {
       await api.checkSession();
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        stream?.stop();
-        errorRegion.report(error);
-        phase = "signed-out";
-      }
+      if (endSessionIfUnauthorized(error)) errorRegion.report(error);
     } finally {
       probingSession = false;
     }
@@ -93,7 +101,15 @@
 </script>
 
 {#if phase === "checking"}
-  <main class="booting" data-testid="booting">Linking…</main>
+  <main class="booting" data-testid="booting">
+    <img
+      class="booting__mark blink"
+      src="/harpi-logo.svg"
+      alt=""
+      aria-hidden="true"
+    />
+    <span>Linking…</span>
+  </main>
 {:else if phase === "signed-out"}
   <SignIn onsignin={signIn} />
 {:else}
@@ -102,11 +118,21 @@
 
 <style>
   .booting {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
     padding: 4rem 1.25rem;
     font-family: var(--font-display);
-    font-weight: 600;
+    font-weight: 400;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: var(--color-amber-dim);
+    color: var(--ink-dim);
+  }
+
+  .booting__mark {
+    display: block;
+    height: 1.35rem;
+    width: auto;
+    image-rendering: pixelated;
   }
 </style>

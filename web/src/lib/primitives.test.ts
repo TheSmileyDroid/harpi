@@ -29,6 +29,22 @@ describe("createErrorRegion", () => {
 
     expect(get(region)).toHaveLength(0);
   });
+
+  it("keeps one entry per repeated failure", () => {
+    const region = createErrorRegion();
+
+    const first = region.report({
+      code: "unauthorized",
+      message: "Authentication required",
+    });
+    const second = region.report({
+      code: "unauthorized",
+      message: "Authentication required",
+    });
+
+    expect(second).toBe(first);
+    expect(get(region)).toHaveLength(1);
+  });
 });
 
 describe("createToasts", () => {

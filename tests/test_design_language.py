@@ -23,14 +23,21 @@ NAMED_GREEN = re.compile(
 )
 FONT_STACK = re.compile(r"font-family\s*:\s*([^;}]+)")
 ALLOWED_FAMILIES = (
-    "ibm plex mono",
-    "rajdhani",
-    "monospace",
-    "mono",
+    "chivo mono",
+    "michroma",
+    "liberation mono",
     "menlo",
+    "monaco",
     "consolas",
 )
+ALLOWED_GENERICS = (
+    "ui-monospace",
+    "sfmono-regular",
+    "monospace",
+    "mono",
+)
 FONT_VAR = re.compile(r"font-family\s*:\s*var\(--font-[\w-]+\)\s*[;}]?")
+FONT_TOKEN = re.compile(r"--font-[\w-]+\s*:\s*([^;]+);", re.S)
 
 
 def _masked_lines(path: Path) -> list[tuple[int, str]]:
@@ -106,7 +113,8 @@ def _scan(
 
 
 def test_no_green_anywhere() -> None:
-    """No green "success" color: OK is amber, broken is red (DESIGN.md)."""
+    """No green "success" color: the signal ink carries OK state, red is
+    reserved for broken (DESIGN.md)."""
     found = _scan([
         (
             OKLCH,
@@ -138,17 +146,48 @@ def test_red_appears_only_on_alert_lines() -> None:
     assert not found, "red outside alert contexts:\n" + "\n".join(found)
 
 
+def _unknown_families(stack: str) -> list[str]:
+    """Families named in one font stack that are neither the two faces nor
+    the fallback generics, quoted or not."""
+    found: list[str] = []
+    for item in stack.split(","):
+        family = item.strip().strip("\"'").lower()
+        if not family:
+            continue
+        if family in ALLOWED_FAMILIES or family in ALLOWED_GENERICS:
+            continue
+        found.append(family)
+    return found
+
+
 def test_only_the_two_fonts() -> None:
-    """Body: IBM Plex Mono. Display: Rajdhani. No third family. Stacks may
-    go through --font-* variables; the variable definitions are judged too."""
+    """Body: Chivo Mono. Display: Michroma. No third family. Stacks may
+    go through --font-* variables; literal stacks are judged here."""
     found: list[str] = []
     for path in SCAN_FILES:
         for n, line in _masked_lines(path):
             if FONT_VAR.search(line):
                 continue
             for stack in FONT_STACK.findall(line):
-                lowered = stack.lower()
-                if not any(f in lowered for f in ALLOWED_FAMILIES):
-                    rel = path.relative_to(REPO)
-                    found.append(f"{rel}:{n}: {stack.strip()!r}")
+                rel = path.relative_to(REPO)
+                found.extend(
+                    f"{rel}:{n}: {family!r} in {stack.strip()!r}"
+                    for family in _unknown_families(stack)
+                )
     assert not found, "unknown font family:\n" + "\n".join(found)
+
+
+def test_font_variables_name_only_the_two_fonts() -> None:
+    """The --font-* tokens are the real stacks; judge every family they
+    name, quoted or not, against the two faces plus the generics."""
+    path = REPO / "web" / "src" / "app.css"
+    text = "\n".join(line for _, line in _masked_lines(path))
+    found: list[str] = []
+    for stack in FONT_TOKEN.findall(text):
+        found.extend(
+            f"{path.name}: {family!r} in {stack.strip()!r}"
+            for family in _unknown_families(stack)
+        )
+    assert not found, "unknown font family in a --font-* token:\n" + "\n".join(
+        found
+    )

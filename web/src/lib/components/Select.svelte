@@ -188,21 +188,34 @@
     justify-content: space-between;
     gap: 0.5rem;
     width: 100%;
-    background: transparent;
-    border: 1px solid var(--color-line);
-    color: var(--color-primary);
-    font-size: 0.8rem;
-    padding: 0.35rem 0.6rem;
+    background: var(--plate-2);
+    border: 1px solid var(--line);
+    border-block-end-width: 2px;
+    border-block-end-color: color-mix(in oklab, var(--line) 55%, black);
+    color: var(--ink);
+    font-size: 0.78rem;
+    padding: 0.4rem 0.6rem;
     text-align: start;
     cursor: pointer;
+    transition:
+      color var(--motion-quick) ease,
+      background-color var(--motion-quick) ease,
+      border-color var(--motion-quick) ease;
   }
 
   .hud-select__trigger:hover {
-    border-color: var(--color-amber-dim);
+    border-color: var(--lamp-dim);
+    border-block-end-color: var(--lamp);
+  }
+
+  .hud-select__trigger:focus-visible {
+    outline: 1px solid var(--lamp);
+    outline-offset: 2px;
   }
 
   .hud-select__trigger:disabled {
-    color: var(--color-idle);
+    color: var(--idle);
+    background: var(--plate);
     cursor: not-allowed;
   }
 
@@ -213,15 +226,15 @@
   }
 
   .hud-select__value.is-placeholder {
-    color: var(--color-amber-dim);
+    color: var(--ink-faint);
   }
 
   .hud-select__chevron {
     flex: none;
     width: 0.4rem;
     height: 0.4rem;
-    border-right: 1px solid var(--color-amber-dim);
-    border-bottom: 1px solid var(--color-amber-dim);
+    border-right: 1px solid var(--ink-dim);
+    border-bottom: 1px solid var(--ink-dim);
     transform: rotate(45deg) translate(-0.1rem, -0.1rem);
   }
 
@@ -235,18 +248,19 @@
     list-style: none;
     max-height: 16rem;
     overflow-y: auto;
-    background: var(--color-surface);
-    border: 1px solid var(--color-line);
-    outline: 1px solid var(--color-line-strong);
-    outline-offset: 2px;
+    background: var(--plate-2);
+    border: 1px solid var(--line-strong);
+    border-block-start-width: 2px;
+    border-block-start-color: var(--lamp);
   }
 
   .hud-select__option {
     padding: 0.4rem 0.6rem;
-    font-size: 0.8rem;
-    color: var(--color-primary);
-    border-bottom: 1px solid var(--color-line);
+    font-size: 0.78rem;
+    color: var(--ink);
+    border-bottom: 1px solid var(--line);
     cursor: pointer;
+    transition: background-color var(--motion-quick) ease;
   }
 
   .hud-select__option:last-child {
@@ -254,8 +268,14 @@
   }
 
   .hud-select__option.is-active {
-    background: var(--color-surface-2);
-    color: var(--color-amber-bright);
+    background: color-mix(in oklab, var(--ink) 10%, var(--plate-2));
+    color: var(--ink);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hud-select__list {
+      animation: overlay-wipe 180ms var(--ease-arrive);
+    }
   }
 
   @media (pointer: coarse) {

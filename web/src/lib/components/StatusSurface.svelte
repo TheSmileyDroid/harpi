@@ -84,6 +84,10 @@
       appStore.openSearch();
     }
   }
+
+  const kbdLabel = /Mac|iPhone|iPad/.test(navigator.userAgent)
+    ? "⌘ K"
+    : "Ctrl K";
 </script>
 
 <svelte:window onkeydown={onGlobalKeydown} />
@@ -101,7 +105,7 @@
       onclick={() => appStore.openSearch()}
       data-testid="open-search"
     >
-      Search <span class="topbar__kbd">Ctrl K</span>
+      Search <span class="topbar__kbd">{kbdLabel}</span>
     </button>
   </header>
 
@@ -148,22 +152,24 @@
   <section class="region" aria-labelledby="region-system-title">
     <h2 class="region-title" id="region-system-title">System</h2>
     <section class="hud-panel" data-testid="connection-panel">
-      <span class="panel-label">04 // Session</span>
-      <div class="data-row">
-        <span class="data-label">Bot</span>
-        <span class="data-value" data-testid="bot-online">
-          {$appStore.bot.online ? "Online" : "Offline"}
-        </span>
-      </div>
-      <div class="data-row">
-        <span class="data-label">Voice</span>
-        <span
-          class="data-value"
-          data-testid="connection"
-          data-connected={$appStore.connection.connected}
-        >
-          {voiceLabel}
-        </span>
+      <span class="panel-label">Session</span>
+      <div class="session-readouts">
+        <div class="data-row">
+          <span class="data-label">Bot</span>
+          <span class="data-value" data-testid="bot-online">
+            {$appStore.bot.online ? "Online" : "Offline"}
+          </span>
+        </div>
+        <div class="data-row">
+          <span class="data-label">Voice</span>
+          <span
+            class="data-value"
+            data-testid="connection"
+            data-connected={$appStore.connection.connected}
+          >
+            {voiceLabel}
+          </span>
+        </div>
       </div>
       {#if !botOnline}
         <p class="system-note" data-testid="bot-offline-note">
@@ -213,29 +219,35 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.5rem 1rem;
-    border-bottom: 1px solid var(--color-line);
-    margin-bottom: 1rem;
+    padding: 0.45rem 0.6rem;
+    background: var(--rail);
+    border: 1px solid var(--line-strong);
+    border-block-end-color: var(--seam);
+    margin-bottom: 1.25rem;
   }
 
   .logo {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.55rem;
     margin-inline-end: auto;
+    padding: 0.25rem 0.6rem;
+    background: var(--rail-deep);
+    border: 1px solid var(--line-strong);
+    border-block-end-width: 2px;
   }
 
   .logo-text {
     font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 1rem;
+    font-weight: 400;
+    font-size: 0.85rem;
     letter-spacing: 0.3em;
-    color: var(--color-primary);
+    color: var(--ink);
   }
 
   .logo-mark {
     display: block;
-    height: 1.5rem;
+    height: 1.35rem;
     width: auto;
     image-rendering: pixelated;
   }
@@ -248,13 +260,14 @@
   }
 
   .topbar__kbd {
-    font-size: 0.6rem;
-    letter-spacing: 0.15em;
-    color: var(--color-amber-dim);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    color: var(--ink-dim);
+    transition: color var(--motion-quick) ease;
   }
 
   .hud-btn:hover .topbar__kbd {
-    color: var(--color-background);
+    color: var(--lamp);
   }
 
   .region {
@@ -262,17 +275,27 @@
   }
 
   .region-heading {
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.85rem;
   }
 
   .region-title {
-    margin: 0 0 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 0.85rem;
     font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 1rem;
+    font-weight: 400;
+    font-size: 0.8rem;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: var(--color-primary);
+    color: var(--ink);
+  }
+
+  .region-title::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
   }
 
   .music-layout {
@@ -292,32 +315,57 @@
     min-width: 0;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
+    .layers-rail {
+      animation: plate-rise var(--motion-settle) var(--ease-arrive);
+    }
+  }
+
   .layers-rail__head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.85rem;
   }
 
   .layers-rail__head .region-title {
     margin: 0;
+    flex: 1;
+  }
+
+  .session-readouts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.25rem 1rem;
+  }
+
+  .session-readouts .data-row {
+    display: block;
+    padding-block: 0.35rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .session-readouts .data-label {
+    display: block;
+    inline-size: auto;
+    margin-bottom: 0.15rem;
   }
 
   .system-note {
     margin: 0.35rem 0 0;
     font-size: 0.7rem;
     letter-spacing: 0.05em;
-    color: var(--color-amber-dim);
+    color: var(--ink-dim);
   }
 
   .rail-reopen {
     display: block;
     margin-inline-start: auto;
-    margin-block-start: 0.75rem;
+    margin-block-start: 0.85rem;
   }
 
-  @media (min-width: 48rem) {
+  @media (min-width: 56rem) {
     .music-layout {
       grid-template-columns: minmax(0, 1fr) 20rem;
       align-items: start;

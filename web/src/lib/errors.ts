@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 
 export interface ErrorEntry {
   id: number;
@@ -20,16 +20,19 @@ function readString(
 }
 
 export function createErrorRegion() {
-  const { subscribe, update } = writable<ErrorEntry[]>([]);
+  const store = writable<ErrorEntry[]>([]);
+  const { subscribe, update } = store;
 
   return {
     subscribe,
     report(error: unknown): number {
-      const entry: ErrorEntry = {
-        id: ++nextId,
-        code: readString(error, "code") ?? "error",
-        message: readString(error, "message") ?? "Request failed",
-      };
+      const code = readString(error, "code") ?? "error";
+      const message = readString(error, "message") ?? "Request failed";
+      const repeated = get(store).find(
+        (entry) => entry.code === code && entry.message === message,
+      );
+      if (repeated) return repeated.id;
+      const entry: ErrorEntry = { id: ++nextId, code, message };
       update((errors) => [...errors, entry]);
       return entry.id;
     },

@@ -37,7 +37,7 @@ One process, one panel. Music, dice, TTS, and a Svelte control panel share one r
 
 ## Brand Commitments
 
-- The CRT retro theme on the web panel is Harpi's identity and is binding: future design work must preserve it.
+- The web panel's cyberpunk instrument-console identity is binding: the unmarked-carrier receiver world (steel-navy plates, phosphor-cyan signal ink, a sodium dial lamp for what is live). It replaced the amber CRT theme, its predecessor. Future design work must preserve the new direction.
 - Name: Harpi.
 - Glossary vocabulary in `CONTEXT.md` is binding for code, docs, and discussion.
 
@@ -59,4 +59,4 @@ One process, one panel. Music, dice, TTS, and a Svelte control panel share one r
 
 ## Accessibility & Inclusion
 
-No product-specific accessibility requirement has been established. The CRT retro theme is binding, so future design work must reconcile readability with the theme rather than dropping it.
+No product-specific accessibility requirement has been established. The cyberpunk instrument-console theme (the unmarked-carrier receiver world) is binding, so future design work must reconcile readability with the theme rather than dropping it.

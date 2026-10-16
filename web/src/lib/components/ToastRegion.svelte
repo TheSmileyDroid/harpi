@@ -36,6 +36,6 @@
   .toast-action {
     min-width: 0;
     padding: 0.15rem 0.5rem;
-    font-size: 0.65rem;
+    font-size: 0.7rem;
   }
 </style>

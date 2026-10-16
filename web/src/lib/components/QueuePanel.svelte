@@ -1,7 +1,10 @@
 <script lang="ts">
+  import { flip } from "svelte/animate";
   import { appStore } from "$lib/store";
   import { toasts } from "$lib/toasts";
+  import { flipParams } from "$lib/motion";
   import ConfirmDialog from "./ConfirmDialog.svelte";
+  import EmptyState from "./EmptyState.svelte";
   import { formatDuration } from "$lib/format";
   import type { ApiClient } from "$lib/api";
   import Thumbnail from "./Thumbnail.svelte";
@@ -13,6 +16,14 @@
 
   const queue = $derived($appStore.playback?.queue ?? []);
   const hasSession = $derived($appStore.playback !== null);
+  const maxDuration = $derived(
+    queue.reduce((max, track) => Math.max(max, track.duration), 0),
+  );
+
+  function gaugePercent(duration: number): string {
+    if (maxDuration <= 0) return "0";
+    return ((duration / maxDuration) * 100).toFixed(1);
+  }
 
   async function removeTrack(url: string) {
     if (busy) return;
@@ -21,7 +32,7 @@
       const snapshot = await api.removeFromQueue(url);
       appStore.applyStatus(snapshot);
       toasts.push("Removed from queue", {
-        label: "Undo",
+        label: "Re-add",
         run: () => undoRemove(url),
       });
     } catch {
@@ -65,19 +76,27 @@
 </script>
 
 <section class="hud-panel" data-testid="queue-panel">
-  <span class="panel-label">02 // Queue</span>
+  <span class="panel-label">Queue</span>
   {#if !hasSession}
     <p class="data-value is-empty" data-testid="queue-empty">
       No active session
     </p>
   {:else if queue.length === 0}
-    <p class="data-value is-empty" data-testid="queue-empty">
-      Queue empty — search to add tracks.
-    </p>
+    <EmptyState
+      message="Queue empty — search to add tracks."
+      testid="queue-empty"
+      buttonTestid="queue-search"
+      onsearch={() => appStore.openSearch()}
+    />
   {:else}
     <ul class="queue-list">
       {#each queue as track, index (track.url)}
-        <li class="data-row queue-row" data-testid="queue-row">
+        <li
+          class="data-row queue-row"
+          data-testid="queue-row"
+          style="--row-delay: {Math.min(index, 6) * 30}ms"
+          animate:flip={flipParams()}
+        >
           <span class="queue-index row-meta">
             {String(index + 1).padStart(2, "0")}
           </span>
@@ -88,6 +107,12 @@
             size={32}
           />
           <span class="data-title">{track.title}</span>
+          <span class="row-gauge" aria-hidden="true">
+            <span
+              class="row-gauge__fill"
+              style="width: {gaugePercent(track.duration)}%"
+            ></span>
+          </span>
           <span class="row-meta">
             {track.uploader} · {formatDuration(track.duration)}
           </span>

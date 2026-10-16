@@ -20,10 +20,21 @@
 
 <main class="signin" data-testid="signin">
   <form class="hud-panel signin-panel" onsubmit={submit}>
-    <span class="panel-label">01 // ACCESS</span>
+    <span class="panel-label">Access</span>
     <p class="page-title signin-title">HARPI PANEL</p>
+    <p class="signin-note">
+      Enter the panel token. The self-hoster sets it as PANEL_TOKEN.
+    </p>
     <div class="data-row">
       <label class="data-label" for="panel-token">Panel token</label>
+      <input
+        class="visually-hidden"
+        type="text"
+        name="username"
+        autocomplete="username"
+        tabindex="-1"
+        aria-hidden="true"
+      />
       <input
         id="panel-token"
         class="hud-input"
@@ -56,13 +67,26 @@
     width: min(28rem, 100%);
   }
 
+  @media (prefers-reduced-motion: no-preference) {
+    .signin-panel {
+      animation: plate-rise var(--motion-settle) var(--ease-arrive);
+    }
+  }
+
   .signin-title {
     font-size: 1rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .signin-note {
+    margin: 0 0 0.85rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-dim);
   }
 
   .data-row {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.85rem;
   }
 
   .data-row .hud-input {

@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { flip } from "svelte/animate";
   import { appStore } from "$lib/store";
   import { toasts } from "$lib/toasts";
+  import { flipParams } from "$lib/motion";
   import Thumbnail from "./Thumbnail.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
+  import EmptyState from "./EmptyState.svelte";
   import VolumeSlider from "./VolumeSlider.svelte";
   import type { ApiClient } from "$lib/api";
   import type { Layer } from "$lib/contract/panel.gen";
@@ -49,19 +52,27 @@
 </script>
 
 <section class="hud-panel" data-testid="layers-panel">
-  <span class="panel-label">03 // Layers</span>
+  <span class="panel-label">Layers</span>
   {#if !hasSession}
     <p class="data-value is-empty" data-testid="layers-empty">
       No active session
     </p>
   {:else if layers.length === 0}
-    <p class="data-value is-empty" data-testid="layers-empty">
-      No layers — add one from Search.
-    </p>
+    <EmptyState
+      message="No layers — add one from Search."
+      testid="layers-empty"
+      buttonTestid="layers-search"
+      onsearch={() => appStore.openSearch()}
+    />
   {:else}
     <ul class="layer-list">
       {#each layers as layer, index (layer.id)}
-        <li class="layer-row" data-testid="layer-row">
+        <li
+          class="layer-row"
+          data-testid="layer-row"
+          style="--row-delay: {Math.min(index, 6) * 25}ms"
+          animate:flip={flipParams()}
+        >
           <div class="layer-row__head">
             <span class="row-meta layer-index">
               {String(index + 1).padStart(2, "0")}
@@ -114,7 +125,7 @@
 <style>
   .layer-row {
     padding-block: 0.5rem;
-    border-bottom: 1px solid var(--color-line);
+    border-bottom: 1px solid var(--line);
   }
 
   .layer-row__head {
@@ -127,7 +138,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-block-start: 0.35rem;
+    margin-block-start: 0.45rem;
   }
 
   .layer-row__controls :global(.layer-volume) {

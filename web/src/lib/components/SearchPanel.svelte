@@ -198,7 +198,7 @@
     </p>
   {:else if status === "error"}
     <p class="search-status is-alert" role="alert" data-testid="search-status">
-      Search failed
+      Search failed — check the link and try again.
     </p>
   {:else if showResults}
     <div
@@ -218,6 +218,7 @@
           aria-selected={index === activeIndex}
           id={`search-option-${index}`}
           tabindex="-1"
+          style="--row-delay: {Math.min(index, 6) * 25}ms"
           onpointerdown={() => appStore.setActiveIndex(index)}
           data-testid="search-result"
         >
@@ -302,9 +303,10 @@
     padding: 0;
     background: none;
     border: none;
-    color: var(--color-amber-dim);
+    color: var(--ink-dim);
     cursor: pointer;
     translate: 0 -50%;
+    transition: color var(--motion-quick) ease;
   }
 
   .search-clear::before,
@@ -327,11 +329,11 @@
   }
 
   .search-clear:hover {
-    color: var(--color-amber-bright);
+    color: var(--lamp);
   }
 
   .search-clear:focus-visible {
-    outline: 1px solid var(--color-amber-bright);
+    outline: 1px solid var(--lamp);
     outline-offset: 2px;
   }
 
