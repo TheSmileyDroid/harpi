@@ -95,7 +95,12 @@
 <main class="app-container" id="shell">
   <header class="topbar">
     <span class="logo">
-      <img class="logo-mark" src="/harpi-logo.svg" alt="" aria-hidden="true" />
+      <img
+        class="logo-mark"
+        src="/brand/harpi-smiley-mark.svg"
+        alt=""
+        aria-hidden="true"
+      />
       <span class="logo-text">HARPI</span>
     </span>
     <OutputPicker {api} {link} {onresync} />
@@ -247,7 +252,7 @@
 
   .logo-mark {
     display: block;
-    height: 1.35rem;
+    height: 2rem;
     width: auto;
     image-rendering: pixelated;
   }

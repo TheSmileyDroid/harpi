@@ -303,7 +303,7 @@ The panel's controls are instrument keys and legend plates: flat plates with hai
 - **Search palette:** a modal dialog capped at 42rem, 12vh from the top, on a black 60% backdrop. Legend plate "Search", the field over a raised-steel results list; the active row tints cyan 10% over a 1px sodium inset underline. A strip below names the selected track beside the Queue and Layer keys. Waiting states are text in place (Searching…), errors are red status lines.
 
 ### Navigation
-- There is no nav: the panel is a single surface. The header rail is the wayfinding: a wordmark plate (deep-rail plate, 2px bottom seam, the pixel mark at 1.35rem beside HARPI in Michroma 0.85rem tracking 0.3em), the output readout, and the search key with its shortcut hint (Ctrl K, or the command key on a Mac; hidden under 30rem).
+- There is no nav: the panel is a single surface. The header rail is the wayfinding: a wordmark plate (deep-rail plate, 2px bottom seam, the pixel mark at 2rem beside HARPI in Michroma 0.85rem tracking 0.3em), the output readout, and the search key with its shortcut hint (Ctrl K, or the command key on a Mac; hidden under 30rem).
 - **Output readout:** a deep-rail trigger plate holding the OUTPUT data label, the guild and channel value, the status chip, and the link state. Its popover is a raised-steel overlay with a 2px sodium top seam holding the Guild and Channel selects and the Connect/Disconnect keys. Under 30rem the rail wraps and the readout takes a full row.
 
 ### The Tuning Strip (signature)

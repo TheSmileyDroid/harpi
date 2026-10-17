@@ -104,7 +104,7 @@
   <main class="booting" data-testid="booting">
     <img
       class="booting__mark blink"
-      src="/harpi-logo.svg"
+      src="/brand/harpi-smiley-mark.svg"
       alt=""
       aria-hidden="true"
     />
@@ -131,7 +131,7 @@
 
   .booting__mark {
     display: block;
-    height: 1.35rem;
+    height: 2rem;
     width: auto;
     image-rendering: pixelated;
   }
