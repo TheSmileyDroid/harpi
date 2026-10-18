@@ -1,14 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-const PANEL_TOKEN = "e2e-panel-token";
 const BACKEND = "http://127.0.0.1:8100";
 const GUILD_B = "734174030701264912";
 const GUILD_B_CHANNEL_NAME = `Channel ${GUILD_B}`;
 
 async function signIn(page: import("@playwright/test").Page) {
+  await page.request.post(`${BACKEND}/__test__/login`);
   await page.goto("/");
-  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
-  await page.getByTestId("sign-in").click();
   await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
 }
 
@@ -22,7 +20,7 @@ async function openOutput(page: import("@playwright/test").Page) {
   await expect(page.getByTestId("guild-select")).toBeVisible();
 }
 
-test("sign in, then a pushed status change lands without a reload", async ({
+test("sign in with Discord, then a pushed status change lands without a reload", async ({
   page,
   request,
 }) => {
@@ -33,18 +31,12 @@ test("sign in, then a pushed status change lands without a reload", async ({
 
   await page.goto("/");
   await expect(page.getByTestId("signin")).toBeVisible();
+  await expect(page.getByTestId("sign-in")).toHaveText("CONTINUE WITH DISCORD");
 
-  await page.getByTestId("panel-token").fill("wrong-token");
-  await page.getByTestId("sign-in").click();
-  await expect(page.getByTestId("error-region")).toContainText(
-    "Invalid panel token",
-  );
+  await page.request.post(`${BACKEND}/__test__/login`);
+  await page.goto("/");
 
-  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
-  await page.getByTestId("sign-in").click();
-
-  await expect(page.getByTestId("toast")).toContainText("Signed in");
-
+  await expect(page.getByTestId("signin")).toHaveCount(0);
   await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
   await expect(page.getByTestId("link-state")).toHaveText("LINK LIVE");
   await expect(page.getByTestId("guild-id")).toContainText("Alpha Guild");
@@ -59,7 +51,29 @@ test("sign in, then a pushed status change lands without a reload", async ({
   await request.post(`${BACKEND}/__test__/bot`, { data: { online: false } });
   await expect(page.getByTestId("bot-status")).toHaveText("OFFLINE");
 
-  expect(loads).toBe(1);
+  expect(loads).toBe(2);
+});
+
+test("a denied authorization surfaces on the sign-in page", async ({
+  page,
+}) => {
+  await page.goto("/?auth=denied");
+
+  await expect(page.getByTestId("signin")).toBeVisible();
+  await expect(page.getByTestId("error-region")).toContainText(
+    "shares no server",
+  );
+});
+
+test("signing out returns to the sign-in page", async ({ page }) => {
+  await page.request.post(`${BACKEND}/__test__/login`);
+  await page.goto("/");
+  await expect(page.getByTestId("sign-out")).toBeVisible();
+
+  await page.getByTestId("sign-out").click();
+
+  await expect(page.getByTestId("signin")).toBeVisible();
+  await expect(page.getByTestId("bot-status")).toHaveCount(0);
 });
 
 test("a dropped stream reconnects and resyncs state without a reload", async ({
@@ -81,9 +95,8 @@ test("a dropped stream reconnects and resyncs state without a reload", async ({
     await route.continue();
   });
 
+  await page.request.post(`${BACKEND}/__test__/login`);
   await page.goto("/");
-  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
-  await page.getByTestId("sign-in").click();
 
   await expect(page.getByTestId("link-state")).toHaveText("LINK LOST");
 
@@ -100,9 +113,8 @@ test("a dropped stream reconnects and resyncs state without a reload", async ({
 });
 
 test("a valid session skips sign-in on reload", async ({ page, context }) => {
+  await page.request.post(`${BACKEND}/__test__/login`);
   await page.goto("/");
-  await page.getByTestId("panel-token").fill(PANEL_TOKEN);
-  await page.getByTestId("sign-in").click();
   await expect(page.getByTestId("bot-status")).toBeVisible();
 
   await page.reload();

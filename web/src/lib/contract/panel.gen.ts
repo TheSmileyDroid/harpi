@@ -62,9 +62,6 @@ export const SearchResults = z.strictObject({ results: z.array(Track) });
 export type SeekRequest = z.infer<typeof SeekRequest>;
 export const SeekRequest = z.strictObject({ position: z.number().nullable().default(null) }).partial();
 
-export type SessionRequest = z.infer<typeof SessionRequest>;
-export const SessionRequest = z.strictObject({ token: z.string().nullable().default(null) }).partial();
-
 export type StatusSnapshot = z.infer<typeof StatusSnapshot>;
 export const StatusSnapshot = z.strictObject({ bot: BotStatus, connection: Connection, guild_id: z.string().nullable(), playback: PlaybackStatus.nullable() });
 

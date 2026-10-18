@@ -446,24 +446,6 @@
         "title": "SeekRequest",
         "type": "object"
       },
-      "SessionRequest": {
-        "properties": {
-          "token": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Token"
-          }
-        },
-        "title": "SessionRequest",
-        "type": "object"
-      },
       "SseEnvelope": {
         "anyOf": [
           {
@@ -597,6 +579,20 @@
     "/": {
       "get": {
         "operationId": "get_panel_index",
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/api/auth/discord": {
+      "get": {
+        "operationId": "get_discord_login",
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/api/auth/discord/callback": {
+      "get": {
+        "operationId": "get_discord_callback",
         "parameters": [],
         "responses": {}
       }
@@ -832,6 +828,24 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/logout": {
+      "post": {
+        "operationId": "post_logout",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Authenticated"
                 }
               }
             },
@@ -1202,41 +1216,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Authenticated"
-                }
-              }
-            },
-            "description": ""
-          }
-        }
-      },
-      "post": {
-        "operationId": "post_create_session",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SessionRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Authenticated"
-                }
-              }
-            },
-            "description": ""
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             },

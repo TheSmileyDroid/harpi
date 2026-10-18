@@ -35,24 +35,21 @@ function recordingClient(payload: unknown = SNAPSHOT) {
 }
 
 describe("createApiClient", () => {
-  it("exchanges a token for a session", async () => {
-    const calls: { path: string; options: RequestInit }[] = [];
-    const client = createApiClient({
-      fetchImpl: async (path, options) => {
-        calls.push({ path, options: options ?? {} });
-        return jsonResponse(200, fixtures.Authenticated);
-      },
+  it("exposes the discord login url without a request", () => {
+    const { client, calls } = recordingClient();
+
+    expect(client.loginUrl).toBe("/api/auth/discord");
+    expect(calls).toHaveLength(0);
+  });
+
+  it("posts a logout", async () => {
+    const { client, calls } = recordingClient(fixtures.Authenticated);
+
+    await expect(client.logout()).resolves.toEqual({
+      authenticated: true,
     });
-
-    const payload = await client.signIn("secret-token");
-
-    expect(payload).toEqual(fixtures.Authenticated);
-    expect(calls[0]!.path).toBe("/api/session");
+    expect(calls[0]!.path).toBe("/api/logout");
     expect(calls[0]!.options.method).toBe("POST");
-    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
-      token: "secret-token",
-    });
-    expect(calls[0]!.options.credentials).toBe("same-origin");
   });
 
   it("normalizes the error envelope and reports it", async () => {
@@ -60,12 +57,12 @@ describe("createApiClient", () => {
     const client = createApiClient({
       fetchImpl: async () =>
         jsonResponse(401, {
-          error: { code: "unauthorized", message: "Invalid panel token" },
+          error: { code: "unauthorized", message: "Authentication required" },
         }),
       onError: (error) => reported.push(error),
     });
 
-    await expect(client.signIn("wrong")).rejects.toThrow("Invalid panel token");
+    await expect(client.status()).rejects.toThrow("Authentication required");
 
     expect(reported).toHaveLength(1);
     expect(reported[0]).toBeInstanceOf(ApiError);

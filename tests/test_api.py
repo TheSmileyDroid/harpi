@@ -36,7 +36,6 @@ from tests.fakes import (
     playing_status,
 )
 
-PANEL_TOKEN = "test-panel-token"
 SECRET = "test-secret"
 CHANNEL_ID = 42
 SNOWFLAKE = 734174030701264912
@@ -144,7 +143,6 @@ def bot() -> ApiBot:
 @pytest.fixture
 def client(bot: ApiBot, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("SECRET_KEY", SECRET)
-    monkeypatch.setenv("PANEL_TOKEN", PANEL_TOKEN)
     monkeypatch.setenv("DISCORD_TOKEN", "test")
     quart_app.secret_key = SECRET
     quart_app.config["TESTING"] = True
@@ -153,8 +151,9 @@ def client(bot: ApiBot, monkeypatch: pytest.MonkeyPatch):
     deps._bot_ref = None
 
 
-async def _login(client, token: str = PANEL_TOKEN):
-    return await client.post("/api/session", json={"token": token})
+async def _login(client):
+    async with client.session_transaction() as stored:
+        stored["authenticated"] = True
 
 
 async def _refresh_current_music(bot: ApiBot, title: str) -> None:
@@ -200,44 +199,8 @@ async def _read_status_frame(http: httpx.AsyncClient) -> dict[str, Any]:
         return json.loads(data.removeprefix("data: "))
 
 
-async def test_session_exchange_issues_an_http_only_same_site_cookie(client):
-    response = await _login(client)
-
-    assert response.status_code == 200
-    assert json.loads(await response.get_data()) == {"authenticated": True}
-    cookie = response.headers["Set-Cookie"]
-    assert "HttpOnly" in cookie
-    assert "SameSite=Lax" in cookie
-
-
-async def test_session_exchange_rejects_a_bad_token(client):
-    response = await _login(client, "wrong")
-
-    assert response.status_code == 401
-    assert json.loads(await response.get_data()) == {
-        "error": {"code": "unauthorized", "message": "Invalid panel token"}
-    }
-    assert "Set-Cookie" not in response.headers
-
-
-async def test_session_exchange_rejects_a_missing_token(client):
-    response = await client.post("/api/session", json={})
-
-    assert response.status_code == 401
-
-
-async def test_session_exchange_rejects_a_non_json_body(client):
-    response = await client.post("/api/session", data=b"not json")
-
-    assert response.status_code == 401
-
-
-async def test_session_exchange_rejects_when_no_token_is_configured(
-    client, monkeypatch: pytest.MonkeyPatch
-):
-    monkeypatch.delenv("PANEL_TOKEN", raising=False)
-
-    response = await _login(client)
+async def test_session_probe_rejects_an_anonymous_call(client):
+    response = await client.get("/api/session")
 
     assert response.status_code == 401
 

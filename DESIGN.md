@@ -329,7 +329,7 @@ The panel's controls are instrument keys and legend plates: flat plates with hai
 ### Browser Surfaces and the Tube
 - **Selection:** Phosphor Cyan background, ground text. **Caret:** sodium. **Scrollbars:** thin, `line-strong` thumb on a transparent track (webkit: 10px wide, 3px ground border).
 - **Tube layer:** one fixed pseudo-element over the whole viewport (z-index 50, pointer-events none): 1px scanlines at 9% black every 4px plus a vignette fading to 24% black at the edges. No flicker, no curvature. Toasts and errors sit above it; the dock, strip, and panels below it.
-- **Boot and sign-in:** the boot screen shows the pixel mark beside "Linking…" in Michroma dim cyan; the sign-in panel is a legend-plated panel ("Access") with the HARPI PANEL title, a token field, and a full-width ENTER key.
+- **Boot and sign-in:** the boot screen shows the pixel mark beside "Linking…" in Michroma dim cyan; the sign-in panel is a legend-plated panel ("Access") with the HARPI PANEL title, a note that Discord membership is required, and a full-width "CONTINUE WITH DISCORD" key linking to the OAuth start.
 
 ## Do's and Don'ts
 

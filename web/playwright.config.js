@@ -5,7 +5,6 @@ import { defineConfig, devices } from "@playwright/test";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
 
-const PANEL_TOKEN = "e2e-panel-token";
 const SECRET_KEY = "e2e-secret-key";
 const BACKEND_PORT = 8100;
 
@@ -32,7 +31,6 @@ export default defineConfig({
       timeout: 30000,
       env: {
         ...process.env,
-        PANEL_TOKEN,
         SECRET_KEY,
         DISCORD_TOKEN: "",
         HOST: "127.0.0.1",

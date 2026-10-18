@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import hmac
 from typing import Any
 
 from quart import Blueprint, Response, jsonify, request, session
 from quart_schema import document_request, document_response, validate_response
 
-from src.config import Settings
 from src.harpi_lib.audio.session import LOOP_MODE_ALIASES
 from src.panel import actions, state
 from src.panel.schemas import (
@@ -21,7 +19,6 @@ from src.panel.schemas import (
     SearchRequest,
     SearchResults,
     SeekRequest,
-    SessionRequest,
     StatusSnapshot,
     UrlRequest,
     VolumeRequest,
@@ -55,27 +52,6 @@ def _live_guild_id() -> int | None:
     if guild_id is None or not state.session_exists(guild_id):
         return None
     return guild_id
-
-
-def _token_matches(candidate: Any) -> bool:
-    configured = Settings.from_env().panel_token
-    if not configured or not isinstance(candidate, str):
-        return False
-    return hmac.compare_digest(candidate, configured)
-
-
-@bp.post("/api/session")
-@document_request(SessionRequest)
-@document_response(ErrorEnvelope, 401)
-@validate_response(Authenticated, 200)
-async def create_session() -> Any:
-    payload = await request.get_json(silent=True)
-    token = payload.get("token") if isinstance(payload, dict) else None
-    if not _token_matches(token):
-        return error_response("unauthorized", "Invalid panel token", 401)
-    session.permanent = True
-    session["authenticated"] = True
-    return {"authenticated": True}
 
 
 @bp.get("/api/session")

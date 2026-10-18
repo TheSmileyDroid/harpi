@@ -146,10 +146,6 @@ class ConnectRequest(BaseModel):
     channel_id: SnowflakeInput = None
 
 
-class SessionRequest(BaseModel):
-    token: TextInput = None
-
-
 class SearchRequest(BaseModel):
     term: TextInput = None
 

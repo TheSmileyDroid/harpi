@@ -11,7 +11,6 @@ import {
   SearchRequest,
   SearchResults,
   SeekRequest,
-  SessionRequest,
   StatusSnapshot,
   UrlRequest,
   VolumeRequest,
@@ -147,15 +146,12 @@ export function createApiClient({
   }
 
   return {
-    signIn(token: string) {
-      return request("/api/session", Authenticated, {
-        method: "POST",
-        requestSchema: SessionRequest,
-        body: { token },
-      });
-    },
+    loginUrl: "/api/auth/discord",
     checkSession() {
       return request("/api/session", Authenticated, { silent: true });
+    },
+    logout() {
+      return request("/api/logout", Authenticated, { method: "POST" });
     },
     status() {
       return request("/api/status", StatusSnapshot);

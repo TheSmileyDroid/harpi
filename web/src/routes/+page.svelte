@@ -9,6 +9,14 @@
   import SignIn from "$lib/components/SignIn.svelte";
   import StatusSurface from "$lib/components/StatusSurface.svelte";
 
+  const AUTH_MESSAGES: Record<string, string> = {
+    unconfigured: "Discord sign-in is not configured on this server",
+    cancelled: "Discord sign-in was cancelled",
+    denied: "That Discord account shares no server with Harpi",
+    unavailable: "Harpi could not verify your servers right now",
+    failed: "Discord sign-in failed",
+  };
+
   let phase = $state<"checking" | "signed-out" | "signed-in">("checking");
   let link = $state("connecting");
   let stream: { start(): void; stop(): void } | null = null;
@@ -28,6 +36,14 @@
     stream?.stop();
     phase = "signed-out";
     return true;
+  }
+
+  function reportAuthResult() {
+    const reason = new URLSearchParams(location.search).get("auth");
+    if (!reason) return;
+    history.replaceState(null, "", location.pathname);
+    const message = AUTH_MESSAGES[reason];
+    if (message) errorRegion.report({ code: reason, message });
   }
 
   function handleEvent(event: SseFrame) {
@@ -73,19 +89,21 @@
     return true;
   }
 
-  async function signIn(token: string) {
-    await api.signIn(token);
+  async function signOut() {
+    stream?.stop();
+    stream = null;
+    await api.logout().catch(() => null);
+    appStore.reset();
     errorRegion.clear();
-    phase = "signed-in";
-    toasts.push("Signed in");
-    await loadStatus();
-    startStream();
+    phase = "signed-out";
+    toasts.push("Signed out");
   }
 
   async function boot() {
     try {
       await api.checkSession();
     } catch {
+      reportAuthResult();
       phase = "signed-out";
       return;
     }
@@ -111,9 +129,15 @@
     <span>Linking…</span>
   </main>
 {:else if phase === "signed-out"}
-  <SignIn onsignin={signIn} />
+  <SignIn loginUrl={api.loginUrl} />
 {:else}
-  <StatusSurface {link} onrefresh={loadStatus} onresync={resync} {api} />
+  <StatusSurface
+    {link}
+    onrefresh={loadStatus}
+    onresync={resync}
+    onsignout={signOut}
+    {api}
+  />
 {/if}
 
 <style>

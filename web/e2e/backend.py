@@ -213,6 +213,15 @@ async def ping():
     return {"ok": True}
 
 
+@quart_app.post("/__test__/login")
+async def login():
+    session.permanent = True
+    session["authenticated"] = True
+    session["user_id"] = "555"
+    session["username"] = "harness"
+    return {"ok": True}
+
+
 @quart_app.post("/__test__/track")
 async def set_track():
     payload = await request.get_json()

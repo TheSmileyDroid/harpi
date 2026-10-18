@@ -880,6 +880,7 @@ name = "harpi"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "aiohttp" },
     { name = "cryptography" },
     { name = "discord-py", extra = ["voice"] },
     { name = "gtts" },
@@ -919,6 +920,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiohttp", specifier = ">=3.11" },
     { name = "cryptography", specifier = ">=45.0.3" },
     { name = "discord-py", extras = ["voice"], specifier = ">=2.5.2" },
     { name = "gtts", specifier = ">=2.5.4" },

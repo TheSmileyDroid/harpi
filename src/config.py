@@ -20,6 +20,9 @@ def _env_flag(name: str) -> bool:
     return os.getenv(name, "").lower() in ("1", "true", "yes")
 
 
+DEFAULT_REDIRECT_URI = "http://localhost:8000/api/auth/discord/callback"
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     discord_token: str | None
@@ -28,7 +31,8 @@ class Settings:
     port: int
     reload: bool
     secret_key: str | None
-    panel_token: str | None = None
+    discord_client_id: str | None = None
+    discord_redirect_uri: str = DEFAULT_REDIRECT_URI
     ytdl_debug: bool = False
     js_runtime_dirs: str = ""
 
@@ -41,7 +45,10 @@ class Settings:
             port=_port_from_env(),
             reload=_env_flag("RELOAD"),
             secret_key=os.environ.get("SECRET_KEY"),
-            panel_token=os.getenv("PANEL_TOKEN"),
+            discord_client_id=os.getenv("DISCORD_CLIENT_ID"),
+            discord_redirect_uri=(
+                os.getenv("DISCORD_REDIRECT_URI") or DEFAULT_REDIRECT_URI
+            ),
             ytdl_debug=_env_flag("HARPI_YTDL_DEBUG"),
             js_runtime_dirs=os.getenv("HARPI_JS_RUNTIME_DIRS") or "",
         )

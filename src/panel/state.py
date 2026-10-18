@@ -66,6 +66,15 @@ async def list_guilds() -> list[GuildModel]:
     return [serialization.guild_data(guild) for guild in guilds]
 
 
+async def _collect_guild_ids(bot: HarpiBot) -> set[int]:
+    return {guild.id async for guild in bot.fetch_guilds(limit=None)}
+
+
+async def bot_guild_ids() -> set[int]:
+    """Every guild the bot is in, fetched so no guild count is capped."""
+    return await run_on_bot_loop(_collect_guild_ids(get_bot()))
+
+
 def list_voice_channels(guild_id: int) -> list[Channel]:
     guild = get_bot().get_guild(guild_id)
     if guild is None:

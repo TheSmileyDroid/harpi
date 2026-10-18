@@ -14,11 +14,13 @@
     link,
     onrefresh,
     onresync,
+    onsignout,
     api,
   }: {
     link: string;
     onrefresh: () => Promise<boolean>;
     onresync: () => Promise<void>;
+    onsignout: () => Promise<void>;
     api: ApiClient;
   } = $props();
 
@@ -111,6 +113,14 @@
       data-testid="open-search"
     >
       Search <span class="topbar__kbd">{kbdLabel}</span>
+    </button>
+    <button
+      type="button"
+      class="hud-btn topbar__signout"
+      onclick={() => void onsignout()}
+      data-testid="sign-out"
+    >
+      Sign out
     </button>
   </header>
 

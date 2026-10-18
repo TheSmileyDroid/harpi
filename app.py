@@ -11,6 +11,10 @@ from werkzeug.exceptions import HTTPException
 
 from pages.api import bp as api_bp
 from pages.api import error_response
+from pages.auth import CALLBACK_PATH as AUTH_CALLBACK_PATH
+from pages.auth import LOGIN_PATH as AUTH_LOGIN_PATH
+from pages.auth import LOGOUT_PATH as AUTH_LOGOUT_PATH
+from pages.auth import bp as auth_bp
 from pages.contract import ContractOpenAPIProvider
 from pages.events import bp as events_bp
 
@@ -35,7 +39,9 @@ app.url_map.merge_slashes = False
 QuartSchema(app, openapi_provider_class=ContractOpenAPIProvider)
 
 PUBLIC_API_ROUTES: frozenset[tuple[str, str]] = frozenset({
-    ("POST", "/api/session"),
+    ("GET", AUTH_LOGIN_PATH),
+    ("GET", AUTH_CALLBACK_PATH),
+    ("POST", AUTH_LOGOUT_PATH),
 })
 
 API_ERROR_CODES: dict[int, str] = {
@@ -83,6 +89,7 @@ async def panel_asset(filename: str) -> Response:
 
 app.register_blueprint(events_bp)
 app.register_blueprint(api_bp)
+app.register_blueprint(auth_bp)
 
 
 @app.before_serving

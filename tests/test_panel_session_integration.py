@@ -35,7 +35,6 @@ from tests.test_session import SeekSourceFactory
 GUILD_ID = 1
 CHANNEL_ID = 42
 SEARCH_TERM = "warriors"
-PANEL_TOKEN = "test-panel-token"
 
 
 class PanelGuild(FakeGuild):
@@ -100,7 +99,6 @@ class StageSourceFactory:
 @pytest.fixture
 def bot(monkeypatch: pytest.MonkeyPatch) -> PanelBot:
     """A panel bot whose yt-dlp seam is faked in the session and the API."""
-    monkeypatch.setenv("PANEL_TOKEN", PANEL_TOKEN)
     monkeypatch.setattr(session_module, "YTMusicData", FakeMusicDataFactory)
     monkeypatch.setattr(session_module, "YoutubeDLSource", StageSourceFactory)
     monkeypatch.setattr(
@@ -123,8 +121,8 @@ def client(bot: PanelBot, monkeypatch: pytest.MonkeyPatch):
 
 
 async def _login(client):
-    response = await client.post("/api/session", json={"token": PANEL_TOKEN})
-    assert response.status_code == 200
+    async with client.session_transaction() as stored:
+        stored["authenticated"] = True
 
 
 async def _connect(client) -> PanelBot:

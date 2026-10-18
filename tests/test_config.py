@@ -19,12 +19,37 @@ def test_host_honors_the_environment(monkeypatch: pytest.MonkeyPatch):
     assert Settings.from_env().host == "0.0.0.0"
 
 
-def test_panel_token_comes_from_the_environment(
+def test_discord_client_id_comes_from_the_environment(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    monkeypatch.setenv("PANEL_TOKEN", "panel-secret")
+    monkeypatch.setenv("DISCORD_CLIENT_ID", "891732797054681119")
 
-    assert Settings.from_env().panel_token == "panel-secret"
+    assert Settings.from_env().discord_client_id == "891732797054681119"
+
+
+def test_discord_redirect_uri_defaults_to_localhost(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.delenv("DISCORD_REDIRECT_URI", raising=False)
+
+    assert (
+        Settings.from_env().discord_redirect_uri
+        == "http://localhost:8000/api/auth/discord/callback"
+    )
+
+
+def test_discord_redirect_uri_honors_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv(
+        "DISCORD_REDIRECT_URI",
+        "https://panel.example/api/auth/discord/callback",
+    )
+
+    assert (
+        Settings.from_env().discord_redirect_uri
+        == "https://panel.example/api/auth/discord/callback"
+    )
 
 
 def test_js_runtime_dirs_come_from_the_environment(

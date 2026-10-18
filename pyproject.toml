@@ -4,6 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.13"
 authors = [{ name = "TheSmileyDroid", email = "ghsilha@gmail.com" }]
 dependencies = [
+    "aiohttp>=3.11",
     "cryptography>=45.0.3",
     "discord.py[voice]>=2.5.2",
     "gtts>=2.5.4",
