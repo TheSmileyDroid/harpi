@@ -89,6 +89,30 @@ class Connection(_Response):
     channel_id: Snowflake | None
 
 
+class Viewer(_Response):
+    user_id: Snowflake
+    username: str
+    display_name: str | None
+    channel_id: Snowflake | None
+    channel_name: str | None
+    seen_at: int
+
+
+class ConnectionEvent(_Response):
+    action: str
+    channel_id: Snowflake | None
+    channel_name: str | None
+    actor_id: Snowflake | None
+    actor_name: str | None
+    at: int
+
+
+class Presence(_Response):
+    guild_id: Snowflake | None
+    viewers: list[Viewer]
+    last_connection: ConnectionEvent | None
+
+
 class StatusSnapshot(_Response):
     bot: BotStatus
     guild_id: Snowflake | None
@@ -135,7 +159,7 @@ class ReloadEvent(_Response):
     scope: str
 
 
-class SseEnvelope(RootModel[StatusSnapshot | ReloadEvent]):
+class SseEnvelope(RootModel[StatusSnapshot | ReloadEvent | Presence]):
     """Frames emitted by GET /api/events; the event name travels out of band."""
 
     __sse__ = True
@@ -178,4 +202,5 @@ class LayerVolumeRequest(BaseModel):
 SSE_EVENTS: dict[str, type[BaseModel]] = {
     "status": StatusSnapshot,
     "reload": ReloadEvent,
+    "presence": Presence,
 }

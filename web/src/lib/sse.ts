@@ -1,16 +1,18 @@
 import { ApiError } from "./api";
-import { ReloadEvent, StatusSnapshot } from "./contract/panel.gen";
+import { Presence, ReloadEvent, StatusSnapshot } from "./contract/panel.gen";
 
 export const BASE_BACKOFF_MS = 1000;
 export const MAX_BACKOFF_MS = 30000;
 
 type StatusFrame = { type: "status"; data: StatusSnapshot };
 type ReloadFrame = { type: "reload"; data: ReloadEvent };
-export type SseFrame = StatusFrame | ReloadFrame;
+type PresenceFrame = { type: "presence"; data: Presence };
+export type SseFrame = StatusFrame | ReloadFrame | PresenceFrame;
 
 const SSE_SCHEMAS = {
   status: StatusSnapshot,
   reload: ReloadEvent,
+  presence: Presence,
 } as const;
 
 export type SseEventName = keyof typeof SSE_SCHEMAS;
@@ -104,6 +106,8 @@ export function createEventStream({
     source.addEventListener("status", (event) => dispatch("status", event));
 
     source.addEventListener("reload", (event) => dispatch("reload", event));
+
+    source.addEventListener("presence", (event) => dispatch("presence", event));
 
     source.addEventListener("error", () => {
       drop();

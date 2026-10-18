@@ -11,7 +11,14 @@ from src.panel.schemas import (
     Connection,
     Guild as GuildModel,
     PlaybackStatus,
+    Presence,
     StatusSnapshot,
+)
+from src.storage import get_registry
+from src.storage.registry import (
+    Actor,
+    ConnectionAction,
+    Place,
 )
 
 
@@ -82,6 +89,83 @@ def list_voice_channels(guild_id: int) -> list[Channel]:
     return [
         serialization.channel_data(channel) for channel in guild.voice_channels
     ]
+
+
+def place_of(guild_id: int, channel_id: int | None) -> Place | None:
+    guild = get_bot().get_guild(guild_id)
+    if guild is None:
+        return None
+    channel_name = next(
+        (
+            channel.name
+            for channel in guild.voice_channels
+            if channel.id == channel_id
+        ),
+        None,
+    )
+    return Place(
+        guild_id=str(guild_id),
+        guild_name=guild.name,
+        channel_id=None if channel_id is None else str(channel_id),
+        channel_name=channel_name,
+    )
+
+
+async def sign_in(actor: Actor) -> None:
+    registry = get_registry()
+    if registry is not None:
+        await registry.sign_in(actor)
+
+
+async def select(
+    actor: Actor | None, guild_id: int, channel_id: int | None
+) -> None:
+    registry = get_registry()
+    if registry is None or actor is None:
+        return
+    place = place_of(guild_id, channel_id)
+    if place is not None:
+        await registry.select(actor, place)
+
+
+async def record_connection(
+    actor: Actor | None,
+    guild_id: int,
+    channel_id: int | None,
+    action: ConnectionAction,
+) -> None:
+    registry = get_registry()
+    if registry is None:
+        return
+    place = place_of(guild_id, channel_id)
+    if place is not None:
+        await registry.record_connection(actor, place, action)
+
+
+async def leave(user_id: str) -> None:
+    registry = get_registry()
+    if registry is not None:
+        await registry.leave(user_id)
+
+
+async def presence(guild_id: int | None, actor: Actor | None) -> Presence:
+    registry = get_registry()
+    if registry is None:
+        return Presence(
+            guild_id=serialization.optional_snowflake(guild_id),
+            viewers=[],
+            last_connection=None,
+        )
+    resolved = resolve_guild_id(guild_id)
+    if resolved is None:
+        return Presence(guild_id=None, viewers=[], last_connection=None)
+    if actor is not None:
+        place = place_of(resolved, None)
+        if place is not None:
+            await registry.touch(actor, place)
+    viewers = await registry.viewers(str(resolved))
+    last = await registry.last_connection(str(resolved))
+    return serialization.presence_data(resolved, viewers, last)
 
 
 async def guild_status(guild_id: int | None) -> PlaybackStatus | None:

@@ -2,7 +2,7 @@
 
 ## One process, two event loops
 
-Quart and discord.py share one process and two event loops. The panel is a Svelte single-page app served as static assets by Quart, which exposes a session-guarded JSON API and an SSE status stream. API handlers in `pages/` resolve the guild's `PlaybackSession` and cross the loop boundary through `run_on_bot_loop` — never call a bot-loop coroutine directly from panel code. Music enters as a yt-dlp search, gets a stream picked and probed for playability, decodes through FFmpeg, and mixes with any layers into the voice client. `src/config.py` is the only place that reads the environment.
+Quart and discord.py share one process and two event loops. The panel is a Svelte single-page app served as static assets by Quart, which exposes a session-guarded JSON API and an SSE status stream. API handlers in `pages/` resolve the guild's `PlaybackSession` and cross the loop boundary through `run_on_bot_loop` — never call a bot-loop coroutine directly from panel code. Music enters as a yt-dlp search, gets a stream picked and probed for playability, decodes through FFmpeg, and mixes with any layers into the voice client. One SQLite file behind `src/storage/` holds the panel registry: each viewer's selection and heartbeat, and the connect/disconnect events. `src/config.py` is the only place that reads the environment.
 
 ## Glossary
 
@@ -18,6 +18,7 @@ Quart and discord.py share one process and two event loops. The panel is a Svelt
 - `src/cogs/` - Discord commands. Thin handlers over session methods.
 - `src/harpi_lib/` - domain logic: `audio/` (session, mixer, sources), `music/` (yt-dlp, probing, ffmpeg), `math/` (dice parser). No discord.ui or Quart imports.
 - `src/panel/` - the domain seam the API and the bot share: `state`, `actions`, `serialization`, and `schemas` (the Pydantic wire models that are the panel contract, ADR 0004).
+- `src/storage/` - the panel registry: SQLite database, ordered migrations, and the `Registry` seam (ADR 0008).
 - `src/bot_state.py` - the running-bot handle and the loop bridge.
 - `src/config.py` - `Settings`, sole owner of `os.getenv`.
 - `pages/` - web blueprints: the JSON API and the SSE stream.

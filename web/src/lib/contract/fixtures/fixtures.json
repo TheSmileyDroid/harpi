@@ -24,6 +24,27 @@
       }
     ]
   },
+  "Presence": {
+    "guild_id": "7",
+    "last_connection": {
+      "action": "connect",
+      "actor_id": "555",
+      "actor_name": "Harpi",
+      "at": 1700000000,
+      "channel_id": "42",
+      "channel_name": "Voice"
+    },
+    "viewers": [
+      {
+        "channel_id": "42",
+        "channel_name": "Voice",
+        "display_name": "Harpi",
+        "seen_at": 1700000000,
+        "user_id": "555",
+        "username": "harpi-user"
+      }
+    ]
+  },
   "ReloadEvent": {
     "scope": "shell"
   },

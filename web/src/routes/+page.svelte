@@ -47,11 +47,11 @@
   }
 
   function handleEvent(event: SseFrame) {
-    if (event.type === "status") {
-      appStore.applyStatus(event.data);
-    } else if (event.type === "reload") {
+    if (event.type === "reload") {
       location.reload();
+      return;
     }
+    appStore.applySse(event);
   }
 
   async function handleConnectionChange(state: string) {

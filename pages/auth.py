@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from loguru import logger
 from quart import Blueprint, redirect, request, session
 from quart_schema import validate_response
 
@@ -9,6 +10,7 @@ from src import discord_oauth
 from src.config import Settings
 from src.panel import state
 from src.panel.schemas import Authenticated
+from src.storage.registry import Actor
 
 bp = Blueprint("auth", __name__)
 
@@ -92,15 +94,43 @@ async def discord_callback():
         return redirect(_back_to_panel("unavailable"))
     if user is None:
         return redirect(_back_to_panel("denied"))
+    await _establish_session(user)
+    return redirect(_back_to_panel())
+
+
+async def _establish_session(user: dict[str, Any]) -> None:
+    user_id = str(user.get("id"))
+    username = str(user.get("username") or user_id)
+    display_name = user.get("global_name")
     session.permanent = True
     session["authenticated"] = True
-    session["user_id"] = str(user.get("id"))
-    session["username"] = user.get("global_name") or user.get("username")
-    return redirect(_back_to_panel())
+    session["user_id"] = user_id
+    session["username"] = username
+    session["display_name"] = display_name or ""
+    try:
+        await state.sign_in(
+            Actor(
+                id=user_id,
+                username=username,
+                display_name=display_name,
+            )
+        )
+    except Exception:
+        logger.opt(exception=True).error(
+            "Could not record panel sign-in in storage"
+        )
 
 
 @bp.post(LOGOUT_PATH)
 @validate_response(Authenticated, 200)
-def logout():
+async def logout():
+    user_id = session.get("user_id")
+    if user_id:
+        try:
+            await state.leave(str(user_id))
+        except Exception:
+            logger.opt(exception=True).error(
+                "Could not clear panel presence in storage"
+            )
     session.clear()
     return {"authenticated": False}

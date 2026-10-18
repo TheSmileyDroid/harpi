@@ -25,6 +25,9 @@ from src import bot_state as deps
 from src.harpi_lib.audio.session import LayerInfo, LoopMode
 from src.harpi_lib.harpi_bot import HarpiBot
 from src.harpi_lib.music.ytmusic import YTMusicData
+from src.storage import clear_registry, init_registry
+from src.storage.database import Database
+from src.storage.registry import SqliteRegistry
 from tests.fakes import (
     GUILD_A,
     GUILD_B,
@@ -151,9 +154,22 @@ def client(bot: ApiBot, monkeypatch: pytest.MonkeyPatch):
     deps._bot_ref = None
 
 
+@pytest.fixture
+async def storage(tmp_path):
+    database = Database(tmp_path / "panel.db")
+    await database.open()
+    registry = SqliteRegistry(database)
+    init_registry(registry)
+    yield registry
+    clear_registry()
+    await database.close()
+
+
 async def _login(client):
     async with client.session_transaction() as stored:
         stored["authenticated"] = True
+        stored["user_id"] = "555"
+        stored["username"] = "panel-user"
 
 
 async def _refresh_current_music(bot: ApiBot, title: str) -> None:
@@ -199,6 +215,17 @@ async def _read_status_frame(http: httpx.AsyncClient) -> dict[str, Any]:
         return json.loads(data.removeprefix("data: "))
 
 
+async def _read_presence_frame(http: httpx.AsyncClient) -> dict[str, Any]:
+    async with http.stream("GET", "/api/events") as response:
+        assert response.status_code == 200
+        lines = response.aiter_lines()
+        while True:
+            line = await anext(lines)
+            if line == "event: presence":
+                data = await anext(lines)
+                return json.loads(data.removeprefix("data: "))
+
+
 async def test_session_probe_rejects_an_anonymous_call(client):
     response = await client.get("/api/session")
 
@@ -224,6 +251,12 @@ async def test_guarded_mutations_reject_anonymous_calls(client, path: str):
     assert response.status_code == 401
     body = json.loads(await response.get_data())
     assert body["error"]["code"] == "unauthorized"
+
+
+async def test_selection_rejects_anonymous_calls(client):
+    response = await client.post("/api/selection", json={})
+
+    assert response.status_code == 401
 
 
 @pytest.mark.parametrize(
@@ -599,6 +632,78 @@ async def test_connect_answers_with_the_same_truth_as_status(
     )
 
 
+async def test_selection_persists_the_guild_and_channel(client, storage):
+    await _login(client)
+
+    response = await client.post(
+        "/api/selection",
+        json={"guild_id": str(GUILD_A), "channel_id": str(GUILD_A * 10)},
+    )
+
+    assert response.status_code == 200
+    body = json.loads(await response.get_data())
+    assert body["guild_id"] == str(GUILD_A)
+    viewers = await storage.viewers(str(GUILD_A))
+    assert [viewer.user_id for viewer in viewers] == ["555"]
+    assert viewers[0].channel_id == str(GUILD_A * 10)
+    assert viewers[0].channel_name == f"Channel {GUILD_A}"
+    async with client.session_transaction() as stored:
+        assert stored["guild_id"] == str(GUILD_A)
+
+
+async def test_selection_clears_the_guild(client, storage):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post("/api/selection", json={})
+
+    assert response.status_code == 200
+    body = json.loads(await response.get_data())
+    assert body["guild_id"] is None
+    assert await storage.viewers(str(GUILD_A)) == []
+    async with client.session_transaction() as stored:
+        assert "guild_id" not in stored
+
+
+async def test_selection_rejects_an_unshared_guild(client, storage):
+    await _login(client)
+
+    response = await client.post("/api/selection", json={"guild_id": "99999"})
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+
+
+async def test_selection_rejects_a_channel_outside_the_guild(client, storage):
+    await _login(client)
+
+    response = await client.post(
+        "/api/selection",
+        json={"guild_id": str(GUILD_A), "channel_id": "11"},
+    )
+
+    assert response.status_code == 404
+
+
+async def test_connect_records_the_connection_event(client, storage):
+    await _login(client)
+
+    response = await client.post(
+        "/api/connect",
+        json={"guild_id": str(GUILD_A), "channel_id": str(GUILD_A * 10)},
+    )
+
+    assert response.status_code == 200
+    last = await storage.last_connection(str(GUILD_A))
+    assert last is not None
+    assert last.action == "connect"
+    assert last.actor_name == "panel-user"
+    assert last.channel_name == f"Channel {GUILD_A}"
+    viewers = await storage.viewers(str(GUILD_A))
+    assert viewers[0].channel_id == str(GUILD_A * 10)
+
+
 async def test_disconnect_answers_with_the_same_truth_as_status(
     client, bot: ApiBot
 ):
@@ -614,6 +719,20 @@ async def test_disconnect_answers_with_the_same_truth_as_status(
     assert json.loads(await response.get_data()) == json.loads(
         await status.get_data()
     )
+
+
+async def test_disconnect_records_the_release(client, bot: ApiBot, storage):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post("/api/disconnect")
+
+    assert response.status_code == 200
+    last = await storage.last_connection(str(GUILD_A))
+    assert last is not None
+    assert last.action == "disconnect"
+    assert last.actor_name == "panel-user"
+    assert last.channel_id == str(CHANNEL_ID)
 
 
 async def test_disconnect_without_a_selection_is_idempotent(
@@ -883,6 +1002,31 @@ async def test_sse_stream_reports_and_resyncs_status(client, bot: ApiBot):
 
         assert second["playback"]["current_music"]["title"] == "Next Track"
         assert second["playback"]["queue"] == []
+
+
+async def test_sse_stream_emits_the_roster(client, bot: ApiBot, storage):
+    await _login(client)
+    await _select_guild(client)
+    await client.post(
+        "/api/connect",
+        json={"guild_id": str(GUILD_A), "channel_id": str(GUILD_A * 10)},
+    )
+    cookie = next(c for c in client.cookie_jar if c.name == "session").value
+
+    async with (
+        _running_app(quart_app) as port,
+        httpx.AsyncClient(
+            base_url=f"http://127.0.0.1:{port}",
+            cookies={"session": cookie},
+        ) as http,
+    ):
+        presence = await _read_presence_frame(http)
+
+    assert presence["guild_id"] == str(GUILD_A)
+    assert [viewer["user_id"] for viewer in presence["viewers"]] == ["555"]
+    assert presence["viewers"][0]["username"] == "panel-user"
+    assert presence["last_connection"]["action"] == "connect"
+    assert presence["last_connection"]["actor_name"] == "panel-user"
 
 
 TRANSPORT_CALLS: list[tuple[str, dict[str, Any], Any]] = [

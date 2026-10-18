@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDuration, formatVolume } from "./format";
+import { formatDuration, formatSeen, formatVolume } from "./format";
 
 describe("formatDuration", () => {
   it("formats minutes and seconds", () => {
@@ -33,5 +33,23 @@ describe("formatVolume", () => {
     expect(formatVolume(null)).toBe("0%");
     expect(formatVolume(undefined)).toBe("0%");
     expect(formatVolume(NaN)).toBe("0%");
+  });
+});
+
+describe("formatSeen", () => {
+  const now = 1_700_000_060_000;
+
+  it("marks a fresh heartbeat as now", () => {
+    expect(formatSeen(1_700_000_055, now)).toBe("now");
+  });
+
+  it("counts seconds and minutes since the last heartbeat", () => {
+    expect(formatSeen(1_700_000_020, now)).toBe("40s ago");
+    expect(formatSeen(1_699_999_800, now)).toBe("4m ago");
+  });
+
+  it("falls back for a missing timestamp", () => {
+    expect(formatSeen(null, now)).toBe("unknown");
+    expect(formatSeen(0, now)).toBe("unknown");
   });
 });

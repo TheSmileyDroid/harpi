@@ -23,6 +23,7 @@ from src.panel.schemas import (
     UrlRequest,
     VolumeRequest,
 )
+from src.storage.registry import Actor
 
 bp = Blueprint("api", __name__)
 
@@ -47,11 +48,28 @@ def current_guild_id() -> int | None:
         return None
 
 
+def current_actor() -> Actor | None:
+    user_id = session.get("user_id")
+    username = session.get("username")
+    if not user_id or not username:
+        return None
+    display_name = session.get("display_name")
+    return Actor(
+        id=str(user_id),
+        username=str(username),
+        display_name=str(display_name) if display_name else None,
+    )
+
+
 def _live_guild_id() -> int | None:
     guild_id = state.resolve_guild_id(current_guild_id())
     if guild_id is None or not state.session_exists(guild_id):
         return None
     return guild_id
+
+
+def _channel_ids(guild_id: int) -> set[str]:
+    return {channel.id for channel in state.list_voice_channels(guild_id)}
 
 
 @bp.get("/api/session")
@@ -90,13 +108,39 @@ async def connect_voice() -> Any:
     if data.guild_id is None or not state.guild_visible(int(data.guild_id)):
         return error_response("not_found", "Guild not found", 404)
     guild_id = int(data.guild_id)
-    channel_ids = {
-        channel.id for channel in state.list_voice_channels(guild_id)
-    }
+    channel_ids = _channel_ids(guild_id)
     if data.channel_id is None or data.channel_id not in channel_ids:
         return error_response("not_found", "Channel not found", 404)
-    await actions.connect(guild_id, int(data.channel_id))
+    channel_id = int(data.channel_id)
+    actor = current_actor()
+    await actions.connect(guild_id, channel_id)
+    await state.select(actor, guild_id, channel_id)
+    await state.record_connection(actor, guild_id, channel_id, "connect")
     session["guild_id"] = str(guild_id)
+    return await state.status_snapshot(guild_id)
+
+
+@bp.post("/api/selection")
+@document_request(ConnectRequest)
+@document_response(ErrorEnvelope, 404)
+@validate_response(StatusSnapshot, 200)
+async def save_selection() -> Any:
+    data = _parse(ConnectRequest, await request.get_json(silent=True))
+    actor = current_actor()
+    if data.guild_id is None:
+        session.pop("guild_id", None)
+        if actor is not None:
+            await state.leave(actor.id)
+        return await state.status_snapshot(None)
+    guild_id = int(data.guild_id)
+    if not state.guild_visible(guild_id):
+        return error_response("not_found", "Guild not found", 404)
+    channel_ids = _channel_ids(guild_id)
+    if data.channel_id is not None and data.channel_id not in channel_ids:
+        return error_response("not_found", "Channel not found", 404)
+    channel_id = int(data.channel_id) if data.channel_id else None
+    session["guild_id"] = str(guild_id)
+    await state.select(actor, guild_id, channel_id)
     return await state.status_snapshot(guild_id)
 
 
@@ -108,7 +152,16 @@ async def disconnect_voice() -> Any:
     if target is not None and (
         state.session_exists(target) or state.voice_active(target)
     ):
+        before = await state.status_snapshot(target)
+        channel_id = (
+            int(before.connection.channel_id)
+            if before.connection.channel_id is not None
+            else None
+        )
         await actions.disconnect(target)
+        await state.record_connection(
+            current_actor(), target, channel_id, "disconnect"
+        )
     return await state.status_snapshot(guild_id)
 
 

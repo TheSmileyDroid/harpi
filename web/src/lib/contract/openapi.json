@@ -121,6 +121,73 @@
         "title": "Connection",
         "type": "object"
       },
+      "ConnectionEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          },
+          "actor_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Name"
+          },
+          "at": {
+            "title": "At",
+            "type": "integer"
+          },
+          "channel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel Id"
+          },
+          "channel_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel Name"
+          }
+        },
+        "required": [
+          "action",
+          "channel_id",
+          "channel_name",
+          "actor_id",
+          "actor_name",
+          "at"
+        ],
+        "title": "ConnectionEvent",
+        "type": "object"
+      },
       "ErrorDetail": {
         "additionalProperties": false,
         "properties": {
@@ -379,6 +446,46 @@
         "title": "PlaybackStatus",
         "type": "object"
       },
+      "Presence": {
+        "additionalProperties": false,
+        "properties": {
+          "guild_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guild Id"
+          },
+          "last_connection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConnectionEvent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "viewers": {
+            "items": {
+              "$ref": "#/components/schemas/Viewer"
+            },
+            "title": "Viewers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "guild_id",
+          "viewers",
+          "last_connection"
+        ],
+        "title": "Presence",
+        "type": "object"
+      },
       "ReloadEvent": {
         "additionalProperties": false,
         "properties": {
@@ -453,6 +560,9 @@
           },
           {
             "$ref": "#/components/schemas/ReloadEvent"
+          },
+          {
+            "$ref": "#/components/schemas/Presence"
           }
         ],
         "description": "Frames emitted by GET /api/events; the event name travels out of band.",
@@ -548,6 +658,66 @@
           }
         },
         "title": "UrlRequest",
+        "type": "object"
+      },
+      "Viewer": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel Id"
+          },
+          "channel_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel Name"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "seen_at": {
+            "title": "Seen At",
+            "type": "integer"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "username",
+          "display_name",
+          "channel_id",
+          "channel_name",
+          "seen_at"
+        ],
+        "title": "Viewer",
         "type": "object"
       },
       "VolumeRequest": {
@@ -1198,6 +1368,43 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SearchResults"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/selection": {
+      "post": {
+        "operationId": "post_save_selection",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusSnapshot"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             },

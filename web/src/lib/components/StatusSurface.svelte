@@ -8,6 +8,7 @@
   import SearchPanel from "./SearchPanel.svelte";
   import QueuePanel from "./QueuePanel.svelte";
   import LayersPanel from "./LayersPanel.svelte";
+  import ConnectedPanel from "./ConnectedPanel.svelte";
   import TransportBar from "./TransportBar.svelte";
 
   let {
@@ -218,6 +219,7 @@
         </button>
       </div>
     </section>
+    <ConnectedPanel />
   </section>
 
   <TransportBar {api} />

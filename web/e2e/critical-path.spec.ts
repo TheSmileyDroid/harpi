@@ -40,8 +40,12 @@ test("sign in with Discord, then a pushed status change lands without a reload",
   await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
   await expect(page.getByTestId("link-state")).toHaveText("LINK LIVE");
   await expect(page.getByTestId("guild-id")).toContainText("Alpha Guild");
-  await expect(page.getByTestId("connection")).toHaveText("Linked to 42");
+  await expect(page.getByTestId("guild-id")).toContainText("Channel 1");
+  await expect(page.getByTestId("connection")).toHaveText(
+    "Linked to Channel 1",
+  );
   await expect(page.getByTestId("now-playing")).toHaveText("Now Track");
+  await expect(page.getByTestId("presence-panel")).toContainText("harness");
 
   await request.post(`${BACKEND}/__test__/track`, {
     data: { title: "Next Track" },
@@ -158,6 +162,10 @@ test("selects a shared guild, connects to a voice channel, then disconnects", as
   );
   await expect(page.getByTestId("toasts")).toContainText("Connected");
   await expect(page.getByTestId("guild-id")).toContainText("Beta Guild");
+  await expect(page.getByTestId("last-connection")).toContainText("linked");
+  await expect(page.getByTestId("last-connection")).toContainText(
+    GUILD_B_CHANNEL_NAME,
+  );
 
   await page.getByTestId("disconnect").click();
   await expect(page.getByTestId("disconnect-confirm")).toBeVisible();

@@ -16,3 +16,15 @@ export function formatVolume(gain: number | null | undefined): string {
   const clamped = Math.min(Math.max(value, 0), 1);
   return `${Math.round(clamped * 100)}%`;
 }
+
+export function formatSeen(
+  seconds: number | null | undefined,
+  nowMs = Date.now(),
+): string {
+  const stamp = Number(seconds);
+  if (!Number.isFinite(stamp) || stamp <= 0) return "unknown";
+  const age = Math.max(0, Math.floor(nowMs / 1000 - stamp));
+  if (age < 10) return "now";
+  if (age < 60) return `${age}s ago`;
+  return `${Math.floor(age / 60)}m ago`;
+}

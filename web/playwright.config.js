@@ -35,6 +35,7 @@ export default defineConfig({
         DISCORD_TOKEN: "",
         HOST: "127.0.0.1",
         PORT: String(BACKEND_PORT),
+        HARPI_DB_PATH: path.join(root, "data", "e2e.db"),
       },
     },
   ],

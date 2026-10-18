@@ -35,6 +35,12 @@ CONNECTED: Status = {
     "playback": None,
 }
 
+EMPTY_PRESENCE: Status = {
+    "guild_id": None,
+    "viewers": [],
+    "last_connection": None,
+}
+
 
 def test_events_route_is_registered():
     paths = {rule.rule for rule in quart_app.url_map.iter_rules()}
@@ -49,11 +55,15 @@ async def test_stream_opens_with_connected_then_a_status_snapshot(monkeypatch):
         events.state, "status_snapshot", _scripted([CONNECTED])
     )
 
-    stream = events._stream(None)
+    stream = events._stream(None, None)
     assert await anext(stream) == ": connected\n\n"
     frame = await anext(stream)
 
     assert frame == f"event: status\ndata: {json.dumps(CONNECTED)}\n\n"
+    presence = await anext(stream)
+    assert presence == (
+        f"event: presence\ndata: {json.dumps(EMPTY_PRESENCE)}\n\n"
+    )
     await stream.aclose()
 
 
@@ -65,10 +75,13 @@ async def test_stream_emits_status_when_the_snapshot_changes(monkeypatch):
         events.state, "status_snapshot", _scripted([CONNECTED, changed])
     )
 
-    stream = events._stream(None)
+    stream = events._stream(None, None)
     assert await anext(stream) == ": connected\n\n"
     assert await anext(stream) == (
         f"event: status\ndata: {json.dumps(CONNECTED)}\n\n"
+    )
+    assert await anext(stream) == (
+        f"event: presence\ndata: {json.dumps(EMPTY_PRESENCE)}\n\n"
     )
     frame = await anext(stream)
 
@@ -84,10 +97,13 @@ async def test_stream_emits_reload_when_shell_assets_move(monkeypatch):
         events.state, "status_snapshot", _scripted([CONNECTED])
     )
 
-    stream = events._stream(None)
+    stream = events._stream(None, None)
     assert await anext(stream) == ": connected\n\n"
     assert await anext(stream) == (
         f"event: status\ndata: {json.dumps(CONNECTED)}\n\n"
+    )
+    assert await anext(stream) == (
+        f"event: presence\ndata: {json.dumps(EMPTY_PRESENCE)}\n\n"
     )
     frame = await anext(stream)
 

@@ -5,6 +5,7 @@ import type {
   Connection,
   Guild,
   PlaybackStatus,
+  Presence,
   StatusSnapshot,
   Track,
 } from "./contract/panel.gen";
@@ -22,6 +23,7 @@ export interface AppState {
   bot: BotStatus;
   connection: Connection;
   playback: PlaybackStatus | null;
+  presence: Presence | null;
   guilds: Guild[];
   channels: Channel[];
   pendingGuildId: string | null;
@@ -44,6 +46,7 @@ function emptySearch(): SearchState {
 export function initialState(): AppState {
   return {
     ...noStatus,
+    presence: null,
     guilds: [],
     channels: [],
     pendingGuildId: null,
@@ -77,6 +80,9 @@ export function reduceStatus(
 export function reduceSse(state: AppState, frame: SseFrame): AppState {
   if (frame.type === "status") {
     return reduceStatus(state, frame.data);
+  }
+  if (frame.type === "presence") {
+    return { ...state, presence: frame.data };
   }
   return state;
 }

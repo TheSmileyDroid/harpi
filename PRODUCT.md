@@ -29,6 +29,7 @@ One process, one panel. Music, dice, TTS, and a Svelte control panel share one r
 ## Capabilities and Constraints
 
 - Features: music player (queue, layers, transport), dice roller, TTS using an external voice.
+- The panel shows who is linked to the selected guild, who made the last connect or disconnect, and follows a connection made by another member. A local SQLite registry (`src/storage/`, ADR 0008) persists it.
 - Single Python 3.13 process running two event loops (Quart + discord.py); panel actions cross the loop boundary through `run_on_bot_loop`.
 - Web surface is a Svelte SPA over a JSON API; `pages/` holds the Quart API blueprints that drive the domain seam in `src/panel/`.
 - Hard product rules: music does not die while playing; bot state explains itself (physically in a voice channel means connected to it); no error requires a bot restart, and the bot alerts when failing, never failing in silence.

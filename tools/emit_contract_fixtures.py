@@ -21,16 +21,19 @@ def build_fixtures() -> dict[str, object]:
         Channel,
         ChannelList,
         Connection,
+        ConnectionEvent,
         ErrorDetail,
         ErrorEnvelope,
         Guild,
         GuildList,
         Layer,
         PlaybackStatus,
+        Presence,
         ReloadEvent,
         SearchResults,
         StatusSnapshot,
         Track,
+        Viewer,
     )
 
     track = Track(
@@ -58,6 +61,27 @@ def build_fixtures() -> dict[str, object]:
         "GuildList": GuildList(guilds=[Guild(id="1", name="Alpha")]),
         "ReloadEvent": ReloadEvent(scope="shell"),
         "SearchResults": SearchResults(results=[track]),
+        "Presence": Presence(
+            guild_id="7",
+            viewers=[
+                Viewer(
+                    user_id="555",
+                    username="harpi-user",
+                    display_name="Harpi",
+                    channel_id="42",
+                    channel_name="Voice",
+                    seen_at=1700000000,
+                )
+            ],
+            last_connection=ConnectionEvent(
+                action="connect",
+                channel_id="42",
+                channel_name="Voice",
+                actor_id="555",
+                actor_name="Harpi",
+                at=1700000000,
+            ),
+        ),
         "StatusSnapshot": StatusSnapshot(
             bot=BotStatus(online=True),
             guild_id="7",

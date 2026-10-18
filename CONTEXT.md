@@ -64,6 +64,14 @@ _Avoid_: notification, alert (alert is red and means error)
 **Bot state**:
 The handle to the running bot (`src/bot_state.py`). The panel reads it, the bootstrap writes it. The bot never imports from the web layer.
 
+**Viewer**:
+A signed-in panel user with a selected guild and channel, refreshed by an SSE heartbeat. A viewer goes stale after 30 seconds without one.
+_Avoid_: user (the Discord account), session (that is playback)
+
+**Registry**:
+The SQLite store of viewers and connect/disconnect events (`src/storage/`, ADR 0008). The panel reads presence from it; the API records selections and connection events.
+_Avoid_: database (the file), cache, store (the Svelte store)
+
 **Cog**:
 A discord.py command module in `src/cogs/`. Commands stay thin: parse, delegate, format.
 
