@@ -262,7 +262,7 @@
 
   .logo-mark {
     display: block;
-    height: 2rem;
+    height: 38px;
     width: auto;
     image-rendering: pixelated;
   }
