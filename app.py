@@ -20,6 +20,9 @@ from pages.events import bp as events_bp
 
 from src.config import Settings
 from src.discord_bot import run_bot_in_background
+from src.storage import clear_registry, get_registry, init_registry
+from src.storage.database import Database
+from src.storage.registry import SqliteRegistry
 
 logger.remove()
 logger.add("spam.log", level="DEBUG")
@@ -91,14 +94,37 @@ app.register_blueprint(events_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(auth_bp)
 
+_database: Database | None = None
+
 
 @app.before_serving
-def startup():
+async def startup():
+    global _database
+    settings = Settings.from_env()
+    if get_registry() is None:
+        try:
+            _database = Database(settings.db_path)
+            await _database.open()
+            init_registry(SqliteRegistry(_database))
+            logger.info(f"Panel storage ready at {settings.db_path}")
+        except Exception as e:
+            _database = None
+            logger.opt(exception=True).error(f"Panel storage unavailable: {e}")
     try:
-        run_bot_in_background(Settings.from_env())
+        run_bot_in_background(settings)
         logger.info("Discord bot initialization started")
     except Exception as e:
         logger.opt(exception=True).error(f"Failed to start Discord bot: {e}")
+
+
+@app.after_serving
+async def shutdown():
+    global _database
+    database = _database
+    _database = None
+    clear_registry()
+    if database is not None:
+        await database.close()
 
 
 asgi_app = app

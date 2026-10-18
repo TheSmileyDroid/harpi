@@ -169,6 +169,14 @@ export function createApiClient({
         body: { guild_id: guildId, channel_id: channelId },
       });
     },
+    select(guildId: string | null, channelId: string | null, silent = false) {
+      return request("/api/selection", StatusSnapshot, {
+        method: "POST",
+        requestSchema: ConnectRequest,
+        body: { guild_id: guildId, channel_id: channelId },
+        silent,
+      });
+    },
     disconnect() {
       return request("/api/disconnect", StatusSnapshot, { method: "POST" });
     },

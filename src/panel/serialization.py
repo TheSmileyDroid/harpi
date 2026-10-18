@@ -6,11 +6,15 @@ from src.harpi_lib.audio.session import LayerInfo, SessionStatus
 from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel.schemas import (
     Channel,
+    ConnectionEvent,
     Guild as GuildModel,
     Layer,
     PlaybackStatus,
+    Presence,
     Track,
+    Viewer,
 )
+from src.storage.registry import ConnectionRecord, ViewerRecord
 
 
 def track_data(track: YTMusicData) -> Track:
@@ -59,9 +63,47 @@ def channel_data(channel: VoiceChannel) -> Channel:
     return Channel(id=snowflake(channel.id), name=channel.name)
 
 
+def viewer_data(viewer: ViewerRecord) -> Viewer:
+    return Viewer(
+        user_id=viewer.user_id,
+        username=viewer.username,
+        display_name=viewer.display_name,
+        channel_id=optional_snowflake(viewer.channel_id),
+        channel_name=viewer.channel_name,
+        seen_at=viewer.seen_at,
+    )
+
+
+def connection_data(record: ConnectionRecord) -> ConnectionEvent:
+    return ConnectionEvent(
+        action=record.action,
+        channel_id=optional_snowflake(record.channel_id),
+        channel_name=record.channel_name,
+        actor_id=optional_snowflake(record.actor_id),
+        actor_name=record.actor_name,
+        at=record.at,
+    )
+
+
+def presence_data(
+    guild_id: int,
+    viewers: list[ViewerRecord],
+    last_connection: ConnectionRecord | None,
+) -> Presence:
+    return Presence(
+        guild_id=snowflake(guild_id),
+        viewers=[viewer_data(viewer) for viewer in viewers],
+        last_connection=(
+            connection_data(last_connection)
+            if last_connection is not None
+            else None
+        ),
+    )
+
+
 def snowflake(value: int) -> str:
     return str(value)
 
 
-def optional_snowflake(value: int | None) -> str | None:
+def optional_snowflake(value: int | str | None) -> str | None:
     return None if value is None else str(value)

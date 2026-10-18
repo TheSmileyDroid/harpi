@@ -35,6 +35,7 @@ class Settings:
     discord_redirect_uri: str = DEFAULT_REDIRECT_URI
     ytdl_debug: bool = False
     js_runtime_dirs: str = ""
+    db_path: str = "data/harpi.db"
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -51,4 +52,5 @@ class Settings:
             ),
             ytdl_debug=_env_flag("HARPI_YTDL_DEBUG"),
             js_runtime_dirs=os.getenv("HARPI_JS_RUNTIME_DIRS") or "",
+            db_path=os.getenv("HARPI_DB_PATH") or "data/harpi.db",
         )

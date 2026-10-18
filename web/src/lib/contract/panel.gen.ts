@@ -20,6 +20,9 @@ export const ConnectRequest = z.strictObject({ channel_id: z.string().nullable()
 export type Connection = z.infer<typeof Connection>;
 export const Connection = z.strictObject({ channel_id: z.string().nullable(), connected: z.boolean() });
 
+export type ConnectionEvent = z.infer<typeof ConnectionEvent>;
+export const ConnectionEvent = z.strictObject({ action: z.string(), actor_id: z.string().nullable(), actor_name: z.string().nullable(), at: z.number().int(), channel_id: z.string().nullable(), channel_name: z.string().nullable() });
+
 export type ErrorDetail = z.infer<typeof ErrorDetail>;
 export const ErrorDetail = z.strictObject({ code: z.string(), message: z.string() });
 
@@ -50,6 +53,12 @@ export const Track = z.strictObject({ duration: z.number().int(), thumbnail: z.s
 export type PlaybackStatus = z.infer<typeof PlaybackStatus>;
 export const PlaybackStatus = z.strictObject({ channel_id: z.string().nullable(), connected: z.boolean(), current_music: Track.nullable(), guild_id: z.string().nullable(), is_paused: z.boolean(), is_playing: z.boolean(), layers: z.array(Layer), loop_mode: z.string(), progress: z.number(), queue: z.array(Track), volume: z.number() });
 
+export type Viewer = z.infer<typeof Viewer>;
+export const Viewer = z.strictObject({ channel_id: z.string().nullable(), channel_name: z.string().nullable(), display_name: z.string().nullable(), seen_at: z.number().int(), user_id: z.string(), username: z.string() });
+
+export type Presence = z.infer<typeof Presence>;
+export const Presence = z.strictObject({ guild_id: z.string().nullable(), last_connection: ConnectionEvent.nullable(), viewers: z.array(Viewer) });
+
 export type ReloadEvent = z.infer<typeof ReloadEvent>;
 export const ReloadEvent = z.strictObject({ scope: z.string() });
 
@@ -66,7 +75,7 @@ export type StatusSnapshot = z.infer<typeof StatusSnapshot>;
 export const StatusSnapshot = z.strictObject({ bot: BotStatus, connection: Connection, guild_id: z.string().nullable(), playback: PlaybackStatus.nullable() });
 
 export type SseEnvelope = z.infer<typeof SseEnvelope>;
-export const SseEnvelope = z.union([StatusSnapshot, ReloadEvent]);
+export const SseEnvelope = z.union([StatusSnapshot, ReloadEvent, Presence]);
 
 export type UrlRequest = z.infer<typeof UrlRequest>;
 export const UrlRequest = z.strictObject({ url: z.string().nullable().default(null) }).partial();

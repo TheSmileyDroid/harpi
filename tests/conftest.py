@@ -23,6 +23,12 @@ def version_banner() -> None:
     print_version_banner()
 
 
+@pytest.fixture(autouse=True)
+def isolated_database(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep any app startup in a test off the repo's default data path."""
+    monkeypatch.setenv("HARPI_DB_PATH", str(tmp_path / "harpi.db"))
+
+
 class FakeVoiceClient(discord.VoiceClient):
     """Stands in for a real voice client without a websocket or channel."""
 

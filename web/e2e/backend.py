@@ -151,7 +151,7 @@ class HarnessSessions:
 
 
 def status_for(
-    title: str, guild_id: int = GUILD_A, channel_id: int = 42
+    title: str, guild_id: int = GUILD_A, channel_id: int = GUILD_A * 10
 ) -> SessionStatus:
     return playing_status(
         guild_id=guild_id,

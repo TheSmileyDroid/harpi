@@ -15,6 +15,7 @@ import {
 
 const SNAPSHOT = fixtures.StatusSnapshot;
 const RELOAD = fixtures.ReloadEvent;
+const PRESENCE = fixtures.Presence;
 
 class FakeEventSource implements EventSourceLike {
   static instances: FakeEventSource[] = [];
@@ -93,6 +94,13 @@ describe("parseFrame", () => {
     });
   });
 
+  it("parses a presence frame through its schema", () => {
+    expect(parseFrame("presence", JSON.stringify(PRESENCE))).toEqual({
+      type: "presence",
+      data: PRESENCE,
+    });
+  });
+
   it("drops a frame that fails its schema", () => {
     expect(parseFrame("status", '{"bot":{"online":true}}')).toBeNull();
   });
@@ -122,10 +130,12 @@ describe("createEventStream", () => {
 
     source.emit("status", { data: JSON.stringify(SNAPSHOT) });
     source.emit("reload", { data: JSON.stringify(RELOAD) });
+    source.emit("presence", { data: JSON.stringify(PRESENCE) });
 
     expect(events).toEqual([
       { type: "status", data: SNAPSHOT },
       { type: "reload", data: RELOAD },
+      { type: "presence", data: PRESENCE },
     ]);
     expect(errors).toHaveLength(0);
   });

@@ -104,6 +104,30 @@ describe("reduceSse", () => {
     expect(after.bot).toEqual({ online: true });
   });
 
+  it("stores a presence frame", () => {
+    const presence = {
+      guild_id: "7",
+      viewers: [
+        {
+          user_id: "555",
+          username: "harpi-user",
+          display_name: null,
+          channel_id: "42",
+          channel_name: "Voice",
+          seen_at: 1700000000,
+        },
+      ],
+      last_connection: null,
+    };
+
+    const after = reduceSse(initialState(), {
+      type: "presence",
+      data: presence,
+    });
+
+    expect(after.presence).toEqual(presence);
+  });
+
   it("ignores reload frames", () => {
     const before = initialState();
 

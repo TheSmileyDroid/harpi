@@ -154,6 +154,31 @@ describe("createApiClient", () => {
     });
   });
 
+  it("posts a selection without connecting", async () => {
+    const { client, calls } = recordingClient();
+
+    const payload = await client.select("7", "70");
+
+    expect(payload).toEqual(SNAPSHOT);
+    expect(calls[0]!.path).toBe("/api/selection");
+    expect(calls[0]!.options.method).toBe("POST");
+    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
+      guild_id: "7",
+      channel_id: "70",
+    });
+  });
+
+  it("posts an empty selection to clear the guild", async () => {
+    const { client, calls } = recordingClient();
+
+    await client.select(null, null);
+
+    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
+      guild_id: null,
+      channel_id: null,
+    });
+  });
+
   it("posts a disconnect", async () => {
     const { client, calls } = recordingClient();
 

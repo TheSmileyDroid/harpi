@@ -18,6 +18,7 @@
   let confirmingDisconnect = $state(false);
   let root = $state<HTMLElement | null>(null);
   let lastGuildId: string | null = null;
+  let followedChannelId: string | null = null;
 
   const open = $derived($appStore.outputOpen);
   const effectiveGuildId = $derived(
@@ -75,10 +76,43 @@
   function onGuildChange(id: string | null) {
     appStore.selectChannel(null);
     appStore.selectGuild(id);
+    if (id === null) {
+      void persistSelection(null, null);
+      return;
+    }
+    return persistGuild(id);
+  }
+
+  async function persistGuild(id: string) {
+    busy = true;
+    try {
+      const snapshot = await api.select(id, null);
+      appStore.applyStatus(snapshot);
+      appStore.selectGuild(null);
+      await onresync();
+    } catch {
+      return;
+    } finally {
+      busy = false;
+    }
   }
 
   function onChannelChange(id: string | null) {
     appStore.selectChannel(id);
+    if (id !== null && effectiveGuildId !== null) {
+      void persistSelection(effectiveGuildId, id);
+    }
+  }
+
+  async function persistSelection(
+    guildId: string | null,
+    channelId: string | null,
+    silent = false,
+  ) {
+    const snapshot = await api
+      .select(guildId, channelId, silent)
+      .catch(() => null);
+    if (snapshot) appStore.applyStatus(snapshot);
   }
 
   async function mutate(
@@ -146,6 +180,21 @@
     if (guildId === lastGuildId) return;
     lastGuildId = guildId;
     loadChannels(guildId);
+  });
+
+  $effect(() => {
+    const live = $appStore.connection;
+    const liveChannelId = live.connected ? live.channel_id : null;
+    if (liveChannelId === followedChannelId) return;
+    followedChannelId = liveChannelId;
+    if (liveChannelId === null) return;
+    appStore.selectChannel(liveChannelId);
+    if ($appStore.guildId !== null) {
+      void persistSelection($appStore.guildId, liveChannelId, true);
+    }
+    if (!$appStore.channels.some((channel) => channel.id === liveChannelId)) {
+      void loadChannels($appStore.guildId);
+    }
   });
 </script>
 
