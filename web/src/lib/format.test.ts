@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { formatDuration, formatSeen, formatVolume } from "./format";
+import {
+  formatCount,
+  formatDuration,
+  formatSeen,
+  formatVolume,
+} from "./format";
+
+describe("formatCount", () => {
+  it("uses the singular for one and the plural otherwise", () => {
+    expect(formatCount(0, "track")).toBe("0 tracks");
+    expect(formatCount(1, "track")).toBe("1 track");
+    expect(formatCount(4, "track")).toBe("4 tracks");
+  });
+
+  it("takes an irregular plural", () => {
+    expect(formatCount(1, "layer")).toBe("1 layer");
+    expect(formatCount(3, "layer")).toBe("3 layers");
+  });
+});
 
 describe("formatDuration", () => {
   it("formats minutes and seconds", () => {

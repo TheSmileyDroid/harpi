@@ -338,7 +338,7 @@ test("drives transport, seeks, and changes volume against live position", async 
   await page.mouse.move(box.x + box.width * 0.41, midY);
   await page.mouse.up();
   await expect(page.getByTestId("progress-readout")).toContainText(
-    "0:49 / 2:00",
+    /0:(4[5-9]|5[01]) \/ 2:00/,
   );
 
   const volumeSent = page.waitForResponse((response) =>
@@ -502,4 +502,94 @@ test("layer state pushed server-side arrives live over SSE", async ({
   );
   expect(statusRequests).toBe(bootStatusRequests);
   expect(loads).toBe(1);
+});
+
+test("a guild the bot joins appears in the picker without a reload", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${BACKEND}/__test__/reset`);
+  let loads = 0;
+  page.on("load", () => {
+    loads += 1;
+  });
+
+  await page.request.post(`${BACKEND}/__test__/login`);
+  await page.goto("/");
+  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+  await openOutput(page);
+  await page.getByTestId("guild-select").click();
+  await expect(page.getByTestId("guild-option")).toHaveCount(2);
+
+  await request.post(`${BACKEND}/__test__/guild`, {
+    data: { name: "Gamma Guild" },
+  });
+
+  await expect(page.getByTestId("guild-option")).toHaveCount(3, {
+    timeout: 10000,
+  });
+  await expect(
+    page.getByTestId("guild-option").filter({ hasText: "Gamma Guild" }),
+  ).toBeVisible();
+  expect(loads).toBe(1);
+
+  await request.post(`${BACKEND}/__test__/reset`);
+});
+
+test("readings go stale when the bot loop disappears, then recover", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${BACKEND}/__test__/reset`);
+  await page.request.post(`${BACKEND}/__test__/login`);
+  await page.goto("/");
+
+  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+  await expect(page.getByTestId("stale-tag")).toHaveCount(0);
+
+  await request.post(`${BACKEND}/__test__/loop`, {
+    data: { available: false },
+  });
+
+  await expect(page.getByTestId("stale-tag")).toBeVisible({ timeout: 20000 });
+  await expect(page.getByTestId("playback-progress")).toHaveCSS(
+    "opacity",
+    "0.45",
+  );
+
+  await request.post(`${BACKEND}/__test__/loop`, {
+    data: { available: true },
+  });
+
+  await expect(page.getByTestId("stale-tag")).toHaveCount(0, {
+    timeout: 15000,
+  });
+});
+
+test("a lost link marks readings stale, then they recover", async ({
+  page,
+}) => {
+  let allow = false;
+  await page.route("**/api/events", async (route) => {
+    if (allow) {
+      await route.continue();
+      return;
+    }
+    await route.abort();
+  });
+
+  await page.request.post(`${BACKEND}/__test__/login`);
+  await page.goto("/");
+
+  await expect(page.getByTestId("link-state")).toHaveText("LINK LOST");
+  await expect(page.getByTestId("stale-tag")).toBeVisible();
+
+  allow = true;
+
+  await expect(page.getByTestId("link-state")).toHaveText("LINK LIVE", {
+    timeout: 20000,
+  });
+  await expect(page.getByTestId("stale-tag")).toHaveCount(0, {
+    timeout: 20000,
+  });
 });

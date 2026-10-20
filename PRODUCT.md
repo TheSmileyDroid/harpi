@@ -38,7 +38,7 @@ One process, one panel. Music, dice, TTS, and a Svelte control panel share one r
 
 ## Brand Commitments
 
-- The web panel's cyberpunk instrument-console identity is binding: the unmarked-carrier receiver world (steel-navy plates, phosphor-cyan signal ink, a sodium dial lamp for what is live). It replaced the amber CRT theme, its predecessor. Future design work must preserve the new direction.
+- The web panel's retrofuturist industrial-placard identity (HAZARD PLACARD: sand-and-oxide material, posted placards that pair a claim with the value proving it, equipment rating plates, banded hazard for breakage) is binding. It replaced the unmarked-carrier receiver world (steel-navy plates, phosphor-cyan signal ink, a sodium dial lamp for what is live), which had replaced the amber CRT theme. Future design work must extend the placard world, never replace it.
 - Name: Harpi.
 - Glossary vocabulary in `CONTEXT.md` is binding for code, docs, and discussion.
 

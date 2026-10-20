@@ -1,69 +1,83 @@
 ---
 name: Harpi
-description: A Discord bot control panel as a shortwave receiver locked onto an unmarked signal.
+description: A posted placard board for a working guild, where every state is a placard pairing a claim with the value that proves it.
 colors:
-  ground: "oklch(14% 0.012 250)"
-  plate: "oklch(19% 0.016 250)"
-  plate-2: "oklch(24% 0.022 250)"
-  rail: "oklch(37% 0.07 250)"
-  rail-deep: "oklch(28% 0.05 250)"
-  line: "oklch(38% 0.03 250)"
-  line-strong: "oklch(56% 0.05 250)"
-  ink: "oklch(88% 0.11 195)"
-  ink-mid: "oklch(78% 0.09 200)"
-  ink-dim: "oklch(68% 0.06 205)"
-  ink-faint: "oklch(63% 0.045 210)"
-  lamp: "oklch(82% 0.15 68)"
-  lamp-dim: "oklch(60% 0.11 60)"
-  alert: "oklch(70% 0.18 25)"
-  alert-dim: "oklch(44% 0.1 25)"
-  idle: "oklch(50% 0.02 250)"
-  tick-major: "oklch(56% 0.05 250 / 0.72)"
-  tick-minor: "oklch(56% 0.05 250 / 0.34)"
-  seam: "oklch(56% 0.05 250 / 0.4)"
+  ground: "#14110d"
+  plate: "#1f1b15"
+  plate-2: "#2a241c"
+  sunken: "#0d0b08"
+  rating: "#191510"
+  rule: "#2a241c"
+  rule-strong: "#3d3527"
+  sand: "#e9dfc7"
+  on-sand: "#221e18"
+  amber: "#f2b24e"
+  label: "#c4b79d"
+  dim: "#a59a8a"
+  faint: "#948a79"
+  oxide: "#ce7442"
+  alert: "#f0604a"
+  alert-well: "#2a1712"
+  alert-ink: "#d9c7b4"
+  idle: "#7d7365"
 typography:
   display:
-    fontFamily: "Michroma, Chivo Mono, ui-monospace, monospace"
-    fontSize: "1.05rem"
-    fontWeight: 400
-    letterSpacing: "0.18em"
-  title:
-    fontFamily: "Michroma, Chivo Mono, ui-monospace, monospace"
-    fontSize: "0.85rem"
-    fontWeight: 400
-    letterSpacing: "0.3em"
-  band:
-    fontFamily: "Michroma, Chivo Mono, ui-monospace, monospace"
-    fontSize: "0.8rem"
-    fontWeight: 400
-    letterSpacing: "0.2em"
-  legend:
-    fontFamily: "Michroma, Chivo Mono, ui-monospace, monospace"
-    fontSize: "0.7rem"
-    fontWeight: 400
-    letterSpacing: "0.22em"
-  control:
-    fontFamily: "Michroma, Chivo Mono, ui-monospace, monospace"
-    fontSize: "0.7rem"
-    fontWeight: 400
+    fontFamily: "Urbanist, system-ui, sans-serif"
+    fontSize: "0.95rem"
+    fontWeight: 800
+    lineHeight: 1
     letterSpacing: "0.16em"
-  body:
-    fontFamily: "Chivo Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace"
-    fontSize: "1rem"
-    fontWeight: 400
-    lineHeight: 1.5
-  value:
-    fontFamily: "Chivo Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace"
-    fontSize: "0.8rem"
-    fontWeight: 400
-    lineHeight: 1.5
-  label:
-    fontFamily: "Chivo Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace"
-    fontSize: "0.7rem"
-    fontWeight: 400
+  headline:
+    fontFamily: "Urbanist, system-ui, sans-serif"
+    fontSize: "1.375rem"
+    fontWeight: 700
+    lineHeight: 1.15
+    letterSpacing: "-0.01em"
+  plate:
+    fontFamily: "Urbanist, system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 700
+    lineHeight: 1
+    letterSpacing: "0.18em"
+  placard:
+    fontFamily: "Barlow, system-ui, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: "0.16em"
+  stamp:
+    fontFamily: "Urbanist, system-ui, sans-serif"
+    fontSize: "0.8125rem"
+    fontWeight: 800
+    lineHeight: 1
     letterSpacing: "0.14em"
+  control:
+    fontFamily: "Barlow, system-ui, sans-serif"
+    fontSize: "0.72rem"
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: "0.14em"
+  label:
+    fontFamily: "Barlow, system-ui, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 600
+    lineHeight: 1.5
+    letterSpacing: "0.12em"
+  value:
+    fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace"
+    fontSize: "0.8125rem"
+    fontWeight: 400
+    lineHeight: 1.5
+    letterSpacing: "normal"
+  meta:
+    fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace"
+    fontSize: "0.75rem"
+    fontWeight: 400
+    lineHeight: 1
+    letterSpacing: "0.02em"
 rounded:
-  none: "0px"
+  key: "3px"
+  plate: "4px"
 spacing:
   xs: "0.35rem"
   sm: "0.5rem"
@@ -72,289 +86,325 @@ spacing:
   xl: "1rem"
   gutter: "1.25rem"
 components:
-  key:
+  placard:
     backgroundColor: "{colors.plate-2}"
-    textColor: "{colors.ink}"
-    typography: "{typography.control}"
-    rounded: "{rounded.none}"
-    padding: "0.5rem 1.05rem 0.45rem"
-  key-hover:
-    textColor: "{colors.lamp}"
-  key-danger:
-    backgroundColor: "{colors.plate-2}"
-    textColor: "{colors.alert}"
-    typography: "{typography.control}"
-    rounded: "{rounded.none}"
-    padding: "0.5rem 1.05rem 0.45rem"
-  key-danger-hover:
-    backgroundColor: "color-mix(in oklab, {colors.alert} 16%, {colors.plate-2})"
-    textColor: "{colors.alert}"
-  input:
-    backgroundColor: "color-mix(in oklab, {colors.ground} 85%, black)"
-    textColor: "{colors.ink}"
-    typography: "{typography.value}"
-    rounded: "{rounded.none}"
-    padding: "0.45rem 0.65rem"
-  select:
-    backgroundColor: "{colors.plate-2}"
-    textColor: "{colors.ink}"
-    typography: "{typography.value}"
-    rounded: "{rounded.none}"
+    textColor: "{colors.sand}"
+    typography: "{typography.placard}"
+    rounded: "{rounded.key}"
     padding: "0.4rem 0.6rem"
+    height: "2.5rem"
+  placard-flipped:
+    backgroundColor: "{colors.sand}"
+    textColor: "{colors.on-sand}"
+    typography: "{typography.placard}"
+    rounded: "{rounded.key}"
+    padding: "0.4rem 0.6rem"
+    height: "2.5rem"
+  key:
+    backgroundColor: "transparent"
+    textColor: "{colors.label}"
+    typography: "{typography.control}"
+    rounded: "{rounded.key}"
+    padding: "0.65rem 0.8rem"
+    height: "2.5rem"
+    width: "3.5rem"
+  key-hover:
+    backgroundColor: "{colors.plate-2}"
+    textColor: "{colors.sand}"
+  key-primary:
+    backgroundColor: "{colors.sand}"
+    textColor: "{colors.on-sand}"
+    typography: "{typography.control}"
+    rounded: "{rounded.key}"
+    padding: "0.65rem 0.8rem"
+    height: "2.5rem"
+  key-primary-hover:
+    backgroundColor: "color-mix(in srgb, {colors.sand} 76%, white)"
+  key-disabled:
+    backgroundColor: "transparent"
+    textColor: "{colors.idle}"
+  key-danger-hover:
+    backgroundColor: "{colors.alert-well}"
+    textColor: "{colors.alert}"
   panel:
     backgroundColor: "{colors.plate}"
-    rounded: "{rounded.none}"
+    rounded: "{rounded.plate}"
     padding: "1rem"
-  legend-plate:
-    backgroundColor: "{colors.rail-deep}"
-    textColor: "{colors.ink}"
-    typography: "{typography.legend}"
-    rounded: "{rounded.none}"
-    padding: "0.25rem 0.7rem 0.2rem 0.6rem"
-  status-chip:
-    backgroundColor: "{colors.rail-deep}"
-    textColor: "{colors.ink}"
-    typography: "{typography.control}"
-    rounded: "{rounded.none}"
-    padding: "0.15rem 0.45rem"
+  rating-cell:
+    backgroundColor: "{colors.rating}"
+    typography: "{typography.value}"
+    padding: "0.5rem 0.6rem"
+  input:
+    backgroundColor: "{colors.sunken}"
+    textColor: "{colors.sand}"
+    typography: "{typography.value}"
+    rounded: "{rounded.key}"
+    padding: "0.55rem 0.7rem"
+  select-trigger:
+    backgroundColor: "{colors.plate-2}"
+    textColor: "{colors.sand}"
+    typography: "{typography.value}"
+    rounded: "{rounded.key}"
+    padding: "0.5rem 0.6rem"
   toast:
     backgroundColor: "{colors.plate-2}"
-    textColor: "{colors.ink}"
+    textColor: "{colors.sand}"
     typography: "{typography.label}"
-    rounded: "{rounded.none}"
-    padding: "0.35rem 0.6rem"
-  readout-cell:
-    textColor: "{colors.ink}"
-    typography: "{typography.value}"
-    rounded: "{rounded.none}"
-    padding: "0.35rem 0 0"
-  tuning-strip:
-    backgroundColor: "color-mix(in oklab, {colors.ground} 82%, black)"
-    rounded: "{rounded.none}"
-    height: "1.9rem"
-  tuning-fill:
-    backgroundColor: "color-mix(in oklab, {colors.ink} 18%, transparent)"
-    rounded: "{rounded.none}"
-  header-rail:
-    backgroundColor: "{colors.rail}"
-    rounded: "{rounded.none}"
-    padding: "0.45rem 0.6rem"
-  transport-dock:
-    backgroundColor: "{colors.rail}"
-    rounded: "{rounded.none}"
-    padding: "0.35rem 0.75rem"
+    rounded: "{rounded.key}"
+    padding: "0.5rem 0.7rem"
+  panel-label:
+    textColor: "{colors.sand}"
+    typography: "{typography.plate}"
+  state-stamp:
+    textColor: "{colors.amber}"
+    typography: "{typography.stamp}"
+  seek-track:
+    backgroundColor: "{colors.sunken}"
+    rounded: "{rounded.key}"
+    height: "2.5rem"
+  action-strip:
+    backgroundColor: "{colors.plate-2}"
+    rounded: "{rounded.plate}"
+    padding: "0.7rem 0.7rem"
+  fault-plate:
+    backgroundColor: "{colors.alert-well}"
+    textColor: "{colors.alert-ink}"
+    rounded: "{rounded.plate}"
+    padding: "0.8rem 0.7rem 0.7rem 0.9rem"
 ---
 
 # Design System: Harpi
 
 ## Overview
 
-**Creative North Star: "UNMARKED CARRIER"**
+**Creative North Star: "The Posted Placard"**
 
-The panel is a shortwave receiver locked onto one unmarked signal, not a dashboard. The page is a cold graphite ground carrying steel-navy plates: the header rail, the transport dock, and every panel legend are the brighter steel of the shell, while panel interiors sit one step up from the ground. Phosphor-cyan signal ink carries every reading. A sodium dial lamp marks what is locked or live right now: the needle, the playing corner lamp, the title lamp, focus rings, the connected link. Legend plates stamp a plain cyan dot instead, and red is held in reserve for what is broken. Signal red is held in reserve for what is broken or being destroyed.
+The world is **HAZARD PLACARD**. The panel is a posted placard board for a working guild, not a dashboard. Every state is a placard: a claim set in Barlow small caps paired with the value that proves it set in JetBrains Mono, both pressed into a plate-toned tag. The board is a warm near-black ground (`#14110d`) carrying plate tones (`#1f1b15`, `#2a241c`). Sand (`#e9dfc7`) is the material of what the operator presses: the primary key, the search sheet's Queue key, the sign-in key, and the carrier placard. Amber (`#f2b24e`) marks state and every live reading: placard legends, the state stamp, the seek scale and its fill, the volume value. Oxide (`#ce7442`) is the caution ink: hover borders and the paused seek fill. Hazard red (`#f0604a`) means breakage: the stale badge, the offline chip and lamp, the fault plate, and the banded hazard strip.
 
-It refuses the category-default card grid. State lives in ruled calibration scales, legend plates, and lit lamps instead of cards: every panel opens with a tick-ruled calibration edge and a plate that names it, the dock leads with a ruler and carries the tuning strip across its width, and even the lamps are squares. Density is the point: labels are small caps, numbers appear anywhere a state can be read, and a queue row packs index, thumbnail, title, a duration gauge, metadata, and a key onto one line.
+It refuses the category-default card grid. Placards pack to their edges and divide with 1px rules instead of gaps. The rating plate packs four readouts into one bordered bed. The transport is an equipment rating plate you press: a stepped amber seek scale, a ruled volume scale, keys, and a readout, all in one fixed dock. Banded hazard appears in exactly two places, the carrier placard when it flips and a fault plate.
 
-Michroma carries the legends (plates, band headings, keys, chips, the wordmark). Chivo Mono carries the values (labels, numbers, metadata, inputs). Every corner is square, every edge a 1px hairline, plate seams the only 2px lines, and depth is tonal rather than shadowed. Motion is arrival and settle, never decoration: lamps step-blink, the calibration edge lights once when the panel locks a signal, log rows arrive with a 0.3rem travel, and every spatial entrance is gated behind a reduced-motion preference (see Motion). Confirmed rejections: the amber CRT world this replaced (Rajdhani and IBM Plex Mono, double frames, corner brackets, solid-fill hover inversion), any green success color, any third font family, drop shadows and glows, rounded corners, circles.
+Materials carry the identity. Urbanist sets headings and the two stamps, Barlow sets legends, controls and labels, JetBrains Mono sets values. Corners are 3px on keys and placards, 4px on plates and bars, 1px on instrument bits. Sand surfaces carry printed grain and a printed edge. Nothing glows and no text is gradient-filled. Depth is a tonal ladder plus 1px rules, with one drop shadow in the whole system.
 
-The binding commitment from PRODUCT.md holds: the panel's cyberpunk instrument-console identity (this receiver world) is Harpi's visual direction, and the amber CRT remains its predecessor. Future work extends this world, never replaces it.
+Motion is one authored moment and nothing else. When the carrier drops, the carrier placard inverts to sand under a 0.4rem banded hazard strip and every transport key strikes out. Everything else is arrival (rows, dialogs, overlays), settle (color changes, the seek fill), or a gated blink (the offline lamp, the boot mark). The panel was built at 1440x900 and 390x844: the smallest rendered type is 11px at both widths, and at maximum scroll the lowest panel clears the dock by 24px at both.
+
+The binding commitment from PRODUCT.md holds: the panel's retrofuturist industrial-placard identity is Harpi's visual direction, it replaced the unmarked-carrier receiver world, and future work extends it.
 
 **Key Characteristics:**
-- Cold graphite ground under steel-navy plates; phosphor-cyan signal ink carries every reading
-- Sodium dial lamp only for what is live or locked: needle, playing lamp, title lamp, focus, connected link
-- Red only for broken or being destroyed; no green success color exists
-- Two families, one weight: Michroma legends, Chivo Mono values
-- 0px radius, 1px hairlines, 2px plate seams, ruled tick scales instead of card decoration
-- Depth from tonal plates and seams, never drop shadows
+- Placards, not cards: every state is a claim plus the value that proves it
+- Sand is the pressed material, amber is the state lamp, hazard banding means breakage
+- Warm near-black board (`#14110d`) under plate tones (`#1f1b15`, `#2a241c`)
+- Three faces with one job each: Urbanist headings and stamps, Barlow legends and labels, JetBrains Mono values
+- 3px key corners, 4px plate corners, 1px rules, square lamps
+- One authored moment (the placard flip), with everything else arriving, settling, or blinking behind a motion preference
+
+### Named Rules
+**The One Moment Rule.** The placard flip is the only authored moment. Arrival, settle, and gated blinks are the entire rest of the motion vocabulary.
 
 ## Colors
 
-A cold steel instrument face inked in phosphor cyan, with one sodium lamp for the live moment and red held back for breakage.
+A warm near-black board carrying plate-toned placards, inked in amber for state and bone for reading, with oxide and hazard red held back for caution and breakage.
 
 ### Primary
-- **Phosphor Cyan** (`oklch(88% 0.11 195)`): the signal ink. Values, titles, control text at rest, readouts, selected rows. Measured at 13:1 on a plate.
-- **Soft Cyan** (`oklch(78% 0.09 200)`): dock readouts and volume value, and the de-escalated Remove key in queue and layer rows. Measured at 9.5:1 on a plate.
-- **Dim Cyan** (`oklch(68% 0.06 205)`): data labels, row metadata, status strip text, empty-state readouts, link state at rest. Measured at 6.5:1 on a plate.
-- **Faint Cyan** (`oklch(63% 0.045 210)`): placeholders and the uploader/duration meta on rows. Measured at 5.4:1 on a plate.
+- **State Amber** (`#f2b24e`): the state lamp and the live reading. Placard legends, the Now Playing state stamp, the seek scale and its fill, the volume value, queue and layer indices, the reconnect point for hover on plates. Measured at 9.2:1 on a plate and 8.2:1 on a raised plate.
+- **Placard Sand** (`#e9dfc7`): the material of what the operator presses, and the ink of titles. The primary key, the search sheet's Queue key, the flipped carrier placard, the sign-in key, plus track titles, band names and readout values. Measured at 12.9:1 on a plate.
 
 ### Secondary
-- **Sodium Lamp** (`oklch(82% 0.15 68)`): the live-or-locked lamp. The blinking title lamp, the tuning needle edge and head, the volume thumb, the playing corner lamp, the connected link state, focus outlines, hover ink, toast edge, and the 2px top seams on overlay surfaces. Legend plates and status chips stamp a cyan dot instead. Clears 4.5:1 on every plate it sits on (5.8:1 on the dock rail).
-- **Dim Sodium** (`oklch(60% 0.11 60)`): the paused lamp, hover borders, the needle at pause. Measured at 4.5:1 on a plate.
+- **Oxide Caution** (`#ce7442`): the caution band and the hover border. Hover borders on keys and select triggers, and the seek fill while paused. Measured at 5.1:1 on a plate.
 
 ### Tertiary
-- **Signal Red** (`oklch(70% 0.18 25)`): errors and destruction only: error boxes, the offline chip, danger key ink, the stale badge, the bot-offline warning, search error text, the reconnecting link state. Measured at 6.4:1 on a plate.
-- **Deep Signal Red** (`oklch(44% 0.1 25)`): borders of alert elements and the danger key at rest.
+- **Hazard Red** (`#f0604a`): breakage only. The offline carrier chip and lamp, the stale badge on the Now Playing band, the stale tag in the top bar, the Hazard stamp, fault-plate borders, the bot-offline chip, the reconnecting link state, search failure text, and the light stripes of the hazard band. Measured at 5.3:1 on a plate.
+- **Hazard Well** (`#2a1712`): the bed under hazard plates and the dark stripe of the hazard band.
+- **Hazard Ink** (`#d9c7b4`): the readable ink on the hazard well. Measured at 10.4:1 on the well.
 
 ### Neutral
-- **Cold Graphite** (`oklch(14% 0.012 250)`): page ground and the sunk wells (inputs and the tuning strip darken it further toward black).
-- **Steel Plate** (`oklch(19% 0.016 250)`): panel interiors and disabled key backgrounds.
-- **Raised Steel** (`oklch(24% 0.022 250)`): keys, action strips, popovers, search dropdown, toasts.
-- **Signal Rail** (`oklch(37% 0.07 250)`): the two fixed rails, the header and the transport dock.
-- **Deep Rail** (`oklch(28% 0.05 250)`): legend plates, status strip, status chips, dock keys.
-- **Hairline** (`oklch(38% 0.03 250)`): default 1px border, row separators, gauge tracks.
-- **Bright Hairline** (`oklch(56% 0.05 250)`): rail borders, plate borders, chip borders, scrollbar thumb, toasts.
-- **Major Tick** (`oklch(56% 0.05 250 / 0.72)`), **Minor Tick** (`oklch(56% 0.05 250 / 0.34)`), **Seam** (`oklch(56% 0.05 250 / 0.4)`): three alpha steps of Bright Hairline. Major ticks rule at full height every 2rem, minor ticks at roughly half height every 0.5rem, and the seam inks the bottom edge of the header rail and dock. In the stylesheet they are `color-mix(in oklab, var(--line-strong) N%, transparent)`.
-- **Idle Gray** (`oklch(50% 0.02 250)`): disabled control ink only, measured at 3.1:1. Its low contrast is intentional and it must not leak into readable content.
+- **Warm Near-Black** (`#14110d`): the page ground, and the base of the dimmed modal backdrops.
+- **Placard Plate** (`#1f1b15`): panel interiors, the placard bar, and the disabled primary key's fill.
+- **Raised Plate** (`#2a241c`): placards, action strips, toasts, popovers, the search results list, the transport dock. The separator ink (`rule`) is this same value, so a 1px row rule reads as a plate tone rather than a line.
+- **Sunken Well** (`#0d0b08`): inputs and the two scales (the seek track, the volume slider) sit below the ground.
+- **Rating Bed** (`#191510`): the readout grid inside a rating plate, one step under a panel.
+- **Bright Rule** (`#3d3527`): the 1px border on plates, placards, keys, inputs, thumbnails and the scrollbar thumb.
+- **Bone Label** (`#c4b79d`): body text and key ink at rest. Measured at 9.5:1 on the ground.
+- **Dim Ash** (`#a59a8a`): data labels, row metadata, the status strip, the boot plate, the readout title. Measured at 6.2:1 on a plate.
+- **Faint Ash** (`#948a79`): placeholders, uploader and duration meta, panel meta. Measured at 5.0:1 on a plate.
+- **Sand Ink** (`#221e18`): the ink printed on sand, used by the flipped placard and the primary key. Measured at 12.5:1 on placard sand.
+- **Struck Gray** (`#7d7365`): disabled ink only, measured at 3.7:1. Its low contrast is intentional and it must not leak into readable content.
 
 ### Named Rules
-**The Red Means Broken Rule.** Red marks only errors, alerts, and destruction. There is no green: OK state is the cyan signal ink, live state is sodium, broken state is red. The design-language test enforces both halves (no green anywhere; red literals only on lines that say alert).
+**The One Lamp Rule.** Amber is the state lamp, not a paint. It appears on legends, the state stamp, live readings, the seek scale, the volume value and hover ink. Never as body copy and never as a resting surface fill.
 
-**The Locked Lamp Rule.** Sodium is the dial lamp, not a paint. It appears on the needle, the playing corner lamp, the title lamp, focus rings, the connected link, and hover ink. Never as body copy and never as a resting fill.
+**The Hazard Means Break Rule.** Banded hazard appears only when the carrier drops and on a fault plate. A healthy surface never carries a hazard strip, and oxide stays a caution band and a hover border.
+
+**The Sand Is What You Press Rule.** Sand is the material of the pressed surface. Only the primary key, the search sheet's Queue key, the flipped carrier placard and the sign-in key are sand, and each carries the printed grain and a printed edge.
 
 ## Typography
 
-**Display Font:** Michroma (with Chivo Mono and ui-monospace fallbacks)
-**Body Font:** Chivo Mono (with ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono fallbacks)
+**Display Font:** Urbanist (with system-ui, sans-serif)
+**Label Font:** Barlow (with system-ui, sans-serif)
+**Value Font:** JetBrains Mono (with ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace)
 
-**Character:** One weight, two voices. Michroma, the squared techno face, is the legend voice: plates, band headings, keys, chips, the wordmark, and the track title. Chivo Mono is the instrument readout voice: values, data labels, metadata, inputs. There is no weight contrast anywhere in the build (every declared weight is 400), so hierarchy comes from family, size, tracking, and case alone. The smallest step anywhere is 0.7rem (about 11.2px).
+**Character:** Three faces with one job each. Urbanist is the heading voice: the wordmark, the page title, panel bands, the track title, dialog titles and the two stamps. Barlow is the legend voice: placard labels, data labels, keys, chips, link state, toasts and every prose line. JetBrains Mono is the value voice: values, metadata, inputs, indices, the status strip. Hierarchy comes from family, size, tracking and case, never from a synthetic width axis. Weights are 800 for the display title and the stamps, 700 for plate labels and the track title, 600 for placard, control and label, 500 for track names, 400 for values and metadata. The smallest step anywhere is 0.6875rem (11px, measured at both widths).
 
 ### Hierarchy
-- **Display** (400, 1.05rem, tracking 0.18em): the page title (Music), trailed by a 0.45rem blinking sodium lamp; the track title takes the same size at 0.05em tracking.
-- **Title** (400, 0.85rem, tracking 0.3em): the HARPI wordmark on its plate.
-- **Band** (400, 0.8rem, tracking 0.2em): the Music, System, and Layers headings, each trailed by a 1px rule that fills the remaining width.
-- **Legend** (400, 0.7rem, tracking 0.22em, uppercase): panel legend plates (NOW PLAYING, QUEUE, LAYERS, SESSION, SEARCH, ACCESS).
-- **Control** (400, 0.7rem, tracking 0.16em, uppercase): keys, status chips, link state.
-- **Body** (400, 1rem, line-height 1.5): Chivo Mono default, sentence case.
-- **Value** (400, 0.8rem): data rows, readouts, input text (0.78rem), select text (0.78rem), tabular numerals wherever a number can change.
-- **Label** (400, 0.7rem, tracking 0.14em, uppercase): data keys, row metadata, toasts, status strip.
+- **Display** (800, 0.95rem, tracking 0.16em, uppercase): the page title and the boot plate. The wordmark narrows it to 0.85rem at 0.24em, and the sign-in title widens it to 1rem.
+- **Headline** (700, 1.375rem, line-height 1.15, tracking -0.01em): the track title in the Now Playing plate, dropping to 1.125rem and wrapping under 30rem.
+- **Plate** (700, 0.75rem, line-height 1, tracking 0.18em, uppercase): the panel label, trailed by a 1px rule that fills the remaining width.
+- **Placard** (600, 0.6875rem, line-height 1, tracking 0.16em, uppercase): placard labels, the link state, the carrier chip.
+- **Stamp** (800, 0.8125rem, line-height 1, tracking 0.14em, uppercase): the state stamp and the Hazard stamp. The state stamp is always amber, whatever the carrier is doing: it reports playback, and the carrier's health is the stale badge's job. The Hazard stamp is hazard red.
+- **Control** (600, 0.72rem, line-height 1, tracking 0.14em, uppercase): every key.
+- **Label** (600, 0.6875rem, tracking 0.12em, uppercase): data labels over their values. Track names in the queue, layer and search rows step up to 0.875rem at weight 500.
+- **Value** (400, 0.8125rem, line-height 1.5): the body default, data values, input text. Rating cells step up to 0.9375rem and compact readouts tighten to 1.2. Tabular numerals wherever a number can change.
+- **Meta** (400, 0.75rem): system notes, row metadata, the volume value, panel meta, the boot plate's fallback.
 
 ### Named Rules
-**The Two-Family Rule.** Michroma and Chivo Mono, nothing else. Stacks may carry only the two faces and their listed fallbacks. The design-language test checks every font stack and both `--font-*` tokens.
+**The Three Faces Rule.** Urbanist for headings and the two stamps, Barlow for legends, controls and prose, JetBrains Mono for values. Nothing else. No value is ever set in Urbanist, and no heading is ever set in JetBrains Mono.
 
-**The Legends and Values Rule.** Legends and controls set in Michroma, uppercase with wide tracking. Everything the machine reports (data labels, values, metadata, inputs) sets in Chivo Mono. No digit is ever set in Michroma; no legend plate is ever set in mono.
+**The Stamp Rule.** Urbanist appears twice as a stamp: the Now Playing state stamp (PLAYING, PAUSED, STOPPED) and the Hazard stamp on a fault plate, both at weight 800 with 0.14em tracking. It is a stamp, not a heading face.
 
 ## Layout
 
-Single column capped at 72rem and centred. The app shell pads 0.5rem top, 1.25rem sides, and reserves the fixed chrome at the bottom with `calc(1.75rem + var(--transport-height) + 1rem)`. Blocks in the main column stack with 1rem gaps; panels pad 1rem; a legend plate sits 0.85rem above panel content.
+A single column capped at 72rem and centred, padded 0.75rem at the top, 1.25rem at the sides and `calc(var(--transport-height) + 1.5rem)` at the bottom so the fixed dock never sits over content. The placard bar wraps at the top with 0.5rem gaps and 0.5rem padding. Panels stack with 1rem gaps and pad 1rem, and a panel band sits 0.85rem above its content.
 
-The Music band is the only split layout: at 56rem and up, a two-column grid pairs a fluid main column (Now Playing over Queue) with a fixed 20rem Layers rail; below it, one column, and the rail collapses with a Hide key and reopens with a Show key. The Session readouts grid auto-fits at `minmax(11rem, 1fr)`; the Now Playing readouts at `minmax(7rem, 1fr)` (2 columns under 30rem); the queue list caps at 40vh and scrolls.
+The console is one column until 56rem, where it splits into a fluid main column (Now Playing over Queue) and a 15.5rem rail (Layers, Session, Linked). The rail collapses behind a Hide layers key and reopens with Show layers. The rating grid auto-fits at `minmax(7rem, 1fr)`, so four readouts sit in one row on desktop and wrap to two columns on a phone. The queue list caps at 60vh and scrolls until 56rem, where it takes the height left over so the plates meet the dock.
 
-Fixed chrome stacks from the bottom: the status strip at the very bottom (a rail-deep band with a 1px top hairline), the transport dock 1.75rem above the viewport bottom, toasts just above the dock's right corner, the error region mirrored on the left. Everything that must clear the dock reads `calc(1.75rem + var(--transport-height) + 0.5rem)` (the shell reserves 1rem), so a wrapped dock on a phone never covers content.
+Fixed chrome stacks above the dock: toasts at the right corner (z-index 60), the error region mirrored at the left (65), the output popover below both (40) and a select list under that (50), with the dock itself at 10. Toasts and errors both clear the dock through `calc(var(--transport-height) + 0.5rem)`. Measured on the built panel at maximum scroll, the lowest panel bottom sits 24px above the dock top at both 1440x900 and 390x844. Authored controls clear 40px (keys, inputs and the seek scale at 2.5rem, rising to 2.75rem on coarse pointers) with two exceptions: keys inside a queue or layer row and inside a fault plate sit at 2rem, and the native volume range is 16px tall on desktop.
 
-Breakpoints (observed): 30rem collapses the header to wrapped rows, hides the shortcut hint, wraps queue and search rows, hides the readout title, drops the dock readout's time when offline while the warning plate stays, and drops the tuning strip to a full-width row; 48rem caps the dock readout at 22ch; 56rem enables the Music split. The design language never switches off at any width: density collapses, identity stays.
+Breakpoints observed: 30rem is the compact collapse (the placard bar wraps and the output placard takes a full row, the shortcut hint hides, the dock wraps with the keys sharing a row and the readout and status strip hiding, queue and search rows wrap, the seek scale takes a full-width row, the Now Playing art drops to 4rem). At 48rem the dock readout caps at 22ch, and at 56rem the console splits. Coarse pointers raise keys, inputs and select rows to 2.75rem, the dock volume slider to 2.75rem, and the seek scale to 2.75rem. The world never switches off at any width: density collapses, the placards stay.
 
-Spacing rhythm: 0.35rem inside rows, 0.5rem between related controls, 0.75rem inside clusters, 0.85rem from a legend plate to its content, 1rem between panels, 1.25rem page gutters.
+Spacing rhythm: 0.35rem inside rows, 0.5rem between placards and controls, 0.75rem inside clusters, 0.85rem from a panel band to its content, 1rem between panels, 1.25rem page gutters.
 
 ### Named Rules
-**The Measured Dock Rule.** The transport dock measures its own height with a ResizeObserver and publishes it as `--transport-height` (2.85rem before the first measure). Fixed chrome and the shell clear the dock through that variable; a hardcoded dock height is a bug.
+**The Measured Dock Rule.** The transport bar measures its own height with a ResizeObserver and publishes it as `--transport-height` (2.85rem before the first measure). Fixed chrome and the shell clear the dock through that variable. A hardcoded dock height is a bug.
+
+**The Packed Plate Rule.** Placards and rating cells pack to their edges and divide with hairlines. Gaps separate distinct plates, never cells inside one bed.
 
 ## Elevation & Depth
 
-The system is flat, tonal, and seam-stitched. There are no drop shadows anywhere; the only `box-shadow` in the stylesheet is an inset 1px sodium underline on the active search row. Depth comes from five moves: the tonal ladder (ground, plate, plate-2, rail-deep, rail); 1px hairlines in `line` and `line-strong`; 2px plate seams (bottom edges of raised plates and keys in a darkened hairline, top edges of overlay surfaces in sodium); sunk wells (inputs and the tuning strip sit in ground darkened 85% and 82% toward black); and dimmed backdrops (ground 55% black behind the confirm dialog, black 60% behind the search palette).
+The system is flat, tonal and printed. Depth comes from four moves: a tonal ladder (sunken, rating, ground, plate, raised plate), 1px rules in `rule` and `rule-strong`, printed material (the banded hazard strip, the printed grain, the stepped scales), and dimmed backdrops behind modal surfaces. Exactly one drop shadow exists in the stylesheet, on the output popover. The flipped placard and the primary key take an inset printed edge instead, which reads as the border of a pressed sand surface rather than as elevation.
 
 ### Shadow Vocabulary
-- **Active row underline** (`box-shadow: inset 0 -1px 0 var(--lamp)`): marks the active search result row. The only shadow in the system.
+- **Overlay lift** (`box-shadow: 0 0.75rem 1.6rem rgb(0 0 0 / 0.55)`): the output popover, and the only drop shadow in the system.
+- **Printed edge** (`box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-sand) 18%, transparent)`): the flipped placard and the primary key, the printed border of a sand surface.
+- **Rating dividers** (`box-shadow: inset 1px 0 0 var(--rule), inset 0 -1px 0 var(--rule)`): the rating cells' shared hairlines, so cells need no gaps between them.
+- **Dimmed backdrops** (`color-mix(in srgb, var(--ground) 60%, black)` for the confirm dialog, `rgb(0 0 0 / 0.6)` for the search palette): modal separation.
 
 ### Named Rules
-**The Seam Rule.** Raised plates take a 2px seam on their bottom edge; overlays take a 2px sodium seam on their top edge. Seams are the only 2px lines in the system; every other edge is a 1px hairline.
+**The One Shadow Rule.** One drop shadow exists, the output popover's lift. Every other surface separates by a tonal step, a 1px rule, or printed material.
 
-**The Flat Rule.** No drop shadows, no glows, no decorative gradients. The only gradients are the tube layer's scanlines and vignette and the ruled tick scales. If a surface needs separation, give it a tonal step, a hairline, or a seam.
-
-## Motion
-
-Motion explains the receiver; it never decorates. Three behaviors and one vocabulary:
-
-- **Lock-on (the focal moment).** When the panel locks a signal (first play, resume, or a new track while playing) the Now Playing calibration edge lights sodium once, left to right, in 620ms of deceleration, and the corner lamp steps on through a double blink before holding. It runs once per lock, never on progress ticks. Nothing else in the panel celebrates.
-- **Arrival.** Queue, layer, and search rows arrive as log lines: a fade with 0.3rem of travel over `--motion-settle` (220ms), staggered 25–30ms per row and capped at six rows, so a list appears as a list. Dialogs drop 0.5rem, popovers and select lists wipe open top-down (a clip-path reveal), toasts slide in from the right corner, fault plates from the left. Gauges sweep from zero once on arrival. List rows use FLIP (200ms) so removal slides the survivors instead of snapping them.
-- **Settle.** The tuning strip's fill eases between progress updates (180ms ease-out), so the needle drifts rather than jumps; it snaps while the operator drags (`.is-seeking`), because direct manipulation is instant. That fill is the one width the system animates: it is a single absolutely positioned element, so the layout cost stays bounded to it, and a transform would distort the 1px edge and the needle sitting on it. Hover, focus, disabled, link, and chip color changes settle in `--motion-quick` (140ms). The playing lamp dims to paused over 220ms.
-
-The only repeating motion is the two step blinks (title lamp, offline lamp, boot mark), each behind `prefers-reduced-motion: no-preference`. There are no spinners, skeletons, or progress theatrics; waiting is text in place.
-
-Timing lives in three tokens: `--motion-quick` (140ms, state color), `--motion-settle` (220ms, arrivals), `--ease-arrive` (`cubic-bezier(0.16, 1, 0.3, 1)`, a confident deceleration). One-shot signatures may exceed them; the lock wipe runs 620ms.
-
-Under `prefers-reduced-motion: reduce` every arrival, wipe, sweep, and blink is removed and the element renders in its final state. The 140ms color settles stay: they carry state, not movement. The lock wipe is hidden entirely.
-
-### Named Rules
-**The One Celebration Rule.** The lock-on wipe is the only authored moment. Everything else is arrival, settle, or a gated blink.
+**The Printed Material Rule.** Sand surfaces carry printed grain (a 3px grid of sand ink at 6%) and a printed edge. Hazard surfaces carry the banded strip. Texture is printed, never glowed.
 
 ## Shapes
 
-Zero radius. Every corner in the system is square (the only `border-radius` declaration in the stylesheet is `0`, on the Firefox range thumb). There are no circles anywhere: every lamp, dot, and indicator is a square. The form vocabulary is squares and thin rectangles: 0.35rem dots (cyan on legend plates and chips), the 0.45rem title lamp, the 0.7rem playing corner lamp, the 4px by full-height slider thumb, the 0.7rem by 0.35rem needle head, 0.3rem gauge bars, and the "01"-style index digits as row markers. The select chevron is a 0.4rem square rotated 45 degrees with two 1px borders. Borders come in exactly two widths: 1px hairlines and 2px seams.
+Small radii and thin rules. Keys, placards, inputs, selects, toasts, thumbnails, gauges and the seek track take 3px corners. Panels, the placard bar, action-strip ends, the output popover, dialogs and fault plates take 4px. Instrument bits stay at 1px (the carrier lamp, the gauge bar and its fill) or 2px (the volume thumb, the transport warning chip). There are no pills and no circles: the carrier lamp is a 0.4rem square, the select chevron is a 0.4rem square rotated 45 degrees with two 1px borders, thumbnails are 48px, 32px or 96px squares, the search clear control is two 1px bars crossed, and the seek scale is a stepped strip.
+
+The material vocabulary is striped and printed: the hazard band runs 45 degrees in 8px stripes of hazard red and hazard well, the caution band runs 45 degrees in 5px stripes of oxide, the printed grain is 1px lines on a 3px grid, the seek scale is 7px lit or unlit steps separated by 3px, and the volume scale is a 1px tick every 4px. Borders are 1px everywhere except the 0.4rem hazard strip, which is a printed band rather than a border.
 
 ### Named Rules
-**The Zero Radius Rule.** Every corner is square and every border is a hairline or a seam. No rounded corners, no pills, no circles, no clip paths.
+**The Key and Plate Rule.** Keys, placards, inputs and selects take 3px corners. Panels, bars, popovers, dialogs and fault plates take 4px. Lamps, gauges and thumbs stay at 1px or 2px.
+
+**The Square Lamp Rule.** Every lamp and indicator is a square or a thin rectangle. No circles, no pills, no dots.
 
 ## Components
 
-The panel's controls are instrument keys and legend plates: flat plates with hairline edges and a 2px bottom seam, uppercase Michroma legends, and state carried by lit squares. Hover lights a control's ink and borders in sodium; it never floods a control with a solid fill.
+Placards are the state unit, keys are instrument keys, and plates are what holds them. A placard always pairs its claim with a value, a key always lights its ink rather than flooding with a fill, and a sand surface is always the thing the operator presses.
+
+### Placards (the state unit)
+- **Shape:** 3px corners, raised-plate fill, min-height 2.5rem, padding 0.4rem 0.6rem, 0.5rem gap between the claim and its value. Hover inside the output trigger lifts the fill to sand at 8% into the raised plate.
+- **Claim:** Barlow 600, 0.6875rem, tracking 0.16em, uppercase, amber.
+- **Value:** JetBrains Mono 0.8125rem, line-height 1.2, sand, ellipsised. It is never empty: an absent value falls back to a label such as "Select output".
+- **The bar:** the placard bar is a raised-plate band with a 1px bright rule, 4px corners, 0.5rem padding and 0.5rem gaps, and it wraps. It holds the wordmark placard, the output placard, the carrier placard, the voice placard, then the Search key and the Sign out key.
+- **Flipped:** when the carrier drops, the carrier placard inverts to sand under a 0.4rem banded hazard strip with the printed grain behind it and a printed edge, and both its label and its value switch to sand ink. This is the one place the offline chip is not hazard red: on a sand fill, hazard red measures 2.4:1, so the chip and its lamp take the sand ink and the banded strip carries the hazard.
 
 ### Keys (Buttons)
-- **Shape:** square, 1px `line` border, 2px bottom seam in `line` darkened 55% toward black, min-width 4.5rem, padding 0.5rem 1.05rem 0.45rem.
-- **Primary:** raised-steel background, Phosphor Cyan ink, Michroma 0.7rem tracking 0.16em uppercase, line-height 1.
-- **Hover / Focus:** hover lifts ink and borders to sodium (lamp ink, lamp-dim border, lamp bottom seam). Active translates the key down 1px. Focus-visible draws a 1px sodium outline at 2px offset; forced-colors swaps in a 2px Highlight outline. Disabled keys drop to Idle Gray on a plate background with a not-allowed cursor. While an action is in flight the key disables and its label changes (Checking…, Reconnecting…): per-action feedback, no skeletons.
-- **Danger:** Signal Red ink on alert-dim borders at rest; hover floods alert 16% into the raised steel and brightens the borders to full alert. In queue and layer rows the Remove key de-escalates to Soft Cyan with hairline borders until hovered: destruction stays quiet until it is aimed at.
-- **Action strip:** the panel's bottom edge. Full-bleed (negative margins to the panel edges), raised-steel background, 1px top hairline, 1px dividers between keys, right-aligned. Hover tints sodium 10% (danger 14% red). Dialog strips keep the same plate. On coarse pointers keys and inputs rise to a 2.75rem minimum height.
+- **Shape:** 3px corners, 1px bright rule, transparent fill, min-height 2.5rem (40px), min-width 3.5rem, padding 0.65rem 0.8rem. Barlow 600, 0.72rem, tracking 0.14em, uppercase, bone ink at rest.
+- **Hover / Focus:** hover lifts ink to sand, the fill to the raised plate and the border to oxide. Active translates the key down 1px. Focus-visible draws a 2px amber outline at 2px offset, and forced-colors swaps in a 2px Highlight outline. While an action is in flight the key disables and its label changes (Checking…, Reconnecting…), so waiting is text in place.
+- **Primary:** the sand key. A sand fill with the printed grain, dark sand ink on top, a printed border mixed from that ink at 30%, and the inset printed edge. Hover lightens the fill to sand at 76% toward white. Disabled drops the grain and the edge and returns to the placard plate.
+- **Danger:** bone ink at rest, so destruction stays quiet. Hover floods the hazard well and brightens the ink and border to hazard red.
+- **Disabled (the strike-out):** disabled keys take struck gray ink, a `rule` border, a not-allowed cursor and `text-decoration: line-through`. This is what fires across the transport when the carrier drops.
+- **Action strip:** the plate's bottom edge, full-bleed to it with negative margins, raised-plate fill, a 1px `rule` top border, right-aligned keys, and 4px corners matching the plate. Dialog strips keep the same plate.
+- **Row keys:** keys inside a queue or layer row and inside a fault plate shrink to a 2rem minimum height with tighter padding. These are the shortest authored targets in the panel (32px).
+- **Coarse pointers:** keys and inputs rise to a 2.75rem minimum height.
 
-### Chips
-- **Status chip:** rail-deep plate, 1px `line-strong` border, Michroma 0.7rem tracking 0.16em, a 0.35rem square lamp. Online reads ONLINE with a cyan lamp; offline reads OFFLINE in Signal Red with an alert-dim border and a red lamp blinking at 1s steps(2). This is the only blinking chip, and it blinks only for a broken carrier.
-- **Link state:** Michroma 0.7rem tracking 0.16em. LINK LIVE in sodium, LINK LOST in red, LINKING in dim cyan.
+### Chips (the carrier chip)
+- **Carrier:** a 0.4rem square lamp inside the carrier placard beside Barlow 600 at 0.6875rem tracking 0.16em. Online reads ONLINE with an amber lamp in sand text. Offline reads OFFLINE in hazard red with a hazard-red lamp that blinks at 1s `steps(2)`, gated behind a motion preference. On the flipped placard the chip and its lamp take the sand ink instead, because hazard red on sand measures 2.4:1. This is the only blinking chip.
+- **Link state:** Barlow 600, 0.6875rem, tracking 0.16em. LINK LIVE in amber, LINK LOST in hazard red, LINKING in dim ash.
+- **Stale tag:** a hazard-red tag beside the link state, Urbanist 700 at 0.6875rem tracking 0.16em uppercase, 1px hazard-red border, 2px corners, reading STALE. It appears as soon as the link drops, or when no status, position, or directory frame has arrived for 15 seconds, and clears on the next one. While it is up, readout values, the Now Playing title, and the dock readout drop to 45% opacity; every control stays live.
 
 ### Cards / Containers
-- **Panel:** the one container. Steel-plate interior, 1px `line` border, 1rem padding, and a ruled calibration scale pinned across its top edge (0.35rem tall; major ticks 1px every 2rem at full height, minor ticks every 0.5rem at 45% height).
-- **Legend plate:** the panel title, and the only place a panel gets one. Deep-rail plate, 1px `line-strong` border, 2px bottom seam, a 0.35rem sodium dot, Michroma 0.7rem tracking 0.22em uppercase.
-- **Playing lamp:** a panel in play grows a 0.7rem sodium square capping its top-left corner; it steps on with the lock (a double blink, then steady) and dims to paused over 220ms. Only the Now Playing panel carries it.
-- **Action strip:** see Keys.
+- **Panel:** the one container. Placard plate interior, 1px bright rule, 4px corners, 1rem padding.
+- **Panel band:** a plate label in Urbanist 700 at 0.75rem tracking 0.18em uppercase, sand, trailed by a 1px rule that fills the remaining width, with an optional right-hand meta in JetBrains Mono 0.75rem, faint ash, tabular. The Now Playing band ends with the state stamp, and a hazard-red stale badge ("bot offline") joins it when the carrier is down.
+- **Rating plate:** a grid of cells in the rating bed at `minmax(7rem, 1fr)`, divided by inset hairlines rather than gaps, 3px corners, overflow hidden. Each cell pads 0.5rem 0.6rem and holds a data label over a value that steps up to 0.9375rem.
+- **Empty state:** an uppercase dim-ash readout beside the key that fixes it (Search), or a lone empty line when there is no session.
+- **Thumbnail:** a square at 96px (Now Playing, 4rem under 30rem), 48px (search rows) or 32px (queue and layer rows), with a 1px bright rule and 3px corners. A missing thumbnail draws a 45-degree hatch in the bright rule over the raised plate.
 
 ### Inputs / Fields
-- **Style:** the sunk well: ground darkened 85% toward black, 1px `line` border, Phosphor Cyan text at 0.78rem, padding 0.45rem 0.65rem, square.
-- **Focus:** a 1px sodium outline at 2px offset. The volume controls take the same outline at 3px offset via `:focus-within`.
-- **Placeholder:** Faint Cyan. The search field's clear control is drawn from two 1px bars in dim cyan, lifting to sodium on hover; the native webkit cancel button is hidden because it renders in the OS's own colors.
-- **Select:** the panel never renders a native select popup. The trigger is a key-like plate (raised steel, hairline, 2px bottom seam, 0.78rem text) with a 0.4rem rotated-square chevron that sits over a listbox: raised-steel overlay, `line-strong` hairline, 2px sodium top seam, options separated by hairlines, the active option tinted cyan 10%. Full keyboard model: arrows, Home/End, Enter/Space, Escape, 500ms typeahead, outside-click close.
-- **Search palette:** a modal dialog capped at 42rem, 12vh from the top, on a black 60% backdrop. Legend plate "Search", the field over a raised-steel results list; the active row tints cyan 10% over a 1px sodium inset underline. A strip below names the selected track beside the Queue and Layer keys. Waiting states are text in place (Searching…), errors are red status lines.
+- **Style:** the sunken well. `#0d0b08` fill, 1px bright rule, 3px corners, sand text at 0.8125rem, padding 0.55rem 0.7rem. Placeholder in faint ash.
+- **Focus:** a 2px amber outline at 2px offset. The volume controls take the same outline at 3px offset through `:focus-within`.
+- **Select:** the panel never renders a native popup. The trigger is a plate-like control (raised-plate fill, bright rule, 3px corners, 0.8125rem sand) with a 0.4rem rotated-square chevron that sits over an in-world listbox (raised plate, bright rule, 3px corners, options divided by `rule` hairlines, the active option lifted to sand at 12% into the plate, wipe-open behind a motion preference). Full keyboard model: arrows, Home/End, Enter/Space, Escape, 500ms typeahead, outside-click close.
+- **Search palette:** a modal dialog capped at 42rem, 12vh from the top, on a black 60% backdrop. A Search plate label, the field over a raised-plate results list, the active row lifted to sand at 12% into the plate, then a strip naming the selected track beside the Queue (sand, primary) and Layer keys.
+- **Volume scale:** a native range restyled as a ruled scale. Sunken fill, 1px bright rule, 3px corners, a 1px tick every 4px, an amber 0.4rem thumb with 2px corners, 8rem wide in the dock and 6rem in a layer row. It is 16px tall on desktop and 44px in the dock on coarse pointers, the one native control below the 40px authored floor.
 
 ### Navigation
-- There is no nav: the panel is a single surface. The header rail is the wayfinding: a wordmark plate (deep-rail plate, 2px bottom seam, the pixel mark at 2rem beside HARPI in Michroma 0.85rem tracking 0.3em), the output readout, and the search key with its shortcut hint (Ctrl K, or the command key on a Mac; hidden under 30rem).
-- **Output readout:** a deep-rail trigger plate holding the OUTPUT data label, the guild and channel value, the status chip, and the link state. Its popover is a raised-steel overlay with a 2px sodium top seam holding the Guild and Channel selects and the Connect/Disconnect keys. Under 30rem the rail wraps and the readout takes a full row.
+- There is no nav: the panel is a single surface. The placard bar is the wayfinding. It holds the wordmark placard (the pixel mark at 1.6rem beside HARPI in Urbanist 800 at 0.85rem tracking 0.24em), the output placard (guild and channel, hover-lifted), the carrier placard, the voice placard, then the Search key with its shortcut hint (Ctrl K, or the command key on a Mac, hidden under 30rem) and the Sign out key.
+- The output placard is also the control: it opens a popover holding the Guild and Channel selects, an optional hint, and the Connect or Reconnect key beside Disconnect. Under 30rem the bar wraps and the output placard takes a full row.
 
-### The Tuning Strip (signature)
-- The seek control is a calibrated frequency rail in the dock: flex 1, min-width 8rem, height 1.9rem (2.75rem on coarse pointers), sunk in ground 82% toward black, ruled with major ticks every 2rem at full height and minor ticks every 0.5rem at 42%, inside a 1px border of ink at 22%.
-- **Fill and needle:** the tuned span sits at ink 18% with a 1px sodium right edge, and the needle head is a 0.7rem by 0.35rem sodium rectangle overhanging the edge by 0.35rem. The track grabs on pointer down (grab/grabbing cursors, touch-action none) and seeks to the drop point.
-- **Paused:** the fill drops to ink 6% and both the edge and the needle head dim to dim sodium.
-- **Offline:** `aria-disabled`, a not-allowed cursor, and every seek gesture and key is gated. The dock readout prepends a red "Bot offline" warning chip to the position, and under 30rem the whole readout hides.
-- **Keyboard:** `role="slider"` with aria-valuemin/max/now; arrows seek 5s, PageUp/PageDown 15s, Home/End jump to the ends; focus takes the 1px sodium outline. Under 30rem the strip wraps to a full-width row beneath the keys.
-- **The dock around it:** signal-rail background, 1px `line-strong` top border with a seam-colored bottom edge, a 0.2rem tick scale riding above its top border, keys seated in deep rail with `line-strong`-at-70% borders, and 1px dividers (ink 18%) between all children.
+### The Seek Scale (signature)
+- The seek control is a stepped amber scale in the dock: flex 1, min-width 8rem, 2.5rem tall (2.75rem on coarse pointers), sunken fill ruled with the unlit steps (7px of raised plate, 3px off), inside a 1px bright rule with 3px corners.
+- **Fill:** the played span is the lit steps (7px of amber, 3px off) with 3px right corners. While paused it swaps to the caution band (7px of oxide, 5px off).
+- **Interaction:** the track grabs on pointer down (grab and grabbing cursors, `touch-action: none`) and seeks to the drop point. `role="slider"` with aria-valuemin, max and now. Arrows seek 5s, PageUp and PageDown 15s, and Home and End jump to the ends. Focus takes the 2px amber outline.
+- **Offline:** `aria-disabled`, a not-allowed cursor, and every gesture and key is gated.
+- **Settle:** the fill eases between progress updates at 180ms ease-out so the scale drifts rather than jumps, and it snaps while the operator drags because direct manipulation is instant.
 
-### Readouts and Gauges
-- **Readout cell:** a data label (Chivo Mono 0.7rem tracking 0.14em uppercase, dim cyan) over a value (Chivo Mono, Phosphor Cyan, tabular numerals), separated by a 1px top hairline.
-- **Queue gauge:** a 4rem by 0.3rem bar per queue row, filled in dim cyan proportional to the longest queued track over a track of hairline at 80% ink. A readout, not a control.
-- **Queue row:** index in dim cyan, 32px thumbnail, title, gauge, "uploader · duration" in faint cyan, Remove key.
-- **Empty states:** uppercase dim-cyan readouts ("Queue empty — search to add tracks.", "No layers — add one from Search.") beside the key that fixes it (Search), or a lone empty line when there is no session.
-- **Stale badge:** "bot offline" in a red hairline box inside the Now Playing legend plate.
+### The Transport Dock (signature)
+- Fixed across the bottom edge: raised-plate fill, 1px bright rule on the top edge, 0.5rem 1rem padding, 0.5rem gaps, z-index 10.
+- It holds Prev, the sand Pause or Play key, Skip, the Loop key, the seek scale, the volume scale and its value, and the readout (position and duration, then the track title in dim ash after a middle dot). The dock ends with the status strip, the panel name in faint ash.
+- **Offline:** a Bot offline chip (hazard ink on the hazard well, 1px hazard-red border, 2px corners) prepends the readout, the transport keys strike out, and the carrier placard in the bar above flips.
+- **Compact:** under 30rem the dock wraps. Keys share a row at `flex: 1 1 4.5rem`, the readout and the status strip hide, the seek scale takes a full-width row, and the volume control shrinks to 6rem.
 
-### Toasts and Errors
-- **Toast:** a fixed column above the dock's right corner: raised steel, 1px `line-strong` border with a 1px sodium left edge, uppercase Chivo Mono 0.7rem. Confirmations only; errors never arrive here. Undo actions (Re-add) ride inside the toast as a key.
-- **Error region:** fixed above the dock's left corner: persistent red boxes (Signal Red text on alert mixed 8% into a plate, 1px alert border) with Dismiss and, for contract violations, Refresh keys.
-- Both clear the dock through `calc(1.75rem + var(--transport-height) + 0.5rem)`.
+### Fault Plates and Toasts
+- **Fault plate:** the error region, fixed above the dock's left corner. A hazard well under a 0.4rem banded hazard strip at the top, 1px hazard-red border, 4px corners, hazard ink, and it leads with the Hazard stamp in hazard red, then the message, then Dismiss (and Refresh for a contract violation). It arrives from the left.
+- **Toast:** the confirmation channel, fixed above the dock's right corner. Raised plate, 1px bright rule, a 1px amber left edge, 3px corners, Barlow 600 at 0.6875rem tracking 0.1em uppercase in sand, arriving from the right. Errors never arrive here. An undo action rides inside the toast as a small key.
+- Both clear the dock through `calc(var(--transport-height) + 0.5rem)`, so a wrapped dock on a phone never covers them.
 
-### Browser Surfaces and the Tube
-- **Selection:** Phosphor Cyan background, ground text. **Caret:** sodium. **Scrollbars:** thin, `line-strong` thumb on a transparent track (webkit: 10px wide, 3px ground border).
-- **Tube layer:** one fixed pseudo-element over the whole viewport (z-index 50, pointer-events none): 1px scanlines at 9% black every 4px plus a vignette fading to 24% black at the edges. No flicker, no curvature. Toasts and errors sit above it; the dock, strip, and panels below it.
-- **Boot and sign-in:** the boot screen shows the pixel mark beside "Linking…" in Michroma dim cyan; the sign-in panel is a legend-plated panel ("Access") with the HARPI PANEL title, a note that Discord membership is required, and a full-width "CONTINUE WITH DISCORD" key linking to the OAuth start.
+### Readouts, Gauges and Rows
+- **Readout cell:** a data label (Barlow 600, 0.6875rem, tracking 0.12em, uppercase, dim ash) over its value (JetBrains Mono, sand, tabular numerals), in the rating bed.
+- **Queue gauge:** a 4rem by 0.4rem stepped bar per row, filled in amber proportional to the longest queued track over the unlit step track. A readout, not a control.
+- **Queue row:** a 2.75rem minimum height, the index in amber (01), a 32px thumbnail, the title, the gauge, then "uploader · duration" in faint ash and a Remove key. Rows divide with `rule` hairlines and arrive staggered.
+- **Layer row:** the index, thumbnail and title, then a 6rem volume scale and a Remove key below. Rows use FLIP so removal slides the survivors instead of snapping them.
+- **Linked roster:** a three-column grid of name, channel and seen time with hairline row separators.
+- **Empty states:** uppercase dim-ash readouts ("Queue empty — search to add tracks.", "No layers — add one from Search.") beside the key that fixes it.
+
+### Browser Surfaces and the Boot Plate
+- **Selection:** amber background, ground text. **Caret:** amber. **Scrollbars:** thin, bright-rule thumb with a 3px ground border on a transparent track.
+- **Boot:** the pixel mark at 38px beside "Linking…" in Urbanist 800 at 0.85rem tracking 0.2em uppercase in dim ash, with the mark blinking behind a motion preference.
+- **Sign-in:** a plate labelled Access holding the HARPI PANEL title, the note that a shared Discord server is required, and a full-width sand CONTINUE WITH DISCORD key.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep every corner square (0px radius) and every edge a 1px hairline; the only 2px lines are plate seams (bottom on raised plates and keys, sodium top on overlays).
-- **Do** ink readings in the cyan ladder and light sodium only for what is live or locked: needle, playing corner lamp, title lamp, focus ring, connected link, hover.
-- **Do** draw the ruled scales wherever a surface needs texture: major ticks 1px every 2rem, minor ticks 1px every 0.5rem, in the two tick inks.
-- **Do** seat every panel title in a legend plate with its 0.35rem sodium dot and 2px bottom seam.
-- **Do** set legends and controls in Michroma, data in Chivo Mono, and keep the smallest type at the 0.7rem floor.
-- **Do** uppercase and track everything that labels (0.14em to 0.3em).
-- **Do** keep depth tonal: ground, plate, plate-2, rail-deep, rail, hairlines, seams.
-- **Do** theme the browser surfaces: ink-on-ground selection, sodium caret, hairline scrollbars.
-- **Do** gate every blink, arrival, wipe, and sweep behind `prefers-reduced-motion: no-preference`; keep the 140ms color settles under it, because they carry state rather than movement (see Motion).
-- **Do** let the fixed chrome clear the dock through `--transport-height`.
-- **Do** keep destructive keys quiet (Soft Cyan, hairline borders) until they are hovered in list rows.
+- **Do** pair every placard claim with the value that proves it. A placard with no value is a heading, not a placard.
+- **Do** ink state in amber (9.2:1 on a plate) and reading text in bone or sand, and keep amber off resting surface fills.
+- **Do** press sand for the primary action: the sand key, the search sheet's Queue key, the flipped carrier placard and the sign-in key each carry the printed grain and the printed edge.
+- **Do** reserve the 0.4rem banded hazard strip for the carrier flip and fault plates.
+- **Do** strike out keys when the carrier drops (struck gray ink, `line-through`, `rule` border) instead of hiding them.
+- **Do** keep the seek scale stepped: 7px lit or unlit, 3px apart, amber when playing and oxide when paused.
+- **Do** keep corners at 3px for keys and placards and 4px for plates and bars, and keep every lamp square.
+- **Do** set headings and stamps in Urbanist, legends and controls in Barlow, and values in JetBrains Mono, with the smallest type at the 11px floor.
+- **Do** keep depth tonal and printed: the ladder, 1px rules, the grain, the bands, and the single overlay shadow.
+- **Do** clear the dock through `--transport-height` and let the dock measure itself.
+- **Do** gate every blink behind `prefers-reduced-motion: no-preference`, and keep the 140ms color settles and the placard flip under it, because they carry state rather than movement.
+- **Do** keep tabular numerals wherever a number can change.
+- **Do** give destructive keys a quiet rest (bone ink) and let hover bring the hazard red.
 
 ### Don't:
-- **Don't** introduce green anywhere: OK is the cyan signal ink, live is sodium, broken is red. The design-language test fails on any green.
-- **Don't** use red outside alerts and destruction; a red literal is only legal on a line that says alert.
-- **Don't** add a third font family; stacks carry only Michroma, Chivo Mono, and their listed fallbacks.
-- **Don't** invert keys to a solid fill on hover; hover lights the ink and borders instead.
-- **Don't** paint sodium as body copy or as a resting surface fill.
-- **Don't** add drop shadows or glows; the only box-shadow is the active-row inset underline.
-- **Don't** round a corner, add a pill, or draw a circle.
-- **Don't** add spinners, skeletons, or fake progress: waiting is text in place (Linking…, Checking…, Reconnecting…, Searching…). Motion is arrivals, settles, blinks, and the one lock wipe: no loops on content, no bounce or elastic curves, no scroll effects, no movement on numbers.
-- **Don't** use thick borders beyond the 2px seams.
-- **Don't** let Idle Gray leak into readable content.
-- **Don't** ship the OS-native select popup or the native search-cancel button; overlays are built in-world.
+- **Don't** reintroduce the replaced receiver world: no steel-navy plates, no phosphor-cyan ink, no sodium dial lamp, no ruled calibration scales, no square 0px-radius keys.
+- **Don't** use hazard red or oxide as decoration. Hazard means breakage and oxide means caution.
+- **Don't** put hazard banding on a healthy surface.
+- **Don't** add a fourth font family, and never set a value or a legend in Urbanist.
+- **Don't** round a corner past 4px or draw a pill, a circle or a dot.
+- **Don't** add glows or gradient text. The only gradients are the hazard and caution bands, the printed grain, the stepped scales and the modal backdrops.
+- **Don't** invert a key to sand unless it is the primary action or the flipped placard.
+- **Don't** let the struck gray disabled ink (3.7:1) leak into readable content.
+- **Don't** invent a second authored moment. The placard flip is the only one.
+- **Don't** add spinners, skeletons or fake progress: waiting is text in place (Linking…, Checking…, Reconnecting…, Searching…).
+- **Don't** ship the OS-native select popup or the native search-cancel button. Overlays are built in-world.
+- **Don't** drop the fixed chrome below the dock or hardcode the dock height.

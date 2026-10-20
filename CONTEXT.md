@@ -52,7 +52,7 @@ The transient list of candidates returned by the single search on the Music page
 _Avoid_: search panel (there is only one search), results page
 
 **Layers rail**:
-The collapsible right-hand column of the Music page (20rem, above 56rem) holding the Layers. The Queue lives in the main column under Now Playing.
+The collapsible right-hand column of the Music page (15.5rem, above 56rem) holding the Layers, the Session readouts and the Linked roster. The Queue lives in the main column under Now Playing.
 _Avoid_: side panel, queue panel, layers panel
 
 **Toast**:
@@ -65,8 +65,38 @@ _Avoid_: notification, alert (alert is red and means error)
 The handle to the running bot (`src/bot_state.py`). The panel reads it, the bootstrap writes it. The bot never imports from the web layer.
 
 **Viewer**:
-A signed-in panel user with a selected guild and channel, refreshed by an SSE heartbeat. A viewer goes stale after 30 seconds without one.
+A signed-in panel user with a selected guild and channel, refreshed by the presence sample every five seconds. A viewer goes stale after 15 seconds without one.
 _Avoid_: user (the Discord account), session (that is playback)
+
+**Link**:
+The panel's connection to the server's event stream: linking, live, or reconnecting. The Output picker shows it as LINKING, LINK LIVE, or LINK LOST.
+_Avoid_: connection (that is voice), socket
+
+**Stale**:
+A panel reading state: values stopped arriving while the link may still be up. Shown as an amber STALE tag in the top bar, with the readouts dimmed. Recovery clears it, and nothing is lost by waiting.
+_Avoid_: disconnected (that is the link), offline (that is the bot)
+
+**Directory**:
+The guilds the bot is in, plus the voice channels of the selected guild. It travels as its own frame, and only when it changes.
+_Avoid_: guild list, channel list (those are the API endpoints)
+
+### Live updates
+
+**Sampler**:
+One per guild, owned by the panel process. It samples the guild's Session and the Directory on a fixed cadence and hands changed frames to every open stream, so viewers share one poll instead of each running their own.
+_Avoid_: poller, watcher, broadcaster
+
+**Status frame**:
+The full snapshot a stream sends when anything except the playback position changes. It is the only frame that replaces the whole panel state.
+_Avoid_: status push, update, sync (the noun is the sampler's job)
+
+**Position frame**:
+A small frame carrying only the playback position, sent every few seconds while a stream is open and immediately when the position jumps. The panel advances the readout between frames from the last sample.
+_Avoid_: progress event, tick
+
+**Heartbeat**:
+An empty named frame sent every few seconds while a stream is open. Its arrival alone proves the link alive, even when the sampler has nothing to say.
+_Avoid_: ping, keepalive
 
 **Registry**:
 The SQLite store of viewers and connect/disconnect events (`src/storage/`, ADR 0008). The panel reads presence from it; the API records selections and connection events.

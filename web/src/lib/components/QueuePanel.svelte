@@ -5,7 +5,7 @@
   import { flipParams } from "$lib/motion";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import EmptyState from "./EmptyState.svelte";
-  import { formatDuration } from "$lib/format";
+  import { formatCount, formatDuration } from "$lib/format";
   import type { ApiClient } from "$lib/api";
   import Thumbnail from "./Thumbnail.svelte";
 
@@ -18,6 +18,9 @@
   const hasSession = $derived($appStore.playback !== null);
   const maxDuration = $derived(
     queue.reduce((max, track) => Math.max(max, track.duration), 0),
+  );
+  const totalDuration = $derived(
+    queue.reduce((sum, track) => sum + track.duration, 0),
   );
 
   function gaugePercent(duration: number): string {
@@ -75,8 +78,15 @@
   }
 </script>
 
-<section class="hud-panel" data-testid="queue-panel">
-  <span class="panel-label">Queue</span>
+<section class="hud-panel queue-panel" data-testid="queue-panel">
+  <div class="panel-band">
+    <span class="panel-label">Queue</span>
+    {#if queue.length > 0}
+      <span class="panel-band__meta">
+        {formatCount(queue.length, "track")} · {formatDuration(totalDuration)}
+      </span>
+    {/if}
+  </div>
   {#if !hasSession}
     <p class="data-value is-empty" data-testid="queue-empty">
       No active session
@@ -151,8 +161,23 @@
 />
 
 <style>
+  .queue-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-block-size: 0;
+  }
+
   .queue-list {
-    max-height: 40vh;
+    flex: 1 1 auto;
+    min-block-size: 0;
+    max-block-size: 60vh;
     overflow-y: auto;
+  }
+
+  @media (min-width: 56rem) {
+    .queue-list {
+      max-block-size: none;
+    }
   }
 </style>

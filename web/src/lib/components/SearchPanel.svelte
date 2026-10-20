@@ -248,7 +248,7 @@
       <span class="search-buttons">
         <button
           type="button"
-          class="hud-btn"
+          class="hud-btn hud-btn--primary"
           onclick={queueTrack}
           disabled={!activeResult || busyUrl !== null}
           data-testid="queue-track"
@@ -298,12 +298,13 @@
     position: absolute;
     inset-block-start: 50%;
     inset-inline-end: 0.35rem;
-    inline-size: 1.4rem;
-    block-size: 1.4rem;
+    inline-size: 1.6rem;
+    block-size: 1.6rem;
     padding: 0;
     background: none;
     border: none;
-    color: var(--ink-dim);
+    border-radius: var(--radius-key);
+    color: var(--dim);
     cursor: pointer;
     translate: 0 -50%;
     transition: color var(--motion-quick) ease;
@@ -329,11 +330,11 @@
   }
 
   .search-clear:hover {
-    color: var(--lamp);
+    color: var(--sand);
   }
 
   .search-clear:focus-visible {
-    outline: 1px solid var(--lamp);
+    outline: 2px solid var(--amber);
     outline-offset: 2px;
   }
 
@@ -369,7 +370,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.8rem;
+    font-size: 0.8125rem;
   }
 
   .search-buttons {

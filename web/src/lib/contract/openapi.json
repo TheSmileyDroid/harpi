@@ -188,6 +188,43 @@
         "title": "ConnectionEvent",
         "type": "object"
       },
+      "Directory": {
+        "additionalProperties": false,
+        "properties": {
+          "channels": {
+            "items": {
+              "$ref": "#/components/schemas/Channel"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "guild_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guild Id"
+          },
+          "guilds": {
+            "items": {
+              "$ref": "#/components/schemas/Guild"
+            },
+            "title": "Guilds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "guild_id",
+          "guilds",
+          "channels"
+        ],
+        "title": "Directory",
+        "type": "object"
+      },
       "ErrorDetail": {
         "additionalProperties": false,
         "properties": {
@@ -254,6 +291,13 @@
           "guilds"
         ],
         "title": "GuildList",
+        "type": "object"
+      },
+      "Heartbeat": {
+        "additionalProperties": false,
+        "description": "An empty named frame; arriving at all is what proves the stream alive.",
+        "properties": {},
+        "title": "Heartbeat",
         "type": "object"
       },
       "Layer": {
@@ -446,6 +490,20 @@
         "title": "PlaybackStatus",
         "type": "object"
       },
+      "Position": {
+        "additionalProperties": false,
+        "properties": {
+          "progress": {
+            "title": "Progress",
+            "type": "number"
+          }
+        },
+        "required": [
+          "progress"
+        ],
+        "title": "Position",
+        "type": "object"
+      },
       "Presence": {
         "additionalProperties": false,
         "properties": {
@@ -563,6 +621,15 @@
           },
           {
             "$ref": "#/components/schemas/Presence"
+          },
+          {
+            "$ref": "#/components/schemas/Position"
+          },
+          {
+            "$ref": "#/components/schemas/Heartbeat"
+          },
+          {
+            "$ref": "#/components/schemas/Directory"
           }
         ],
         "description": "Frames emitted by GET /api/events; the event name travels out of band.",

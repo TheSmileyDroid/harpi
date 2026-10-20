@@ -11,13 +11,14 @@ Quart and discord.py share one process and two event loops. The panel is a Svelt
 - **cog** is a discord.py command module in `src/cogs/`. Commands stay thin: parse, delegate, format.
 - **page** is a web surface in `pages/`: a Quart blueprint answering JSON or the SSE stream.
 - **bot state** (`src/bot_state.py`) is the handle to the running bot. The panel reads it, the bootstrap writes it. The bot never imports from the web layer.
+- **sampler** (`src/panel/sampler.py`) is one per-guild poll shared by every open stream. It owns the values and the failure boundary; the stream frames them on its own tick (ADR 0009).
 - **source chain** is how music plays: yt-dlp search, stream selection and probing (`ytdl_source`, `stream_probe`), FFmpeg decode (`ffmpeg_source`), mixer, voice client.
 
 ## Where code lives
 
 - `src/cogs/` - Discord commands. Thin handlers over session methods.
 - `src/harpi_lib/` - domain logic: `audio/` (session, mixer, sources), `music/` (yt-dlp, probing, ffmpeg), `math/` (dice parser). No discord.ui or Quart imports.
-- `src/panel/` - the domain seam the API and the bot share: `state`, `actions`, `serialization`, and `schemas` (the Pydantic wire models that are the panel contract, ADR 0004).
+- `src/panel/` - the domain seam the API and the bot share: `state`, `actions`, `serialization`, `sampler` (one per-guild poll shared by every open stream, ADR 0009), and `schemas` (the Pydantic wire models that are the panel contract, ADR 0004).
 - `src/storage/` - the panel registry: SQLite database, ordered migrations, and the `Registry` seam (ADR 0008).
 - `src/bot_state.py` - the running-bot handle and the loop bridge.
 - `src/config.py` - `Settings`, sole owner of `os.getenv`.

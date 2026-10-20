@@ -9,16 +9,19 @@
   import QueuePanel from "./QueuePanel.svelte";
   import LayersPanel from "./LayersPanel.svelte";
   import ConnectedPanel from "./ConnectedPanel.svelte";
+  import Readout from "./Readout.svelte";
   import TransportBar from "./TransportBar.svelte";
 
   let {
     link,
+    stale,
     onrefresh,
     onresync,
     onsignout,
     api,
   }: {
     link: string;
+    stale: boolean;
     onrefresh: () => Promise<boolean>;
     onresync: () => Promise<void>;
     onsignout: () => Promise<void>;
@@ -95,29 +98,34 @@
 
 <svelte:window onkeydown={onGlobalKeydown} />
 
-<main class="app-container" id="shell">
-  <header class="topbar">
-    <span class="logo">
+<main class="app-container" id="shell" data-stale={stale}>
+  <header class="placard-bar">
+    <span class="placard brand">
       <img
-        class="logo-mark"
+        class="brand__mark"
         src="/brand/harpi-smiley-mark.svg"
         alt=""
         aria-hidden="true"
       />
-      <span class="logo-text">HARPI</span>
+      <h1 class="page-title brand__name">Harpi</h1>
     </span>
     <OutputPicker {api} {link} {onresync} />
+    {#if stale}
+      <span class="stale-tag" data-testid="stale-tag" role="status">
+        Stale
+      </span>
+    {/if}
     <button
       type="button"
-      class="hud-btn topbar__search"
+      class="hud-btn bar__key"
       onclick={() => appStore.openSearch()}
       data-testid="open-search"
     >
-      Search <span class="topbar__kbd">{kbdLabel}</span>
+      Search <span class="bar__kbd">{kbdLabel}</span>
     </button>
     <button
       type="button"
-      class="hud-btn topbar__signout"
+      class="hud-btn"
       onclick={() => void onsignout()}
       data-testid="sign-out"
     >
@@ -126,280 +134,181 @@
   </header>
 
   <span class="visually-hidden" role="status" aria-live="polite">
-    Bot {botOnline ? "online" : "offline"}; panel link {link}
+    Bot {botOnline ? "online" : "offline"}; panel link {link}{stale
+      ? "; readings stale"
+      : ""}
   </span>
 
-  <section class="region" aria-labelledby="region-music-title">
-    <h1 class="page-title region-heading" id="region-music-title">Music</h1>
-    <div class="music-layout">
-      <div class="music-main">
-        <NowPlaying />
-        <QueuePanel {api} />
-      </div>
+  <div class="console">
+    <section class="console__main" aria-label="Music">
+      <NowPlaying />
+      <QueuePanel {api} />
+    </section>
+
+    <aside class="console__rail" aria-label="Layers and session">
       {#if layersOpen}
-        <aside class="layers-rail" aria-labelledby="region-layers-title">
-          <div class="layers-rail__head">
-            <h2 class="region-title" id="region-layers-title">Layers</h2>
+        <LayersPanel {api} />
+        <button
+          type="button"
+          class="hud-btn rail__key"
+          onclick={() => (layersOpen = false)}
+          data-testid="layers-toggle"
+        >
+          Hide layers
+        </button>
+      {:else}
+        <button
+          type="button"
+          class="hud-btn rail__key"
+          onclick={() => (layersOpen = true)}
+          data-testid="layers-reopen"
+        >
+          Show layers
+        </button>
+      {/if}
+
+      <section
+        class="hud-panel"
+        data-testid="connection-panel"
+        aria-label="Session"
+      >
+        <span class="panel-label">Session</span>
+        <div class="rating">
+          <Readout
+            label="Bot"
+            value={$appStore.bot.online ? "Online" : "Offline"}
+            testid="bot-online"
+          />
+          <Readout label="Voice" value={voiceLabel} testid="connection" />
+        </div>
+        {#if !botOnline}
+          <p class="system-note" data-testid="bot-offline-note">
+            Bot offline — playback and voice are unavailable until it
+            reconnects.
+          </p>
+        {:else if connected && !hasSession}
+          <p class="system-note" data-testid="session-idle-note">
+            Voice link up, session idle — reconnect to take control.
+          </p>
+        {/if}
+        <div class="action-strip">
+          {#if connected}
             <button
               type="button"
               class="hud-btn"
-              onclick={() => (layersOpen = false)}
-              data-testid="layers-toggle"
+              onclick={reconnect}
+              disabled={reconnecting}
+              data-testid="reconnect"
             >
-              Hide
+              {reconnecting ? "Reconnecting…" : "Reconnect"}
             </button>
-          </div>
-          <LayersPanel {api} />
-        </aside>
-      {/if}
-    </div>
-    {#if !layersOpen}
-      <button
-        type="button"
-        class="hud-btn rail-reopen"
-        onclick={() => (layersOpen = true)}
-        data-testid="layers-reopen"
-      >
-        Show layers
-      </button>
-    {/if}
-  </section>
-
-  <section class="region" aria-labelledby="region-system-title">
-    <h2 class="region-title" id="region-system-title">System</h2>
-    <section class="hud-panel" data-testid="connection-panel">
-      <span class="panel-label">Session</span>
-      <div class="session-readouts">
-        <div class="data-row">
-          <span class="data-label">Bot</span>
-          <span class="data-value" data-testid="bot-online">
-            {$appStore.bot.online ? "Online" : "Offline"}
-          </span>
-        </div>
-        <div class="data-row">
-          <span class="data-label">Voice</span>
-          <span
-            class="data-value"
-            data-testid="connection"
-            data-connected={$appStore.connection.connected}
-          >
-            {voiceLabel}
-          </span>
-        </div>
-      </div>
-      {#if !botOnline}
-        <p class="system-note" data-testid="bot-offline-note">
-          Bot offline — playback and voice are unavailable until it reconnects.
-        </p>
-      {:else if connected && !hasSession}
-        <p class="system-note" data-testid="session-idle-note">
-          Voice link up, session idle — reconnect to take control.
-        </p>
-      {/if}
-      <div class="action-strip">
-        {#if connected}
+          {/if}
           <button
             type="button"
             class="hud-btn"
-            onclick={reconnect}
-            disabled={reconnecting}
-            data-testid="reconnect"
+            onclick={refresh}
+            disabled={refreshing}
+            data-testid="refresh"
           >
-            {reconnecting ? "Reconnecting…" : "Reconnect"}
+            {refreshing ? "Checking…" : "Refresh"}
           </button>
-        {/if}
-        <button
-          type="button"
-          class="hud-btn"
-          onclick={refresh}
-          disabled={refreshing}
-          data-testid="refresh"
-        >
-          {refreshing ? "Checking…" : "Refresh"}
-        </button>
-      </div>
-    </section>
-    <ConnectedPanel />
-  </section>
+        </div>
+      </section>
+
+      <ConnectedPanel />
+    </aside>
+  </div>
 
   <TransportBar {api} />
-
-  <footer class="status-strip">
-    <span>Harpi panel</span>
-  </footer>
 </main>
 
 <SearchPanel {api} />
 
 <style>
-  .topbar {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.45rem 0.6rem;
-    background: var(--rail);
-    border: 1px solid var(--line-strong);
-    border-block-end-color: var(--seam);
-    margin-bottom: 1.25rem;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
+  .brand {
     gap: 0.55rem;
-    margin-inline-end: auto;
-    padding: 0.25rem 0.6rem;
-    background: var(--rail-deep);
-    border: 1px solid var(--line-strong);
-    border-block-end-width: 2px;
+    padding-inline: 0.55rem;
   }
 
-  .logo-text {
-    font-family: var(--font-display);
-    font-weight: 400;
-    font-size: 0.85rem;
-    letter-spacing: 0.3em;
-    color: var(--ink);
-  }
-
-  .logo-mark {
+  .brand__mark {
     display: block;
-    height: 38px;
-    width: auto;
+    block-size: 1.6rem;
+    inline-size: auto;
     image-rendering: pixelated;
   }
 
-  .topbar__search {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex: none;
+  .brand__name {
+    font-size: 0.85rem;
+    letter-spacing: 0.24em;
   }
 
-  .topbar__kbd {
-    font-size: 0.7rem;
-    letter-spacing: 0.14em;
-    color: var(--ink-dim);
+  .bar__key {
+    margin-inline-start: auto;
+  }
+
+  .bar__kbd {
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    color: var(--dim);
     transition: color var(--motion-quick) ease;
   }
 
-  .hud-btn:hover .topbar__kbd {
-    color: var(--lamp);
+  .hud-btn:hover .bar__kbd {
+    color: var(--sand);
   }
 
-  .region {
-    margin-block-start: 1.5rem;
-  }
-
-  .region-heading {
-    margin: 0 0 0.85rem;
-  }
-
-  .region-title {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 0 0 0.85rem;
-    font-family: var(--font-display);
-    font-weight: 400;
-    font-size: 0.8rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--ink);
-  }
-
-  .region-title::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: var(--line);
-  }
-
-  .music-layout {
+  .console {
     display: grid;
+    flex: 1 1 auto;
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     gap: 1rem;
   }
 
-  .music-main {
+  .console__main {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    gap: 1rem;
+    min-width: 0;
+    min-block-size: 0;
+  }
+
+  .console__rail {
     display: flex;
     flex-direction: column;
     gap: 1rem;
     min-width: 0;
   }
 
-  .layers-rail {
-    min-width: 0;
+  .rail__key {
+    align-self: stretch;
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .layers-rail {
+    .console__rail {
       animation: plate-rise var(--motion-settle) var(--ease-arrive);
     }
   }
 
-  .layers-rail__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-bottom: 0.85rem;
-  }
-
-  .layers-rail__head .region-title {
-    margin: 0;
-    flex: 1;
-  }
-
-  .session-readouts {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-    gap: 0.25rem 1rem;
-  }
-
-  .session-readouts .data-row {
-    display: block;
-    padding-block: 0.35rem;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .session-readouts .data-label {
-    display: block;
-    inline-size: auto;
-    margin-bottom: 0.15rem;
-  }
-
-  .system-note {
-    margin: 0.35rem 0 0;
-    font-size: 0.7rem;
-    letter-spacing: 0.05em;
-    color: var(--ink-dim);
-  }
-
-  .rail-reopen {
-    display: block;
-    margin-inline-start: auto;
-    margin-block-start: 0.85rem;
-  }
-
   @media (min-width: 56rem) {
-    .music-layout {
-      grid-template-columns: minmax(0, 1fr) 20rem;
+    .console {
+      grid-template-columns: minmax(0, 1fr) 15.5rem;
       align-items: start;
+    }
+
+    .console__main {
+      align-self: stretch;
     }
   }
 
   @media (max-width: 30rem) {
-    .topbar {
-      flex-wrap: wrap;
+    .placard-bar {
+      gap: 0.35rem;
     }
 
-    .topbar__kbd {
+    .bar__kbd {
       display: none;
-    }
-
-    .region {
-      margin-block-start: 1rem;
     }
   }
 </style>

@@ -33,6 +33,8 @@ from tests.fakes import (
 )
 
 SECOND_GUILD_ID = 734174030701264912
+EXTRA_GUILD_ID = 5555
+EXTRA_GUILD_NAME = "Gamma Guild"
 
 quart_app = app_module.app
 
@@ -196,6 +198,12 @@ async def _run_inline(coro, timeout: float | None = None):
     return await coro
 
 
+async def _refuse_bot_loop(coro, timeout: float | None = None):
+    del timeout
+    coro.close()
+    raise RuntimeError("bot loop unavailable")
+
+
 panel_state.run_on_bot_loop = _run_inline
 bot_state.init_bot(bot)
 app_module.run_bot_in_background = lambda settings: None
@@ -242,6 +250,25 @@ async def reset():
     session_obj._status = status_for("Now Track")
     session_obj.calls.clear()
     bot.sessions._by_guild[GUILD_A] = session_obj
+    bot._guilds.pop(EXTRA_GUILD_ID, None)
+    panel_state.run_on_bot_loop = _run_inline
+    return {"ok": True}
+
+
+@quart_app.post("/__test__/loop")
+async def set_loop():
+    payload = await request.get_json()
+    panel_state.run_on_bot_loop = (
+        _run_inline if payload.get("available") else _refuse_bot_loop
+    )
+    return {"ok": True}
+
+
+@quart_app.post("/__test__/guild")
+async def add_guild():
+    payload = await request.get_json()
+    name = str(payload.get("name", EXTRA_GUILD_NAME))
+    bot._guilds[EXTRA_GUILD_ID] = FakeGuild(EXTRA_GUILD_ID, name)
     return {"ok": True}
 
 

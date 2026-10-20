@@ -10,6 +10,21 @@
       }
     ]
   },
+  "Directory": {
+    "channels": [
+      {
+        "id": "10",
+        "name": "Voice"
+      }
+    ],
+    "guild_id": "7",
+    "guilds": [
+      {
+        "id": "1",
+        "name": "Alpha"
+      }
+    ]
+  },
   "ErrorEnvelope": {
     "error": {
       "code": "not_found",
@@ -23,6 +38,10 @@
         "name": "Alpha"
       }
     ]
+  },
+  "Heartbeat": {},
+  "Position": {
+    "progress": 42.5
   },
   "Presence": {
     "guild_id": "7",

@@ -120,6 +120,20 @@ class StatusSnapshot(_Response):
     playback: PlaybackStatus | None
 
 
+class Position(_Response):
+    progress: float
+
+
+class Heartbeat(_Response):
+    """An empty named frame; arriving at all is what proves the stream alive."""
+
+
+class Directory(_Response):
+    guild_id: Snowflake | None
+    guilds: list[Guild]
+    channels: list[Channel]
+
+
 class Authenticated(_Response):
     authenticated: bool
 
@@ -159,7 +173,16 @@ class ReloadEvent(_Response):
     scope: str
 
 
-class SseEnvelope(RootModel[StatusSnapshot | ReloadEvent | Presence]):
+class SseEnvelope(
+    RootModel[
+        StatusSnapshot
+        | ReloadEvent
+        | Presence
+        | Position
+        | Heartbeat
+        | Directory
+    ]
+):
     """Frames emitted by GET /api/events; the event name travels out of band."""
 
     __sse__ = True
@@ -203,4 +226,7 @@ SSE_EVENTS: dict[str, type[BaseModel]] = {
     "status": StatusSnapshot,
     "reload": ReloadEvent,
     "presence": Presence,
+    "position": Position,
+    "heartbeat": Heartbeat,
+    "directory": Directory,
 }

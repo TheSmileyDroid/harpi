@@ -1,18 +1,38 @@
 import { ApiError } from "./api";
-import { Presence, ReloadEvent, StatusSnapshot } from "./contract/panel.gen";
+import {
+  Directory,
+  Heartbeat,
+  Position,
+  Presence,
+  ReloadEvent,
+  StatusSnapshot,
+} from "./contract/panel.gen";
 
 export const BASE_BACKOFF_MS = 1000;
 export const MAX_BACKOFF_MS = 30000;
+const STALL_MS = 15000;
 
 type StatusFrame = { type: "status"; data: StatusSnapshot };
 type ReloadFrame = { type: "reload"; data: ReloadEvent };
 type PresenceFrame = { type: "presence"; data: Presence };
-export type SseFrame = StatusFrame | ReloadFrame | PresenceFrame;
+type PositionFrame = { type: "position"; data: Position };
+type HeartbeatFrame = { type: "heartbeat"; data: Heartbeat };
+type DirectoryFrame = { type: "directory"; data: Directory };
+export type SseFrame =
+  | StatusFrame
+  | ReloadFrame
+  | PresenceFrame
+  | PositionFrame
+  | HeartbeatFrame
+  | DirectoryFrame;
 
 const SSE_SCHEMAS = {
   status: StatusSnapshot,
   reload: ReloadEvent,
   presence: Presence,
+  position: Position,
+  heartbeat: Heartbeat,
+  directory: Directory,
 } as const;
 
 export type SseEventName = keyof typeof SSE_SCHEMAS;
@@ -61,6 +81,7 @@ export interface EventStreamOptions {
   cancel?: (id: Timer) => void;
   baseDelay?: number;
   maxDelay?: number;
+  stallAfter?: number;
 }
 
 export function createEventStream({
@@ -73,15 +94,32 @@ export function createEventStream({
   cancel = clearTimeout,
   baseDelay = BASE_BACKOFF_MS,
   maxDelay = MAX_BACKOFF_MS,
+  stallAfter = STALL_MS,
 }: EventStreamOptions = {}) {
   let source: EventSourceLike | null = null;
   let timer: Timer | null = null;
+  let watchdog: Timer | null = null;
   let attempt = 0;
   let stopped = true;
+
+  function armWatchdog() {
+    if (watchdog !== null) cancel(watchdog);
+    watchdog = schedule(() => {
+      watchdog = null;
+      drop();
+    }, stallAfter);
+  }
+
+  function clearWatchdog() {
+    if (watchdog === null) return;
+    cancel(watchdog);
+    watchdog = null;
+  }
 
   function dispatch(name: SseEventName, event: Event) {
     const frame = parseFrame(name, (event as MessageEvent).data);
     if (frame) {
+      armWatchdog();
       onEvent?.(frame);
       return;
     }
@@ -97,17 +135,16 @@ export function createEventStream({
   function connect() {
     if (stopped) return;
     source = new EventSourceImpl(url, { withCredentials: true });
+    armWatchdog();
 
     source.addEventListener("open", () => {
       attempt = 0;
       onConnectionChange?.("connected");
     });
 
-    source.addEventListener("status", (event) => dispatch("status", event));
-
-    source.addEventListener("reload", (event) => dispatch("reload", event));
-
-    source.addEventListener("presence", (event) => dispatch("presence", event));
+    for (const name of Object.keys(SSE_SCHEMAS) as SseEventName[]) {
+      source.addEventListener(name, (event) => dispatch(name, event));
+    }
 
     source.addEventListener("error", () => {
       drop();
@@ -116,6 +153,7 @@ export function createEventStream({
 
   function drop() {
     if (stopped) return;
+    clearWatchdog();
     source?.close();
     source = null;
     onConnectionChange?.("reconnecting");
@@ -133,6 +171,7 @@ export function createEventStream({
       stopped = true;
       if (timer !== null) cancel(timer);
       timer = null;
+      clearWatchdog();
       source?.close();
       source = null;
     },

@@ -6,6 +6,7 @@
   <div class="error-region" data-testid="error-region">
     {#each $errorRegion as error (error.id)}
       <p class="panel-error" role="alert">
+        <span class="stamp is-hazard">Hazard</span>
         <span data-testid="error-message">{error.message}</span>
         {#if error.code === "contract_violation"}
           <button
@@ -31,8 +32,8 @@
 {/if}
 
 <style>
-  .panel-error .hud-btn {
+  .panel-error [data-testid="error-message"] {
+    flex: 1;
     min-width: 0;
-    padding: 0.2rem 0.5rem;
   }
 </style>

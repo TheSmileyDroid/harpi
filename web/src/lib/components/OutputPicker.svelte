@@ -210,11 +210,19 @@
     onclick={() => appStore.toggleOutput()}
     data-testid="output-picker"
   >
-    <span class="data-label">Output</span>
-    <span class="data-value" data-testid="guild-id">{summary}</span>
-    <StatusChip online={$appStore.bot.online} />
-    <span class="link-state" data-testid="link-state" data-link={link}>
-      {linkLabels[link] ?? "LINKING"}
+    <span class="placard">
+      <span class="placard__label">Output</span>
+      <span class="placard__value" data-testid="guild-id">{summary}</span>
+    </span>
+    <span class="placard" data-flipped={!$appStore.bot.online}>
+      <span class="placard__label">Carrier</span>
+      <StatusChip online={$appStore.bot.online} />
+    </span>
+    <span class="placard">
+      <span class="placard__label">Voice</span>
+      <span class="link-state" data-testid="link-state" data-link={link}>
+        {linkLabels[link] ?? "LINKING"}
+      </span>
     </span>
   </button>
 
@@ -225,6 +233,7 @@
       role="dialog"
       aria-label="Output"
     >
+      <span class="panel-label">Output</span>
       <div class="data-row">
         <span class="data-label">Guild</span>
         <Select
@@ -312,48 +321,41 @@
   .output-picker__trigger {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    max-width: 28rem;
-    padding: 0.3rem 0.6rem;
-    background: var(--rail-deep);
-    border: 1px solid var(--line-strong);
-    color: var(--ink);
+    gap: 0.5rem;
+    max-width: 100%;
+    padding: 0;
+    background: none;
+    border: 0;
     cursor: pointer;
-    transition:
-      border-color var(--motion-quick) ease,
-      color var(--motion-quick) ease;
   }
 
-  .output-picker__trigger:hover {
-    border-color: var(--lamp-dim);
+  .output-picker__trigger .placard {
+    transition:
+      background-color var(--motion-quick) ease,
+      box-shadow var(--motion-quick) ease;
+  }
+
+  .output-picker__trigger:hover .placard {
+    background: color-mix(in srgb, var(--sand) 8%, var(--plate-2));
   }
 
   .output-picker__trigger:focus-visible {
-    outline: 1px solid var(--lamp);
+    outline: 2px solid var(--amber);
     outline-offset: 2px;
-  }
-
-  .output-picker__trigger .data-label {
-    inline-size: auto;
-  }
-
-  .output-picker__trigger .data-value {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    border-radius: var(--radius-key);
   }
 
   .output-picker__popover {
     position: absolute;
-    inset-block-start: calc(100% + 0.35rem);
+    inset-block-start: calc(100% + 0.5rem);
     inset-inline-start: 0;
     z-index: 40;
-    min-width: min(22rem, 90vw);
-    padding: 0.75rem;
+    min-width: min(24rem, 90vw);
+    padding: 0.85rem;
     background: var(--plate-2);
-    border: 1px solid var(--line-strong);
-    border-block-start-width: 2px;
-    border-block-start-color: var(--lamp);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-plate);
+    box-shadow: 0 0.75rem 1.6rem rgb(0 0 0 / 0.55);
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -362,51 +364,31 @@
     }
   }
 
-  .output-picker__popover .data-row {
-    padding-block: 0.35rem;
-  }
-
   .output-picker__popover :global(.hud-select) {
     flex: 1;
     min-width: 0;
   }
 
   .output-picker__popover .action-strip {
-    margin: 0.75rem -0.75rem -0.75rem;
-  }
-
-  .output-picker__popover .system-note {
-    margin: 0.35rem 0 0;
-    font-size: 0.7rem;
-    letter-spacing: 0.05em;
-    color: var(--ink-dim);
+    margin: 0.85rem -0.85rem -0.85rem;
   }
 
   @media (max-width: 30rem) {
     .output-picker {
-      order: 3;
       flex: 1 1 100%;
     }
 
     .output-picker__trigger {
+      flex-wrap: wrap;
       width: 100%;
-      max-width: none;
-      gap: 0.4rem;
-      row-gap: 0.25rem;
     }
 
-    .output-picker__trigger .data-label {
-      display: none;
+    .output-picker__trigger .placard {
+      flex: 1 1 8rem;
     }
 
-    .output-picker__trigger .data-value {
-      flex: 1 1 60%;
-    }
-
-    .output-picker__trigger :global(.bot-online),
-    .output-picker__trigger :global(.bot-offline),
-    .output-picker__trigger .link-state {
-      flex: none;
+    .output-picker__trigger .placard:first-child {
+      flex: 1 1 100%;
     }
   }
 </style>

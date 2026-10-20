@@ -1,45 +1,81 @@
-"""Tests for the dev-loop SSE channel under /api/events."""
+"""Tests for the panel SSE channel under /api/events."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
-from collections.abc import Awaitable, Callable
 from typing import Any
 
 from pages import events
+from src.panel.schemas import (
+    Directory,
+    Heartbeat,
+    Presence,
+    Position,
+    StatusSnapshot,
+)
 
 from app import app as quart_app
 
-Status = dict[str, Any]
-Provider = Callable[[int | None], Awaitable[Status]]
-
-
-def _scripted(values: list[Status]) -> Provider:
-    remaining = list(values)
-    held = {"last": values[0]}
-
-    async def provider(guild_id: int | None) -> Status:
-        del guild_id
-        if remaining:
-            held["last"] = remaining.pop(0)
-        return held["last"]
-
-    return provider
-
-
-CONNECTED: Status = {
+CONNECTED: dict[str, Any] = {
     "bot": {"online": True},
     "guild_id": None,
     "connection": {"connected": False, "channel_id": None},
     "playback": None,
 }
+EMPTY_PRESENCE = Presence(guild_id=None, viewers=[], last_connection=None)
+EMPTY_DIRECTORY = Directory(guild_id=None, guilds=[], channels=[])
 
-EMPTY_PRESENCE: Status = {
-    "guild_id": None,
-    "viewers": [],
-    "last_connection": None,
-}
+
+class FakeSampler:
+    def __init__(self) -> None:
+        self.queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
+        self.sample = StatusSnapshot.model_validate(CONNECTED)
+        self.directory_value = EMPTY_DIRECTORY
+        self.position_value = Position(progress=0.0)
+        self.healthy = True
+        self.unsubscribed: list[asyncio.Queue[tuple[str, Any]]] = []
+
+    async def subscribe(self) -> asyncio.Queue[tuple[str, Any]]:
+        return self.queue
+
+    def unsubscribe(self, queue: asyncio.Queue[tuple[str, Any]]) -> None:
+        self.unsubscribed.append(queue)
+
+    def current(self) -> StatusSnapshot:
+        return self.sample
+
+    def directory(self) -> Directory:
+        return self.directory_value
+
+    def position(self) -> Position:
+        return self.position_value
+
+
+def _wire(
+    monkeypatch,
+    sampler: FakeSampler,
+    presence: Presence = EMPTY_PRESENCE,
+) -> None:
+    monkeypatch.setattr(events, "get_sampler", lambda guild_id: sampler)
+    monkeypatch.setattr(
+        events.state, "resolve_guild_id", lambda guild_id: guild_id
+    )
+
+    async def fake_presence(guild_id: int | None, actor: Any) -> Presence:
+        del guild_id, actor
+        return presence
+
+    monkeypatch.setattr(events.state, "presence", fake_presence)
+    monkeypatch.setattr(events, "_snapshot", lambda: {})
+
+
+async def _open(monkeypatch, sampler: FakeSampler):
+    _wire(monkeypatch, sampler)
+    stream = events._stream(None, None)
+    assert await anext(stream) == ": connected\n\n"
+    return stream
 
 
 def test_events_route_is_registered():
@@ -48,67 +84,103 @@ def test_events_route_is_registered():
     assert "/api/events" in paths
 
 
-async def test_stream_opens_with_connected_then_a_status_snapshot(monkeypatch):
-    monkeypatch.setattr(events, "POLL_SECONDS", 0)
-    monkeypatch.setattr(events, "_snapshot", lambda: {})
-    monkeypatch.setattr(
-        events.state, "status_snapshot", _scripted([CONNECTED])
-    )
+async def test_stream_opens_with_status_directory_and_presence(monkeypatch):
+    sampler = FakeSampler()
+    stream = await _open(monkeypatch, sampler)
 
-    stream = events._stream(None, None)
-    assert await anext(stream) == ": connected\n\n"
-    frame = await anext(stream)
-
-    assert frame == f"event: status\ndata: {json.dumps(CONNECTED)}\n\n"
-    presence = await anext(stream)
-    assert presence == (
-        f"event: presence\ndata: {json.dumps(EMPTY_PRESENCE)}\n\n"
-    )
-    await stream.aclose()
-
-
-async def test_stream_emits_status_when_the_snapshot_changes(monkeypatch):
-    changed = {**CONNECTED, "bot": {"online": False}}
-    monkeypatch.setattr(events, "POLL_SECONDS", 0)
-    monkeypatch.setattr(events, "_snapshot", lambda: {})
-    monkeypatch.setattr(
-        events.state, "status_snapshot", _scripted([CONNECTED, changed])
-    )
-
-    stream = events._stream(None, None)
-    assert await anext(stream) == ": connected\n\n"
     assert await anext(stream) == (
         f"event: status\ndata: {json.dumps(CONNECTED)}\n\n"
     )
     assert await anext(stream) == (
-        f"event: presence\ndata: {json.dumps(EMPTY_PRESENCE)}\n\n"
+        f"event: directory\ndata: {json.dumps(EMPTY_DIRECTORY.model_dump())}\n\n"
     )
-    frame = await anext(stream)
+    presence = await anext(stream)
+    assert presence == (
+        f"event: presence\ndata: {json.dumps(EMPTY_PRESENCE.model_dump())}\n\n"
+    )
+    await stream.aclose()
 
-    assert frame == f"event: status\ndata: {json.dumps(changed)}\n\n"
+
+async def test_a_changed_status_reaches_an_open_stream(monkeypatch):
+    sampler = FakeSampler()
+    stream = await _open(monkeypatch, sampler)
+    for _ in range(2):
+        await anext(stream)
+    await anext(stream)
+
+    changed = StatusSnapshot.model_validate({
+        **CONNECTED,
+        "bot": {"online": False},
+    })
+    sampler.queue.put_nowait(("status", changed))
+
+    frame = await asyncio.wait_for(anext(stream), 1)
+
+    assert frame == (
+        f"event: status\ndata: {json.dumps(changed.model_dump())}\n\n"
+    )
+    await stream.aclose()
+
+
+async def test_the_tick_sends_position_and_heartbeat(monkeypatch):
+    sampler = FakeSampler()
+    sampler.position_value = Position(progress=12.5)
+    monkeypatch.setattr(events, "TICK_SECONDS", 0)
+    stream = await _open(monkeypatch, sampler)
+    for _ in range(3):
+        await anext(stream)
+
+    position = await asyncio.wait_for(anext(stream), 1)
+    heartbeat = await asyncio.wait_for(anext(stream), 1)
+
+    assert position == (
+        f"event: position\ndata: {json.dumps({'progress': 12.5})}\n\n"
+    )
+    assert heartbeat == (
+        f"event: heartbeat\ndata: {json.dumps(Heartbeat().model_dump())}\n\n"
+    )
+    await stream.aclose()
+
+
+async def test_an_unhealthy_sampler_keeps_the_link_alive(monkeypatch):
+    sampler = FakeSampler()
+    sampler.healthy = False
+    monkeypatch.setattr(events, "TICK_SECONDS", 0)
+    stream = await _open(monkeypatch, sampler)
+    for _ in range(3):
+        await anext(stream)
+
+    frame = await asyncio.wait_for(anext(stream), 1)
+
+    assert frame.startswith("event: heartbeat\ndata:")
     await stream.aclose()
 
 
 async def test_stream_emits_reload_when_shell_assets_move(monkeypatch):
     snapshots = iter([{"app.html": 1.0}, {"app.html": 2.0}, {"app.html": 2.0}])
-    monkeypatch.setattr(events, "POLL_SECONDS", 0)
+    sampler = FakeSampler()
+    monkeypatch.setattr(events, "TICK_SECONDS", 0)
+    _wire(monkeypatch, sampler)
     monkeypatch.setattr(events, "_snapshot", lambda: next(snapshots))
-    monkeypatch.setattr(
-        events.state, "status_snapshot", _scripted([CONNECTED])
-    )
 
     stream = events._stream(None, None)
     assert await anext(stream) == ": connected\n\n"
-    assert await anext(stream) == (
-        f"event: status\ndata: {json.dumps(CONNECTED)}\n\n"
-    )
-    assert await anext(stream) == (
-        f"event: presence\ndata: {json.dumps(EMPTY_PRESENCE)}\n\n"
-    )
-    frame = await anext(stream)
+    for _ in range(3):
+        await anext(stream)
 
-    assert frame == 'event: reload\ndata: {"scope": "shell"}\n\n'
+    frames = [await asyncio.wait_for(anext(stream), 1) for _ in range(3)]
+
+    assert any(frame.startswith("event: reload\n") for frame in frames)
     await stream.aclose()
+
+
+async def test_closing_the_stream_unsubscribes(monkeypatch):
+    sampler = FakeSampler()
+    stream = await _open(monkeypatch, sampler)
+
+    await stream.aclose()
+
+    assert sampler.unsubscribed == [sampler.queue]
 
 
 def test_snapshot_walks_directories(tmp_path):

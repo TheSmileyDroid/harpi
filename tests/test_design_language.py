@@ -23,8 +23,9 @@ NAMED_GREEN = re.compile(
 )
 FONT_STACK = re.compile(r"font-family\s*:\s*([^;}]+)")
 ALLOWED_FAMILIES = (
-    "chivo mono",
-    "michroma",
+    "urbanist",
+    "barlow",
+    "jetbrains mono",
     "liberation mono",
     "menlo",
     "monaco",
@@ -35,9 +36,23 @@ ALLOWED_GENERICS = (
     "sfmono-regular",
     "monospace",
     "mono",
+    "system-ui",
+    "sans-serif",
 )
 FONT_VAR = re.compile(r"font-family\s*:\s*var\(--font-[\w-]+\)\s*[;}]?")
 FONT_TOKEN = re.compile(r"--font-[\w-]+\s*:\s*([^;]+);", re.S)
+RADIUS = re.compile(r"\b[a-z-]*radius\s*:\s*([^;}]+)")
+RADIUS_TOKEN = re.compile(r"--radius-[\w-]+\s*:\s*([^;]+);")
+CUT_RADII = (
+    "0",
+    "0px",
+    "1px",
+    "2px",
+    "3px",
+    "4px",
+    "var(--radius-key)",
+    "var(--radius-plate)",
+)
 
 
 def _masked_lines(path: Path) -> list[tuple[int, str]]:
@@ -113,8 +128,9 @@ def _scan(
 
 
 def test_no_green_anywhere() -> None:
-    """No green "success" color: the signal ink carries OK state, red is
-    reserved for broken (DESIGN.md)."""
+    """No green anywhere: amber marks state and every live reading, sand is
+    the material of what the operator presses, and red is reserved for
+    breakage (DESIGN.md)."""
     found = _scan([
         (
             OKLCH,
@@ -160,9 +176,10 @@ def _unknown_families(stack: str) -> list[str]:
     return found
 
 
-def test_only_the_two_fonts() -> None:
-    """Body: Chivo Mono. Display: Michroma. No third family. Stacks may
-    go through --font-* variables; literal stacks are judged here."""
+def test_only_the_three_faces() -> None:
+    """Legends: Urbanist. Labels: Barlow. Values: JetBrains Mono, and
+    nothing else. Stacks may go through --font-* variables; literal stacks
+    are judged here."""
     found: list[str] = []
     for path in SCAN_FILES:
         for n, line in _masked_lines(path):
@@ -177,9 +194,9 @@ def test_only_the_two_fonts() -> None:
     assert not found, "unknown font family:\n" + "\n".join(found)
 
 
-def test_font_variables_name_only_the_two_fonts() -> None:
+def test_font_variables_name_only_the_three_faces() -> None:
     """The --font-* tokens are the real stacks; judge every family they
-    name, quoted or not, against the two faces plus the generics."""
+    name, quoted or not, against the three faces plus the generics."""
     path = REPO / "web" / "src" / "app.css"
     text = "\n".join(line for _, line in _masked_lines(path))
     found: list[str] = []
@@ -191,3 +208,32 @@ def test_font_variables_name_only_the_two_fonts() -> None:
     assert not found, "unknown font family in a --font-* token:\n" + "\n".join(
         found
     )
+
+
+def test_corners_stay_cut() -> None:
+    """A corner is cut, never rounded: 1px on stamps and lamps, 2px on
+    instrument bits, 3px on keys and 4px on plates. Pills and circles are
+    the category default, not this world (DESIGN.md). Every radius property
+    is judged, logical longhands included."""
+    found: list[str] = []
+    for path in SCAN_FILES:
+        for n, line in _masked_lines(path):
+            for value in RADIUS.findall(line):
+                if value.strip() not in CUT_RADII:
+                    rel = path.relative_to(REPO)
+                    found.append(f"{rel}:{n}: {value.strip()!r}")
+    assert not found, "rounded corner outside the cut radii:\n" + "\n".join(
+        found
+    )
+
+
+def test_corner_tokens_stay_small() -> None:
+    """The two radius tokens are the whole ladder: keys 3px, plates 4px."""
+    path = REPO / "web" / "src" / "app.css"
+    text = "\n".join(line for _, line in _masked_lines(path))
+    found: list[str] = []
+    for value in RADIUS_TOKEN.findall(text):
+        pixels = re.fullmatch(r"\s*(\d+(?:\.\d+)?)px\s*", value)
+        if pixels is None or float(pixels.group(1)) > 4:
+            found.append(f"{path.name}: {value.strip()!r}")
+    assert not found, "corner token above 4px:\n" + "\n".join(found)

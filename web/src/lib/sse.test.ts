@@ -16,6 +16,11 @@ import {
 const SNAPSHOT = fixtures.StatusSnapshot;
 const RELOAD = fixtures.ReloadEvent;
 const PRESENCE = fixtures.Presence;
+const POSITION = fixtures.Position;
+const HEARTBEAT = fixtures.Heartbeat;
+const DIRECTORY = fixtures.Directory;
+
+const STALL = 12345;
 
 class FakeEventSource implements EventSourceLike {
   static instances: FakeEventSource[] = [];
@@ -53,7 +58,9 @@ class FakeEventSource implements EventSourceLike {
 
 function harness() {
   FakeEventSource.instances = [];
-  const scheduled: { fn: () => void; delay: number }[] = [];
+  const scheduled: { fn: () => void; delay: number; id: number }[] = [];
+  const cancelled: number[] = [];
+  let nextId = 1;
   const events: SseFrame[] = [];
   const connection: string[] = [];
   const errors: ApiError[] = [];
@@ -62,13 +69,27 @@ function harness() {
     onEvent: (event) => events.push(event),
     onError: (error) => errors.push(error),
     onConnectionChange: (state) => connection.push(state),
+    stallAfter: STALL,
     schedule: (fn, delay) => {
-      scheduled.push({ fn, delay });
-      return scheduled.length;
+      const id = nextId;
+      nextId += 1;
+      scheduled.push({ fn, delay, id });
+      return id;
     },
-    cancel: () => {},
+    cancel: (id) => {
+      cancelled.push(id as number);
+    },
   });
-  return { stream, scheduled, events, connection, errors };
+  return {
+    stream,
+    scheduled,
+    cancelled,
+    events,
+    connection,
+    errors,
+    watchdogs: () => scheduled.filter((timer) => timer.delay === STALL),
+    reconnects: () => scheduled.filter((timer) => timer.delay !== STALL),
+  };
 }
 
 describe("backoffDelay", () => {
@@ -98,6 +119,27 @@ describe("parseFrame", () => {
     expect(parseFrame("presence", JSON.stringify(PRESENCE))).toEqual({
       type: "presence",
       data: PRESENCE,
+    });
+  });
+
+  it("parses a position frame through its schema", () => {
+    expect(parseFrame("position", JSON.stringify(POSITION))).toEqual({
+      type: "position",
+      data: POSITION,
+    });
+  });
+
+  it("parses a heartbeat frame through its schema", () => {
+    expect(parseFrame("heartbeat", JSON.stringify(HEARTBEAT))).toEqual({
+      type: "heartbeat",
+      data: HEARTBEAT,
+    });
+  });
+
+  it("parses a directory frame through its schema", () => {
+    expect(parseFrame("directory", JSON.stringify(DIRECTORY))).toEqual({
+      type: "directory",
+      data: DIRECTORY,
     });
   });
 
@@ -131,11 +173,17 @@ describe("createEventStream", () => {
     source.emit("status", { data: JSON.stringify(SNAPSHOT) });
     source.emit("reload", { data: JSON.stringify(RELOAD) });
     source.emit("presence", { data: JSON.stringify(PRESENCE) });
+    source.emit("position", { data: JSON.stringify(POSITION) });
+    source.emit("heartbeat", { data: JSON.stringify(HEARTBEAT) });
+    source.emit("directory", { data: JSON.stringify(DIRECTORY) });
 
     expect(events).toEqual([
       { type: "status", data: SNAPSHOT },
       { type: "reload", data: RELOAD },
       { type: "presence", data: PRESENCE },
+      { type: "position", data: POSITION },
+      { type: "heartbeat", data: HEARTBEAT },
+      { type: "directory", data: DIRECTORY },
     ]);
     expect(errors).toHaveLength(0);
   });
@@ -156,55 +204,88 @@ describe("createEventStream", () => {
   });
 
   it("reports connection state on open and reconnect", () => {
-    const { stream, scheduled, connection } = harness();
+    const { stream, connection, reconnects } = harness();
     stream.start();
 
     FakeEventSource.instances[0]!.emit("open");
     FakeEventSource.instances[0]!.emit("error");
-    scheduled[0]!.fn();
+    reconnects()[0]!.fn();
     FakeEventSource.instances[1]!.emit("open");
 
     expect(connection).toEqual(["connected", "reconnecting", "connected"]);
   });
 
   it("reconnects with growing backoff", () => {
-    const { stream, scheduled } = harness();
+    const { stream, reconnects } = harness();
     stream.start();
 
     FakeEventSource.instances[0]!.emit("error");
-    expect(scheduled[0]!.delay).toBe(BASE_BACKOFF_MS);
+    expect(reconnects()[0]!.delay).toBe(BASE_BACKOFF_MS);
 
-    scheduled[0]!.fn();
+    reconnects()[0]!.fn();
     FakeEventSource.instances[1]!.emit("error");
-    expect(scheduled[1]!.delay).toBe(2 * BASE_BACKOFF_MS);
+    expect(reconnects()[1]!.delay).toBe(2 * BASE_BACKOFF_MS);
 
-    scheduled[1]!.fn();
+    reconnects()[1]!.fn();
     FakeEventSource.instances[2]!.emit("error");
-    expect(scheduled[2]!.delay).toBe(4 * BASE_BACKOFF_MS);
+    expect(reconnects()[2]!.delay).toBe(4 * BASE_BACKOFF_MS);
   });
 
   it("resets backoff after a successful reconnect", () => {
-    const { stream, scheduled } = harness();
+    const { stream, reconnects } = harness();
     stream.start();
     FakeEventSource.instances[0]!.emit("error");
-    scheduled[0]!.fn();
+    reconnects()[0]!.fn();
     FakeEventSource.instances[1]!.emit("open");
 
     FakeEventSource.instances[1]!.emit("error");
 
-    expect(scheduled[1]!.delay).toBe(BASE_BACKOFF_MS);
+    expect(reconnects()[1]!.delay).toBe(BASE_BACKOFF_MS);
   });
 
   it("stops the current stream and any pending reconnect", () => {
-    const { stream, scheduled } = harness();
+    const { stream, reconnects } = harness();
     stream.start();
     FakeEventSource.instances[0]!.emit("error");
 
     stream.stop();
-    scheduled[0]!.fn();
+    reconnects()[0]!.fn();
 
     expect(FakeEventSource.instances).toHaveLength(1);
     expect(FakeEventSource.instances[0]!.closed).toBe(true);
+  });
+
+  it("reconnects when no frame arrives before the stall deadline", () => {
+    const { stream, connection, watchdogs, reconnects } = harness();
+    stream.start();
+
+    watchdogs()[0]!.fn();
+
+    expect(FakeEventSource.instances[0]!.closed).toBe(true);
+    expect(connection).toEqual(["reconnecting"]);
+    expect(reconnects()[0]!.delay).toBe(BASE_BACKOFF_MS);
+  });
+
+  it("re-arms the stall deadline on every frame", () => {
+    const { stream, cancelled, watchdogs } = harness();
+    stream.start();
+    const first = watchdogs()[0]!;
+
+    FakeEventSource.instances[0]!.emit("heartbeat", {
+      data: JSON.stringify(HEARTBEAT),
+    });
+
+    expect(cancelled).toContain(first.id);
+    expect(watchdogs()).toHaveLength(2);
+  });
+
+  it("clears the stall deadline when stopped", () => {
+    const { stream, cancelled, watchdogs } = harness();
+    stream.start();
+
+    stream.stop();
+
+    expect(cancelled).toContain(watchdogs()[0]!.id);
   });
 });
 
@@ -216,6 +297,7 @@ describe("stream recovery", () => {
     const stream = createEventStream({
       EventSourceImpl: FakeEventSource,
       onEvent: (event) => store.applySse(event),
+      stallAfter: STALL,
       schedule: (fn, delay) => {
         scheduled.push({ fn, delay });
         return scheduled.length;
@@ -225,7 +307,7 @@ describe("stream recovery", () => {
 
     stream.start();
     FakeEventSource.instances[0]!.emit("error");
-    scheduled[0]!.fn();
+    scheduled.find((timer) => timer.delay !== STALL)!.fn();
     FakeEventSource.instances[1]!.emit("status", {
       data: JSON.stringify(SNAPSHOT),
     });

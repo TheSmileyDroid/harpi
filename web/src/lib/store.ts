@@ -3,6 +3,7 @@ import type {
   BotStatus,
   Channel,
   Connection,
+  Directory,
   Guild,
   PlaybackStatus,
   Presence,
@@ -18,11 +19,17 @@ interface SearchState {
   results: Track[];
 }
 
+interface PositionSample {
+  progress: number;
+  at: number;
+}
+
 export interface AppState {
   guildId: string | null;
   bot: BotStatus;
   connection: Connection;
   playback: PlaybackStatus | null;
+  position: PositionSample | null;
   presence: Presence | null;
   guilds: Guild[];
   channels: Channel[];
@@ -30,6 +37,12 @@ export interface AppState {
   selectedChannelId: string | null;
   search: SearchState;
   outputOpen: boolean;
+}
+
+function positionOf(playback: PlaybackStatus | null): PositionSample | null {
+  return playback === null
+    ? null
+    : { progress: playback.progress, at: Date.now() };
 }
 
 const noStatus = {
@@ -46,6 +59,7 @@ function emptySearch(): SearchState {
 export function initialState(): AppState {
   return {
     ...noStatus,
+    position: null,
     presence: null,
     guilds: [],
     channels: [],
@@ -58,7 +72,8 @@ export function initialState(): AppState {
 
 export function normalizeStatus(
   snapshot: StatusSnapshot | null | undefined,
-): Pick<AppState, "guildId" | "bot" | "connection" | "playback"> {
+): Pick<AppState, "guildId" | "bot" | "connection" | "playback" | "position"> {
+  const playback = snapshot?.playback ?? null;
   return {
     guildId: snapshot?.guild_id ?? null,
     bot: snapshot?.bot ?? { online: false },
@@ -66,7 +81,8 @@ export function normalizeStatus(
       connected: false,
       channel_id: null,
     },
-    playback: snapshot?.playback ?? null,
+    playback,
+    position: positionOf(playback),
   };
 }
 
@@ -77,12 +93,31 @@ export function reduceStatus(
   return { ...state, ...normalizeStatus(snapshot) };
 }
 
+function reduceDirectory(state: AppState, directory: Directory): AppState {
+  const shown = state.pendingGuildId ?? state.guildId;
+  return {
+    ...state,
+    guilds: directory.guilds,
+    channels:
+      directory.guild_id === shown ? directory.channels : state.channels,
+  };
+}
+
 export function reduceSse(state: AppState, frame: SseFrame): AppState {
   if (frame.type === "status") {
     return reduceStatus(state, frame.data);
   }
   if (frame.type === "presence") {
     return { ...state, presence: frame.data };
+  }
+  if (frame.type === "position") {
+    return {
+      ...state,
+      position: { progress: frame.data.progress, at: Date.now() },
+    };
+  }
+  if (frame.type === "directory") {
+    return reduceDirectory(state, frame.data);
   }
   return state;
 }

@@ -9,6 +9,7 @@ from src.panel.schemas import (
     BotStatus,
     Channel,
     Connection,
+    Directory,
     Guild as GuildModel,
     PlaybackStatus,
     Presence,
@@ -89,6 +90,20 @@ def list_voice_channels(guild_id: int) -> list[Channel]:
     return [
         serialization.channel_data(channel) for channel in guild.voice_channels
     ]
+
+
+def directory_snapshot(guild_id: int | None) -> Directory:
+    """The guilds the bot is in, plus the voice channels of *guild_id*.
+
+    Built from the bot's cached guild objects, so no Discord call happens.
+    """
+    bot = get_bot()
+    resolved = resolve_guild_id(guild_id)
+    return Directory(
+        guild_id=serialization.optional_snowflake(resolved),
+        guilds=[serialization.guild_data(guild) for guild in bot.guilds],
+        channels=([] if resolved is None else list_voice_channels(resolved)),
+    )
 
 
 def place_of(guild_id: int, channel_id: int | None) -> Place | None:

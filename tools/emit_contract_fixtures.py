@@ -22,12 +22,15 @@ def build_fixtures() -> dict[str, object]:
         ChannelList,
         Connection,
         ConnectionEvent,
+        Directory,
         ErrorDetail,
         ErrorEnvelope,
         Guild,
         GuildList,
+        Heartbeat,
         Layer,
         PlaybackStatus,
+        Position,
         Presence,
         ReloadEvent,
         SearchResults,
@@ -52,6 +55,13 @@ def build_fixtures() -> dict[str, object]:
     )
     fixtures: dict[str, BaseModel] = {
         "Authenticated": Authenticated(authenticated=True),
+        "Directory": Directory(
+            guild_id="7",
+            guilds=[Guild(id="1", name="Alpha")],
+            channels=[Channel(id="10", name="Voice")],
+        ),
+        "Heartbeat": Heartbeat(),
+        "Position": Position(progress=42.5),
         "ChannelList": ChannelList(
             channels=[Channel(id="10", name="Voice")],
         ),

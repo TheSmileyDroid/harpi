@@ -45,6 +45,7 @@ describe("normalizeStatus", () => {
       bot: { online: true },
       connection: { connected: true, channel_id: "42" },
       playback: snapshot.playback,
+      position: { progress: 0.25, at: expect.any(Number) },
     });
   });
 
@@ -61,6 +62,7 @@ describe("normalizeStatus", () => {
       bot: { online: true },
       connection: { connected: false, channel_id: null },
       playback: null,
+      position: null,
     });
   });
 });
@@ -134,6 +136,60 @@ describe("reduceSse", () => {
     expect(
       reduceSse(before, { type: "reload", data: { scope: "shell" } }),
     ).toBe(before);
+  });
+
+  it("moves the position sample without touching playback", () => {
+    const before = reduceStatus(initialState(), snapshot);
+
+    const after = reduceSse(before, {
+      type: "position",
+      data: { progress: 12.5 },
+    });
+
+    expect(after.position?.progress).toBe(12.5);
+    expect(after.position?.at).toEqual(expect.any(Number));
+    expect(after.playback).toBe(before.playback);
+  });
+
+  it("ignores heartbeat frames", () => {
+    const before = reduceStatus(initialState(), snapshot);
+
+    expect(reduceSse(before, { type: "heartbeat", data: {} })).toBe(before);
+  });
+
+  it("replaces the guild listing and the channels of the shown guild", () => {
+    const before = reduceStatus(initialState(), snapshot);
+
+    const after = reduceSse(before, {
+      type: "directory",
+      data: {
+        guild_id: "7",
+        guilds: [{ id: "7", name: "Alpha" }],
+        channels: [{ id: "42", name: "Voice" }],
+      },
+    });
+
+    expect(after.guilds).toEqual([{ id: "7", name: "Alpha" }]);
+    expect(after.channels).toEqual([{ id: "42", name: "Voice" }]);
+  });
+
+  it("keeps the channels of a guild the viewer is browsing", () => {
+    const before = {
+      ...reduceStatus(initialState(), snapshot),
+      pendingGuildId: "9",
+      channels: [{ id: "90", name: "Elsewhere" }],
+    };
+
+    const after = reduceSse(before, {
+      type: "directory",
+      data: {
+        guild_id: "7",
+        guilds: [{ id: "7", name: "Alpha" }],
+        channels: [{ id: "42", name: "Voice" }],
+      },
+    });
+
+    expect(after.channels).toEqual([{ id: "90", name: "Elsewhere" }]);
   });
 });
 

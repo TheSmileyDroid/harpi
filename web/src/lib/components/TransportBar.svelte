@@ -1,6 +1,7 @@
 <script lang="ts">
   import { appStore } from "$lib/store";
   import { formatDuration } from "$lib/format";
+  import { positionSeconds } from "$lib/playback-clock";
   import {
     nextLoopMode,
     pointerRatio,
@@ -44,9 +45,7 @@
   const duration = $derived(playback?.current_music?.duration ?? 0);
   const title = $derived(playback?.current_music?.title ?? "Nothing playing");
   const isPaused = $derived(playback?.is_paused === true);
-  const serverRatio = $derived(
-    duration > 0 ? (playback?.progress ?? 0) / duration : 0,
-  );
+  const serverRatio = $derived(duration > 0 ? $positionSeconds / duration : 0);
   const displayRatio = $derived(
     seekDisplayRatio(seeking, seekRatio, serverRatio),
   );
@@ -148,7 +147,7 @@
 >
   {#if !ready}
     <span class="progress-readout is-empty" data-testid="transport-empty">
-      TRANSPORT // NO SESSION
+      No session — connect an output to begin.
     </span>
   {:else}
     <button
@@ -163,7 +162,7 @@
     </button>
     <button
       type="button"
-      class="hud-btn"
+      class="hud-btn hud-btn--primary"
       onclick={togglePlay}
       disabled={keysDisabled}
       title={botOnline ? undefined : "Bot offline"}
@@ -191,15 +190,6 @@
     >
       Loop {playback?.loop_mode}
     </button>
-    <VolumeSlider
-      gain={playback?.volume ?? 0}
-      send={sendVolume}
-      label="Volume"
-      disabled={!botOnline}
-      controlTestid="volume-control"
-      sliderTestid="volume-slider"
-      valueTestid="volume-value"
-    />
     <div
       class="progress-track"
       bind:this={track}
@@ -225,6 +215,15 @@
         style="width: {(displayRatio * 100).toFixed(1)}%"
       ></div>
     </div>
+    <VolumeSlider
+      gain={playback?.volume ?? 0}
+      send={sendVolume}
+      label="Volume"
+      disabled={!botOnline}
+      controlTestid="volume-control"
+      sliderTestid="volume-slider"
+      valueTestid="volume-value"
+    />
     <span class="progress-readout" data-testid="progress-readout">
       {#if !botOnline}<span class="transport-warn">Bot offline</span>
       {/if}<span class="readout-time"
@@ -234,4 +233,5 @@
       ><span class="readout-title">{title}</span>
     </span>
   {/if}
+  <footer class="status-strip">Harpi panel</footer>
 </div>

@@ -6,7 +6,7 @@ from typing import Literal, Protocol
 
 from src.storage.database import Database
 
-PRESENCE_TTL_SECONDS = 30
+PRESENCE_TTL_SECONDS = 15
 VIEWER_LIMIT = 50
 
 ConnectionAction = Literal["connect", "disconnect"]

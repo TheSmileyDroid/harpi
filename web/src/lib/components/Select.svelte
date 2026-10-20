@@ -189,12 +189,11 @@
     gap: 0.5rem;
     width: 100%;
     background: var(--plate-2);
-    border: 1px solid var(--line);
-    border-block-end-width: 2px;
-    border-block-end-color: color-mix(in oklab, var(--line) 55%, black);
-    color: var(--ink);
-    font-size: 0.78rem;
-    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-key);
+    color: var(--sand);
+    font-size: 0.8125rem;
+    padding: 0.5rem 0.6rem;
     text-align: start;
     cursor: pointer;
     transition:
@@ -204,18 +203,18 @@
   }
 
   .hud-select__trigger:hover {
-    border-color: var(--lamp-dim);
-    border-block-end-color: var(--lamp);
+    border-color: var(--oxide);
   }
 
   .hud-select__trigger:focus-visible {
-    outline: 1px solid var(--lamp);
+    outline: 2px solid var(--amber);
     outline-offset: 2px;
   }
 
   .hud-select__trigger:disabled {
     color: var(--idle);
     background: var(--plate);
+    text-decoration: line-through;
     cursor: not-allowed;
   }
 
@@ -226,15 +225,15 @@
   }
 
   .hud-select__value.is-placeholder {
-    color: var(--ink-faint);
+    color: var(--faint);
   }
 
   .hud-select__chevron {
     flex: none;
     width: 0.4rem;
     height: 0.4rem;
-    border-right: 1px solid var(--ink-dim);
-    border-bottom: 1px solid var(--ink-dim);
+    border-right: 1px solid var(--dim);
+    border-bottom: 1px solid var(--dim);
     transform: rotate(45deg) translate(-0.1rem, -0.1rem);
   }
 
@@ -249,16 +248,15 @@
     max-height: 16rem;
     overflow-y: auto;
     background: var(--plate-2);
-    border: 1px solid var(--line-strong);
-    border-block-start-width: 2px;
-    border-block-start-color: var(--lamp);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-key);
   }
 
   .hud-select__option {
-    padding: 0.4rem 0.6rem;
-    font-size: 0.78rem;
-    color: var(--ink);
-    border-bottom: 1px solid var(--line);
+    padding: 0.5rem 0.6rem;
+    font-size: 0.8125rem;
+    color: var(--sand);
+    border-bottom: 1px solid var(--rule);
     cursor: pointer;
     transition: background-color var(--motion-quick) ease;
   }
@@ -268,8 +266,7 @@
   }
 
   .hud-select__option.is-active {
-    background: color-mix(in oklab, var(--ink) 10%, var(--plate-2));
-    color: var(--ink);
+    background: color-mix(in srgb, var(--sand) 12%, var(--plate-2));
   }
 
   @media (prefers-reduced-motion: no-preference) {

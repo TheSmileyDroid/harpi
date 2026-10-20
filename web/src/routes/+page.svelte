@@ -19,8 +19,13 @@
 
   let phase = $state<"checking" | "signed-out" | "signed-in">("checking");
   let link = $state("connecting");
+  let stale = $state(false);
   let stream: { start(): void; stop(): void } | null = null;
   let probingSession = false;
+  let lastDataAt = Date.now();
+
+  const STALE_AFTER_MS = 15000;
+  const STALE_CHECK_MS = 1000;
 
   const api = createApiClient({
     onError: handleApiError,
@@ -52,10 +57,27 @@
       return;
     }
     appStore.applySse(event);
+    if (
+      event.type === "status" ||
+      event.type === "position" ||
+      event.type === "directory"
+    ) {
+      lastDataAt = Date.now();
+      stale = false;
+    }
   }
 
   async function handleConnectionChange(state: string) {
+    const previous = link;
     link = state;
+    if (state === "reconnecting") {
+      stale = true;
+    }
+    if (state === "connected" && previous === "reconnecting") {
+      lastDataAt = Date.now();
+      stale = false;
+      await loadStatus();
+    }
     if (state !== "reconnecting" || probingSession) return;
     probingSession = true;
     try {
@@ -112,9 +134,28 @@
     startStream();
   }
 
+  function resumeWhenVisible() {
+    if (phase !== "signed-in") return;
+    if (stale || link !== "connected") void resync();
+  }
+
   onMount(() => {
     boot();
-    return () => stream?.stop();
+    const freshness = setInterval(() => {
+      if (phase !== "signed-in") return;
+      stale = link !== "connected" || Date.now() - lastDataAt > STALE_AFTER_MS;
+    }, STALE_CHECK_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") resumeWhenVisible();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("online", resumeWhenVisible);
+    return () => {
+      clearInterval(freshness);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("online", resumeWhenVisible);
+      stream?.stop();
+    };
   });
 </script>
 
@@ -133,6 +174,7 @@
 {:else}
   <StatusSurface
     {link}
+    {stale}
     onrefresh={loadStatus}
     onresync={resync}
     onsignout={signOut}
@@ -147,10 +189,11 @@
     gap: 0.6rem;
     padding: 4rem 1.25rem;
     font-family: var(--font-display);
-    font-weight: 400;
+    font-weight: 700;
+    font-size: 0.85rem;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: var(--ink-dim);
+    color: var(--dim);
   }
 
   .booting__mark {

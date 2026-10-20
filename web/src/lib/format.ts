@@ -17,6 +17,14 @@ export function formatVolume(gain: number | null | undefined): string {
   return `${Math.round(clamped * 100)}%`;
 }
 
+export function formatCount(
+  count: number,
+  singular: string,
+  plural = `${singular}s`,
+): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export function formatSeen(
   seconds: number | null | undefined,
   nowMs = Date.now(),

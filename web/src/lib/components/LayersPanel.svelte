@@ -7,6 +7,7 @@
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import EmptyState from "./EmptyState.svelte";
   import VolumeSlider from "./VolumeSlider.svelte";
+  import { formatCount } from "$lib/format";
   import type { ApiClient } from "$lib/api";
   import type { Layer } from "$lib/contract/panel.gen";
 
@@ -52,7 +53,13 @@
 </script>
 
 <section class="hud-panel" data-testid="layers-panel">
-  <span class="panel-label">Layers</span>
+  <div class="panel-band">
+    <span class="panel-label">Layers</span>
+    {#if layers.length > 0}
+      <span class="panel-band__meta">{formatCount(layers.length, "layer")}</span
+      >
+    {/if}
+  </div>
   {#if !hasSession}
     <p class="data-value is-empty" data-testid="layers-empty">
       No active session
@@ -125,7 +132,7 @@
 <style>
   .layer-row {
     padding-block: 0.5rem;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--rule);
   }
 
   .layer-row__head {

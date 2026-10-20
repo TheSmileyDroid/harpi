@@ -5,8 +5,9 @@ from typing import Any
 from quart import Blueprint, Response, jsonify, request, session
 from quart_schema import document_request, document_response, validate_response
 
+from src.bot_state import bot_running
 from src.harpi_lib.audio.session import LOOP_MODE_ALIASES
-from src.panel import actions, state
+from src.panel import actions, sampler, state
 from src.panel.schemas import (
     Authenticated,
     ChannelList,
@@ -26,6 +27,16 @@ from src.panel.schemas import (
 from src.storage.registry import Actor
 
 bp = Blueprint("api", __name__)
+
+
+def poke_sampler_after_mutation(response: Response) -> Response:
+    guild_id = current_guild_id()
+    if request.method == "POST" and guild_id is not None and bot_running():
+        sampler.poke_sampler(state.resolve_guild_id(guild_id))
+    return response
+
+
+bp.after_request(poke_sampler_after_mutation)
 
 
 def error_response(code: str, message: str, status: int) -> Response:

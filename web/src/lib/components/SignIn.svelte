@@ -15,7 +15,7 @@
     </p>
     <button
       type="button"
-      class="hud-btn signin-submit"
+      class="hud-btn hud-btn--primary signin-submit"
       onclick={begin}
       data-testid="sign-in"
     >
@@ -48,9 +48,10 @@
 
   .signin-note {
     margin: 0 0 0.85rem;
-    font-size: 0.7rem;
-    letter-spacing: 0.04em;
-    color: var(--ink-dim);
+    font-family: var(--font-label);
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    color: var(--dim);
   }
 
   .signin-submit {

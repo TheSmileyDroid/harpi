@@ -64,21 +64,21 @@
     align-items: baseline;
     gap: 0.5rem;
     padding-block: 0.4rem;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--rule);
   }
 
   .roster__name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--ink);
+    color: var(--sand);
   }
 
   .roster__channel,
   .roster__seen {
     font-size: 0.75rem;
-    letter-spacing: 0.04em;
-    color: var(--ink-dim);
+    letter-spacing: 0.02em;
+    color: var(--dim);
   }
 
   .roster__channel {
@@ -89,12 +89,5 @@
 
   .roster__seen {
     font-variant-numeric: tabular-nums;
-  }
-
-  .system-note {
-    margin: 0.35rem 0 0;
-    font-size: 0.7rem;
-    letter-spacing: 0.05em;
-    color: var(--ink-dim);
   }
 </style>
