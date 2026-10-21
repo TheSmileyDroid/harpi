@@ -17,7 +17,7 @@
       .join(" · "),
   );
   const playbackState = $derived(
-    playback === null
+    playback === null || track === null
       ? "Stopped"
       : playback.is_playing
         ? playback.is_paused

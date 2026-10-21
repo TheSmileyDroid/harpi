@@ -95,4 +95,16 @@ describe("positionSeconds", () => {
 
     expect(value).toBe(0);
   });
+
+  it("holds at zero while the session carries no track", () => {
+    vi.useFakeTimers();
+    appStore.applyStatus(status({ current_music: null }));
+
+    const seen: number[] = [];
+    const stop = positionSeconds.subscribe((value) => seen.push(value));
+    vi.advanceTimersByTime(2000);
+    stop();
+
+    expect(seen.at(-1)).toBe(0);
+  });
 });

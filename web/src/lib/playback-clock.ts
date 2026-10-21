@@ -25,7 +25,8 @@ export function liveProgress(
 
 export const positionSeconds = derived([appStore, now], ([$app, $now]) => {
   const playback = $app.playback;
-  if (playback === null) return 0;
+  const track = playback?.current_music ?? null;
+  if (playback === null || track === null) return 0;
   const sample = $app.position;
   const playing = playback.is_playing && !playback.is_paused;
   return liveProgress(
@@ -33,6 +34,6 @@ export const positionSeconds = derived([appStore, now], ([$app, $now]) => {
     sample?.at ?? $now,
     $now,
     playing,
-    playback.current_music?.duration ?? null,
+    track.duration,
   );
 });
