@@ -1059,7 +1059,7 @@ select {
 }
 
 .transport-bar .progress-readout {
-  flex: none;
+  flex: 0 1 auto;
   color: var(--sand);
 }
 
@@ -1106,6 +1106,10 @@ select {
 }
 
 @media (max-width: 48rem) {
+  .transport-bar {
+    flex-wrap: wrap;
+  }
+
   .transport-bar .progress-readout {
     max-width: 22ch;
   }

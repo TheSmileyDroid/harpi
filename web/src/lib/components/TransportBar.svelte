@@ -233,5 +233,5 @@
       ><span class="readout-title">{title}</span>
     </span>
   {/if}
-  <footer class="status-strip">Harpi panel</footer>
+  <footer class="status-strip" data-testid="status-strip">Harpi panel</footer>
 </div>

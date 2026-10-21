@@ -139,13 +139,21 @@
       : ""}
   </span>
 
-  <div class="console">
-    <section class="console__main" aria-label="Music">
+  <div class="console" data-testid="console">
+    <section
+      class="console__main"
+      aria-label="Music"
+      data-testid="console-main"
+    >
       <NowPlaying />
       <QueuePanel {api} />
     </section>
 
-    <aside class="console__rail" aria-label="Layers and session">
+    <aside
+      class="console__rail"
+      aria-label="Layers and session"
+      data-testid="console-rail"
+    >
       {#if layersOpen}
         <LayersPanel {api} />
         <button

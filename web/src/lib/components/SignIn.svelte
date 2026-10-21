@@ -7,7 +7,7 @@
 </script>
 
 <main class="signin" data-testid="signin">
-  <div class="hud-panel signin-panel">
+  <div class="hud-panel signin-panel" data-testid="signin-panel">
     <span class="panel-label">Access</span>
     <p class="page-title signin-title">HARPI PANEL</p>
     <p class="signin-note">
