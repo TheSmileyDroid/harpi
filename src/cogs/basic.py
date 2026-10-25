@@ -177,5 +177,8 @@ class GeneralCog(commands.Cog):
     @commands.command()
     async def shutdown(self, ctx: commands.Context) -> None:
         """Shut down the Harpi bot."""
+        if not await ctx.bot.is_owner(ctx.author):
+            await ctx.send("Apenas o dono do bot pode desligar o Harpi.")
+            return
         await ctx.send("Desligando...")
         await ctx.bot.close()
