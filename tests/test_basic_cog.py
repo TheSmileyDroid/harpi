@@ -7,6 +7,7 @@ gets psutil faked out so no real system metrics are read.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any, Callable, cast
 
 import pytest
@@ -46,7 +47,8 @@ async def _invoke(
 
 
 class FakeContext:
-    def __init__(self) -> None:
+    def __init__(self, author: Any = None) -> None:
+        self.author = author
         self.bot: Any = None
         self.sent: list[str] = []
         self.embeds: list[Any] = []
@@ -58,6 +60,20 @@ class FakeContext:
             self.embeds.append(kwargs["embed"])
         if "file" in kwargs:
             self.files.append(kwargs["file"])
+
+
+OWNER_ID = 7
+
+
+class SimpleBot:
+    def __init__(self, closed: list[bool]) -> None:
+        self._closed = closed
+
+    async def is_owner(self, user: Any) -> bool:
+        return getattr(user, "id", None) == OWNER_ID
+
+    async def close(self) -> None:
+        self._closed.append(True)
 
 
 # --- rendering helpers ---------------------------------------------------------
@@ -189,9 +205,9 @@ async def test_top_replies_with_the_rendered_image(monkeypatch):
     assert ctx.files[0].filename == "top_command.png"
 
 
-async def test_shutdown_closes_the_bot():
+async def test_shutdown_closes_the_bot_for_the_owner():
     cog = _make_cog()
-    ctx = FakeContext()
+    ctx = FakeContext(author=SimpleNamespace(id=OWNER_ID))
     closed: list[bool] = []
     ctx.bot = cast(Any, SimpleBot(closed))
 
@@ -201,9 +217,13 @@ async def test_shutdown_closes_the_bot():
     assert closed == [True]
 
 
-class SimpleBot:
-    def __init__(self, closed: list[bool]) -> None:
-        self._closed = closed
+async def test_shutdown_refuses_a_member_who_is_not_the_owner():
+    cog = _make_cog()
+    ctx = FakeContext(author=SimpleNamespace(id=OWNER_ID + 1))
+    closed: list[bool] = []
+    ctx.bot = cast(Any, SimpleBot(closed))
 
-    async def close(self) -> None:
-        self._closed.append(True)
+    await _invoke(cog.shutdown, cog, ctx)
+
+    assert ctx.sent == ["Apenas o dono do bot pode desligar o Harpi."]
+    assert closed == []
