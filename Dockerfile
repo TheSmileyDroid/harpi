@@ -9,7 +9,6 @@ RUN bun run build
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend
 
-# System deps
 RUN apt-get update && apt-get install -y \
     curl \
     ffmpeg \
@@ -23,6 +22,8 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_NO_DEV=1
 ENV UV_TOOL_BIN_DIR=/usr/local/bin
+ENV PYTHONUNBUFFERED=1
+ENV PATH="/app/.venv/bin:$PATH"
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
@@ -33,14 +34,12 @@ COPY --from=frontend /web/build /app/web/build
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --upgrade
 
-# Runtime user: uvicorn, loguru (spam.log) and yt-dlp (.audios/) write to /app
 RUN useradd --create-home harpi \
-    && chown -R harpi:harpi /app
+    && mkdir -p /work \
+    && chown -R harpi:harpi /app \
+    && chown harpi:harpi /work
 USER harpi
-
-ENV PATH="/app/.venv/bin:$PATH"
 
 ENTRYPOINT []
 
-# Default command
-CMD ["uv", "run", "uvicorn", "app:asgi_app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/.venv/bin/uvicorn", "app:asgi_app", "--app-dir", "/app", "--host", "0.0.0.0", "--port", "8000"]

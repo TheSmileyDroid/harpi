@@ -19,9 +19,14 @@ from src.config import Settings
 from src.harpi_lib.music import cookie_store
 from src.harpi_lib.music.nothing_found import NothingFoundError
 
+_WORK_DIR = Path(Settings.from_env().work_dir)
+
 ytdl_format_options: dict[str, Any] = {
     "format": "m4a/bestaudio/best",
-    "outtmpl": ".audios/%(extractor)s-%(id)s-%(title)s.%(ext)s",
+    "outtmpl": str(
+        _WORK_DIR / "audios" / "%(extractor)s-%(id)s-%(title)s.%(ext)s"
+    ),
+    "cachedir": str(_WORK_DIR / "yt-dlp-cache"),
     "restrictfilenames": True,
     "noplaylist": False,
     "extract_flat": True,
