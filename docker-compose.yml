@@ -9,13 +9,25 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - PYTHONUNBUFFERED=1
       - TZ=UTC
+      - HARPI_DB_PATH=/app/data/harpi.db
+      - HARPI_WORK_DIR=/work
     env_file: ".env"
     volumes:
-      - ./:/app
-      - /app/.venv
-      - /app/web/build
-    working_dir: /app
+      - ./data:/app/data
+      - harpi-work:/work
+      - ./cookies.txt:/app/cookies.txt:ro
+    working_dir: /work
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 1g
+    mem_reservation: 512m
     networks:
       - harpi-net
     healthcheck:
@@ -24,22 +36,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    mem_limit: 1g
-    mem_reservation: 512m
-    command: "uv run uvicorn app:asgi_app --host 0.0.0.0 --port 8000"
-    develop:
-      watch:
-        - action: sync
-          path: .
-          target: /app
-          ignore:
-            - .venv/
-
-        - action: rebuild
-          path: ./uv.lock
-        - action: rebuild
-          path: ./pyproject.toml
 
 networks:
   harpi-net:
     driver: bridge
+
+volumes:
+  harpi-work:
