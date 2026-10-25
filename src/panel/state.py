@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from discord import Guild
 
 from src.bot_state import get_bot, run_on_bot_loop
@@ -130,6 +132,23 @@ async def sign_in(actor: Actor) -> None:
     registry = get_registry()
     if registry is not None:
         await registry.sign_in(actor)
+
+
+async def record_user_guilds(actor: Actor, guild_ids: Iterable[int]) -> None:
+    registry = get_registry()
+    if registry is not None:
+        await registry.record_user_guilds(
+            actor, [str(guild_id) for guild_id in guild_ids]
+        )
+
+
+async def user_guild_ids(user_id: str) -> frozenset[int]:
+    registry = get_registry()
+    if registry is None:
+        return frozenset()
+    return frozenset(
+        int(guild_id) for guild_id in await registry.user_guild_ids(user_id)
+    )
 
 
 async def select(

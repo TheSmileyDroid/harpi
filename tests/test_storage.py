@@ -41,7 +41,7 @@ async def test_open_creates_the_schema_and_applies_it_once(tmp_path):
         "SELECT COUNT(*) AS n FROM schema_migrations"
     )
     assert row is not None
-    assert row["n"] == 1
+    assert row["n"] == 2
 
     await database.close()
     reopened = Database(tmp_path / "harpi.db")
@@ -50,8 +50,21 @@ async def test_open_creates_the_schema_and_applies_it_once(tmp_path):
         "SELECT COUNT(*) AS n FROM schema_migrations"
     )
     assert row is not None
-    assert row["n"] == 1
+    assert row["n"] == 2
     await reopened.close()
+
+
+async def test_open_creates_the_user_guilds_table(tmp_path):
+    database, _ = await open_registry(tmp_path)
+
+    columns = await database.fetchall("PRAGMA table_info(user_guilds)")
+
+    assert [column["name"] for column in columns] == [
+        "user_id",
+        "guild_id",
+        "seen_at",
+    ]
+    await database.close()
 
 
 async def test_open_requires_an_open_connection(tmp_path):
@@ -206,4 +219,43 @@ async def test_a_second_registry_sees_the_persisted_viewer(tmp_path):
     viewers = await SqliteRegistry(second).viewers("7", now=NOW)
 
     assert [viewer.user_id for viewer in viewers] == ["555"]
+    await second.close()
+
+
+async def test_record_user_guilds_keeps_the_allowed_set(tmp_path):
+    database, registry = await open_registry(tmp_path)
+
+    await registry.record_user_guilds(ALICE, ["7", "8"], now=NOW)
+
+    assert await registry.user_guild_ids("555") == frozenset({"7", "8"})
+    row = await database.fetchone(
+        "SELECT MIN(seen_at) AS seen_at FROM user_guilds"
+    )
+    assert row is not None
+    assert row["seen_at"] == NOW
+    await database.close()
+
+
+async def test_record_user_guilds_replaces_the_previous_set(tmp_path):
+    database, registry = await open_registry(tmp_path)
+
+    await registry.record_user_guilds(ALICE, ["7", "8"], now=NOW)
+    await registry.record_user_guilds(ALICE, ["8"], now=NOW + 1)
+
+    assert await registry.user_guild_ids("555") == frozenset({"8"})
+    await database.close()
+
+
+async def test_a_second_registry_sees_the_persisted_guilds(tmp_path):
+    path = tmp_path / "harpi.db"
+    first = Database(path)
+    await first.open()
+    await SqliteRegistry(first).record_user_guilds(ALICE, ["7", "8"], now=NOW)
+    await first.close()
+
+    second = Database(path)
+    await second.open()
+    guilds = await SqliteRegistry(second).user_guild_ids("555")
+
+    assert guilds == frozenset({"7", "8"})
     await second.close()

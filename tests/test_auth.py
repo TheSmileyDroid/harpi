@@ -1,7 +1,8 @@
 """Discord OAuth panel authentication over the app's HTTP seam.
 
 The Discord network is faked at ``discord_oauth._fetch_json``; the bot is a
-fake, so the shared-guild check runs through the real ``state.list_guilds``.
+fake, so the allowlist admission runs through the real ``state.bot_guild_ids``
+and the real registry.
 """
 
 from __future__ import annotations
@@ -16,12 +17,17 @@ from src import bot_state as deps
 from src import discord_oauth
 from src.harpi_lib.harpi_bot import HarpiBot
 from src.panel import state
-from tests.fakes import GUILD_A, FakeBot, FakeGuild
+from src.storage import clear_registry, init_registry
+from src.storage.database import Database
+from src.storage.registry import SqliteRegistry
+from tests.fakes import GUILD_A, GUILD_B, FakeBot, FakeGuild
 
 CLIENT_ID = "891732797054681119"
 SECRET = "test-secret"
 STATE = "the-state-nonce"
 VERIFIER = "the-code-verifier"
+ALLOWLIST = f"{GUILD_A},{GUILD_B}"
+ABSENT_GUILD = 3
 
 
 class AuthBot(FakeBot):
@@ -33,14 +39,34 @@ class AuthBot(FakeBot):
 
 
 @pytest.fixture
-def client(monkeypatch: pytest.MonkeyPatch):
+async def storage(tmp_path):
+    database = Database(tmp_path / "panel.db")
+    await database.open()
+    registry = SqliteRegistry(database)
+    init_registry(registry)
+    yield registry
+    clear_registry()
+    await database.close()
+
+
+@pytest.fixture
+def client(storage, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("SECRET_KEY", SECRET)
     monkeypatch.setenv("DISCORD_TOKEN", "test")
     monkeypatch.setenv("DISCORD_CLIENT_ID", CLIENT_ID)
+    monkeypatch.setenv("PANEL_GUILD_ALLOWLIST", ALLOWLIST)
     monkeypatch.delenv("DISCORD_REDIRECT_URI", raising=False)
     quart_app.secret_key = SECRET
     quart_app.config["TESTING"] = True
-    deps.init_bot(cast(HarpiBot, AuthBot([FakeGuild(GUILD_A, "Alpha Guild")])))
+    deps.init_bot(
+        cast(
+            HarpiBot,
+            AuthBot([
+                FakeGuild(GUILD_A, "Alpha Guild"),
+                FakeGuild(GUILD_B, "Beta Guild"),
+            ]),
+        )
+    )
     yield quart_app.test_client()
     deps._bot_ref = None
 
@@ -174,7 +200,7 @@ async def test_login_without_configuration_returns_to_the_panel(
     assert response.headers["Location"] == "/?auth=unconfigured"
 
 
-async def test_callback_opens_a_session_for_a_shared_guild_member(
+async def test_callback_opens_a_session_for_an_allowlisted_member(
     client, monkeypatch: pytest.MonkeyPatch
 ):
     fake_discord(monkeypatch, [GUILD_A])
@@ -189,6 +215,77 @@ async def test_callback_opens_a_session_for_a_shared_guild_member(
     assert stored["user_id"] == "555"
     assert stored["username"] == "harpi-user"
     assert "oauth_state" not in stored
+    assert await state.user_guild_ids("555") == frozenset({GUILD_A})
+
+
+@pytest.mark.parametrize("guild_id", [GUILD_A, GUILD_B])
+async def test_callback_admits_a_member_of_each_allowlisted_guild(
+    client, monkeypatch: pytest.MonkeyPatch, guild_id: int
+):
+    fake_discord(monkeypatch, [guild_id])
+    await _begin(client)
+
+    response = await _callback(client)
+
+    assert response.headers["Location"] == "/"
+    assert (await _stored(client))["authenticated"] is True
+    assert await state.user_guild_ids("555") == frozenset({guild_id})
+
+
+async def test_callback_denies_a_member_of_a_guild_outside_the_allowlist(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PANEL_GUILD_ALLOWLIST", str(GUILD_A))
+    fake_discord(monkeypatch, [GUILD_B])
+    await _begin(client)
+
+    response = await _callback(client)
+
+    assert response.headers["Location"] == "/?auth=denied"
+    assert (await _stored(client)).get("authenticated") is not True
+    assert await state.user_guild_ids("555") == frozenset()
+
+
+async def test_callback_denies_a_member_of_an_allowlisted_guild_the_bot_is_not_in(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PANEL_GUILD_ALLOWLIST", f"{GUILD_A},{ABSENT_GUILD}")
+    fake_discord(monkeypatch, [ABSENT_GUILD])
+    await _begin(client)
+
+    response = await _callback(client)
+
+    assert response.headers["Location"] == "/?auth=denied"
+    assert (await _stored(client)).get("authenticated") is not True
+    assert await state.user_guild_ids("555") == frozenset()
+
+
+async def test_callback_denies_everyone_when_the_allowlist_is_empty(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PANEL_GUILD_ALLOWLIST", "")
+    fake_discord(monkeypatch, [GUILD_A])
+    await _begin(client)
+
+    response = await _callback(client)
+
+    assert response.headers["Location"] == "/?auth=denied"
+    assert (await _stored(client)).get("authenticated") is not True
+    assert await state.user_guild_ids("555") == frozenset()
+
+
+async def test_callback_denies_everyone_when_the_allowlist_is_malformed(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PANEL_GUILD_ALLOWLIST", f"{GUILD_A},not-a-snowflake")
+    fake_discord(monkeypatch, [GUILD_A])
+    await _begin(client)
+
+    response = await _callback(client)
+
+    assert response.headers["Location"] == "/?auth=denied"
+    assert (await _stored(client)).get("authenticated") is not True
+    assert await state.user_guild_ids("555") == frozenset()
 
 
 async def test_callback_denies_a_stranger(
