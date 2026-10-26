@@ -18,11 +18,12 @@ from pages.auth import bp as auth_bp
 from pages.contract import ContractOpenAPIProvider
 from pages.events import bp as events_bp
 
+from src import alerts
 from src.config import Settings
 from src.discord_bot import run_bot_in_background
 from src.logging_setup import configure_logging
-from src.panel import login, retention, state
-from src.security_log import event_for_request, record_event
+from src.panel import backup, disk_pressure, login, retention, state
+from src.security_log import alert_for_status, event_for_request, record_event
 from src.storage import clear_registry, get_registry, init_registry
 from src.storage.database import Database
 from src.storage.registry import SqliteRegistry
@@ -158,6 +159,17 @@ def log_security_event(response: Response) -> Response:
     return response
 
 
+@app.after_request
+def alert_security_status(response: Response) -> Response:
+    kind = alert_for_status(response.status_code)
+    if kind is not None:
+        alerts.notify(
+            kind,
+            f"{request.method} {request.path} ip={request.remote_addr or '-'}",
+        )
+    return response
+
+
 async def _login_is_current() -> bool:
     if session.get("authenticated") is not True:
         return False
@@ -214,12 +226,15 @@ app.register_blueprint(auth_bp)
 
 _database: Database | None = None
 _retention_task: asyncio.Task[None] | None = None
+_backup_task: asyncio.Task[None] | None = None
+_disk_task: asyncio.Task[None] | None = None
 
 
 @app.before_serving
 async def startup():
-    global _database, _retention_task
+    global _database, _retention_task, _backup_task, _disk_task
     settings = Settings.from_env()
+    alerts.configure_alerts(settings.alert_webhook)
     if get_registry() is None:
         try:
             _database = Database(settings.db_path)
@@ -230,6 +245,8 @@ async def startup():
             _database = None
             logger.opt(exception=True).error(f"Panel storage unavailable: {e}")
     _retention_task = retention.start_daily_purge(settings)
+    _backup_task = backup.start_daily_backup(settings)
+    _disk_task = disk_pressure.start_disk_watch(settings)
     try:
         run_bot_in_background(settings)
         logger.info("Discord bot initialization started")
@@ -239,11 +256,20 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    global _database, _retention_task
+    global _database, _retention_task, _backup_task, _disk_task
     task = _retention_task
     _retention_task = None
     if task is not None:
         await retention.stop_daily_purge(task)
+    backup_task = _backup_task
+    _backup_task = None
+    if backup_task is not None:
+        await backup.stop_daily_backup(backup_task)
+    disk_task = _disk_task
+    _disk_task = None
+    if disk_task is not None:
+        await disk_pressure.stop_disk_watch(disk_task)
+    await alerts.stop_alerts()
     database = _database
     _database = None
     clear_registry()

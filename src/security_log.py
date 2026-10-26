@@ -11,6 +11,8 @@ from typing import Literal
 
 from loguru import logger
 
+from src.alerts import AlertKind
+
 SecurityEvent = Literal[
     "login",
     "login_failure",
@@ -19,6 +21,12 @@ SecurityEvent = Literal[
     "selection",
     "server_error",
 ]
+
+ALERT_STATUS_KINDS: dict[int, AlertKind] = {
+    401: "unauthorized",
+    403: "forbidden",
+    429: "rate_limited",
+}
 
 SECURITY_BINDING = "security"
 CALLBACK_PATH = "/api/auth/discord/callback"
@@ -47,6 +55,13 @@ def event_for_request(
     if method == "POST" and path == SELECTION_PATH and status < 400:
         return "selection"
     return None
+
+
+def alert_for_status(status: int) -> AlertKind | None:
+    """The operator alert a response status deserves, if any."""
+    if status >= SERVER_ERROR_STATUS:
+        return "server_error"
+    return ALERT_STATUS_KINDS.get(status)
 
 
 def record_line(

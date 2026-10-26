@@ -9,7 +9,12 @@ from loguru import logger
 
 from app import app as quart_app
 from src import security_log
-from src.security_log import event_for_request, record_event, record_line
+from src.security_log import (
+    alert_for_status,
+    event_for_request,
+    record_event,
+    record_line,
+)
 
 AT = datetime(2026, 10, 26, 12, 0, 0, tzinfo=UTC)
 CALLBACK = "/api/auth/discord/callback"
@@ -41,6 +46,25 @@ def test_event_for_request_classifies_the_audited_request(
     expected: str | None,
 ):
     assert event_for_request(method, path, status, location) == expected
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (401, "unauthorized"),
+        (403, "forbidden"),
+        (429, "rate_limited"),
+        (500, "server_error"),
+        (503, "server_error"),
+        (200, None),
+        (302, None),
+        (404, None),
+    ],
+)
+def test_alert_for_status_classifies_the_alerting_responses(
+    status: int, expected: str | None
+):
+    assert alert_for_status(status) == expected
 
 
 def test_the_classifier_names_routes_the_app_serves():

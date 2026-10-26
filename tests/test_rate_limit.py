@@ -85,6 +85,32 @@ def test_stream_slots_cap_connections_per_guild():
     assert slots.acquire("b", 8) is not None
 
 
+def test_stream_growth_alerts_once_per_crossing():
+    crossings: list[int] = []
+    slots = rate_limit.StreamSlots(
+        per_user=10,
+        per_guild=10,
+        growth_threshold=2,
+        on_growth=crossings.append,
+    )
+
+    first = slots.acquire("a", 1)
+    assert crossings == []
+    second = slots.acquire("b", 1)
+    assert crossings == [2]
+    third = slots.acquire("c", 1)
+    assert crossings == [2]
+
+    for slot in (first, second, third):
+        assert slot is not None
+        slot.release()
+
+    slots.acquire("d", 1)
+    slots.acquire("e", 1)
+
+    assert crossings == [2, 2]
+
+
 def test_releasing_a_slot_frees_it_once():
     slots = rate_limit.StreamSlots(per_user=1, per_guild=1)
     slot = slots.acquire("a", 7)

@@ -5,6 +5,8 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from src import alerts
+
 MINUTE_SECONDS = 60.0
 SEARCHES_PER_MINUTE = 20
 QUEUE_ACTIONS_PER_MINUTE = 10
@@ -100,11 +102,20 @@ class StreamSlots:
         self,
         per_user: int = STREAM_CONNECTIONS_PER_USER,
         per_guild: int = STREAM_CONNECTIONS_PER_GUILD,
+        growth_threshold: int = alerts.STREAM_GROWTH_THRESHOLD,
+        on_growth: Callable[[int], None] = alerts.notify_stream_growth,
     ) -> None:
         self._per_user = per_user
         self._per_guild = per_guild
+        self._growth_threshold = growth_threshold
+        self._on_growth = on_growth
+        self._growth_alerted = False
         self._users: dict[str, int] = {}
         self._guilds: dict[int, int] = {}
+
+    @property
+    def live_streams(self) -> int:
+        return sum(self._users.values())
 
     def acquire(self, user_id: str, guild_id: int | None) -> StreamSlot | None:
         if self._users.get(user_id, 0) >= self._per_user:
@@ -117,14 +128,25 @@ class StreamSlots:
         self._users[user_id] = self._users.get(user_id, 0) + 1
         if guild_id is not None:
             self._guilds[guild_id] = self._guilds.get(guild_id, 0) + 1
+        self._note_growth()
         return StreamSlot(self, user_id, guild_id)
+
+    def _note_growth(self) -> None:
+        live = self.live_streams
+        if live < self._growth_threshold:
+            self._growth_alerted = False
+            return
+        if self._growth_alerted:
+            return
+        self._growth_alerted = True
+        self._on_growth(live)
 
     def _release(self, user_id: str, guild_id: int | None) -> None:
         self._users[user_id] -= 1
         if self._users[user_id] <= 0:
             del self._users[user_id]
-        if guild_id is None:
-            return
-        self._guilds[guild_id] -= 1
-        if self._guilds[guild_id] <= 0:
-            del self._guilds[guild_id]
+        if guild_id is not None:
+            self._guilds[guild_id] -= 1
+            if self._guilds[guild_id] <= 0:
+                del self._guilds[guild_id]
+        self._note_growth()
