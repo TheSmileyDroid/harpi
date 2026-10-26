@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import asyncio
 from typing import cast
 
 import discord
 from discord import Guild, Member, Message, StageChannel
 from discord.ext.commands import Cog, CommandError, Context, command
 
+from src.config import Settings
 from src.harpi_lib.audio.session import (
     LOOP_MODE_ALIASES,
     PlaybackSession,
     SessionStatus,
 )
 from src.harpi_lib.harpi_bot import HarpiBot
+from src.harpi_lib.music import source_policy
 from src.harpi_lib.parse import parse_finite_float
 
 
@@ -46,6 +49,14 @@ class MusicCog(Cog):
         super().__init__()
 
         self.bot: HarpiBot = bot
+
+    async def _refuse_outside_source_policy(self, link: str) -> None:
+        settings = Settings.from_env()
+        if not settings.public_mode or not source_policy.is_source_url(link):
+            return
+        await asyncio.to_thread(
+            source_policy.check_source, link, public_mode=True
+        )
 
     async def _resolve_voice_context(
         self, ctx: Context
@@ -143,6 +154,7 @@ class MusicCog(Cog):
         """
         session = await self._connect_session(ctx, force=False)
         try:
+            await self._refuse_outside_source_policy(link)
             count = await session.play(link)
         except ValueError as e:
             await ctx.send(str(e))
@@ -324,6 +336,7 @@ class MusicCog(Cog):
         """
         session = await self._connect_session(ctx, force=False)
         try:
+            await self._refuse_outside_source_policy(link)
             await session.add_layer(link)
         except ValueError as e:
             _ = await ctx.send(str(e))

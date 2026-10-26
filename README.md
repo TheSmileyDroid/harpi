@@ -34,11 +34,11 @@ module reload, and Quart serves the API at http://localhost:8000.
 
 The panel signs in with Discord. Set `DISCORD_CLIENT_ID` and
 `SECRET_KEY` in `.env` (copy `.env.example` to start) and register
-`DISCORD_REDIRECT_URI` as a redirect on the Discord application. A guild
-member authorizes the app at `GET /api/auth/discord` and gets a signed
-session cookie; an account sharing no guild with the bot is refused. The
-app binds to `127.0.0.1` by default; set `HOST` or pass `--host` to
-change it.
+`DISCORD_REDIRECT_URI` as a redirect on the Discord application. A member
+authorizes the app at `GET /api/auth/discord` and gets a signed login cookie.
+Only members of the guilds listed in `PANEL_GUILD_ALLOWLIST` are admitted; an
+account outside that list is refused. The app binds to `127.0.0.1` by
+default; set `HOST` or pass `--host` to change it.
 
 To run in production, create the external edge network once and use Docker
 Compose:

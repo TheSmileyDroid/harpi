@@ -19,6 +19,7 @@ from discord.ext.commands import Command, CommandError, Context
 from src.cogs.music import MusicCog, _layers_message, _queue_message
 from src.harpi_lib.audio.session import LayerInfo, LoopMode, SessionStatus
 from src.harpi_lib.harpi_bot import HarpiBot
+from src.harpi_lib.music import source_policy
 from src.harpi_lib.music.ytmusic import YTMusicData
 from tests.conftest import CHANNEL_ID, GUILD_ID
 
@@ -254,6 +255,25 @@ async def test_play_ensures_the_session_and_reports_the_added_count():
     assert manager.calls == [f"ensure:{GUILD_ID}:{CHANNEL_ID}"]
     assert session.calls == [("play", "http://song")]
     assert ctx.sent == ["Adicionada(s) 2 música(s) à fila."]
+
+
+async def test_play_refuses_a_non_youtube_source_in_public_mode(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    session = FakeSession()
+    cog, ctx, _ = _make_cog(session)
+    monkeypatch.setenv("PANEL_PUBLIC_MODE", "1")
+
+    def refuse(value: str, *, public_mode: bool) -> str:
+        assert public_mode is True
+        raise source_policy.SourcePolicyError(f"{value} is not allowed")
+
+    monkeypatch.setattr(source_policy, "check_source", refuse)
+
+    await _invoke(cog.play, cog, ctx, link="https://example.com/track")
+
+    assert session.calls == []
+    assert ctx.sent == ["https://example.com/track is not allowed"]
 
 
 async def test_play_reports_load_failures_from_the_session():
