@@ -50,9 +50,47 @@ def configure_panel_session(settings: Settings) -> None:
     app.secret_key = settings.secret_key
 
 
+SECURITY_HEADERS: dict[str, str] = {
+    "Strict-Transport-Security": "max-age=31536000",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": (
+        "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    ),
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "X-Frame-Options": "DENY",
+    "Content-Security-Policy": (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data: https://i.ytimg.com; "
+        "media-src 'self' blob:; "
+        "connect-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'none'; "
+        "form-action 'self'; "
+        "frame-ancestors 'none'"
+    ),
+}
+
+DOCUMENTATION_PATHS: frozenset[str] = frozenset({
+    "/openapi.json",
+    "/docs",
+    "/redocs",
+    "/scalar",
+})
+
+
+def configure_security(settings: Settings) -> None:
+    app.config["PUBLIC_MODE"] = settings.public_mode
+
+
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.url_map.merge_slashes = False
 configure_panel_session(Settings.from_env())
+configure_security(Settings.from_env())
 
 QuartSchema(app, openapi_provider_class=ContractOpenAPIProvider)
 
@@ -82,6 +120,19 @@ def guard_trusted_host():
     if _is_api_path():
         return error_response("bad_request", "Untrusted host", 400)
     return Response("Bad Request", status=400)
+
+
+@app.before_request
+def guard_documentation():
+    if app.config["PUBLIC_MODE"] and request.path in DOCUMENTATION_PATHS:
+        return Response("Not Found", status=404)
+    return None
+
+
+@app.after_request
+def send_security_headers(response: Response) -> Response:
+    response.headers.update(SECURITY_HEADERS)
+    return response
 
 
 async def _login_is_current() -> bool:
