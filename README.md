@@ -40,8 +40,12 @@ session cookie; an account sharing no guild with the bot is refused. The
 app binds to `127.0.0.1` by default; set `HOST` or pass `--host` to
 change it.
 
-To run in production, use Docker Compose:
+To run in production, create the external edge network once and use Docker
+Compose:
 
+    docker network create harpi-edge
     docker compose up
 
-
+The app publishes no host port. Nginx Proxy Manager reaches it as
+`harpi-backend:8000` on `harpi-edge`; the network and the egress deny are
+covered in [docs/security/runbook-edge-network.md](docs/security/runbook-edge-network.md).
