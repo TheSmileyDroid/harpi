@@ -100,14 +100,31 @@ def _opening_frames(
 
 
 async def _next_frame(
-    queued: FrameQueue, timeout: float, allowed_guilds: frozenset[int]
-) -> str | None:
+    queued: FrameQueue, timeout: float
+) -> tuple[str, BaseModel] | None:
     with contextlib.suppress(TimeoutError):
-        name, payload = await asyncio.wait_for(queued.get(), timeout)
-        if isinstance(payload, Directory):
-            payload = _visible_directory(payload, allowed_guilds)
-        return _frame(SSE_EVENTS[name], payload)
+        return await asyncio.wait_for(queued.get(), timeout)
     return None
+
+
+async def _current_allowed(
+    actor: Actor | None, fallback: frozenset[int]
+) -> frozenset[int]:
+    if actor is None:
+        return fallback
+    return await state.user_guild_ids(actor.id)
+
+
+async def _visible_frame(
+    name: str,
+    payload: BaseModel,
+    actor: Actor | None,
+    allowed_guilds: frozenset[int],
+) -> str:
+    if isinstance(payload, Directory):
+        allowed_guilds = await _current_allowed(actor, allowed_guilds)
+        payload = _visible_directory(payload, allowed_guilds)
+    return _frame(SSE_EVENTS[name], payload)
 
 
 async def _periodic_frames(
@@ -136,6 +153,62 @@ def _reload_frame(
     return _frame(ReloadEvent, {"scope": "shell"}), current
 
 
+async def _advance(
+    queued: FrameQueue,
+    sampler: GuildSampler,
+    guild_id: int | None,
+    actor: Actor | None,
+    presence: Presence,
+    shell: dict[str, float],
+    allowed_guilds: frozenset[int],
+    deadline: float,
+) -> tuple[float, Presence, dict[str, float], list[str]]:
+    frames: list[str] = []
+    timeout = max(0.0, deadline - time.monotonic())
+    queued_item = await _next_frame(queued, timeout)
+    if queued_item is not None:
+        frames.append(
+            await _visible_frame(*queued_item, actor, allowed_guilds)
+        )
+    if time.monotonic() < deadline:
+        return deadline, presence, shell, frames
+    deadline = time.monotonic() + TICK_SECONDS
+    periodic, presence = await _periodic_frames(
+        sampler, guild_id, actor, presence
+    )
+    frames.extend(periodic)
+    reload_frame, shell = _reload_frame(shell)
+    if reload_frame is not None:
+        frames.append(reload_frame)
+    return deadline, presence, shell, frames
+
+
+async def _steady_frames(
+    queued: FrameQueue,
+    sampler: GuildSampler,
+    guild_id: int | None,
+    actor: Actor | None,
+    presence: Presence,
+    allowed_guilds: frozenset[int],
+) -> AsyncGenerator[str, None]:
+    shell = _snapshot()
+    deadline = time.monotonic() + TICK_SECONDS
+    while True:
+        allowed_guilds = await _current_allowed(actor, allowed_guilds)
+        deadline, presence, shell, frames = await _advance(
+            queued,
+            sampler,
+            guild_id,
+            actor,
+            presence,
+            shell,
+            allowed_guilds,
+            deadline,
+        )
+        for frame in frames:
+            yield frame
+
+
 async def _stream(
     guild_id: int | None,
     actor: Actor | None,
@@ -149,26 +222,12 @@ async def _stream(
         yield ": connected\n\n"
         for frame in _opening_frames(sampler, allowed_guilds):
             yield frame
-        previous_presence = await state.presence(resolved, actor)
-        yield _frame(Presence, previous_presence)
-        previous_shell = _snapshot()
-        deadline = time.monotonic() + TICK_SECONDS
-        while True:
-            timeout = max(0.0, deadline - time.monotonic())
-            queued_frame = await _next_frame(queued, timeout, allowed_guilds)
-            if queued_frame is not None:
-                yield queued_frame
-            if time.monotonic() < deadline:
-                continue
-            deadline = time.monotonic() + TICK_SECONDS
-            frames, previous_presence = await _periodic_frames(
-                sampler, resolved, actor, previous_presence
-            )
-            for frame in frames:
-                yield frame
-            reload_frame, previous_shell = _reload_frame(previous_shell)
-            if reload_frame is not None:
-                yield reload_frame
+        presence = await state.presence(resolved, actor)
+        yield _frame(Presence, presence)
+        async for frame in _steady_frames(
+            queued, sampler, resolved, actor, presence, allowed_guilds
+        ):
+            yield frame
     finally:
         sampler.unsubscribe(queued)
         if slot is not None:
