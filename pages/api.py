@@ -7,6 +7,7 @@ from quart_schema import document_request, document_response, validate_response
 
 from src.bot_state import bot_running
 from src.harpi_lib.audio.session import LOOP_MODE_ALIASES
+from src.harpi_lib.music.source_policy import SourcePolicyError
 from src.panel import actions, sampler, state
 from src.panel.schemas import (
     Authenticated,
@@ -221,7 +222,11 @@ async def api_search() -> Any:
     data = _parse(SearchRequest, await request.get_json(silent=True))
     if data.term is None:
         return {"results": []}
-    return {"results": await actions.search_tracks(data.term)}
+    try:
+        results = await actions.search_tracks(data.term)
+    except SourcePolicyError as exc:
+        return error_response("bad_request", str(exc), 400)
+    return {"results": results}
 
 
 def _no_live_session() -> Response:
@@ -237,7 +242,10 @@ async def _mutate_url(mutation: Any) -> Any:
     data = _parse(UrlRequest, await request.get_json(silent=True))
     if data.url is None:
         return error_response("not_found", "A URL is required", 404)
-    await mutation(guild, data.url)
+    try:
+        await mutation(guild, data.url)
+    except SourcePolicyError as exc:
+        return error_response("bad_request", str(exc), 400)
     return await state.status_snapshot(guild)
 
 

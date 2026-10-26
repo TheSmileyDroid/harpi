@@ -26,6 +26,7 @@ from src import bot_state as deps
 from src.config import Settings
 from src.harpi_lib.audio.session import LayerInfo, LoopMode
 from src.harpi_lib.harpi_bot import HarpiBot
+from src.harpi_lib.music import source_policy
 from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel import login, state
 from src.storage import clear_registry, init_registry
@@ -45,6 +46,15 @@ from tests.fakes import (
 SECRET = "test-secret"
 CHANNEL_ID = 42
 SNOWFLAKE = 734174030701264912
+PUBLIC_ADDRESS = "142.251.152.4"
+
+
+def _resolves_public(host: str) -> tuple[str, ...]:
+    return (PUBLIC_ADDRESS,)
+
+
+def _no_redirect(url: str) -> str | None:
+    return None
 
 
 class ApiBot(FakeBot):
@@ -151,6 +161,11 @@ async def client(bot: ApiBot, storage, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("SECRET_KEY", SECRET)
     monkeypatch.setenv("DISCORD_TOKEN", "test")
     monkeypatch.delenv("PANEL_INSECURE_COOKIES", raising=False)
+    monkeypatch.delenv("PANEL_PUBLIC_MODE", raising=False)
+    monkeypatch.setattr(
+        source_policy, "resolve_host_addresses", _resolves_public
+    )
+    monkeypatch.setattr(source_policy, "fetch_redirect_location", _no_redirect)
     configure_panel_session(Settings.from_env())
     quart_app.config["TESTING"] = True
     deps.init_bot(cast(HarpiBot, bot))
@@ -945,6 +960,100 @@ async def test_queue_trims_a_padded_url(client, bot: ApiBot):
     session_obj = bot.sessions._session
     assert session_obj is not None
     assert ("play", "https://example.com/song") in session_obj.calls
+
+
+async def test_search_refuses_a_url_outside_the_public_policy(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    monkeypatch.setenv("PANEL_PUBLIC_MODE", "1")
+    patch_search(monkeypatch, [found_track()])
+
+    response = await client.post(
+        "/api/search", json={"term": "https://example.com/song"}
+    )
+
+    assert response.status_code == 400
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "bad_request"
+    assert "not a YouTube source" in body["error"]["message"]
+
+
+async def test_search_accepts_a_youtube_url_in_public_mode(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    monkeypatch.setenv("PANEL_PUBLIC_MODE", "1")
+    patch_search(monkeypatch, [found_track()])
+
+    response = await client.post(
+        "/api/search", json={"term": "https://youtu.be/dQw4w9WgXcQ"}
+    )
+
+    assert response.status_code == 200
+    body = json.loads(await response.get_data())
+    assert body["results"][0]["title"] == "Found Track"
+
+
+@pytest.mark.parametrize("path", ["/api/queue", "/api/layers"])
+async def test_url_mutations_refuse_a_metadata_address(
+    client, bot: ApiBot, path: str
+):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post(
+        path, json={"url": "http://169.254.169.254/latest/meta-data/"}
+    )
+
+    assert response.status_code == 400
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "bad_request"
+    assert "cloud metadata address" in body["error"]["message"]
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert session_obj.calls == []
+
+
+async def test_queue_refuses_a_non_youtube_url_in_public_mode(
+    client, bot: ApiBot, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    await _select_guild(client)
+    monkeypatch.setenv("PANEL_PUBLIC_MODE", "1")
+
+    response = await client.post(
+        "/api/queue", json={"url": "https://example.com/song"}
+    )
+
+    assert response.status_code == 400
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "bad_request"
+    assert "not a YouTube source" in body["error"]["message"]
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert session_obj.calls == []
+
+
+async def test_queue_accepts_a_youtube_url_in_public_mode(
+    client, bot: ApiBot, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    await _select_guild(client)
+    monkeypatch.setenv("PANEL_PUBLIC_MODE", "1")
+
+    response = await client.post(
+        "/api/queue",
+        json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+    )
+
+    assert response.status_code == 200
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert (
+        "play",
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    ) in session_obj.calls
 
 
 async def test_queue_remove_dispatches_and_answers_with_the_same_truth_as_status(

@@ -1,12 +1,26 @@
 from __future__ import annotations
 
+import asyncio
+
 from src.bot_state import get_bot, run_on_bot_loop
+from src.config import Settings
 from src.harpi_lib.audio.session import LOOP_MODE_ALIASES, PlaybackSession
+from src.harpi_lib.music import source_policy
 from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel import serialization
 from src.panel.schemas import Track
 
 SEARCH_RESULT_LIMIT = 5
+
+
+async def _refuse_outside_source_policy(value: str) -> None:
+    if not source_policy.is_source_url(value):
+        return
+    await asyncio.to_thread(
+        source_policy.check_source,
+        value,
+        public_mode=Settings.from_env().public_mode,
+    )
 
 
 def _session(guild_id: int) -> PlaybackSession:
@@ -30,6 +44,7 @@ async def search_tracks(
     term = term.strip()
     if not term:
         return []
+    await _refuse_outside_source_policy(term)
     return _track_list(await track_source.from_url(term))
 
 
@@ -41,15 +56,18 @@ def _track_list(results: list[YTMusicData]) -> list[Track]:
 
 
 async def add_track(guild_id: int, link: str | None) -> None:
+    if link:
+        await _refuse_outside_source_policy(link)
     session_obj = _session(guild_id)
     if link:
         await run_on_bot_loop(session_obj.play(link))
 
 
 async def add_layer(guild_id: int, link: str | None) -> str | None:
-    session_obj = _session(guild_id)
     if not link:
         return None
+    await _refuse_outside_source_policy(link)
+    session_obj = _session(guild_id)
     return await run_on_bot_loop(session_obj.add_layer(link))
 
 
