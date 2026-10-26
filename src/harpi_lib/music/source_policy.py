@@ -111,7 +111,7 @@ def refused_address_reason(address: str) -> str | None:
 def resolve_host_addresses(host: str) -> tuple[str, ...]:
     """Resolve *host* through the system resolver."""
     infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
-    return tuple(sorted({info[4][0] for info in infos}))
+    return tuple(sorted({str(info[4][0]) for info in infos}))
 
 
 def check_host_addresses(host: str, resolver: Resolver) -> None:
@@ -208,13 +208,16 @@ def check_source(
 def fetch_redirect_location(url: str) -> str | None:
     """Ask *url* for a redirect target without following it."""
     parts = urlsplit(url)
+    host = parts.hostname
+    if host is None:
+        raise SourcePolicyError(f"{url} has no host")
     connection_class = (
         http.client.HTTPSConnection
         if parts.scheme == "https"
         else http.client.HTTPConnection
     )
     connection = connection_class(
-        parts.hostname, parts.port, timeout=PREFLIGHT_TIMEOUT_SECONDS
+        host, parts.port, timeout=PREFLIGHT_TIMEOUT_SECONDS
     )
     try:
         connection.request(

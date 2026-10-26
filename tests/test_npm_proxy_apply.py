@@ -58,7 +58,7 @@ class FakeNpm:
 class Handler(BaseHTTPRequestHandler):
     npm: FakeNpm
 
-    def log_message(self, *args: object) -> None:
+    def log_message(self, format: str, *args: object) -> None:
         return
 
     def reply(self, status: int, payload: Any) -> None:

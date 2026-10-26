@@ -5,7 +5,7 @@ from __future__ import annotations
 import http.server
 import socket
 import threading
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import replace
 
@@ -63,7 +63,7 @@ class _PlainHandler(http.server.BaseHTTPRequestHandler):
 @contextmanager
 def local_server(
     handler: type[http.server.BaseHTTPRequestHandler],
-) -> Iterator[http.server.HTTPServer]:
+) -> Generator[http.server.HTTPServer]:
     server = http.server.HTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

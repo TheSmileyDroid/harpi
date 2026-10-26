@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -32,17 +33,17 @@ def run(
     )
 
 
-def plan(*arguments: str) -> dict[str, object]:
+def plan(*arguments: str) -> dict[str, Any]:
     completed = run("--url", UNREACHABLE_URL, *arguments)
     assert completed.returncode == 0, completed.stderr
     return json.loads(completed.stdout)
 
 
-def create_body() -> dict[str, object]:
+def create_body() -> dict[str, Any]:
     return plan()["create"]["body"]
 
 
-def tls_body() -> dict[str, object]:
+def tls_body() -> dict[str, Any]:
     return plan("--certificate", "new")["attach_certificate"]["body"]
 
 

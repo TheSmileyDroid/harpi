@@ -135,6 +135,9 @@ ignore_decorators = [
     "@app.before_serving",
     "@app.after_serving",
     "@app.before_request",
+    "@app.after_request",
+    "@bp.before_request",
+    "@bp.after_request",
     "@app.errorhandler",
     "@pytest.fixture",
 ]
@@ -165,6 +168,11 @@ ignore_names = [
     "should_exit",
     # sqlite3 connection attribute read by the driver, not by our code.
     "row_factory",
+    # pytest hook read by the runner, not by our code.
+    "pytest_configure",
+    # http.server handler methods invoked by the server, not by our code.
+    "do_*",
+    "log_message",
 ]
 
 

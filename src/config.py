@@ -28,6 +28,10 @@ def _env_flag(name: str) -> bool:
     return os.getenv(name, "").lower() in ("1", "true", "yes")
 
 
+def _env_or(name: str, default: str) -> str:
+    return os.getenv(name) or default
+
+
 def _allowlist_from_env() -> frozenset[int]:
     raw = os.getenv("PANEL_GUILD_ALLOWLIST", "")
     entries = [entry for entry in re.split(r"[,\s]+", raw.strip()) if entry]
@@ -76,25 +80,25 @@ class Settings:
     def from_env(cls) -> Settings:
         return cls(
             discord_token=os.getenv("DISCORD_TOKEN"),
-            prefix=os.getenv("PREFIX") or "-",
+            prefix=_env_or("PREFIX", "-"),
             host=os.getenv("HOST", "127.0.0.1"),
             port=_port_from_env(),
             reload=_env_flag("RELOAD"),
             secret_key=os.environ.get("SECRET_KEY"),
             discord_client_id=os.getenv("DISCORD_CLIENT_ID"),
-            discord_redirect_uri=(
-                os.getenv("DISCORD_REDIRECT_URI") or DEFAULT_REDIRECT_URI
+            discord_redirect_uri=_env_or(
+                "DISCORD_REDIRECT_URI", DEFAULT_REDIRECT_URI
             ),
             ytdl_debug=_env_flag("HARPI_YTDL_DEBUG"),
-            js_runtime_dirs=os.getenv("HARPI_JS_RUNTIME_DIRS") or "",
-            db_path=os.getenv("HARPI_DB_PATH") or "data/harpi.db",
+            js_runtime_dirs=_env_or("HARPI_JS_RUNTIME_DIRS", ""),
+            db_path=_env_or("HARPI_DB_PATH", "data/harpi.db"),
             guild_allowlist=_allowlist_from_env(),
             public_mode=_env_flag("PANEL_PUBLIC_MODE"),
             insecure_cookies=_env_flag("PANEL_INSECURE_COOKIES"),
             trusted_hosts=_trusted_hosts_from_env(),
-            work_dir=os.getenv("HARPI_WORK_DIR") or "data/work",
-            log_path=os.getenv("HARPI_LOG_PATH") or "data/logs/harpi.log",
-            log_level=(os.getenv("HARPI_LOG_LEVEL") or "INFO").upper(),
+            work_dir=_env_or("HARPI_WORK_DIR", "data/work"),
+            log_path=_env_or("HARPI_LOG_PATH", "data/logs/harpi.log"),
+            log_level=_env_or("HARPI_LOG_LEVEL", "INFO").upper(),
             retention_days=_int_from_env(
                 "PANEL_RETENTION_DAYS", DEFAULT_RETENTION_DAYS
             ),

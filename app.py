@@ -170,22 +170,31 @@ def alert_security_status(response: Response) -> Response:
     return response
 
 
-async def _login_is_current() -> bool:
+def _session_user_id() -> str | None:
     if session.get("authenticated") is not True:
-        return False
+        return None
     user_id = session.get("user_id")
     if not isinstance(user_id, str) or not user_id:
+        return None
+    return user_id
+
+
+def _epochs_match(epoch: object, stored: object) -> bool:
+    if not isinstance(epoch, int) or not isinstance(stored, int):
+        return False
+    if isinstance(stored, bool):
+        return False
+    return stored == epoch
+
+
+async def _login_is_current() -> bool:
+    user_id = _session_user_id()
+    if user_id is None:
         return False
     if not login.within_lifetime(session.get(login.ISSUED_AT_KEY)):
         return False
     epoch = await state.login_epoch(user_id)
-    stored_epoch = session.get(login.LOGIN_EPOCH_KEY)
-    return (
-        epoch is not None
-        and isinstance(stored_epoch, int)
-        and not isinstance(stored_epoch, bool)
-        and stored_epoch == epoch
-    )
+    return _epochs_match(epoch, session.get(login.LOGIN_EPOCH_KEY))
 
 
 @app.before_request

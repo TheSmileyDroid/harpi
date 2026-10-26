@@ -47,14 +47,35 @@ def event_for_request(
         return "server_error"
     if status in DENIED_STATUSES:
         return "access_denied"
-    if method == "GET" and path == CALLBACK_PATH:
-        failed = location is not None and FAILED_LOGIN_MARKER in location
-        return "login_failure" if failed else "login"
-    if method == "POST" and path == LOGOUT_PATH:
+    return _event_for_success(method, path, status, location)
+
+
+def _event_for_success(
+    method: str, path: str, status: int, location: str | None
+) -> SecurityEvent | None:
+    if method == "GET":
+        return _get_event(path, location)
+    if method == "POST":
+        return _post_event(path, status)
+    return None
+
+
+def _get_event(path: str, location: str | None) -> SecurityEvent | None:
+    if path != CALLBACK_PATH:
+        return None
+    return "login_failure" if _login_failed(location) else "login"
+
+
+def _post_event(path: str, status: int) -> SecurityEvent | None:
+    if path == LOGOUT_PATH:
         return "logout"
-    if method == "POST" and path == SELECTION_PATH and status < 400:
+    if path == SELECTION_PATH and status < 400:
         return "selection"
     return None
+
+
+def _login_failed(location: str | None) -> bool:
+    return location is not None and FAILED_LOGIN_MARKER in location
 
 
 def alert_for_status(status: int) -> AlertKind | None:

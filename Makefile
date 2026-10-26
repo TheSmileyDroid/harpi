@@ -42,7 +42,7 @@ check:
 	uv run ty check src/ tests/ pages/ app.py tools/ || { touch .check-failed; true; }; \
 	uv run pytest tests/ --cov=src --cov=pages --cov=app --cov-report=json --cov-report=term-missing:skip-covered --cov-fail-under=70 --tb=short -q || { touch .check-failed; true; }; \
 	uv run python tools/crap_check.py coverage.json || { touch .check-failed; true; }; \
-	bunx jscpd src/ pages/ web/src/ --ignore "**/lib/contract/**" --min-tokens 50 --threshold 1 || { touch .check-failed; true; }; \
+	bunx jscpd@3.5.10 src/ pages/ web/src/ --ignore "**/lib/contract/**" --min-tokens 50 --threshold 1 || { touch .check-failed; true; }; \
 	uv run vulture || { touch .check-failed; true; }; \
 	$(MAKE) contract || { touch .check-failed; true; }; \
 	git diff --exit-code -- web/src/lib/contract || { touch .check-failed; true; }; \
