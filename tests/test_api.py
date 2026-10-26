@@ -20,6 +20,7 @@ import httpx
 import pytest
 import uvicorn
 
+from app import MAX_REQUEST_BODY_BYTES
 from app import app as quart_app
 from app import configure_panel_session
 from src import bot_state as deps
@@ -28,7 +29,7 @@ from src.harpi_lib.audio.session import LayerInfo, LoopMode
 from src.harpi_lib.harpi_bot import HarpiBot
 from src.harpi_lib.music import source_policy
 from src.harpi_lib.music.ytmusic import YTMusicData
-from src.panel import login, state
+from src.panel import login, rate_limit, state
 from src.storage import clear_registry, init_registry
 from src.storage.database import Database
 from src.storage.registry import Actor, SqliteRegistry
@@ -166,6 +167,15 @@ async def client(bot: ApiBot, storage, monkeypatch: pytest.MonkeyPatch):
         source_policy, "resolve_host_addresses", _resolves_public
     )
     monkeypatch.setattr(source_policy, "fetch_redirect_location", _no_redirect)
+    monkeypatch.setattr(
+        "pages.api.SEARCH_BUCKETS",
+        rate_limit.UserTokenBuckets(rate_limit.SEARCHES_PER_MINUTE),
+    )
+    monkeypatch.setattr(
+        "pages.api.QUEUE_BUCKETS",
+        rate_limit.UserTokenBuckets(rate_limit.QUEUE_ACTIONS_PER_MINUTE),
+    )
+    monkeypatch.setattr("pages.events.STREAM_SLOTS", rate_limit.StreamSlots())
     configure_panel_session(Settings.from_env())
     quart_app.config["TESTING"] = True
     deps.init_bot(cast(HarpiBot, bot))
@@ -1177,6 +1187,71 @@ async def test_search_maps_a_failure_to_the_error_envelope(
     assert response.status_code == 500
     body = json.loads(await response.get_data())
     assert body["error"]["code"] == "internal_error"
+
+
+async def test_thirty_searches_in_a_minute_hit_the_bucket(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    patch_search(monkeypatch, [found_track()])
+
+    responses = [
+        await client.post("/api/search", json={"term": "found"})
+        for _ in range(30)
+    ]
+    statuses = [response.status_code for response in responses]
+
+    assert statuses.count(200) == rate_limit.SEARCHES_PER_MINUTE
+    assert statuses.count(429) == 30 - rate_limit.SEARCHES_PER_MINUTE
+    refused = responses[-1]
+    assert int(refused.headers["Retry-After"]) >= 1
+    body = json.loads(await refused.get_data())
+    assert body["error"]["code"] == "too_many_requests"
+
+
+async def test_queue_beyond_the_bucket_answers_429_with_retry_after(client):
+    await _login(client)
+    await _select_guild(client)
+    for _ in range(rate_limit.QUEUE_ACTIONS_PER_MINUTE):
+        allowed = await client.post("/api/queue/clear")
+        assert allowed.status_code == 200
+
+    response = await client.post("/api/queue/clear")
+
+    assert response.status_code == 429
+    assert int(response.headers["Retry-After"]) >= 1
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "too_many_requests"
+
+
+async def test_a_body_above_the_limit_answers_413(client):
+    await _login(client)
+
+    response = await client.post(
+        "/api/search",
+        data=b"x" * (MAX_REQUEST_BODY_BYTES * 16),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 413
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "payload_too_large"
+
+
+async def test_sse_rejects_a_stream_beyond_the_user_cap(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    slots = rate_limit.StreamSlots(per_user=1)
+    monkeypatch.setattr("pages.events.STREAM_SLOTS", slots)
+    assert slots.acquire("555", None) is not None
+
+    response = await client.get("/api/events")
+
+    assert response.status_code == 429
+    assert int(response.headers["Retry-After"]) >= 1
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "too_many_requests"
 
 
 async def test_sse_stream_reports_and_resyncs_status(client, bot: ApiBot):

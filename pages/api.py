@@ -8,7 +8,7 @@ from quart_schema import document_request, document_response, validate_response
 from src.bot_state import bot_running
 from src.harpi_lib.audio.session import LOOP_MODE_ALIASES
 from src.harpi_lib.music.source_policy import SourcePolicyError
-from src.panel import actions, sampler, state
+from src.panel import actions, rate_limit, sampler, state
 from src.panel.schemas import (
     Authenticated,
     ChannelList,
@@ -31,6 +31,11 @@ bp = Blueprint("api", __name__)
 
 ALLOWED_GUILDS = "allowed_guild_ids"
 
+SEARCH_BUCKETS = rate_limit.UserTokenBuckets(rate_limit.SEARCHES_PER_MINUTE)
+QUEUE_BUCKETS = rate_limit.UserTokenBuckets(
+    rate_limit.QUEUE_ACTIONS_PER_MINUTE
+)
+
 
 def poke_sampler_after_mutation(response: Response) -> Response:
     if request.method != "POST" or not bot_running():
@@ -49,6 +54,21 @@ bp.after_request(poke_sampler_after_mutation)
 def error_response(code: str, message: str, status: int) -> Response:
     response = jsonify({"error": {"code": code, "message": message}})
     response.status_code = status
+    return response
+
+
+def _rate_limit_response(
+    buckets: rate_limit.UserTokenBuckets,
+) -> Response | None:
+    """A 429 for the signed-in actor, or None while the bucket has room."""
+    actor = current_actor()
+    if actor is None:
+        return None
+    decision = buckets.take(actor.id)
+    if decision.allowed:
+        return None
+    response = error_response("too_many_requests", "Too many requests", 429)
+    response.headers["Retry-After"] = str(decision.retry_after_seconds)
     return response
 
 
@@ -219,6 +239,9 @@ async def disconnect_voice() -> Any:
 @document_request(SearchRequest)
 @validate_response(SearchResults, 200)
 async def api_search() -> Any:
+    refusal = _rate_limit_response(SEARCH_BUCKETS)
+    if refusal is not None:
+        return refusal
     data = _parse(SearchRequest, await request.get_json(silent=True))
     if data.term is None:
         return {"results": []}
@@ -262,6 +285,9 @@ async def _transport(mutation: Any) -> Any:
 @document_response(ErrorEnvelope, 404)
 @validate_response(StatusSnapshot, 200)
 async def queue_track() -> Any:
+    refusal = _rate_limit_response(QUEUE_BUCKETS)
+    if refusal is not None:
+        return refusal
     return await _mutate_url(actions.add_track)
 
 
@@ -270,6 +296,9 @@ async def queue_track() -> Any:
 @document_response(ErrorEnvelope, 404)
 @validate_response(StatusSnapshot, 200)
 async def remove_queued_track() -> Any:
+    refusal = _rate_limit_response(QUEUE_BUCKETS)
+    if refusal is not None:
+        return refusal
     return await _mutate_url(actions.remove_track)
 
 
@@ -277,6 +306,9 @@ async def remove_queued_track() -> Any:
 @document_response(ErrorEnvelope, 404)
 @validate_response(StatusSnapshot, 200)
 async def clear_queued_tracks() -> Any:
+    refusal = _rate_limit_response(QUEUE_BUCKETS)
+    if refusal is not None:
+        return refusal
     guild = _live_guild_id()
     if guild is None:
         return _no_live_session()

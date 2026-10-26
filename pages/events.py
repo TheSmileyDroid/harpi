@@ -15,9 +15,15 @@ from quart_schema import document_response
 from pages.api import (
     current_actor,
     current_guild_id,
+    error_response,
     load_allowed_guild_ids,
 )
 from src.panel import state
+from src.panel.rate_limit import (
+    STREAM_RETRY_AFTER_SECONDS,
+    StreamSlot,
+    StreamSlots,
+)
 from src.panel.sampler import GuildSampler, get_sampler
 from src.panel.schemas import (
     SSE_EVENTS,
@@ -41,6 +47,8 @@ SHELL_ASSETS: tuple[Path, ...] = (
 _EVENT_NAMES = {model: name for name, model in SSE_EVENTS.items()}
 
 TICK_SECONDS = 5.0
+
+STREAM_SLOTS = StreamSlots()
 
 FrameQueue = asyncio.Queue[tuple[str, BaseModel]]
 
@@ -132,6 +140,7 @@ async def _stream(
     guild_id: int | None,
     actor: Actor | None,
     allowed_guilds: frozenset[int],
+    slot: StreamSlot | None = None,
 ) -> AsyncGenerator[str, None]:
     resolved = state.resolve_guild_id(guild_id, allowed_guilds)
     sampler = get_sampler(resolved)
@@ -162,13 +171,26 @@ async def _stream(
                 yield reload_frame
     finally:
         sampler.unsubscribe(queued)
+        if slot is not None:
+            slot.release()
 
 
 @bp.get("/api/events")
 @document_response(SseEnvelope, 200)
 async def events():
     allowed_guilds = await load_allowed_guild_ids()
+    actor = current_actor()
+    guild_id = state.resolve_guild_id(current_guild_id(), allowed_guilds)
+    slot = STREAM_SLOTS.acquire(
+        actor.id if actor is not None else "", guild_id
+    )
+    if slot is None:
+        response = error_response(
+            "too_many_requests", "Too many live streams", 429
+        )
+        response.headers["Retry-After"] = str(STREAM_RETRY_AFTER_SECONDS)
+        return response
     return Response(
-        _stream(current_guild_id(), current_actor(), allowed_guilds),
+        _stream(current_guild_id(), actor, allowed_guilds, slot),
         mimetype="text/event-stream",
     )

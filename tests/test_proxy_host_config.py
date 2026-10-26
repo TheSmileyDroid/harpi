@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "deploy" / "npm-proxy-host.sh"
 VERIFY = ROOT / "deploy" / "verify-proxy.sh"
 ADMIN_CHECK = ROOT / "deploy" / "check-admin-exposure.sh"
+RATE_CHECK = ROOT / "deploy" / "check-rate-limits.sh"
+RATE_ZONES = ROOT / "deploy" / "npm" / "harpi-rate-limits-http.conf"
 FAIL2BAN_INSTALL = ROOT / "deploy" / "fail2ban" / "install.sh"
 HOSTNAME = "harpi.smileydroid.com.br"
 UNREACHABLE_URL = "http://127.0.0.1:9"
@@ -103,12 +105,27 @@ def test_advanced_config_disables_server_tokens_and_buffering_for_the_stream():
     assert "proxy_send_timeout 1h;" in text
 
 
-def test_advanced_config_leaves_body_and_rate_limits_to_the_rate_limit_ticket():
+def test_advanced_config_caps_the_body_and_limits_each_api_zone_by_ip():
     text = tls_body()["advanced_config"]
 
-    assert "client_max_body_size" not in text
-    assert "limit_req" not in text
-    assert "limit_conn" not in text
+    assert "client_max_body_size 64k;" in text
+    assert "limit_req_status 429;" in text
+    assert "limit_req zone=harpi_api burst=10 nodelay;" in text
+    assert "limit_req zone=harpi_auth burst=3 nodelay;" in text
+    assert "location /api/auth/" in text
+
+
+def test_rate_limit_zones_live_in_the_custom_http_context():
+    text = RATE_ZONES.read_text()
+
+    assert (
+        "limit_req_zone $binary_remote_addr zone=harpi_auth:1m rate=10r/m;"
+        in text
+    )
+    assert (
+        "limit_req_zone $binary_remote_addr zone=harpi_api:1m rate=60r/m;"
+        in text
+    )
 
 
 def test_plan_reports_the_query_and_the_create_without_touching_the_network():
@@ -163,7 +180,7 @@ def test_a_bad_certificate_value_fails_loudly():
 
 @pytest.mark.parametrize(
     "script",
-    [SCRIPT, VERIFY, ADMIN_CHECK, FAIL2BAN_INSTALL],
+    [SCRIPT, VERIFY, ADMIN_CHECK, RATE_CHECK, FAIL2BAN_INSTALL],
     ids=lambda path: path.name,
 )
 def test_shell_scripts_parse(script: Path):
@@ -187,4 +204,11 @@ def test_verification_script_never_writes():
         "iptables",
         "docker restart",
     ):
+        assert verb not in text
+
+
+def test_rate_limit_check_never_writes():
+    text = RATE_CHECK.read_text()
+
+    for verb in ("-X POST", "-X PUT", "-X DELETE", "--data", "iptables"):
         assert verb not in text

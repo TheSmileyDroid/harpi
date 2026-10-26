@@ -82,9 +82,12 @@ DOCUMENTATION_PATHS: frozenset[str] = frozenset({
     "/scalar",
 })
 
+MAX_REQUEST_BODY_BYTES = 64 * 1024
+
 
 def configure_security(settings: Settings) -> None:
     app.config["PUBLIC_MODE"] = settings.public_mode
+    app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BODY_BYTES
 
 
 app.config["TEMPLATES_AUTO_RELOAD"] = True
@@ -104,6 +107,7 @@ API_ERROR_CODES: dict[int, str] = {
     400: "bad_request",
     404: "not_found",
     405: "method_not_allowed",
+    413: "payload_too_large",
     500: "internal_error",
 }
 

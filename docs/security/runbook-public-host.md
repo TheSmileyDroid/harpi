@@ -55,9 +55,60 @@ server_tokens off;
 proxy_buffering off;
 proxy_read_timeout 1h;
 proxy_send_timeout 1h;
+
+client_max_body_size 64k;
+limit_req_status 429;
+
+location /api/auth/ {
+	limit_req zone=harpi_auth burst=3 nodelay;
+	proxy_pass http://harpi-backend:8000;
+	proxy_http_version 1.1;
+	proxy_set_header Host $host;
+	proxy_set_header X-Forwarded-Scheme $scheme;
+	proxy_set_header X-Forwarded-Proto $scheme;
+	proxy_set_header X-Forwarded-For $remote_addr;
+	proxy_set_header X-Real-IP $remote_addr;
+}
+
+location /api/ {
+	limit_req zone=harpi_api burst=10 nodelay;
+	proxy_pass http://harpi-backend:8000;
+	proxy_http_version 1.1;
+	proxy_set_header Host $host;
+	proxy_set_header X-Forwarded-Scheme $scheme;
+	proxy_set_header X-Forwarded-Proto $scheme;
+	proxy_set_header X-Forwarded-For $remote_addr;
+	proxy_set_header X-Real-IP $remote_addr;
+}
 ```
 
+`proxy_set_header Host $host` keeps the panel's trusted-host check on the public name; without it the app sees `harpi-backend:8000` and answers 400. Both locations repeat the proxy headers because NPM's own `location /` does not share them with a sibling location.
+
 `proxy_buffering off` keeps the `/api/events` SSE stream live. The app does not send `X-Accel-Buffering`, and nginx buffers event streams by default.
+
+The Advanced tab is server context, so the two `limit_req_zone` lines cannot live there. They belong to the custom http context, in `deploy/npm/harpi-rate-limits-http.conf`:
+
+```nginx
+limit_req_zone $binary_remote_addr zone=harpi_auth:1m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=harpi_api:1m rate=60r/m;
+```
+
+Install it before the host, because nginx refuses to render a `limit_req` whose zone is missing:
+
+```sh
+install -m 644 deploy/npm/harpi-rate-limits-http.conf /home/opc/external/nginx/data/nginx/custom/http.conf
+docker exec nginx-app-1 nginx -t
+docker exec nginx-app-1 nginx -s reload
+```
+
+Expected: `syntax is ok` and `test is successful`. A stock NPM ships an empty `http.conf`; if the file already has content, append the two zone lines instead of overwriting. Without them, `nginx -t` fails with `unknown limit_req zone "harpi_api"`.
+
+| Zone | Rate | Burst | Applied to |
+| --- | --- | --- | --- |
+| `harpi_auth` | 10 requests per minute per IP | 3 | `/api/auth/` |
+| `harpi_api` | 60 requests per minute per IP | 10 | the rest of `/api/` |
+
+`client_max_body_size 64k` rejects a larger body at the proxy. The app applies the same cap itself, so a direct container request gets the JSON envelope.
 
 The host exists without a certificate at this point, so NPM stores it with forced HTTPS, HTTP/2, and HSTS off. NPM 2.12.6 clears those flags whenever no certificate is attached, and a request that carries them anyway is silently normalized.
 
@@ -168,6 +219,14 @@ It reads and changes nothing. Each check prints `PASS` or `FAIL`, and the script
 The single host check uses the NPM API when `NPM_TOKEN` or `NPM_IDENTITY` and `NPM_PASSWORD` are set, and otherwise counts the rendered configs in the `nginx-app-1` container.
 
 The WebSocket check sends a handshake to `/`. A proxy that strips the upgrade headers returns 200 with the panel HTML; one that forwards them reaches the app, which answers 400.
+
+The proxy rate limits have their own read-only check:
+
+```sh
+deploy/check-rate-limits.sh
+```
+
+It sends GET bursts to `/api/auth/discord` and `/api/session` and fails when a burst never receives `429`. Each burst stops at the first limited request, and the calling address stays rate limited for up to a minute afterwards. Pass `--url`, `--auth-limit`, and the other flags when the deployed values differ from the defaults.
 
 ## 8. Record the result
 
