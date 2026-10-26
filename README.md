@@ -49,3 +49,11 @@ Compose:
 The app publishes no host port. Nginx Proxy Manager reaches it as
 `harpi-backend:8000` on `harpi-edge`; the network and the egress deny are
 covered in [docs/security/runbook-edge-network.md](docs/security/runbook-edge-network.md).
+
+## Security checks
+
+`make security` runs gitleaks, osv-scanner, and trivy when they are installed
+locally, and prints which checks only CI runs. The CI workflow scans the git
+history, both lockfiles, and the built image;
+[docs/security/scanners.md](docs/security/scanners.md) covers each scanner, the
+pinned versions, and how to triage a finding.
