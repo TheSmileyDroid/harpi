@@ -1,4 +1,4 @@
-FROM oven/bun:1 AS frontend
+FROM oven/bun:1@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS frontend
 
 WORKDIR /web
 COPY web/package.json web/bun.lock ./
@@ -7,7 +7,7 @@ COPY web/ ./
 RUN bun run build
 
 
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim@sha256:531f855bda2c73cd6ef67d56b733b357cea384185b3022bd09f05e002cd144ca AS backend
 
 RUN apt-get update && apt-get install -y \
     curl \
