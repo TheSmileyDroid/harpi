@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import sys
+import asyncio
 from pathlib import Path
 
 from loguru import logger
-from quart import Quart, Response, request, send_from_directory, session
+from quart import Quart, Response, g, request, send_from_directory, session
 from quart_schema import QuartSchema
 from werkzeug.exceptions import HTTPException
 from werkzeug.wsgi import host_is_trusted
@@ -20,14 +20,14 @@ from pages.events import bp as events_bp
 
 from src.config import Settings
 from src.discord_bot import run_bot_in_background
-from src.panel import login, state
+from src.logging_setup import configure_logging
+from src.panel import login, retention, state
+from src.security_log import event_for_request, record_event
 from src.storage import clear_registry, get_registry, init_registry
 from src.storage.database import Database
 from src.storage.registry import SqliteRegistry
 
-logger.remove()
-logger.add("spam.log", level="DEBUG")
-logger.add(sys.stdout, level="INFO")
+configure_logging(Settings.from_env())
 
 WEB_BUILD = Path(__file__).resolve().parent / "web" / "build"
 
@@ -139,6 +139,25 @@ def send_security_headers(response: Response) -> Response:
     return response
 
 
+@app.after_request
+def log_security_event(response: Response) -> Response:
+    event = event_for_request(
+        request.method,
+        request.path,
+        response.status_code,
+        response.headers.get("Location"),
+    )
+    if event is None:
+        return response
+    user_id = session.get("user_id") or getattr(g, "security_user_id", None)
+    record_event(
+        event,
+        user_id=str(user_id) if user_id else None,
+        ip=request.remote_addr,
+    )
+    return response
+
+
 async def _login_is_current() -> bool:
     if session.get("authenticated") is not True:
         return False
@@ -161,6 +180,7 @@ async def _login_is_current() -> bool:
 async def guard_api():
     if not _is_api_path():
         return None
+    g.security_user_id = session.get("user_id")
     if (request.method, request.path) in PUBLIC_API_ROUTES:
         return None
     if await _login_is_current():
@@ -193,11 +213,12 @@ app.register_blueprint(api_bp)
 app.register_blueprint(auth_bp)
 
 _database: Database | None = None
+_retention_task: asyncio.Task[None] | None = None
 
 
 @app.before_serving
 async def startup():
-    global _database
+    global _database, _retention_task
     settings = Settings.from_env()
     if get_registry() is None:
         try:
@@ -208,6 +229,7 @@ async def startup():
         except Exception as e:
             _database = None
             logger.opt(exception=True).error(f"Panel storage unavailable: {e}")
+    _retention_task = retention.start_daily_purge(settings)
     try:
         run_bot_in_background(settings)
         logger.info("Discord bot initialization started")
@@ -217,7 +239,11 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    global _database
+    global _database, _retention_task
+    task = _retention_task
+    _retention_task = None
+    if task is not None:
+        await retention.stop_daily_purge(task)
     database = _database
     _database = None
     clear_registry()

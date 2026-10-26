@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Collection, Iterable
 
 from discord import Guild
+from loguru import logger
 
 from src.bot_state import get_bot, run_on_bot_loop
 from src.harpi_lib.harpi_bot import HarpiBot
@@ -22,6 +24,7 @@ from src.storage.registry import (
     Actor,
     ConnectionAction,
     Place,
+    PurgedHistory,
 )
 
 
@@ -255,3 +258,29 @@ async def status_snapshot(guild_id: int | None) -> StatusSnapshot:
         connection=Connection(connected=connected, channel_id=channel_id),
         playback=playback,
     )
+
+
+SECONDS_PER_DAY = 24 * 60 * 60
+
+
+def retention_cutoff(retention_days: int, *, now: int | None = None) -> int:
+    """The oldest instant a purge keeps; anything before it is deleted."""
+    moment = int(time.time()) if now is None else now
+    return moment - retention_days * SECONDS_PER_DAY
+
+
+async def purge_history(
+    retention_days: int, *, now: int | None = None
+) -> PurgedHistory | None:
+    registry = get_registry()
+    if registry is None:
+        return None
+    purged = await registry.purge_history(
+        before=retention_cutoff(retention_days, now=now)
+    )
+    logger.info(
+        f"History retention removed {purged.viewers} viewers and "
+        f"{purged.connection_events} connection events older than "
+        f"{retention_days} days"
+    )
+    return purged

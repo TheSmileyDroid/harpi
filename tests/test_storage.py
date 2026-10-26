@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import stat
+from pathlib import Path
+
 import pytest
 
 from src.storage.database import Database
@@ -7,6 +10,7 @@ from src.storage.registry import (
     PRESENCE_TTL_SECONDS,
     Actor,
     Place,
+    PurgedHistory,
     SqliteRegistry,
 )
 
@@ -322,3 +326,54 @@ async def test_a_second_registry_sees_the_persisted_login_epoch(tmp_path):
 
     assert epoch == 1
     await second.close()
+
+
+DAY = 24 * 60 * 60
+
+
+async def test_purge_history_deletes_only_rows_older_than_the_cutoff(
+    tmp_path,
+):
+    database, registry = await open_registry(tmp_path)
+    cutoff = NOW - 30 * DAY
+    await registry.select(ALICE, VOICE, now=cutoff - 1)
+    await registry.select(BOB, VOICE, now=cutoff + 1)
+    await registry.record_connection(ALICE, VOICE, "connect", now=cutoff - 1)
+    await registry.record_connection(BOB, VOICE, "connect", now=cutoff + 1)
+
+    purged = await registry.purge_history(before=cutoff)
+
+    assert purged == PurgedHistory(viewers=1, connection_events=1)
+    survivors = await registry.viewers("7", now=cutoff + 1)
+    assert [viewer.user_id for viewer in survivors] == ["556"]
+    last = await registry.last_connection("7")
+    assert last is not None
+    assert last.at == cutoff + 1
+    await database.close()
+
+
+async def test_purge_history_keeps_a_row_exactly_at_the_cutoff(tmp_path):
+    database, registry = await open_registry(tmp_path)
+    await registry.select(ALICE, VOICE, now=NOW)
+    await registry.record_connection(ALICE, VOICE, "connect", now=NOW)
+
+    purged = await registry.purge_history(before=NOW)
+
+    assert purged == PurgedHistory(viewers=0, connection_events=0)
+    assert len(await registry.viewers("7", now=NOW)) == 1
+    assert await registry.last_connection("7") is not None
+    await database.close()
+
+
+async def test_open_restricts_the_database_and_its_journal_files(tmp_path):
+    database, registry = await open_registry(tmp_path)
+    await registry.sign_in(ALICE)
+    database_file = Path(tmp_path / "harpi.db")
+
+    for path in (
+        database_file,
+        Path(f"{database_file}-wal"),
+        Path(f"{database_file}-shm"),
+    ):
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    await database.close()

@@ -48,6 +48,12 @@ class ConnectionRecord:
     at: int
 
 
+@dataclass(frozen=True)
+class PurgedHistory:
+    viewers: int
+    connection_events: int
+
+
 class Registry(Protocol):
     async def sign_in(self, actor: Actor) -> None: ...
 
@@ -91,6 +97,8 @@ class Registry(Protocol):
     async def login_epoch(self, user_id: str) -> int | None: ...
 
     async def increment_login_epoch(self, user_id: str) -> int | None: ...
+
+    async def purge_history(self, *, before: int) -> PurgedHistory: ...
 
 
 class SqliteRegistry:
@@ -251,6 +259,15 @@ class SqliteRegistry:
             (user_id,),
         )
         return await self.login_epoch(user_id)
+
+    async def purge_history(self, *, before: int) -> PurgedHistory:
+        viewers = await self._database.execute_rowcount(
+            "DELETE FROM viewers WHERE last_seen_at < ?", (before,)
+        )
+        events = await self._database.execute_rowcount(
+            "DELETE FROM connection_events WHERE created_at < ?", (before,)
+        )
+        return PurgedHistory(viewers=viewers, connection_events=events)
 
     async def _upsert_user(self, actor: Actor, *, now: int) -> None:
         await self._database.execute(

@@ -517,3 +517,21 @@ def test_options_place_output_under_the_configured_work_dir():
 
     assert options["outtmpl"].startswith("/srv/harpi/work/audios/")
     assert options["cachedir"] == "/srv/harpi/work/yt-dlp-cache"
+
+
+def test_production_options_run_yt_dlp_quiet():
+    options = build_ytdl_options(
+        replace(Settings.from_env(), ytdl_debug=False)
+    )
+
+    assert options["verbose"] is False
+    assert options["quiet"] is True
+    assert options["no_warnings"] is True
+
+
+def test_debug_options_keep_yt_dlp_verbose():
+    options = build_ytdl_options(replace(Settings.from_env(), ytdl_debug=True))
+
+    assert options["verbose"] is True
+    assert options["quiet"] is False
+    assert options["no_warnings"] is False
