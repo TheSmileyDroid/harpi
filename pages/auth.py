@@ -8,7 +8,7 @@ from quart_schema import validate_response
 
 from src import discord_oauth
 from src.config import Settings
-from src.panel import state
+from src.panel import login, state
 from src.panel.schemas import Authenticated
 from src.storage.registry import Actor
 
@@ -106,8 +106,23 @@ async def discord_callback():
     if admission is None:
         return redirect(_back_to_panel("denied"))
     user, allowed_guilds = admission
+    session.clear()
     await _establish_session(user, allowed_guilds)
     return redirect(_back_to_panel())
+
+
+async def _record_sign_in(
+    actor: Actor, allowed_guilds: frozenset[int]
+) -> int | None:
+    try:
+        await state.sign_in(actor)
+        await state.record_user_guilds(actor, allowed_guilds)
+        return await state.login_epoch(actor.id)
+    except Exception:
+        logger.opt(exception=True).error(
+            "Could not record panel sign-in in storage"
+        )
+        return None
 
 
 async def _establish_session(
@@ -116,23 +131,19 @@ async def _establish_session(
     user_id = str(user.get("id"))
     username = str(user.get("username") or user_id)
     display_name = user.get("global_name")
-    session.permanent = True
-    session["authenticated"] = True
-    session["user_id"] = user_id
-    session["username"] = username
-    session["display_name"] = display_name or ""
     actor = Actor(
         id=user_id,
         username=username,
         display_name=display_name,
     )
-    try:
-        await state.sign_in(actor)
-        await state.record_user_guilds(actor, allowed_guilds)
-    except Exception:
-        logger.opt(exception=True).error(
-            "Could not record panel sign-in in storage"
-        )
+    epoch = await _record_sign_in(actor, allowed_guilds)
+    session.permanent = True
+    session["authenticated"] = True
+    session["user_id"] = user_id
+    session["username"] = username
+    session["display_name"] = display_name or ""
+    session[login.ISSUED_AT_KEY] = login.now()
+    session[login.LOGIN_EPOCH_KEY] = epoch
 
 
 @bp.post(LOGOUT_PATH)
@@ -145,6 +156,12 @@ async def logout():
         except Exception:
             logger.opt(exception=True).error(
                 "Could not clear panel presence in storage"
+            )
+        try:
+            await state.increment_login_epoch(str(user_id))
+        except Exception:
+            logger.opt(exception=True).error(
+                "Could not revoke panel logins in storage"
             )
     session.clear()
     return {"authenticated": False}

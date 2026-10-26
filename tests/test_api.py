@@ -21,13 +21,16 @@ import pytest
 import uvicorn
 
 from app import app as quart_app
+from app import configure_panel_session
 from src import bot_state as deps
+from src.config import Settings
 from src.harpi_lib.audio.session import LayerInfo, LoopMode
 from src.harpi_lib.harpi_bot import HarpiBot
 from src.harpi_lib.music.ytmusic import YTMusicData
+from src.panel import login
 from src.storage import clear_registry, init_registry
 from src.storage.database import Database
-from src.storage.registry import SqliteRegistry
+from src.storage.registry import Actor, SqliteRegistry
 from tests.fakes import (
     GUILD_A,
     GUILD_B,
@@ -144,12 +147,14 @@ def bot() -> ApiBot:
 
 
 @pytest.fixture
-def client(bot: ApiBot, monkeypatch: pytest.MonkeyPatch):
+async def client(bot: ApiBot, storage, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("SECRET_KEY", SECRET)
     monkeypatch.setenv("DISCORD_TOKEN", "test")
-    quart_app.secret_key = SECRET
+    monkeypatch.delenv("PANEL_INSECURE_COOKIES", raising=False)
+    configure_panel_session(Settings.from_env())
     quart_app.config["TESTING"] = True
     deps.init_bot(cast(HarpiBot, bot))
+    await storage.sign_in(Actor(id="555", username="panel-user"))
     yield quart_app.test_client()
     deps._bot_ref = None
 
@@ -170,6 +175,8 @@ async def _login(client):
         stored["authenticated"] = True
         stored["user_id"] = "555"
         stored["username"] = "panel-user"
+        stored[login.ISSUED_AT_KEY] = login.now()
+        stored[login.LOGIN_EPOCH_KEY] = 0
 
 
 async def _refresh_current_music(bot: ApiBot, title: str) -> None:
@@ -280,6 +287,68 @@ async def test_session_check_reports_a_valid_session(client):
 
     assert response.status_code == 200
     assert json.loads(await response.get_data()) == {"authenticated": True}
+
+
+async def test_session_check_rejects_a_login_older_than_seven_days(client):
+    await _login(client)
+    async with client.session_transaction() as stored:
+        stored[login.ISSUED_AT_KEY] = (
+            login.now() - login.SESSION_LIFETIME_SECONDS - 1
+        )
+
+    response = await client.get("/api/session")
+
+    assert response.status_code == 401
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "unauthorized"
+
+
+async def test_session_check_rejects_a_stale_login_epoch(client, storage):
+    await _login(client)
+    await storage.increment_login_epoch("555")
+
+    response = await client.get("/api/session")
+
+    assert response.status_code == 401
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "unauthorized"
+
+
+async def test_session_check_rejects_a_login_without_issued_at(client):
+    async with client.session_transaction() as stored:
+        stored["authenticated"] = True
+        stored["user_id"] = "555"
+        stored["username"] = "panel-user"
+        stored[login.LOGIN_EPOCH_KEY] = 0
+
+    response = await client.get("/api/session")
+
+    assert response.status_code == 401
+
+
+async def test_session_check_fails_closed_without_the_registry(client):
+    await _login(client)
+    clear_registry()
+
+    response = await client.get("/api/session")
+
+    assert response.status_code == 401
+
+
+async def test_a_forged_host_header_is_rejected(client):
+    await _login(client)
+
+    response = await client.get(
+        "/api/session", headers={"Host": "evil.example"}
+    )
+    missing = await client.get(
+        "/api/definitely-missing", headers={"Host": "evil.example"}
+    )
+
+    assert response.status_code == 400
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "bad_request"
+    assert missing.status_code == 400
 
 
 async def test_unknown_api_path_is_rejected_before_routing(client):
@@ -979,13 +1048,15 @@ async def test_sse_stream_reports_and_resyncs_status(client, bot: ApiBot):
     await _login(client)
     async with client.session_transaction() as stored:
         stored["guild_id"] = str(GUILD_A)
-    cookie = next(c for c in client.cookie_jar if c.name == "session").value
+    cookie = next(
+        c for c in client.cookie_jar if c.name == login.STRICT_COOKIE_NAME
+    ).value
 
     async with (
         _running_app(quart_app) as port,
         httpx.AsyncClient(
             base_url=f"http://127.0.0.1:{port}",
-            cookies={"session": cookie},
+            cookies={login.STRICT_COOKIE_NAME: cookie},
         ) as http,
     ):
         first = await _read_status_frame(http)
@@ -1011,13 +1082,15 @@ async def test_sse_stream_emits_the_roster(client, bot: ApiBot, storage):
         "/api/connect",
         json={"guild_id": str(GUILD_A), "channel_id": str(GUILD_A * 10)},
     )
-    cookie = next(c for c in client.cookie_jar if c.name == "session").value
+    cookie = next(
+        c for c in client.cookie_jar if c.name == login.STRICT_COOKIE_NAME
+    ).value
 
     async with (
         _running_app(quart_app) as port,
         httpx.AsyncClient(
             base_url=f"http://127.0.0.1:{port}",
-            cookies={"session": cookie},
+            cookies={login.STRICT_COOKIE_NAME: cookie},
         ) as http,
     ):
         presence = await _read_presence_frame(http)

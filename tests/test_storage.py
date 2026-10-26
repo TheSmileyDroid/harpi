@@ -41,7 +41,7 @@ async def test_open_creates_the_schema_and_applies_it_once(tmp_path):
         "SELECT COUNT(*) AS n FROM schema_migrations"
     )
     assert row is not None
-    assert row["n"] == 2
+    assert row["n"] == 3
 
     await database.close()
     reopened = Database(tmp_path / "harpi.db")
@@ -50,7 +50,7 @@ async def test_open_creates_the_schema_and_applies_it_once(tmp_path):
         "SELECT COUNT(*) AS n FROM schema_migrations"
     )
     assert row is not None
-    assert row["n"] == 2
+    assert row["n"] == 3
     await reopened.close()
 
 
@@ -258,4 +258,67 @@ async def test_a_second_registry_sees_the_persisted_guilds(tmp_path):
     guilds = await SqliteRegistry(second).user_guild_ids("555")
 
     assert guilds == frozenset({"7", "8"})
+    await second.close()
+
+
+async def test_open_adds_the_login_epoch_column(tmp_path):
+    database, _ = await open_registry(tmp_path)
+
+    columns = await database.fetchall("PRAGMA table_info(users)")
+    login_epoch = next(
+        column for column in columns if column["name"] == "login_epoch"
+    )
+
+    assert login_epoch["notnull"] == 1
+    assert login_epoch["dflt_value"] == "0"
+    await database.close()
+
+
+async def test_a_new_user_starts_at_login_epoch_zero(tmp_path):
+    database, registry = await open_registry(tmp_path)
+
+    await registry.sign_in(ALICE)
+
+    assert await registry.login_epoch("555") == 0
+    await database.close()
+
+
+async def test_login_epoch_is_unknown_for_a_user_without_a_row(tmp_path):
+    database, registry = await open_registry(tmp_path)
+
+    assert await registry.login_epoch("999") is None
+    await database.close()
+
+
+async def test_increment_login_epoch_bumps_the_stored_value(tmp_path):
+    database, registry = await open_registry(tmp_path)
+    await registry.sign_in(ALICE)
+
+    assert await registry.increment_login_epoch("555") == 1
+    assert await registry.increment_login_epoch("555") == 2
+    assert await registry.login_epoch("555") == 2
+    await database.close()
+
+
+async def test_increment_login_epoch_ignores_an_unknown_user(tmp_path):
+    database, registry = await open_registry(tmp_path)
+
+    assert await registry.increment_login_epoch("999") is None
+    await database.close()
+
+
+async def test_a_second_registry_sees_the_persisted_login_epoch(tmp_path):
+    path = tmp_path / "harpi.db"
+    first = Database(path)
+    await first.open()
+    first_registry = SqliteRegistry(first)
+    await first_registry.sign_in(ALICE)
+    await first_registry.increment_login_epoch("555")
+    await first.close()
+
+    second = Database(path)
+    await second.open()
+    epoch = await SqliteRegistry(second).login_epoch("555")
+
+    assert epoch == 1
     await second.close()

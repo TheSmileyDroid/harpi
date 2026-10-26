@@ -151,6 +151,20 @@ async def user_guild_ids(user_id: str) -> frozenset[int]:
     )
 
 
+async def login_epoch(user_id: str) -> int | None:
+    registry = get_registry()
+    if registry is None:
+        return None
+    return await registry.login_epoch(user_id)
+
+
+async def increment_login_epoch(user_id: str) -> int | None:
+    registry = get_registry()
+    if registry is None:
+        return None
+    return await registry.increment_login_epoch(user_id)
+
+
 async def select(
     actor: Actor | None, guild_id: int, channel_id: int | None
 ) -> None:

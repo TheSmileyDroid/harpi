@@ -8,15 +8,20 @@ and the real registry.
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
+from http.cookies import SimpleCookie
 from typing import Any, cast
 
 import pytest
 
 from app import app as quart_app
+from app import configure_panel_session
 from src import bot_state as deps
 from src import discord_oauth
+from src.config import Settings
 from src.harpi_lib.harpi_bot import HarpiBot
-from src.panel import state
+from src.panel import login, state
 from src.storage import clear_registry, init_registry
 from src.storage.database import Database
 from src.storage.registry import SqliteRegistry
@@ -56,7 +61,8 @@ def client(storage, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("DISCORD_CLIENT_ID", CLIENT_ID)
     monkeypatch.setenv("PANEL_GUILD_ALLOWLIST", ALLOWLIST)
     monkeypatch.delenv("DISCORD_REDIRECT_URI", raising=False)
-    quart_app.secret_key = SECRET
+    monkeypatch.delenv("PANEL_INSECURE_COOKIES", raising=False)
+    configure_panel_session(Settings.from_env())
     quart_app.config["TESTING"] = True
     deps.init_bot(
         cast(
@@ -101,6 +107,15 @@ async def _callback(client, **params: str):
 async def _stored(client) -> dict[str, Any]:
     async with client.session_transaction() as stored:
         return dict(stored)
+
+
+def _cookie(response, name: str) -> Any:
+    for header in response.headers.getlist("Set-Cookie"):
+        jar = SimpleCookie()
+        jar.load(header)
+        if name in jar:
+            return jar[name]
+    raise AssertionError(f"no {name} cookie in {response.headers}")
 
 
 def test_pkce_challenge_matches_the_rfc7636_vector():
@@ -216,6 +231,116 @@ async def test_callback_opens_a_session_for_an_allowlisted_member(
     assert stored["username"] == "harpi-user"
     assert "oauth_state" not in stored
     assert await state.user_guild_ids("555") == frozenset({GUILD_A})
+
+
+async def test_login_issues_a_host_only_secure_cookie(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    fake_discord(monkeypatch, [GUILD_A])
+    await _begin(client)
+
+    response = await _callback(client)
+
+    morsel = _cookie(response, login.STRICT_COOKIE_NAME)
+    assert morsel["secure"] is True
+    assert morsel["httponly"] is True
+    assert morsel["samesite"] == "Lax"
+    assert morsel["path"] == "/"
+    assert morsel["domain"] == ""
+
+
+async def test_login_cookie_expires_in_seven_days(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    fake_discord(monkeypatch, [GUILD_A])
+    await _begin(client)
+
+    response = await _callback(client)
+
+    morsel = _cookie(response, login.STRICT_COOKIE_NAME)
+    expires = parsedate_to_datetime(morsel["expires"])
+    remaining = expires - datetime.now(UTC)
+    assert timedelta(days=7) - timedelta(minutes=5) <= remaining
+    assert remaining <= timedelta(days=7) + timedelta(minutes=5)
+
+
+async def test_an_authenticated_read_does_not_reissue_the_cookie(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    fake_discord(monkeypatch, [GUILD_A])
+    await _begin(client)
+    await _callback(client)
+
+    response = await client.get("/api/session")
+
+    assert response.status_code == 200
+    assert response.headers.getlist("Set-Cookie") == []
+
+
+async def test_callback_replaces_the_previous_login(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    fake_discord(monkeypatch, [GUILD_A])
+    async with client.session_transaction() as stored:
+        stored["oauth_state"] = STATE
+        stored["oauth_verifier"] = VERIFIER
+        stored["authenticated"] = True
+        stored["user_id"] = "999"
+        stored["username"] = "previous-user"
+        stored["guild_id"] = str(GUILD_A)
+        stored[login.LOGIN_EPOCH_KEY] = 7
+
+    response = await _callback(client)
+
+    stored = await _stored(client)
+    assert stored["user_id"] == "555"
+    assert stored["username"] == "harpi-user"
+    assert "guild_id" not in stored
+    assert stored[login.LOGIN_EPOCH_KEY] == 0
+    assert isinstance(stored[login.ISSUED_AT_KEY], int)
+    _cookie(response, login.STRICT_COOKIE_NAME)
+
+
+async def test_logout_revokes_a_replayed_cookie(
+    client, storage, monkeypatch: pytest.MonkeyPatch
+):
+    fake_discord(monkeypatch, [GUILD_A])
+    await _begin(client)
+    await _callback(client)
+    old = next(
+        cookie.value
+        for cookie in client.cookie_jar
+        if cookie.name == login.STRICT_COOKIE_NAME
+    )
+    assert await storage.login_epoch("555") == 0
+
+    response = await client.post("/api/logout")
+
+    assert response.status_code == 200
+    assert await storage.login_epoch("555") == 1
+    replay = quart_app.test_client()
+    replayed = await replay.get(
+        "/api/session",
+        headers={"Cookie": f"{login.STRICT_COOKIE_NAME}={old}"},
+    )
+    assert replayed.status_code == 401
+
+
+async def test_login_after_logout_adopts_the_current_epoch(
+    client, storage, monkeypatch: pytest.MonkeyPatch
+):
+    fake_discord(monkeypatch, [GUILD_A])
+    await _begin(client)
+    await _callback(client)
+    await client.post("/api/logout")
+
+    await _begin(client)
+    response = await _callback(client)
+
+    assert response.status_code == 302
+    assert (await _stored(client))[login.LOGIN_EPOCH_KEY] == 1
+    session_check = await client.get("/api/session")
+    assert session_check.status_code == 200
 
 
 @pytest.mark.parametrize("guild_id", [GUILD_A, GUILD_B])
@@ -397,3 +522,25 @@ async def test_logout_is_reachable_without_a_session(client):
     response = await client.post("/api/logout")
 
     assert response.status_code == 200
+
+
+async def test_insecure_cookies_drop_secure_and_the_host_prefix(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PANEL_INSECURE_COOKIES", "1")
+    configure_panel_session(Settings.from_env())
+    try:
+        fake_discord(monkeypatch, [GUILD_A])
+        await _begin(client)
+
+        response = await _callback(client)
+
+        morsel = _cookie(response, login.LOCAL_COOKIE_NAME)
+        assert not morsel["secure"]
+        assert morsel["httponly"] is True
+        assert morsel["samesite"] == "Lax"
+        assert morsel["path"] == "/"
+        assert morsel["domain"] == ""
+    finally:
+        monkeypatch.delenv("PANEL_INSECURE_COOKIES", raising=False)
+        configure_panel_session(Settings.from_env())

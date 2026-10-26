@@ -18,12 +18,18 @@ from typing import Any, ClassVar, cast
 import pytest
 
 from app import app as quart_app
+from app import configure_panel_session
 from src import bot_state as deps
 from src.bot_state import run_on_bot_loop
 import src.harpi_lib.audio.session as session_module
 from src.harpi_lib.audio.session import MAX_VOLUME, LoopMode, PlaybackSession
 from src.harpi_lib.audio.session_manager import SessionManager
 from src.harpi_lib.music.ytmusic import YTMusicData
+from src.config import Settings
+from src.panel import login
+from src.storage import clear_registry, init_registry
+from src.storage.database import Database
+from src.storage.registry import Actor, SqliteRegistry
 from tests.conftest import (
     FakeChannel,
     FakeGuild,
@@ -110,12 +116,25 @@ def bot(monkeypatch: pytest.MonkeyPatch) -> PanelBot:
 
 
 @pytest.fixture
-def client(bot: PanelBot, monkeypatch: pytest.MonkeyPatch):
+async def storage(tmp_path):
+    database = Database(tmp_path / "panel.db")
+    await database.open()
+    registry = SqliteRegistry(database)
+    init_registry(registry)
+    yield registry
+    clear_registry()
+    await database.close()
+
+
+@pytest.fixture
+async def client(bot: PanelBot, storage, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("DISCORD_TOKEN", "test")
     monkeypatch.setenv("SECRET_KEY", "test-secret")
-    quart_app.secret_key = "test-secret"
+    monkeypatch.delenv("PANEL_INSECURE_COOKIES", raising=False)
+    configure_panel_session(Settings.from_env())
     quart_app.config["TESTING"] = True
     deps.init_bot(cast(Any, bot))
+    await storage.sign_in(Actor(id="555", username="panel-user"))
     yield quart_app.test_client()
     deps._bot_ref = None
 
@@ -123,6 +142,10 @@ def client(bot: PanelBot, monkeypatch: pytest.MonkeyPatch):
 async def _login(client):
     async with client.session_transaction() as stored:
         stored["authenticated"] = True
+        stored["user_id"] = "555"
+        stored["username"] = "panel-user"
+        stored[login.ISSUED_AT_KEY] = login.now()
+        stored[login.LOGIN_EPOCH_KEY] = 0
 
 
 async def _connect(client) -> PanelBot:

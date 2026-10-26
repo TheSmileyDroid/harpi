@@ -88,6 +88,10 @@ class Registry(Protocol):
 
     async def user_guild_ids(self, user_id: str) -> frozenset[str]: ...
 
+    async def login_epoch(self, user_id: str) -> int | None: ...
+
+    async def increment_login_epoch(self, user_id: str) -> int | None: ...
+
 
 class SqliteRegistry:
     def __init__(self, database: Database) -> None:
@@ -234,6 +238,19 @@ class SqliteRegistry:
             "SELECT guild_id FROM user_guilds WHERE user_id = ?", (user_id,)
         )
         return frozenset(row["guild_id"] for row in rows)
+
+    async def login_epoch(self, user_id: str) -> int | None:
+        row = await self._database.fetchone(
+            "SELECT login_epoch FROM users WHERE id = ?", (user_id,)
+        )
+        return None if row is None else int(row["login_epoch"])
+
+    async def increment_login_epoch(self, user_id: str) -> int | None:
+        await self._database.execute(
+            "UPDATE users SET login_epoch = login_epoch + 1 WHERE id = ?",
+            (user_id,),
+        )
+        return await self.login_epoch(user_id)
 
     async def _upsert_user(self, actor: Actor, *, now: int) -> None:
         await self._database.execute(
