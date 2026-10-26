@@ -24,6 +24,10 @@ import src.harpi_lib.audio.session as session_module
 from src.harpi_lib.audio.session import MAX_VOLUME, LoopMode, PlaybackSession
 from src.harpi_lib.audio.session_manager import SessionManager
 from src.harpi_lib.music.ytmusic import YTMusicData
+from src.panel import state
+from src.storage import clear_registry, init_registry
+from src.storage.database import Database
+from src.storage.registry import Actor, SqliteRegistry
 from tests.conftest import (
     FakeChannel,
     FakeGuild,
@@ -110,7 +114,18 @@ def bot(monkeypatch: pytest.MonkeyPatch) -> PanelBot:
 
 
 @pytest.fixture
-def client(bot: PanelBot, monkeypatch: pytest.MonkeyPatch):
+async def storage(tmp_path):
+    database = Database(tmp_path / "panel.db")
+    await database.open()
+    registry = SqliteRegistry(database)
+    init_registry(registry)
+    yield registry
+    clear_registry()
+    await database.close()
+
+
+@pytest.fixture
+def client(bot: PanelBot, storage, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("DISCORD_TOKEN", "test")
     monkeypatch.setenv("SECRET_KEY", "test-secret")
     quart_app.secret_key = "test-secret"
@@ -123,6 +138,11 @@ def client(bot: PanelBot, monkeypatch: pytest.MonkeyPatch):
 async def _login(client):
     async with client.session_transaction() as stored:
         stored["authenticated"] = True
+        stored["user_id"] = "555"
+        stored["username"] = "panel-user"
+    await state.record_user_guilds(
+        Actor(id="555", username="panel-user"), {GUILD_ID}
+    )
 
 
 async def _connect(client) -> PanelBot:

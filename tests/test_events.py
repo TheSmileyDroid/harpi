@@ -60,7 +60,9 @@ def _wire(
 ) -> None:
     monkeypatch.setattr(events, "get_sampler", lambda guild_id: sampler)
     monkeypatch.setattr(
-        events.state, "resolve_guild_id", lambda guild_id: guild_id
+        events.state,
+        "resolve_guild_id",
+        lambda guild_id, allowed: guild_id,
     )
 
     async def fake_presence(guild_id: int | None, actor: Any) -> Presence:
@@ -73,7 +75,7 @@ def _wire(
 
 async def _open(monkeypatch, sampler: FakeSampler):
     _wire(monkeypatch, sampler)
-    stream = events._stream(None, None)
+    stream = events._stream(None, None, frozenset())
     assert await anext(stream) == ": connected\n\n"
     return stream
 
@@ -163,7 +165,7 @@ async def test_stream_emits_reload_when_shell_assets_move(monkeypatch):
     _wire(monkeypatch, sampler)
     monkeypatch.setattr(events, "_snapshot", lambda: next(snapshots))
 
-    stream = events._stream(None, None)
+    stream = events._stream(None, None, frozenset())
     assert await anext(stream) == ": connected\n\n"
     for _ in range(3):
         await anext(stream)

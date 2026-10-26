@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 
 from discord import Guild
 
@@ -30,7 +30,10 @@ def bot_connected() -> bool:
     return bool(bot.is_ready() and not bot.is_closed())
 
 
-def guild_visible(guild_id: int) -> bool:
+def guild_visible(guild_id: int, allowed_guilds: Collection[int]) -> bool:
+    """Whether the actor may see and operate the guild."""
+    if guild_id not in allowed_guilds:
+        return False
     return get_bot().get_guild(guild_id) is not None
 
 
@@ -59,12 +62,16 @@ def voice_active(guild_id: int) -> bool:
     return guild is not None and _occupied_channel_id(guild) is not None
 
 
-def resolve_guild_id(guild_id: int | None) -> int | None:
+def resolve_guild_id(
+    guild_id: int | None, allowed_guilds: Collection[int]
+) -> int | None:
     """The guild a snapshot should describe: the selection, else the voice one."""
-    if guild_id is not None and guild_visible(guild_id):
-        return guild_id
+    if guild_id is not None:
+        return guild_id if guild_visible(guild_id, allowed_guilds) else None
     active = active_voice()
-    return active[0] if active is not None else None
+    if active is None or not guild_visible(active[0], allowed_guilds):
+        return None
+    return active[0]
 
 
 async def _collect_guilds(bot: HarpiBot) -> list[Guild]:
@@ -100,11 +107,10 @@ def directory_snapshot(guild_id: int | None) -> Directory:
     Built from the bot's cached guild objects, so no Discord call happens.
     """
     bot = get_bot()
-    resolved = resolve_guild_id(guild_id)
     return Directory(
-        guild_id=serialization.optional_snowflake(resolved),
+        guild_id=serialization.optional_snowflake(guild_id),
         guilds=[serialization.guild_data(guild) for guild in bot.guilds],
-        channels=([] if resolved is None else list_voice_channels(resolved)),
+        channels=([] if guild_id is None else list_voice_channels(guild_id)),
     )
 
 
@@ -190,16 +196,15 @@ async def presence(guild_id: int | None, actor: Actor | None) -> Presence:
             viewers=[],
             last_connection=None,
         )
-    resolved = resolve_guild_id(guild_id)
-    if resolved is None:
+    if guild_id is None:
         return Presence(guild_id=None, viewers=[], last_connection=None)
     if actor is not None:
-        place = place_of(resolved, None)
+        place = place_of(guild_id, None)
         if place is not None:
             await registry.touch(actor, place)
-    viewers = await registry.viewers(str(resolved))
-    last = await registry.last_connection(str(resolved))
-    return serialization.presence_data(resolved, viewers, last)
+    viewers = await registry.viewers(str(guild_id))
+    last = await registry.last_connection(str(guild_id))
+    return serialization.presence_data(guild_id, viewers, last)
 
 
 async def guild_status(guild_id: int | None) -> PlaybackStatus | None:
@@ -215,8 +220,7 @@ async def guild_status(guild_id: int | None) -> PlaybackStatus | None:
 
 
 async def status_snapshot(guild_id: int | None) -> StatusSnapshot:
-    resolved = resolve_guild_id(guild_id)
-    playback = await guild_status(resolved)
+    playback = await guild_status(guild_id)
 
     if playback is not None:
         connected = playback.connected
@@ -227,13 +231,13 @@ async def status_snapshot(guild_id: int | None) -> StatusSnapshot:
 
     if not connected:
         active = active_voice()
-        if active is not None and active[0] == resolved:
+        if active is not None and active[0] == guild_id:
             connected = True
             channel_id = serialization.optional_snowflake(active[1])
 
     return StatusSnapshot(
         bot=BotStatus(online=bot_connected()),
-        guild_id=serialization.optional_snowflake(resolved),
+        guild_id=serialization.optional_snowflake(guild_id),
         connection=Connection(connected=connected, channel_id=channel_id),
         playback=playback,
     )
