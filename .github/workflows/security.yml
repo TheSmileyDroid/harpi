@@ -27,7 +27,7 @@ jobs:
           docker run --rm \
             --volume "$PWD:/repo" \
             ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
-            detect --source=/repo --redact --exit-code=1
+            detect --source=/repo --config=/repo/.gitleaks.toml --redact --exit-code=1
 
   dependencies:
     name: Dependency scan
@@ -40,6 +40,7 @@ jobs:
         uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36
         with:
           scan-args: |-
+            --config=osv-scanner.toml
             --lockfile=uv.lock
             --lockfile=web/bun.lock
 
@@ -62,3 +63,4 @@ jobs:
           ignore-unfixed: true
           exit-code: 1
           hide-progress: true
+          trivyignores: .trivyignore.yaml

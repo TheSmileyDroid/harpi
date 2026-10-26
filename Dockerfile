@@ -9,7 +9,9 @@ RUN bun run build
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim@sha256:531f855bda2c73cd6ef67d56b733b357cea384185b3022bd09f05e002cd144ca AS backend
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
     curl \
     ffmpeg \
     unzip \
@@ -27,12 +29,13 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --upgrade --no-install-project
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    uv sync --frozen --no-install-project
 
 COPY . /app
 COPY --from=frontend /web/build /app/web/build
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --upgrade
+    uv sync --frozen
 
 RUN useradd --create-home harpi \
     && mkdir -p /work \

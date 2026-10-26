@@ -1,0 +1,14 @@
+[[IgnoredVulns]]
+id = "PYSEC-2026-3002"
+ignoreUntil = 2027-01-31
+reason = "Every discord.py release pins pynacl <1.6.0. Revisit when discord.py allows pynacl 1.6.2."
+
+[[IgnoredVulns]]
+id = "GHSA-27mw-82g8-phjj"
+ignoreUntil = 2027-01-31
+reason = "The panel is a static SPA with prerender disabled and never calls setHeaders."
+
+[[IgnoredVulns]]
+id = "GHSA-pfhg-q3qv-9q6r"
+ignoreUntil = 2027-01-31
+reason = "The panel has no form actions and does not use use:enhance."

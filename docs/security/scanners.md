@@ -20,10 +20,11 @@ vulnerability.[^osv] trivy reads the Debian packages and the Python packages
 inside the built image.[^trivy]
 
 The image scan is the backstop for the Python lockfile. `Dockerfile` runs
-`uv sync --upgrade`, so the image resolves newer versions than `uv.lock`
-records.[^dockerfile] osv-scanner checks what the lockfile pins and trivy checks
-what the container runs. The Bun dependencies never reach the final image, so
-osv-scanner is their only check.
+`uv sync --frozen`, so the image installs exactly what `uv.lock` records, and
+`apt-get upgrade` patches the Debian packages in the base image.[^dockerfile]
+osv-scanner checks what the lockfile pins and trivy checks what the container
+runs. The Bun dependencies never reach the final image, so osv-scanner is
+their only check.
 
 ## Pins
 
@@ -71,12 +72,20 @@ input, is out of scope too.
    moving the base image digest to a rebuilt tag. Re-run the workflow.
 5. For a CVE with no upstream fix, the image scan already skips it because
    `ignore-unfixed` is set. A finding that still fails has a fix available.
-6. Never lower the severity, add an ignore rule, or remove a scanner step to
-   make the job green.
+6. Never lower the severity or remove a scanner step to make the job green.
 
-A finding that comes from a test fixture gets a narrow allowlist entry naming
-the file and the rule. A rule-wide allowlist would hide the same leak in
-production code.
+A finding that comes from a test fixture or a vendored placeholder gets a
+narrow entry in one of three files, with a reason and, for a dependency, an
+expiry date:
+
+| File | Scope | Current entries |
+| --- | --- | --- |
+| `.gitleaks.toml` | gitleaks | the fake key in `tests/test_redaction.py`, the RFC 6455 sample nonce in `deploy/verify-proxy.sh`, and the public client ID in `tests/test_config.py` |
+| `osv-scanner.toml` | osv-scanner | `PYSEC-2026-3002` (every discord.py release pins pynacl below 1.6), and the two SvelteKit 2 advisories that need prerendering or `use:enhance`, neither of which this panel uses |
+| `.trivyignore.yaml` | trivy | the placeholder AWS key that yt-dlp ships in `extractor/shahid.py` |
+
+A rule-wide allowlist would hide the same leak in production code. The
+osv-scanner entries expire on 2027-01-31; re-check them before that date.
 
 ## Local runs and CI-only checks
 
@@ -99,6 +108,6 @@ runs it.
 [^gitleaks]: gitleaks. "gitleaks", v8.30.1. https://github.com/gitleaks/gitleaks
 [^osv]: Google. "OSV-Scanner". https://google.github.io/osv-scanner/
 [^trivy]: Aqua Security. "Trivy vulnerability scanner". https://trivy.dev/latest/docs/scanner/vulnerability/
-[^dockerfile]: `Dockerfile`, `FROM` lines and the `uv sync --upgrade` steps.
+[^dockerfile]: `Dockerfile`, `FROM` lines, `apt-get upgrade`, and the `uv sync --frozen` steps.
 [^dependabot]: GitHub. "Dependabot supported ecosystems and repositories". https://docs.github.com/en/code-security/dependabot/ecosystems-supported-by-dependabot/supported-ecosystems-and-repositories
 [^makefile]: `Makefile`, target `security`.

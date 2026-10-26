@@ -1,0 +1,5 @@
+secrets:
+  - id: aws-access-key-id
+    paths:
+      - "**/yt_dlp/extractor/shahid.py"
+    statement: "yt-dlp ships a placeholder AWS key in its Shahid extractor fixture, not a Harpi credential."

@@ -39,3 +39,14 @@ web/build/
 web/test-results/
 web/playwright-report/
 web/coverage/
+harpi/
+common/
+references/
+router/
+AGENTS.md
+CONTEXT.md
+DESIGN.md
+PRODUCT.md
+SmileyBot.png
+SmileyBot.svg
+SmileyBot_small.svg

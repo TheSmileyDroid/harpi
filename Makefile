@@ -62,18 +62,18 @@ check-network:
 security:
 	@set -e; \
 	if command -v gitleaks >/dev/null 2>&1; then \
-		gitleaks detect --source . --redact --exit-code 1; \
+		gitleaks detect --source . --config .gitleaks.toml --redact --exit-code 1; \
 	else \
 		echo "gitleaks not installed: secret scan runs in CI"; \
 	fi; \
 	if command -v osv-scanner >/dev/null 2>&1; then \
-		osv-scanner scan source --lockfile uv.lock --lockfile web/bun.lock; \
+		osv-scanner scan source --config osv-scanner.toml --lockfile uv.lock --lockfile web/bun.lock; \
 	else \
 		echo "osv-scanner not installed: dependency scan runs in CI"; \
 	fi; \
 	if command -v trivy >/dev/null 2>&1; then \
 		if docker image inspect "$(SECURITY_IMAGE)" >/dev/null 2>&1; then \
-			trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed "$(SECURITY_IMAGE)"; \
+			trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore.yaml "$(SECURITY_IMAGE)"; \
 		else \
 			echo "no $(SECURITY_IMAGE) image: image scan runs in CI"; \
 		fi; \
