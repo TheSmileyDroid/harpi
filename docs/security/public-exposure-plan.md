@@ -175,6 +175,8 @@ Não há monitoramento, alerta nem backup testado. Adicionar webhook do Discord 
 
 Não criar o registro DNS nem o proxy host enquanto todos os itens abaixo não estiverem marcados.
 
+O checklist com o comando que prova cada item, a evidência a registrar e a ordem de liberação está em [release-gate.md](release-gate.md). O script `deploy/release-gate.sh` automatiza a prova de que o gate está fechado (`--pre`), os testes de liberação (`--release`) e o scan externo de portas (`--ports`).
+
 - [ ] A imagem não contém `.env`, `cookies.txt`, logs, banco ou `.git`.
 - [ ] Token do Discord e cookie do YouTube foram rotacionados depois da última imagem antiga.
 - [ ] A porta 8000 não está publicada no host.
