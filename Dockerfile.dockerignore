@@ -23,6 +23,7 @@ htmlcov/
 mutants/
 tests/
 docs/
+deploy/
 .audios/
 .voice_recordings/
 .playwright/

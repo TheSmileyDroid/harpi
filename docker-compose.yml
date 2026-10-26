@@ -2,8 +2,6 @@ services:
   backend:
     container_name: harpi-backend
     build: .
-    ports:
-      - "8000:8000"
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
@@ -29,7 +27,7 @@ services:
     mem_limit: 1g
     mem_reservation: 512m
     networks:
-      - harpi-net
+      - harpi-edge
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
@@ -38,8 +36,8 @@ services:
       start_period: 40s
 
 networks:
-  harpi-net:
-    driver: bridge
+  harpi-edge:
+    external: true
 
 volumes:
   harpi-work:
