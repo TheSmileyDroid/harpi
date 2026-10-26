@@ -16,6 +16,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from src import alerts
 from src.config import Settings
 
 BACKUP_DIRECTORY_NAME = "backups"
@@ -119,16 +120,41 @@ def _row_count(connection: sqlite3.Connection, table: str) -> int:
 
 
 async def backup_once(settings: Settings) -> Path | None:
-    """One backup pass; a failure is logged, never raised."""
+    """One backup pass plus its restore check; a failure never raises."""
     try:
-        return await asyncio.to_thread(
+        target = await asyncio.to_thread(
             backup_database,
             settings.db_path,
             backup_directory(settings),
         )
     except Exception as error:
         logger.opt(exception=True).error(f"Registry backup failed: {error}")
+        alerts.notify("server_error", f"registry backup failed: {error}")
         return None
+    await _verify_backup(target)
+    return target
+
+
+async def _verify_backup(target: Path) -> None:
+    try:
+        check = await asyncio.to_thread(restore_check, target)
+    except Exception as error:
+        logger.opt(exception=True).error(
+            f"Registry restore check failed: {error}"
+        )
+        alerts.notify(
+            "server_error", f"registry restore check failed: {error}"
+        )
+        return
+    if check.matches:
+        logger.info(f"Registry restore check passed for {target.name}")
+        return
+    logger.error(
+        f"Registry restore check found {check.restored} in {target.name}"
+    )
+    alerts.notify(
+        "server_error", f"registry restore check failed: {target.name}"
+    )
 
 
 async def run_daily(settings: Settings) -> None:

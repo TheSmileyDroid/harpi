@@ -78,6 +78,13 @@ response_headers() {
   printf '%s' "$headers"
 }
 
+cookie_status_code() {
+  local code
+  code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time "$TIMEOUT" \
+    -H "Cookie: $2" "$1" 2>/dev/null) || code=000
+  printf '%s' "$code"
+}
+
 post_code() {
   local code
   code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time "$1" \
@@ -179,6 +186,12 @@ run_release() {
     | grep -i '^set-cookie:' | head -n 1 | cut -d: -f2- \
     | sed 's/^ *//' || true)
   record "$set_cookie" cookie
+
+  if [[ -n ${HARPI_SESSION_COOKIE:-} ]]; then
+    record '' status --name 'authenticated session' \
+      --actual "$(cookie_status_code "$BASE_URL/api/session" "$(cookie_header)")" \
+      --expected 200
+  fi
 
   if [[ -z ${HARPI_SESSION_COOKIE:-} ]]; then
     record '' report --status SKIP --name 'ssrf queue probe' \

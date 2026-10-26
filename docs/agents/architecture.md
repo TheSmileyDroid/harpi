@@ -17,8 +17,8 @@ Quart and discord.py share one process and two event loops. The panel is a Svelt
 ## Where code lives
 
 - `src/cogs/` - Discord commands. Thin handlers over session methods.
-- `src/harpi_lib/` - domain logic: `audio/` (session, mixer, sources), `music/` (yt-dlp, probing, ffmpeg), `math/` (dice parser). No discord.ui or Quart imports.
-- `src/panel/` - the domain seam the API and the bot share: `state`, `actions`, `serialization`, `sampler` (one per-guild poll shared by every open stream, ADR 0009), `schemas` (the Pydantic wire models that are the panel contract, ADR 0004), `retention` (the daily purge of presence rows past the retention window), `backup` (the daily registry backup and its restore check), and `disk_pressure` (the periodic data-volume check).
+- `src/harpi_lib/` - domain logic: `audio/` (session, mixer, sources), `music/` (yt-dlp, probing, ffmpeg, `source_policy` for the URL decision, `ytdl_options` for the public-mode options), `math/` (dice parser). No discord.ui or Quart imports.
+- `src/panel/` - the domain seam the API and the bot share: `state`, `actions`, `serialization`, `sampler` (one per-guild poll shared by every open stream, ADR 0009), `schemas` (the Pydantic wire models that are the panel contract, ADR 0004), `login` (cookie name, lifetime, and freshness), `rate_limit` (token buckets and stream slots), `retention` (the daily purge of presence rows past the retention window), `backup` (the daily registry backup and its restore check), and `disk_pressure` (the periodic data-volume check).
 - `src/storage/` - the panel registry: SQLite database, ordered migrations, and the `Registry` seam (ADR 0008).
 - `src/alerts.py` - the operator alert dispatcher, its webhook sender, and the SSE growth threshold.
 - `src/logging_setup.py` - the loguru sinks both entry points install: stdout, the rotated log, the separate security log, and the redaction wiring.
@@ -29,5 +29,6 @@ Quart and discord.py share one process and two event loops. The panel is a Svelt
 - `pages/` - web blueprints: the JSON API and the SSE stream.
 - `app.py` - app assembly, the SPA asset routes, the panel's startup hook.
 - `web/` - the SvelteKit SPA (Vite build, API client, SSE client).
-- `tools/crap_check.py` - the CRAP gate itself.
+- `tools/` - the offline gates (`crap_check`), the contract export, the registry backup CLI (`backup_db`), and the release gate helpers (`release_gate`).
+- `deploy/` - operator tooling: the edge-network egress rules, the NPM proxy host and rate-limit config, fail2ban jails, and the release-gate and verification scripts.
 - `tests/` - tests, all fakes, all offline.

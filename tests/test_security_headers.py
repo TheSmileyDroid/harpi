@@ -7,9 +7,13 @@ from dataclasses import replace
 import pytest
 
 import app as app_module
-from app import DOCUMENTATION_PATHS, SECURITY_HEADERS
+from app import DOCUMENTATION_PATHS
 from app import app as quart_app
-from app import configure_security
+from app import (
+    configure_security,
+    content_security_policy,
+    inline_script_hashes,
+)
 from src.config import Settings
 
 SECRET = "test-secret"
@@ -43,7 +47,7 @@ def public_client(client):
 
 
 def assert_security_headers(response):
-    for name, value in SECURITY_HEADERS.items():
+    for name, value in quart_app.config["SECURITY_HEADERS"].items():
         assert response.headers.get(name) == value
 
 
@@ -93,6 +97,33 @@ async def test_csp_forbids_framing_and_objects(client):
 
     assert "frame-ancestors 'none'" in csp
     assert "object-src 'none'" in csp
+
+
+def test_csp_hashes_the_inline_bootstrap(tmp_path):
+    (tmp_path / "index.html").write_text(
+        "<script>const boot = 1;</script><script src='/app.js'></script>"
+    )
+
+    hashes = inline_script_hashes(tmp_path)
+    csp = content_security_policy(tmp_path)
+
+    assert len(hashes) == 1
+    assert hashes[0] in csp
+    assert "'unsafe-inline'" not in csp.split(";")[1]
+
+
+def test_csp_falls_back_to_inline_scripts_without_a_build(tmp_path):
+    csp = content_security_policy(tmp_path)
+
+    assert "script-src 'self' 'unsafe-inline'" in csp
+
+
+async def test_csp_serves_fonts_from_the_app_origin(client):
+    response = await client.get("/api/status")
+    csp = response.headers["Content-Security-Policy"]
+
+    assert "font-src 'self'" in csp
+    assert "fonts.g" not in csp
 
 
 @pytest.mark.parametrize("path", sorted(DOCUMENTATION_PATHS))

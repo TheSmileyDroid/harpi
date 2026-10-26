@@ -86,6 +86,10 @@ location /api/ {
 
 `proxy_buffering off` keeps the `/api/events` SSE stream live. The app does not send `X-Accel-Buffering`, and nginx buffers event streams by default.
 
+The snippet hides `Server` with `more_clear_headers`, which needs the
+headers-more module that NPM bundles. If nginx refuses to start after the
+snippet, check that module before removing the line.
+
 The Advanced tab is server context, so the two `limit_req_zone` lines cannot live there. They belong to the custom http context, in `deploy/npm/harpi-rate-limits-http.conf`:
 
 ```nginx

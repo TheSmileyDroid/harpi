@@ -160,6 +160,15 @@ async def user_guild_ids(user_id: str) -> frozenset[int]:
     )
 
 
+async def restrict_user_guilds(allowed: frozenset[int]) -> None:
+    registry = get_registry()
+    if registry is None:
+        return
+    await registry.restrict_user_guilds(
+        frozenset(str(guild_id) for guild_id in allowed)
+    )
+
+
 async def login_epoch(user_id: str) -> int | None:
     registry = get_registry()
     if registry is None:

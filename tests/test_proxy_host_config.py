@@ -109,6 +109,8 @@ def test_advanced_config_disables_server_tokens_and_buffering_for_the_stream():
 def test_advanced_config_caps_the_body_and_limits_each_api_zone_by_ip():
     text = tls_body()["advanced_config"]
 
+    assert "more_clear_headers Server;" in text
+    assert "add_header Retry-After $harpi_retry_after always;" in text
     assert "client_max_body_size 64k;" in text
     assert "limit_req_status 429;" in text
     assert "limit_req zone=harpi_api burst=10 nodelay;" in text

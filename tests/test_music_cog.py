@@ -257,6 +257,18 @@ async def test_play_ensures_the_session_and_reports_the_added_count():
     assert ctx.sent == ["Adicionada(s) 2 música(s) à fila."]
 
 
+@pytest.fixture(autouse=True)
+def offline_source_policy(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(
+        source_policy,
+        "resolve_host_addresses",
+        lambda host: ("93.184.216.34",),
+    )
+    monkeypatch.setattr(
+        source_policy, "fetch_redirect_location", lambda url: None
+    )
+
+
 async def test_play_refuses_a_non_youtube_source_in_public_mode(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -264,16 +276,20 @@ async def test_play_refuses_a_non_youtube_source_in_public_mode(
     cog, ctx, _ = _make_cog(session)
     monkeypatch.setenv("PANEL_PUBLIC_MODE", "1")
 
-    def refuse(value: str, *, public_mode: bool) -> str:
-        assert public_mode is True
-        raise source_policy.SourcePolicyError(f"{value} is not allowed")
-
-    monkeypatch.setattr(source_policy, "check_source", refuse)
-
     await _invoke(cog.play, cog, ctx, link="https://example.com/track")
 
     assert session.calls == []
-    assert ctx.sent == ["https://example.com/track is not allowed"]
+    assert ctx.sent == ["example.com is not a YouTube source"]
+
+
+async def test_play_refuses_a_private_address_outside_public_mode():
+    session = FakeSession()
+    cog, ctx, _ = _make_cog(session)
+
+    await _invoke(cog.play, cog, ctx, link="http://127.0.0.1/track")
+
+    assert session.calls == []
+    assert ctx.sent == ["127.0.0.1 is a loopback address"]
 
 
 async def test_play_reports_load_failures_from_the_session():

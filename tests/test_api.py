@@ -30,9 +30,8 @@ from src.harpi_lib.harpi_bot import HarpiBot
 from src.harpi_lib.music import source_policy
 from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel import login, rate_limit, state
-from src.storage import clear_registry, init_registry
-from src.storage.database import Database
-from src.storage.registry import Actor, SqliteRegistry
+from src.storage import clear_registry
+from src.storage.registry import Actor
 from tests.fakes import (
     GUILD_A,
     GUILD_B,
@@ -182,17 +181,6 @@ async def client(bot: ApiBot, storage, monkeypatch: pytest.MonkeyPatch):
     await storage.sign_in(Actor(id="555", username="panel-user"))
     yield quart_app.test_client()
     deps._bot_ref = None
-
-
-@pytest.fixture
-async def storage(tmp_path):
-    database = Database(tmp_path / "panel.db")
-    await database.open()
-    registry = SqliteRegistry(database)
-    init_registry(registry)
-    yield registry
-    clear_registry()
-    await database.close()
 
 
 async def _login(

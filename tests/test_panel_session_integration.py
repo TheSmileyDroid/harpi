@@ -27,9 +27,7 @@ from src.harpi_lib.audio.session_manager import SessionManager
 from src.harpi_lib.music.ytmusic import YTMusicData
 from src.config import Settings
 from src.panel import login, state
-from src.storage import clear_registry, init_registry
-from src.storage.database import Database
-from src.storage.registry import Actor, SqliteRegistry
+from src.storage.registry import Actor
 from tests.conftest import (
     FakeChannel,
     FakeGuild,
@@ -113,17 +111,6 @@ def bot(monkeypatch: pytest.MonkeyPatch) -> PanelBot:
         staticmethod(FakeMusicDataFactory.from_url),
     )
     return PanelBot(PanelGuild(GUILD_ID))
-
-
-@pytest.fixture
-async def storage(tmp_path):
-    database = Database(tmp_path / "panel.db")
-    await database.open()
-    registry = SqliteRegistry(database)
-    init_registry(registry)
-    yield registry
-    clear_registry()
-    await database.close()
 
 
 @pytest.fixture

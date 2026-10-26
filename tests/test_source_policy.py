@@ -20,7 +20,7 @@ from src.harpi_lib.music.source_policy import (
     follow_checked_redirects,
     host_of,
     is_source_url,
-    public_host_allowed,
+    youtube_host_allowed,
     refused_address_reason,
 )
 from src.harpi_lib.music.ytdl_options import build_ytdl_options
@@ -323,10 +323,10 @@ def test_is_source_url_separates_links_from_search_terms(
         ("consent.youtube.com", False),
     ],
 )
-def test_public_host_allowed_matches_youtube_and_its_cdn(
+def test_youtube_host_allowed_matches_youtube_and_its_cdn(
     host: str, expected: bool
 ):
-    assert public_host_allowed(host) is expected
+    assert youtube_host_allowed(host) is expected
 
 
 def test_a_redirect_to_a_private_address_is_refused():

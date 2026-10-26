@@ -39,6 +39,7 @@ Each check prints one line beginning with `PASS`, `FAIL`, or `SKIP`. The last li
 | `proxy host` | `--pre` | no NPM host and no rendered config claims the name |
 | `public host` | `--pre` | neither `http://` nor `https://` answers |
 | `unauthenticated /api/session` | `--release` | the status is 401 |
+| `authenticated session` | `--release` with `HARPI_SESSION_COOKIE` | the cookie authenticates `/api/session` with 200, so the flag check is not the OAuth-state cookie alone |
 | `hsts` | `--release` | `Strict-Transport-Security` has a positive `max-age` and no `includeSubDomains` |
 | `/openapi.json` | `--release` | the status is 404 |
 | `/docs` | `--release` | the status is 404 |

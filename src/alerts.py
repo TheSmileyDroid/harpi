@@ -109,7 +109,7 @@ class AlertDispatcher:
         self._worker = self._loop.create_task(self._run(), name="harpi-alerts")
 
     def notify(self, kind: AlertKind, detail: str = "") -> None:
-        self._ensure_started()
+        self._start_if_needed()
         loop = self._loop
         if loop is None or loop.is_closed():
             return
@@ -135,7 +135,7 @@ class AlertDispatcher:
         with suppress(asyncio.CancelledError):
             await worker
 
-    def _ensure_started(self) -> None:
+    def _start_if_needed(self) -> None:
         if self._loop is not None:
             return
         try:

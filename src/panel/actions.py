@@ -13,7 +13,7 @@ from src.panel.schemas import Track
 SEARCH_RESULT_LIMIT = 5
 
 
-async def _refuse_outside_source_policy(value: str) -> None:
+async def refuse_outside_source_policy(value: str) -> None:
     if not source_policy.is_source_url(value):
         return
     await asyncio.to_thread(
@@ -44,7 +44,7 @@ async def search_tracks(
     term = term.strip()
     if not term:
         return []
-    await _refuse_outside_source_policy(term)
+    await refuse_outside_source_policy(term)
     return _track_list(await track_source.from_url(term))
 
 
@@ -57,7 +57,7 @@ def _track_list(results: list[YTMusicData]) -> list[Track]:
 
 async def add_track(guild_id: int, link: str | None) -> None:
     if link:
-        await _refuse_outside_source_policy(link)
+        await refuse_outside_source_policy(link)
     session_obj = _session(guild_id)
     if link:
         await run_on_bot_loop(session_obj.play(link))
@@ -66,7 +66,7 @@ async def add_track(guild_id: int, link: str | None) -> None:
 async def add_layer(guild_id: int, link: str | None) -> str | None:
     if not link:
         return None
-    await _refuse_outside_source_policy(link)
+    await refuse_outside_source_policy(link)
     session_obj = _session(guild_id)
     return await run_on_bot_loop(session_obj.add_layer(link))
 

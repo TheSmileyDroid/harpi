@@ -22,9 +22,6 @@ from src import discord_oauth
 from src.config import Settings
 from src.harpi_lib.harpi_bot import HarpiBot
 from src.panel import login, state
-from src.storage import clear_registry, init_registry
-from src.storage.database import Database
-from src.storage.registry import SqliteRegistry
 from tests.fakes import GUILD_A, GUILD_B, FakeBot, FakeGuild
 
 CLIENT_ID = "891732797054681119"
@@ -41,17 +38,6 @@ class AuthBot(FakeBot):
 
     def is_closed(self) -> bool:
         return False
-
-
-@pytest.fixture
-async def storage(tmp_path):
-    database = Database(tmp_path / "panel.db")
-    await database.open()
-    registry = SqliteRegistry(database)
-    init_registry(registry)
-    yield registry
-    clear_registry()
-    await database.close()
 
 
 @pytest.fixture

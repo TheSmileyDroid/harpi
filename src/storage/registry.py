@@ -94,6 +94,8 @@ class Registry(Protocol):
 
     async def user_guild_ids(self, user_id: str) -> frozenset[str]: ...
 
+    async def restrict_user_guilds(self, allowed: frozenset[str]) -> int: ...
+
     async def login_epoch(self, user_id: str) -> int | None: ...
 
     async def increment_login_epoch(self, user_id: str) -> int | None: ...
@@ -246,6 +248,17 @@ class SqliteRegistry:
             "SELECT guild_id FROM user_guilds WHERE user_id = ?", (user_id,)
         )
         return frozenset(row["guild_id"] for row in rows)
+
+    async def restrict_user_guilds(self, allowed: frozenset[str]) -> int:
+        if not allowed:
+            return await self._database.execute_rowcount(
+                "DELETE FROM user_guilds"
+            )
+        placeholders = ", ".join("?" for _ in allowed)
+        return await self._database.execute_rowcount(
+            f"DELETE FROM user_guilds WHERE guild_id NOT IN ({placeholders})",
+            tuple(allowed),
+        )
 
     async def login_epoch(self, user_id: str) -> int | None:
         row = await self._database.fetchone(

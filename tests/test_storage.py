@@ -250,6 +250,32 @@ async def test_record_user_guilds_replaces_the_previous_set(tmp_path):
     await database.close()
 
 
+async def test_restrict_user_guilds_drops_the_guilds_leaving_the_allowlist(
+    tmp_path,
+):
+    database, registry = await open_registry(tmp_path)
+    await registry.record_user_guilds(ALICE, ["7", "8"], now=NOW)
+
+    removed = await registry.restrict_user_guilds(frozenset({"8"}))
+
+    assert removed == 1
+    assert await registry.user_guild_ids("555") == frozenset({"8"})
+    await database.close()
+
+
+async def test_restrict_user_guilds_with_an_empty_allowlist_drops_everything(
+    tmp_path,
+):
+    database, registry = await open_registry(tmp_path)
+    await registry.record_user_guilds(ALICE, ["7", "8"], now=NOW)
+
+    removed = await registry.restrict_user_guilds(frozenset())
+
+    assert removed == 2
+    assert await registry.user_guild_ids("555") == frozenset()
+    await database.close()
+
+
 async def test_a_second_registry_sees_the_persisted_guilds(tmp_path):
     path = tmp_path / "harpi.db"
     first = Database(path)

@@ -82,7 +82,7 @@ def host_of(url: str) -> str:
     return host
 
 
-def public_host_allowed(host: str) -> bool:
+def youtube_host_allowed(host: str) -> bool:
     """True when *host* is YouTube or one of its CDN domains."""
     if host in YOUTUBE_HOSTS:
         return True
@@ -141,7 +141,7 @@ def check_url(
 ) -> str:
     """Refuse *url* unless its scheme, host, and addresses satisfy the policy."""
     host = host_of(url)
-    if public_mode and not public_host_allowed(host):
+    if public_mode and not youtube_host_allowed(host):
         raise SourcePolicyError(f"{host} is not a YouTube source")
     literal = literal_address(host)
     if literal is not None:

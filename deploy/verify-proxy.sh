@@ -132,10 +132,10 @@ check_websocket() {
 check_server_tokens() {
   local server
   server=$(header_value server)
-  if [[ $server =~ nginx/[0-9] ]]; then
+  if [[ -n $server ]]; then
     fail "server tokens: the response advertises $server"
   else
-    pass "server tokens: ${server:-no Server header}"
+    pass "server tokens: no Server header"
   fi
 }
 

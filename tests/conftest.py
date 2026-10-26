@@ -13,6 +13,9 @@ import discord
 import pytest
 
 from src.harpi_lib.music.ytmusic import YTMusicData
+from src.storage import clear_registry, init_registry
+from src.storage.database import Database
+from src.storage.registry import SqliteRegistry
 from tests.network_harness import print_version_banner
 
 GUILD_ID = 1
@@ -37,6 +40,17 @@ def version_banner() -> None:
 def isolated_database(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep any app startup in a test off the repo's default data path."""
     monkeypatch.setenv("HARPI_DB_PATH", str(tmp_path / "harpi.db"))
+
+
+@pytest.fixture
+async def storage(tmp_path):
+    database = Database(tmp_path / "panel.db")
+    await database.open()
+    registry = SqliteRegistry(database)
+    init_registry(registry)
+    yield registry
+    clear_registry()
+    await database.close()
 
 
 class FakeVoiceClient(discord.VoiceClient):

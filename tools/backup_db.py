@@ -4,7 +4,8 @@
     .venv/bin/python -m tools.backup_db verify
 
 ``verify`` restores the newest backup into a temporary database and compares
-the row counts with the live registry. Exit code is 1 on a mismatch.
+the restored row counts with the counts recorded in the backup itself. Exit
+code is 1 on a mismatch.
 """
 
 from __future__ import annotations
@@ -65,21 +66,13 @@ def _verify_target(
     return backup.latest_backup(_directory(settings, args))
 
 
-def _live_counts(source: str) -> dict[str, int] | None:
-    if not Path(source).exists():
-        return None
-    return backup.table_counts(source)
-
-
 def run_verify(settings: Settings, args: argparse.Namespace) -> int:
     target = _verify_target(settings, args)
     if target is None or not target.exists():
         print("no backup found", file=sys.stderr)
         return 1
-    source = args.database or settings.db_path
-    expected = _live_counts(source)
     try:
-        check = backup.restore_check(target, expected=expected)
+        check = backup.restore_check(target)
     except (OSError, sqlite3.Error) as error:
         print(f"restore failed: {error}", file=sys.stderr)
         return 1

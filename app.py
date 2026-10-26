@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
+import re
 from pathlib import Path
 
 from loguru import logger
@@ -28,7 +31,8 @@ from src.storage import clear_registry, get_registry, init_registry
 from src.storage.database import Database
 from src.storage.registry import SqliteRegistry
 
-configure_logging(Settings.from_env())
+BOOT_SETTINGS = Settings.from_env()
+configure_logging(BOOT_SETTINGS)
 
 WEB_BUILD = Path(__file__).resolve().parent / "web" / "build"
 
@@ -51,21 +55,33 @@ def configure_panel_session(settings: Settings) -> None:
     app.secret_key = settings.secret_key
 
 
-SECURITY_HEADERS: dict[str, str] = {
-    "Strict-Transport-Security": "max-age=31536000",
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Permissions-Policy": (
-        "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-    ),
-    "Cross-Origin-Opener-Policy": "same-origin",
-    "Cross-Origin-Resource-Policy": "same-origin",
-    "X-Frame-Options": "DENY",
-    "Content-Security-Policy": (
+INLINE_SCRIPT = re.compile(r"<script(?:\s[^>]*)?>(.*?)</script>", re.DOTALL)
+
+
+def inline_script_hashes(build_dir: Path) -> tuple[str, ...]:
+    index = build_dir / "index.html"
+    if not index.is_file():
+        return ()
+    bodies = INLINE_SCRIPT.findall(index.read_text(encoding="utf-8"))
+    return tuple(
+        "'sha256-"
+        + base64.b64encode(hashlib.sha256(body.encode()).digest()).decode()
+        + "'"
+        for body in bodies
+        if body.strip()
+    )
+
+
+def content_security_policy(build_dir: Path) -> str:
+    hashes = inline_script_hashes(build_dir)
+    script_src = (
+        "'self' " + " ".join(hashes) if hashes else "'self' 'unsafe-inline'"
+    )
+    return (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src 'self' https://fonts.gstatic.com; "
+        f"script-src {script_src}; "
+        "style-src 'self' 'unsafe-inline'; "
+        "font-src 'self'; "
         "img-src 'self' data: https://i.ytimg.com; "
         "media-src 'self' blob:; "
         "connect-src 'self'; "
@@ -73,8 +89,23 @@ SECURITY_HEADERS: dict[str, str] = {
         "base-uri 'none'; "
         "form-action 'self'; "
         "frame-ancestors 'none'"
-    ),
-}
+    )
+
+
+def build_security_headers(build_dir: Path) -> dict[str, str]:
+    return {
+        "Strict-Transport-Security": "max-age=31536000",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": (
+            "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+        ),
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Resource-Policy": "same-origin",
+        "X-Frame-Options": "DENY",
+        "Content-Security-Policy": content_security_policy(build_dir),
+    }
+
 
 DOCUMENTATION_PATHS: frozenset[str] = frozenset({
     "/openapi.json",
@@ -89,12 +120,13 @@ MAX_REQUEST_BODY_BYTES = 64 * 1024
 def configure_security(settings: Settings) -> None:
     app.config["PUBLIC_MODE"] = settings.public_mode
     app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BODY_BYTES
+    app.config["SECURITY_HEADERS"] = build_security_headers(WEB_BUILD)
 
 
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.url_map.merge_slashes = False
-configure_panel_session(Settings.from_env())
-configure_security(Settings.from_env())
+configure_panel_session(BOOT_SETTINGS)
+configure_security(BOOT_SETTINGS)
 
 QuartSchema(app, openapi_provider_class=ContractOpenAPIProvider)
 
@@ -136,7 +168,7 @@ def guard_documentation():
 
 @app.after_request
 def send_security_headers(response: Response) -> Response:
-    response.headers.update(SECURITY_HEADERS)
+    response.headers.update(app.config["SECURITY_HEADERS"])
     return response
 
 
@@ -249,6 +281,7 @@ async def startup():
             _database = Database(settings.db_path)
             await _database.open()
             init_registry(SqliteRegistry(_database))
+            await state.restrict_user_guilds(settings.guild_allowlist)
             logger.info(f"Panel storage ready at {settings.db_path}")
         except Exception as e:
             _database = None

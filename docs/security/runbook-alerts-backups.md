@@ -14,7 +14,7 @@ runs without a webhook.
 | --- | --- | --- |
 | `401 unauthorized` | a request answers 401 | every source, coalesced for 60 s |
 | `403 forbidden` | a request answers 403 | every source, coalesced for 60 s |
-| `429 rate limited` | a request answers 429 | every source, coalesced for 60 s |
+| `429 rate limited` | the application answers 429 | app-level limits only, coalesced for 60 s |
 | `5xx server error` | a request answers 500 or above | every source, coalesced for 60 s |
 | `SSE stream growth` | live streams cross the threshold | 15 concurrent streams |
 | `disk pressure` | the data volume crosses the threshold | 85% used |
@@ -30,7 +30,10 @@ coalesced. The webhook URL never reaches a log line.
   `security.log` for the user id, address, and time. Confirm the address is not
   a viewer behind a broken cookie. A sustained stream from one address is
   credential probing: block the address at the proxy and keep the alert on.
-- **429.** Read the request path in the alert. One viewer hitting search or
+- **429.** A proxy `limit_req` rejection never reaches the application, so it
+  does not raise this alert. Read `deploy/npm/harpi-advanced.conf` and the NPM
+  access log for those; the alert covers the app-level search, queue, and
+  stream limits. One viewer hitting search or
   queue limits is expected. Many addresses hitting the auth path means the
   proxy limit is doing its job; raise the limit only after confirming the
   traffic is legitimate.
