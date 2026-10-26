@@ -22,8 +22,11 @@ from quart import request, session
 import app as app_module
 from src import bot_state
 from src.harpi_lib.audio.session import LayerInfo, LoopMode, SessionStatus
+from src.harpi_lib.music import source_policy
 from src.harpi_lib.music.ytmusic import YTMusicData
+from src.panel import login as panel_login
 from src.panel import state as panel_state
+from src.storage.registry import Actor
 from tests.fakes import (
     GUILD_A,
     FakeBot,
@@ -55,7 +58,9 @@ class HarnessSession(FakeSession):
     async def play(self, value: str) -> None:
         self.calls.append(("play", value))
         track = YTMusicData({"title": value, "url": value, "duration": 60})
-        self._status = replace(self._status, queue=(*self._status.queue, track))
+        self._status = replace(
+            self._status, queue=(*self._status.queue, track)
+        )
 
     async def remove(self, value: str) -> None:
         self.calls.append(("remove", value))
@@ -89,9 +94,7 @@ class HarnessSession(FakeSession):
 
     async def set_volume(self, value: float) -> None:
         self.calls.append(("set_volume", value))
-        self._status = replace(
-            self._status, volume=max(0.0, min(1.0, value))
-        )
+        self._status = replace(self._status, volume=max(0.0, min(1.0, value)))
 
     async def add_layer(self, value: str) -> str:
         self.calls.append(("add_layer", value))
@@ -119,9 +122,7 @@ class HarnessSession(FakeSession):
         for layer in self._status.layers:
             if layer.id == layer_id:
                 found = True
-                layers.append(
-                    replace(layer, volume=max(0.0, min(1.0, value)))
-                )
+                layers.append(replace(layer, volume=max(0.0, min(1.0, value))))
             else:
                 layers.append(layer)
         if not found:
@@ -158,13 +159,11 @@ def status_for(
     return playing_status(
         guild_id=guild_id,
         channel_id=channel_id,
-        current_music=YTMusicData(
-            {
-                "title": title,
-                "url": f"https://example.com/{title}",
-                "duration": 120,
-            }
-        ),
+        current_music=YTMusicData({
+            "title": title,
+            "url": f"https://example.com/{title}",
+            "duration": 120,
+        }),
     )
 
 
@@ -191,6 +190,10 @@ async def _canned_search(term: str) -> list[YTMusicData]:
 
 
 YTMusicData.from_url = staticmethod(_canned_search)
+source_policy.resolve_host_addresses = lambda host: ("93.184.216.34",)
+
+HARNESS_ACTOR = Actor(id="555", username="harness")
+BASE_GUILDS = frozenset({GUILD_A, SECOND_GUILD_ID})
 
 
 async def _run_inline(coro, timeout: float | None = None):
@@ -211,7 +214,10 @@ app_module.run_bot_in_background = lambda settings: None
 
 @quart_app.after_request
 async def select_guild(response):
-    if session.get("authenticated") is True and session.get("guild_id") is None:
+    if (
+        session.get("authenticated") is True
+        and session.get("guild_id") is None
+    ):
         session["guild_id"] = str(GUILD_A)
     return response
 
@@ -223,10 +229,15 @@ async def ping():
 
 @quart_app.post("/__test__/login")
 async def login():
+    await panel_state.sign_in(HARNESS_ACTOR)
+    await panel_state.record_user_guilds(HARNESS_ACTOR, BASE_GUILDS)
+    epoch = await panel_state.login_epoch(HARNESS_ACTOR.id)
     session.permanent = True
     session["authenticated"] = True
-    session["user_id"] = "555"
-    session["username"] = "harness"
+    session["user_id"] = HARNESS_ACTOR.id
+    session["username"] = HARNESS_ACTOR.username
+    session[panel_login.ISSUED_AT_KEY] = panel_login.now()
+    session[panel_login.LOGIN_EPOCH_KEY] = 0 if epoch is None else epoch
     return {"ok": True}
 
 
@@ -252,6 +263,7 @@ async def reset():
     bot.sessions._by_guild[GUILD_A] = session_obj
     bot._guilds.pop(EXTRA_GUILD_ID, None)
     panel_state.run_on_bot_loop = _run_inline
+    await panel_state.record_user_guilds(HARNESS_ACTOR, BASE_GUILDS)
     return {"ok": True}
 
 
@@ -269,6 +281,9 @@ async def add_guild():
     payload = await request.get_json()
     name = str(payload.get("name", EXTRA_GUILD_NAME))
     bot._guilds[EXTRA_GUILD_ID] = FakeGuild(EXTRA_GUILD_ID, name)
+    await panel_state.record_user_guilds(
+        HARNESS_ACTOR, BASE_GUILDS | {EXTRA_GUILD_ID}
+    )
     return {"ok": True}
 
 
@@ -312,9 +327,7 @@ async def push_layer():
         url=url,
         volume=0.5,
     )
-    session_obj._status = replace(
-        session_obj._status, layers=(*layers, layer)
-    )
+    session_obj._status = replace(session_obj._status, layers=(*layers, layer))
     return {"ok": True}
 
 

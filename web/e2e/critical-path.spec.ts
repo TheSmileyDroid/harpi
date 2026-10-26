@@ -65,7 +65,7 @@ test("a denied authorization surfaces on the sign-in page", async ({
 
   await expect(page.getByTestId("signin")).toBeVisible();
   await expect(page.getByTestId("error-region")).toContainText(
-    "shares no server",
+    "not in an allowed server",
   );
 });
 
