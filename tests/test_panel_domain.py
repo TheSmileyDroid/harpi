@@ -146,18 +146,33 @@ class ReadyFakeBot(FakeBot):
         return False
 
 
-async def test_status_reports_physical_voice_without_a_session(
+async def test_resolve_falls_back_to_the_voice_guild(
     monkeypatch: pytest.MonkeyPatch,
 ):
     bot = ReadyFakeBot([OccupiedVoiceGuild(GUILD_A, "Alpha Guild", 42)])
     bind(monkeypatch, bot)
 
-    snapshot = await panel_state.status_snapshot(None)
+    resolved = panel_state.resolve_guild_id(None, {GUILD_A})
 
+    assert resolved == GUILD_A
+    snapshot = await panel_state.status_snapshot(resolved)
     assert snapshot.guild_id == str(GUILD_A)
     assert snapshot.connection.connected is True
     assert snapshot.connection.channel_id == "42"
     assert snapshot.playback is None
+
+
+def test_resolve_refuses_a_guild_outside_the_actor_set(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    bot = ReadyFakeBot([
+        FakeGuild(GUILD_A, "Alpha Guild"),
+        OccupiedVoiceGuild(2, "Beta Guild", 20),
+    ])
+    bind(monkeypatch, bot)
+
+    assert panel_state.resolve_guild_id(2, {GUILD_A}) is None
+    assert panel_state.resolve_guild_id(None, {GUILD_A}) is None
 
 
 async def test_status_prefers_the_selection_over_a_voice_guild(

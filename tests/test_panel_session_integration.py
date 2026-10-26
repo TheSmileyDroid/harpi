@@ -26,7 +26,7 @@ from src.harpi_lib.audio.session import MAX_VOLUME, LoopMode, PlaybackSession
 from src.harpi_lib.audio.session_manager import SessionManager
 from src.harpi_lib.music.ytmusic import YTMusicData
 from src.config import Settings
-from src.panel import login
+from src.panel import login, state
 from src.storage import clear_registry, init_registry
 from src.storage.database import Database
 from src.storage.registry import Actor, SqliteRegistry
@@ -146,6 +146,9 @@ async def _login(client):
         stored["username"] = "panel-user"
         stored[login.ISSUED_AT_KEY] = login.now()
         stored[login.LOGIN_EPOCH_KEY] = 0
+    await state.record_user_guilds(
+        Actor(id="555", username="panel-user"), {GUILD_ID}
+    )
 
 
 async def _connect(client) -> PanelBot:

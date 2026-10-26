@@ -12,7 +12,11 @@ from pydantic import BaseModel
 from quart import Blueprint, Response
 from quart_schema import document_response
 
-from pages.api import current_actor, current_guild_id
+from pages.api import (
+    current_actor,
+    current_guild_id,
+    load_allowed_guild_ids,
+)
 from src.panel import state
 from src.panel.sampler import GuildSampler, get_sampler
 from src.panel.schemas import (
@@ -58,20 +62,42 @@ def _frame(model: type[BaseModel], data: Any) -> str:
     return f"event: {_EVENT_NAMES[model]}\ndata: {json.dumps(payload)}\n\n"
 
 
-def _opening_frames(sampler: GuildSampler) -> list[str]:
+def _visible_directory(
+    directory: Directory, allowed_guilds: frozenset[int]
+) -> Directory:
+    return directory.model_copy(
+        update={
+            "guilds": [
+                guild
+                for guild in directory.guilds
+                if int(guild.id) in allowed_guilds
+            ]
+        }
+    )
+
+
+def _opening_frames(
+    sampler: GuildSampler, allowed_guilds: frozenset[int]
+) -> list[str]:
     frames: list[str] = []
     snapshot = sampler.current()
     if snapshot is not None:
         frames.append(_frame(StatusSnapshot, snapshot))
     directory = sampler.directory()
     if directory is not None:
-        frames.append(_frame(Directory, directory))
+        frames.append(
+            _frame(Directory, _visible_directory(directory, allowed_guilds))
+        )
     return frames
 
 
-async def _next_frame(queued: FrameQueue, timeout: float) -> str | None:
+async def _next_frame(
+    queued: FrameQueue, timeout: float, allowed_guilds: frozenset[int]
+) -> str | None:
     with contextlib.suppress(TimeoutError):
         name, payload = await asyncio.wait_for(queued.get(), timeout)
+        if isinstance(payload, Directory):
+            payload = _visible_directory(payload, allowed_guilds)
         return _frame(SSE_EVENTS[name], payload)
     return None
 
@@ -103,28 +129,31 @@ def _reload_frame(
 
 
 async def _stream(
-    guild_id: int | None, actor: Actor | None
+    guild_id: int | None,
+    actor: Actor | None,
+    allowed_guilds: frozenset[int],
 ) -> AsyncGenerator[str, None]:
-    sampler = get_sampler(state.resolve_guild_id(guild_id))
+    resolved = state.resolve_guild_id(guild_id, allowed_guilds)
+    sampler = get_sampler(resolved)
     queued = await sampler.subscribe()
     try:
         yield ": connected\n\n"
-        for frame in _opening_frames(sampler):
+        for frame in _opening_frames(sampler, allowed_guilds):
             yield frame
-        previous_presence = await state.presence(guild_id, actor)
+        previous_presence = await state.presence(resolved, actor)
         yield _frame(Presence, previous_presence)
         previous_shell = _snapshot()
         deadline = time.monotonic() + TICK_SECONDS
         while True:
             timeout = max(0.0, deadline - time.monotonic())
-            queued_frame = await _next_frame(queued, timeout)
+            queued_frame = await _next_frame(queued, timeout, allowed_guilds)
             if queued_frame is not None:
                 yield queued_frame
             if time.monotonic() < deadline:
                 continue
             deadline = time.monotonic() + TICK_SECONDS
             frames, previous_presence = await _periodic_frames(
-                sampler, guild_id, actor, previous_presence
+                sampler, resolved, actor, previous_presence
             )
             for frame in frames:
                 yield frame
@@ -137,8 +166,9 @@ async def _stream(
 
 @bp.get("/api/events")
 @document_response(SseEnvelope, 200)
-def events():
+async def events():
+    allowed_guilds = await load_allowed_guild_ids()
     return Response(
-        _stream(current_guild_id(), current_actor()),
+        _stream(current_guild_id(), current_actor(), allowed_guilds),
         mimetype="text/event-stream",
     )
