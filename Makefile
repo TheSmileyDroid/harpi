@@ -1,11 +1,12 @@
 #!/usr/bin/make -f
 
 SHELL := /bin/bash
+SECURITY_IMAGE ?= harpi:local
 
 -include .env
 export $(shell sed 's/=.*//' .env 2>/dev/null || true)
 
-.PHONY: bootstrap dev start build contract lint check check-network soak mutants
+.PHONY: bootstrap dev start build contract lint check check-network security soak mutants
 
 bootstrap:
 	uv sync --upgrade
@@ -41,7 +42,7 @@ check:
 	uv run ty check src/ tests/ pages/ app.py tools/ || { touch .check-failed; true; }; \
 	uv run pytest tests/ --cov=src --cov=pages --cov=app --cov-report=json --cov-report=term-missing:skip-covered --cov-fail-under=70 --tb=short -q || { touch .check-failed; true; }; \
 	uv run python tools/crap_check.py coverage.json || { touch .check-failed; true; }; \
-	bunx jscpd src/ pages/ web/src/ --ignore "**/lib/contract/**" --min-tokens 50 --threshold 1 || { touch .check-failed; true; }; \
+	bunx jscpd@3.5.10 src/ pages/ web/src/ --ignore "**/lib/contract/**" --min-tokens 50 --threshold 1 || { touch .check-failed; true; }; \
 	uv run vulture || { touch .check-failed; true; }; \
 	$(MAKE) contract || { touch .check-failed; true; }; \
 	git diff --exit-code -- web/src/lib/contract || { touch .check-failed; true; }; \
@@ -57,6 +58,28 @@ check-network:
 	@rm -f .check-failed; \
 	uv run pytest -m network -s --tb=short || { touch .check-failed; true; }; \
 	if [ -f .check-failed ]; then rm -f .check-failed; exit 1; fi
+
+security:
+	@set -e; \
+	if command -v gitleaks >/dev/null 2>&1; then \
+		gitleaks detect --source . --config .gitleaks.toml --redact --exit-code 1; \
+	else \
+		echo "gitleaks not installed: secret scan runs in CI"; \
+	fi; \
+	if command -v osv-scanner >/dev/null 2>&1; then \
+		osv-scanner scan source --config osv-scanner.toml --lockfile uv.lock --lockfile web/bun.lock; \
+	else \
+		echo "osv-scanner not installed: dependency scan runs in CI"; \
+	fi; \
+	if command -v trivy >/dev/null 2>&1; then \
+		if docker image inspect "$(SECURITY_IMAGE)" >/dev/null 2>&1; then \
+			trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore.yaml "$(SECURITY_IMAGE)"; \
+		else \
+			echo "no $(SECURITY_IMAGE) image: image scan runs in CI"; \
+		fi; \
+	else \
+		echo "trivy not installed: image scan runs in CI"; \
+	fi
 
 soak:
 	HARPI_YTDL_DEBUG=1 uv run python -m tools.soak_playback $(SOAK_ARGS)

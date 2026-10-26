@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
@@ -47,6 +48,12 @@ class ConnectionRecord:
     at: int
 
 
+@dataclass(frozen=True)
+class PurgedHistory:
+    viewers: int
+    connection_events: int
+
+
 class Registry(Protocol):
     async def sign_in(self, actor: Actor) -> None: ...
 
@@ -76,6 +83,24 @@ class Registry(Protocol):
     ) -> None: ...
 
     async def leave(self, user_id: str) -> None: ...
+
+    async def record_user_guilds(
+        self,
+        actor: Actor,
+        guild_ids: Iterable[str],
+        *,
+        now: int | None = None,
+    ) -> None: ...
+
+    async def user_guild_ids(self, user_id: str) -> frozenset[str]: ...
+
+    async def restrict_user_guilds(self, allowed: frozenset[str]) -> int: ...
+
+    async def login_epoch(self, user_id: str) -> int | None: ...
+
+    async def increment_login_epoch(self, user_id: str) -> int | None: ...
+
+    async def purge_history(self, *, before: int) -> PurgedHistory: ...
 
 
 class SqliteRegistry:
@@ -198,6 +223,64 @@ class SqliteRegistry:
         await self._database.execute(
             "DELETE FROM viewers WHERE user_id = ?", (user_id,)
         )
+
+    async def record_user_guilds(
+        self,
+        actor: Actor,
+        guild_ids: Iterable[str],
+        *,
+        now: int | None = None,
+    ) -> None:
+        stamp = _clock(now)
+        await self._upsert_user(actor, now=stamp)
+        await self._database.execute(
+            "DELETE FROM user_guilds WHERE user_id = ?", (actor.id,)
+        )
+        for guild_id in guild_ids:
+            await self._database.execute(
+                "INSERT INTO user_guilds (user_id, guild_id, seen_at) "
+                "VALUES (?, ?, ?)",
+                (actor.id, guild_id, stamp),
+            )
+
+    async def user_guild_ids(self, user_id: str) -> frozenset[str]:
+        rows = await self._database.fetchall(
+            "SELECT guild_id FROM user_guilds WHERE user_id = ?", (user_id,)
+        )
+        return frozenset(row["guild_id"] for row in rows)
+
+    async def restrict_user_guilds(self, allowed: frozenset[str]) -> int:
+        if not allowed:
+            return await self._database.execute_rowcount(
+                "DELETE FROM user_guilds"
+            )
+        placeholders = ", ".join("?" for _ in allowed)
+        return await self._database.execute_rowcount(
+            f"DELETE FROM user_guilds WHERE guild_id NOT IN ({placeholders})",
+            tuple(allowed),
+        )
+
+    async def login_epoch(self, user_id: str) -> int | None:
+        row = await self._database.fetchone(
+            "SELECT login_epoch FROM users WHERE id = ?", (user_id,)
+        )
+        return None if row is None else int(row["login_epoch"])
+
+    async def increment_login_epoch(self, user_id: str) -> int | None:
+        await self._database.execute(
+            "UPDATE users SET login_epoch = login_epoch + 1 WHERE id = ?",
+            (user_id,),
+        )
+        return await self.login_epoch(user_id)
+
+    async def purge_history(self, *, before: int) -> PurgedHistory:
+        viewers = await self._database.execute_rowcount(
+            "DELETE FROM viewers WHERE last_seen_at < ?", (before,)
+        )
+        events = await self._database.execute_rowcount(
+            "DELETE FROM connection_events WHERE created_at < ?", (before,)
+        )
+        return PurgedHistory(viewers=viewers, connection_events=events)
 
     async def _upsert_user(self, actor: Actor, *, now: int) -> None:
         await self._database.execute(

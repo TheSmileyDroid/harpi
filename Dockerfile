@@ -1,4 +1,4 @@
-FROM oven/bun:1 AS frontend
+FROM oven/bun:1@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS frontend
 
 WORKDIR /web
 COPY web/package.json web/bun.lock ./
@@ -7,10 +7,11 @@ COPY web/ ./
 RUN bun run build
 
 
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim@sha256:531f855bda2c73cd6ef67d56b733b357cea384185b3022bd09f05e002cd144ca AS backend
 
-# System deps
-RUN apt-get update && apt-get install -y \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
     curl \
     ffmpeg \
     unzip \
@@ -23,24 +24,25 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_NO_DEV=1
 ENV UV_TOOL_BIN_DIR=/usr/local/bin
+ENV PYTHONUNBUFFERED=1
+ENV PATH="/app/.venv/bin:$PATH"
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --upgrade --no-install-project
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    uv sync --frozen --no-install-project
 
 COPY . /app
 COPY --from=frontend /web/build /app/web/build
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --upgrade
+    uv sync --frozen
 
-# Runtime user: uvicorn, loguru (spam.log) and yt-dlp (.audios/) write to /app
 RUN useradd --create-home harpi \
-    && chown -R harpi:harpi /app
+    && mkdir -p /work \
+    && chown -R harpi:harpi /app \
+    && chown harpi:harpi /work
 USER harpi
-
-ENV PATH="/app/.venv/bin:$PATH"
 
 ENTRYPOINT []
 
-# Default command
-CMD ["uv", "run", "uvicorn", "app:asgi_app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/.venv/bin/uvicorn", "app:asgi_app", "--app-dir", "/app", "--host", "0.0.0.0", "--port", "8000", "--no-server-header"]

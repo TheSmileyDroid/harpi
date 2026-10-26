@@ -13,6 +13,7 @@ from src.harpi_lib.audio.session import (
 )
 from src.harpi_lib.harpi_bot import HarpiBot
 from src.harpi_lib.parse import parse_finite_float
+from src.panel import actions
 
 
 def _queue_message(status: SessionStatus) -> str:
@@ -143,6 +144,7 @@ class MusicCog(Cog):
         """
         session = await self._connect_session(ctx, force=False)
         try:
+            await actions.refuse_outside_source_policy(link)
             count = await session.play(link)
         except ValueError as e:
             await ctx.send(str(e))
@@ -324,6 +326,7 @@ class MusicCog(Cog):
         """
         session = await self._connect_session(ctx, force=False)
         try:
+            await actions.refuse_outside_source_policy(link)
             await session.add_layer(link)
         except ValueError as e:
             _ = await ctx.send(str(e))

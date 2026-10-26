@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from quart import Blueprint, Response, jsonify, request, session
+from quart import Blueprint, Response, g, jsonify, request, session
 from quart_schema import document_request, document_response, validate_response
 
 from src.bot_state import bot_running
 from src.harpi_lib.audio.session import LOOP_MODE_ALIASES
-from src.panel import actions, sampler, state
+from src.harpi_lib.music.source_policy import SourcePolicyError
+from src.panel import actions, rate_limit, sampler, state
 from src.panel.schemas import (
     Authenticated,
     ChannelList,
@@ -28,11 +29,22 @@ from src.storage.registry import Actor
 
 bp = Blueprint("api", __name__)
 
+ALLOWED_GUILDS = "allowed_guild_ids"
+
+SEARCH_BUCKETS = rate_limit.UserTokenBuckets(rate_limit.SEARCHES_PER_MINUTE)
+QUEUE_BUCKETS = rate_limit.UserTokenBuckets(
+    rate_limit.QUEUE_ACTIONS_PER_MINUTE
+)
+
 
 def poke_sampler_after_mutation(response: Response) -> Response:
+    if request.method != "POST" or not bot_running():
+        return response
     guild_id = current_guild_id()
-    if request.method == "POST" and guild_id is not None and bot_running():
-        sampler.poke_sampler(state.resolve_guild_id(guild_id))
+    if guild_id is not None:
+        sampler.poke_sampler(
+            state.resolve_guild_id(guild_id, allowed_guild_ids())
+        )
     return response
 
 
@@ -42,6 +54,21 @@ bp.after_request(poke_sampler_after_mutation)
 def error_response(code: str, message: str, status: int) -> Response:
     response = jsonify({"error": {"code": code, "message": message}})
     response.status_code = status
+    return response
+
+
+def _rate_limit_response(
+    buckets: rate_limit.UserTokenBuckets,
+) -> Response | None:
+    """A 429 for the signed-in actor, or None while the bucket has room."""
+    actor = current_actor()
+    if actor is None:
+        return None
+    decision = buckets.take(actor.id)
+    if decision.allowed:
+        return None
+    response = error_response("too_many_requests", "Too many requests", 429)
+    response.headers["Retry-After"] = str(decision.retry_after_seconds)
     return response
 
 
@@ -72,8 +99,31 @@ def current_actor() -> Actor | None:
     )
 
 
+def allowed_guild_ids() -> frozenset[int]:
+    """The guilds the signed-in actor may use, loaded once per request."""
+    return getattr(g, ALLOWED_GUILDS, frozenset())
+
+
+async def load_allowed_guild_ids() -> frozenset[int]:
+    actor = current_actor()
+    allowed = (
+        frozenset() if actor is None else await state.user_guild_ids(actor.id)
+    )
+    setattr(g, ALLOWED_GUILDS, allowed)
+    return allowed
+
+
+@bp.before_request
+async def scope_to_the_actors_guilds() -> None:
+    await load_allowed_guild_ids()
+
+
+def _resolved_guild_id() -> int | None:
+    return state.resolve_guild_id(current_guild_id(), allowed_guild_ids())
+
+
 def _live_guild_id() -> int | None:
-    guild_id = state.resolve_guild_id(current_guild_id())
+    guild_id = _resolved_guild_id()
     if guild_id is None or not state.session_exists(guild_id):
         return None
     return guild_id
@@ -92,20 +142,28 @@ def read_session() -> Any:
 @bp.get("/api/status")
 @validate_response(StatusSnapshot, 200)
 async def read_status() -> Any:
-    return await state.status_snapshot(current_guild_id())
+    return await state.status_snapshot(_resolved_guild_id())
 
 
 @bp.get("/api/guilds")
 @validate_response(GuildList, 200)
 async def read_guilds() -> Any:
-    return {"guilds": await state.list_guilds()}
+    allowed = allowed_guild_ids()
+    guilds = await state.list_guilds()
+    return {
+        "guilds": [
+            guild
+            for guild in guilds
+            if state.guild_visible(int(guild.id), allowed)
+        ]
+    }
 
 
 @bp.get("/api/guilds/<int:guild_id>/channels")
 @document_response(ErrorEnvelope, 404)
 @validate_response(ChannelList, 200)
 def read_channels(guild_id: int) -> Any:
-    if not state.guild_visible(guild_id):
+    if not state.guild_visible(guild_id, allowed_guild_ids()):
         return error_response("not_found", "Guild not found", 404)
     return {"channels": state.list_voice_channels(guild_id)}
 
@@ -116,7 +174,9 @@ def read_channels(guild_id: int) -> Any:
 @validate_response(StatusSnapshot, 200)
 async def connect_voice() -> Any:
     data = _parse(ConnectRequest, await request.get_json(silent=True))
-    if data.guild_id is None or not state.guild_visible(int(data.guild_id)):
+    if data.guild_id is None or not state.guild_visible(
+        int(data.guild_id), allowed_guild_ids()
+    ):
         return error_response("not_found", "Guild not found", 404)
     guild_id = int(data.guild_id)
     channel_ids = _channel_ids(guild_id)
@@ -142,9 +202,9 @@ async def save_selection() -> Any:
         session.pop("guild_id", None)
         if actor is not None:
             await state.leave(actor.id)
-        return await state.status_snapshot(None)
+        return await state.status_snapshot(_resolved_guild_id())
     guild_id = int(data.guild_id)
-    if not state.guild_visible(guild_id):
+    if not state.guild_visible(guild_id, allowed_guild_ids()):
         return error_response("not_found", "Guild not found", 404)
     channel_ids = _channel_ids(guild_id)
     if data.channel_id is not None and data.channel_id not in channel_ids:
@@ -158,8 +218,7 @@ async def save_selection() -> Any:
 @bp.post("/api/disconnect")
 @validate_response(StatusSnapshot, 200)
 async def disconnect_voice() -> Any:
-    guild_id = current_guild_id()
-    target = state.resolve_guild_id(guild_id)
+    target = _resolved_guild_id()
     if target is not None and (
         state.session_exists(target) or state.voice_active(target)
     ):
@@ -173,17 +232,24 @@ async def disconnect_voice() -> Any:
         await state.record_connection(
             current_actor(), target, channel_id, "disconnect"
         )
-    return await state.status_snapshot(guild_id)
+    return await state.status_snapshot(target)
 
 
 @bp.post("/api/search")
 @document_request(SearchRequest)
 @validate_response(SearchResults, 200)
 async def api_search() -> Any:
+    refusal = _rate_limit_response(SEARCH_BUCKETS)
+    if refusal is not None:
+        return refusal
     data = _parse(SearchRequest, await request.get_json(silent=True))
     if data.term is None:
         return {"results": []}
-    return {"results": await actions.search_tracks(data.term)}
+    try:
+        results = await actions.search_tracks(data.term)
+    except SourcePolicyError as exc:
+        return error_response("bad_request", str(exc), 400)
+    return {"results": results}
 
 
 def _no_live_session() -> Response:
@@ -199,7 +265,10 @@ async def _mutate_url(mutation: Any) -> Any:
     data = _parse(UrlRequest, await request.get_json(silent=True))
     if data.url is None:
         return error_response("not_found", "A URL is required", 404)
-    await mutation(guild, data.url)
+    try:
+        await mutation(guild, data.url)
+    except SourcePolicyError as exc:
+        return error_response("bad_request", str(exc), 400)
     return await state.status_snapshot(guild)
 
 
@@ -216,6 +285,9 @@ async def _transport(mutation: Any) -> Any:
 @document_response(ErrorEnvelope, 404)
 @validate_response(StatusSnapshot, 200)
 async def queue_track() -> Any:
+    refusal = _rate_limit_response(QUEUE_BUCKETS)
+    if refusal is not None:
+        return refusal
     return await _mutate_url(actions.add_track)
 
 
@@ -224,6 +296,9 @@ async def queue_track() -> Any:
 @document_response(ErrorEnvelope, 404)
 @validate_response(StatusSnapshot, 200)
 async def remove_queued_track() -> Any:
+    refusal = _rate_limit_response(QUEUE_BUCKETS)
+    if refusal is not None:
+        return refusal
     return await _mutate_url(actions.remove_track)
 
 
@@ -231,6 +306,9 @@ async def remove_queued_track() -> Any:
 @document_response(ErrorEnvelope, 404)
 @validate_response(StatusSnapshot, 200)
 async def clear_queued_tracks() -> Any:
+    refusal = _rate_limit_response(QUEUE_BUCKETS)
+    if refusal is not None:
+        return refusal
     guild = _live_guild_id()
     if guild is None:
         return _no_live_session()

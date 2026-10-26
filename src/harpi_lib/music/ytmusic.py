@@ -16,27 +16,14 @@ import yt_dlp
 from loguru import logger
 
 from src.config import Settings
-from src.harpi_lib.music import cookie_store
+from src.harpi_lib.music import cookie_store, source_policy
 from src.harpi_lib.music.nothing_found import NothingFoundError
-
-ytdl_format_options: dict[str, Any] = {
-    "format": "m4a/bestaudio/best",
-    "outtmpl": ".audios/%(extractor)s-%(id)s-%(title)s.%(ext)s",
-    "restrictfilenames": True,
-    "noplaylist": False,
-    "extract_flat": True,
-    "verbose": True,
-    "no_warnings": False,
-    "default_search": "auto_warning",
-    "socket_timeout": 15,
-    "retries": 1,
-    "fragment_retries": 1,
-    "extractor_retries": 1,
-}
+from src.harpi_lib.music.ytdl_options import (
+    PUBLIC_PLAYLIST_LIMIT,
+    build_ytdl_options,
+)
 
 _work_cookie = cookie_store.prepare_cookie_file()
-if _work_cookie is not None:
-    ytdl_format_options["cookiefile"] = str(_work_cookie)
 
 JS_RUNTIME_PRIORITY = ("deno", "node", "quickjs", "bun")
 
@@ -120,9 +107,6 @@ def js_runtimes_option(runtimes: dict[str, str]) -> dict[str, dict[str, Any]]:
 
 _detected_js_runtimes = detect_js_runtimes()
 if _detected_js_runtimes:
-    ytdl_format_options["js_runtimes"] = js_runtimes_option(
-        _detected_js_runtimes
-    )
     logger.info(
         "yt-dlp JS challenge runtimes: "
         + ", ".join(
@@ -136,6 +120,12 @@ else:
         "rejected as unplayable. Install deno, see "
         "https://github.com/yt-dlp/yt-dlp/wiki/EJS"
     )
+
+ytdl_format_options: dict[str, Any] = build_ytdl_options(
+    Settings.from_env(),
+    cookiefile=str(_work_cookie) if _work_cookie is not None else None,
+    js_runtimes=js_runtimes_option(_detected_js_runtimes),
+)
 
 YT_SEARCH_TIMEOUT = 30.0
 YT_EXTRACT_TIMEOUT = 25.0
@@ -239,6 +229,13 @@ def pick_thumbnail(video: dict[str, Any]) -> str:
     return candidates[len(candidates) // 2][1]
 
 
+def _playlist_entries(url: str, entries: list[Any]) -> list[Any]:
+    """Limit a playlist link to its first item in public mode."""
+    if source_policy.is_source_url(url) and Settings.from_env().public_mode:
+        return entries[:PUBLIC_PLAYLIST_LIMIT]
+    return entries
+
+
 class YTMusicData:
     """Data container for a YouTube music track's metadata."""
 
@@ -268,7 +265,9 @@ class YTMusicData:
             )
             items = [
                 cls(dict(cast(dict[str, Any], video)))
-                for video in cast(list, result.get("entries"))
+                for video in _playlist_entries(
+                    url, cast(list, result.get("entries"))
+                )
             ]
             return [
                 item

@@ -1103,6 +1103,75 @@ async def test_from_url_without_entries_returns_single_track(
     assert tracks[0].url == "https://www.youtube.com/watch?v=solo"
 
 
+async def test_from_url_limits_a_playlist_link_to_one_item_in_public_mode(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    entries = [
+        {
+            "title": f"track {index}",
+            "url": f"https://www.youtube.com/watch?v={index}",
+            "duration": 10,
+        }
+        for index in range(3)
+    ]
+    monkeypatch.setattr(ytmusic, "search", lambda arg: {"entries": entries})
+    monkeypatch.setenv("PANEL_PUBLIC_MODE", "1")
+
+    tracks = await YTMusicData.from_url(
+        "https://www.youtube.com/playlist?list=PL123"
+    )
+
+    assert [track.title for track in tracks] == ["track 0"]
+
+
+async def test_from_url_keeps_every_playlist_item_in_lan_mode(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    entries = [
+        {
+            "title": f"track {index}",
+            "url": f"https://www.youtube.com/watch?v={index}",
+            "duration": 10,
+        }
+        for index in range(3)
+    ]
+    monkeypatch.setattr(ytmusic, "search", lambda arg: {"entries": entries})
+    monkeypatch.delenv("PANEL_PUBLIC_MODE", raising=False)
+
+    tracks = await YTMusicData.from_url(
+        "https://www.youtube.com/playlist?list=PL123"
+    )
+
+    assert [track.title for track in tracks] == [
+        "track 0",
+        "track 1",
+        "track 2",
+    ]
+
+
+async def test_from_url_keeps_every_search_result_in_public_mode(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    entries = [
+        {
+            "title": f"track {index}",
+            "url": f"https://www.youtube.com/watch?v={index}",
+            "duration": 10,
+        }
+        for index in range(3)
+    ]
+    monkeypatch.setattr(ytmusic, "search", lambda arg: {"entries": entries})
+    monkeypatch.setenv("PANEL_PUBLIC_MODE", "1")
+
+    tracks = await YTMusicData.from_url("some song")
+
+    assert [track.title for track in tracks] == [
+        "track 0",
+        "track 1",
+        "track 2",
+    ]
+
+
 async def test_search_is_not_starved_by_track_extractions(
     monkeypatch: pytest.MonkeyPatch,
 ):

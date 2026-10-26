@@ -7,7 +7,10 @@ import json
 import os
 from typing import Any
 
+import pytest
+
 from pages import events
+from src.panel import rate_limit
 from src.panel.schemas import (
     Directory,
     Heartbeat,
@@ -60,7 +63,9 @@ def _wire(
 ) -> None:
     monkeypatch.setattr(events, "get_sampler", lambda guild_id: sampler)
     monkeypatch.setattr(
-        events.state, "resolve_guild_id", lambda guild_id: guild_id
+        events.state,
+        "resolve_guild_id",
+        lambda guild_id, allowed: guild_id,
     )
 
     async def fake_presence(guild_id: int | None, actor: Any) -> Presence:
@@ -73,7 +78,7 @@ def _wire(
 
 async def _open(monkeypatch, sampler: FakeSampler):
     _wire(monkeypatch, sampler)
-    stream = events._stream(None, None)
+    stream = events._stream(None, None, frozenset())
     assert await anext(stream) == ": connected\n\n"
     return stream
 
@@ -163,7 +168,7 @@ async def test_stream_emits_reload_when_shell_assets_move(monkeypatch):
     _wire(monkeypatch, sampler)
     monkeypatch.setattr(events, "_snapshot", lambda: next(snapshots))
 
-    stream = events._stream(None, None)
+    stream = events._stream(None, None, frozenset())
     assert await anext(stream) == ": connected\n\n"
     for _ in range(3):
         await anext(stream)
@@ -181,6 +186,42 @@ async def test_closing_the_stream_unsubscribes(monkeypatch):
     await stream.aclose()
 
     assert sampler.unsubscribed == [sampler.queue]
+
+
+async def test_closing_the_stream_frees_its_slot(monkeypatch):
+    sampler = FakeSampler()
+    _wire(monkeypatch, sampler)
+    slots = rate_limit.StreamSlots(per_user=1, per_guild=1)
+    slot = slots.acquire("555", 1)
+    assert slot is not None
+    stream = events._stream(1, None, frozenset({1}), slot)
+    assert await anext(stream) == ": connected\n\n"
+
+    await stream.aclose()
+
+    assert slots.acquire("555", 1) is not None
+
+
+async def test_a_failing_stream_frees_its_slot(monkeypatch):
+    sampler = FakeSampler()
+    _wire(monkeypatch, sampler)
+
+    async def explode(guild_id: int | None, actor: Any) -> Presence:
+        raise RuntimeError("presence exploded")
+
+    monkeypatch.setattr(events.state, "presence", explode)
+    slots = rate_limit.StreamSlots(per_user=1, per_guild=1)
+    slot = slots.acquire("555", 1)
+    assert slot is not None
+    stream = events._stream(1, None, frozenset({1}), slot)
+    assert await anext(stream) == ": connected\n\n"
+    for _ in range(2):
+        await anext(stream)
+
+    with pytest.raises(RuntimeError, match="presence exploded"):
+        await anext(stream)
+
+    assert slots.acquire("555", 1) is not None
 
 
 def test_snapshot_walks_directories(tmp_path):

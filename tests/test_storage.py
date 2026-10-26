@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import stat
+from pathlib import Path
+
 import pytest
 
 from src.storage.database import Database
@@ -7,6 +10,7 @@ from src.storage.registry import (
     PRESENCE_TTL_SECONDS,
     Actor,
     Place,
+    PurgedHistory,
     SqliteRegistry,
 )
 
@@ -41,7 +45,7 @@ async def test_open_creates_the_schema_and_applies_it_once(tmp_path):
         "SELECT COUNT(*) AS n FROM schema_migrations"
     )
     assert row is not None
-    assert row["n"] == 1
+    assert row["n"] == 3
 
     await database.close()
     reopened = Database(tmp_path / "harpi.db")
@@ -50,8 +54,21 @@ async def test_open_creates_the_schema_and_applies_it_once(tmp_path):
         "SELECT COUNT(*) AS n FROM schema_migrations"
     )
     assert row is not None
-    assert row["n"] == 1
+    assert row["n"] == 3
     await reopened.close()
+
+
+async def test_open_creates_the_user_guilds_table(tmp_path):
+    database, _ = await open_registry(tmp_path)
+
+    columns = await database.fetchall("PRAGMA table_info(user_guilds)")
+
+    assert [column["name"] for column in columns] == [
+        "user_id",
+        "guild_id",
+        "seen_at",
+    ]
+    await database.close()
 
 
 async def test_open_requires_an_open_connection(tmp_path):
@@ -207,3 +224,182 @@ async def test_a_second_registry_sees_the_persisted_viewer(tmp_path):
 
     assert [viewer.user_id for viewer in viewers] == ["555"]
     await second.close()
+
+
+async def test_record_user_guilds_keeps_the_allowed_set(tmp_path):
+    database, registry = await open_registry(tmp_path)
+
+    await registry.record_user_guilds(ALICE, ["7", "8"], now=NOW)
+
+    assert await registry.user_guild_ids("555") == frozenset({"7", "8"})
+    row = await database.fetchone(
+        "SELECT MIN(seen_at) AS seen_at FROM user_guilds"
+    )
+    assert row is not None
+    assert row["seen_at"] == NOW
+    await database.close()
+
+
+async def test_record_user_guilds_replaces_the_previous_set(tmp_path):
+    database, registry = await open_registry(tmp_path)
+
+    await registry.record_user_guilds(ALICE, ["7", "8"], now=NOW)
+    await registry.record_user_guilds(ALICE, ["8"], now=NOW + 1)
+
+    assert await registry.user_guild_ids("555") == frozenset({"8"})
+    await database.close()
+
+
+async def test_restrict_user_guilds_drops_the_guilds_leaving_the_allowlist(
+    tmp_path,
+):
+    database, registry = await open_registry(tmp_path)
+    await registry.record_user_guilds(ALICE, ["7", "8"], now=NOW)
+
+    removed = await registry.restrict_user_guilds(frozenset({"8"}))
+
+    assert removed == 1
+    assert await registry.user_guild_ids("555") == frozenset({"8"})
+    await database.close()
+
+
+async def test_restrict_user_guilds_with_an_empty_allowlist_drops_everything(
+    tmp_path,
+):
+    database, registry = await open_registry(tmp_path)
+    await registry.record_user_guilds(ALICE, ["7", "8"], now=NOW)
+
+    removed = await registry.restrict_user_guilds(frozenset())
+
+    assert removed == 2
+    assert await registry.user_guild_ids("555") == frozenset()
+    await database.close()
+
+
+async def test_a_second_registry_sees_the_persisted_guilds(tmp_path):
+    path = tmp_path / "harpi.db"
+    first = Database(path)
+    await first.open()
+    await SqliteRegistry(first).record_user_guilds(ALICE, ["7", "8"], now=NOW)
+    await first.close()
+
+    second = Database(path)
+    await second.open()
+    guilds = await SqliteRegistry(second).user_guild_ids("555")
+
+    assert guilds == frozenset({"7", "8"})
+    await second.close()
+
+
+async def test_open_adds_the_login_epoch_column(tmp_path):
+    database, _ = await open_registry(tmp_path)
+
+    columns = await database.fetchall("PRAGMA table_info(users)")
+    login_epoch = next(
+        column for column in columns if column["name"] == "login_epoch"
+    )
+
+    assert login_epoch["notnull"] == 1
+    assert login_epoch["dflt_value"] == "0"
+    await database.close()
+
+
+async def test_a_new_user_starts_at_login_epoch_zero(tmp_path):
+    database, registry = await open_registry(tmp_path)
+
+    await registry.sign_in(ALICE)
+
+    assert await registry.login_epoch("555") == 0
+    await database.close()
+
+
+async def test_login_epoch_is_unknown_for_a_user_without_a_row(tmp_path):
+    database, registry = await open_registry(tmp_path)
+
+    assert await registry.login_epoch("999") is None
+    await database.close()
+
+
+async def test_increment_login_epoch_bumps_the_stored_value(tmp_path):
+    database, registry = await open_registry(tmp_path)
+    await registry.sign_in(ALICE)
+
+    assert await registry.increment_login_epoch("555") == 1
+    assert await registry.increment_login_epoch("555") == 2
+    assert await registry.login_epoch("555") == 2
+    await database.close()
+
+
+async def test_increment_login_epoch_ignores_an_unknown_user(tmp_path):
+    database, registry = await open_registry(tmp_path)
+
+    assert await registry.increment_login_epoch("999") is None
+    await database.close()
+
+
+async def test_a_second_registry_sees_the_persisted_login_epoch(tmp_path):
+    path = tmp_path / "harpi.db"
+    first = Database(path)
+    await first.open()
+    first_registry = SqliteRegistry(first)
+    await first_registry.sign_in(ALICE)
+    await first_registry.increment_login_epoch("555")
+    await first.close()
+
+    second = Database(path)
+    await second.open()
+    epoch = await SqliteRegistry(second).login_epoch("555")
+
+    assert epoch == 1
+    await second.close()
+
+
+DAY = 24 * 60 * 60
+
+
+async def test_purge_history_deletes_only_rows_older_than_the_cutoff(
+    tmp_path,
+):
+    database, registry = await open_registry(tmp_path)
+    cutoff = NOW - 30 * DAY
+    await registry.select(ALICE, VOICE, now=cutoff - 1)
+    await registry.select(BOB, VOICE, now=cutoff + 1)
+    await registry.record_connection(ALICE, VOICE, "connect", now=cutoff - 1)
+    await registry.record_connection(BOB, VOICE, "connect", now=cutoff + 1)
+
+    purged = await registry.purge_history(before=cutoff)
+
+    assert purged == PurgedHistory(viewers=1, connection_events=1)
+    survivors = await registry.viewers("7", now=cutoff + 1)
+    assert [viewer.user_id for viewer in survivors] == ["556"]
+    last = await registry.last_connection("7")
+    assert last is not None
+    assert last.at == cutoff + 1
+    await database.close()
+
+
+async def test_purge_history_keeps_a_row_exactly_at_the_cutoff(tmp_path):
+    database, registry = await open_registry(tmp_path)
+    await registry.select(ALICE, VOICE, now=NOW)
+    await registry.record_connection(ALICE, VOICE, "connect", now=NOW)
+
+    purged = await registry.purge_history(before=NOW)
+
+    assert purged == PurgedHistory(viewers=0, connection_events=0)
+    assert len(await registry.viewers("7", now=NOW)) == 1
+    assert await registry.last_connection("7") is not None
+    await database.close()
+
+
+async def test_open_restricts_the_database_and_its_journal_files(tmp_path):
+    database, registry = await open_registry(tmp_path)
+    await registry.sign_in(ALICE)
+    database_file = Path(tmp_path / "harpi.db")
+
+    for path in (
+        database_file,
+        Path(f"{database_file}-wal"),
+        Path(f"{database_file}-shm"),
+    ):
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    await database.close()

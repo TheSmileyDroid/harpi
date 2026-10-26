@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import time
+from collections.abc import Collection, Iterable
+
 from discord import Guild
+from loguru import logger
 
 from src.bot_state import get_bot, run_on_bot_loop
 from src.harpi_lib.harpi_bot import HarpiBot
@@ -20,6 +24,7 @@ from src.storage.registry import (
     Actor,
     ConnectionAction,
     Place,
+    PurgedHistory,
 )
 
 
@@ -28,7 +33,10 @@ def bot_connected() -> bool:
     return bool(bot.is_ready() and not bot.is_closed())
 
 
-def guild_visible(guild_id: int) -> bool:
+def guild_visible(guild_id: int, allowed_guilds: Collection[int]) -> bool:
+    """Whether the actor may see and operate the guild."""
+    if guild_id not in allowed_guilds:
+        return False
     return get_bot().get_guild(guild_id) is not None
 
 
@@ -57,12 +65,16 @@ def voice_active(guild_id: int) -> bool:
     return guild is not None and _occupied_channel_id(guild) is not None
 
 
-def resolve_guild_id(guild_id: int | None) -> int | None:
+def resolve_guild_id(
+    guild_id: int | None, allowed_guilds: Collection[int]
+) -> int | None:
     """The guild a snapshot should describe: the selection, else the voice one."""
-    if guild_id is not None and guild_visible(guild_id):
-        return guild_id
+    if guild_id is not None:
+        return guild_id if guild_visible(guild_id, allowed_guilds) else None
     active = active_voice()
-    return active[0] if active is not None else None
+    if active is None or not guild_visible(active[0], allowed_guilds):
+        return None
+    return active[0]
 
 
 async def _collect_guilds(bot: HarpiBot) -> list[Guild]:
@@ -98,11 +110,10 @@ def directory_snapshot(guild_id: int | None) -> Directory:
     Built from the bot's cached guild objects, so no Discord call happens.
     """
     bot = get_bot()
-    resolved = resolve_guild_id(guild_id)
     return Directory(
-        guild_id=serialization.optional_snowflake(resolved),
+        guild_id=serialization.optional_snowflake(guild_id),
         guilds=[serialization.guild_data(guild) for guild in bot.guilds],
-        channels=([] if resolved is None else list_voice_channels(resolved)),
+        channels=([] if guild_id is None else list_voice_channels(guild_id)),
     )
 
 
@@ -130,6 +141,46 @@ async def sign_in(actor: Actor) -> None:
     registry = get_registry()
     if registry is not None:
         await registry.sign_in(actor)
+
+
+async def record_user_guilds(actor: Actor, guild_ids: Iterable[int]) -> None:
+    registry = get_registry()
+    if registry is not None:
+        await registry.record_user_guilds(
+            actor, [str(guild_id) for guild_id in guild_ids]
+        )
+
+
+async def user_guild_ids(user_id: str) -> frozenset[int]:
+    registry = get_registry()
+    if registry is None:
+        return frozenset()
+    return frozenset(
+        int(guild_id) for guild_id in await registry.user_guild_ids(user_id)
+    )
+
+
+async def restrict_user_guilds(allowed: frozenset[int]) -> None:
+    registry = get_registry()
+    if registry is None:
+        return
+    await registry.restrict_user_guilds(
+        frozenset(str(guild_id) for guild_id in allowed)
+    )
+
+
+async def login_epoch(user_id: str) -> int | None:
+    registry = get_registry()
+    if registry is None:
+        return None
+    return await registry.login_epoch(user_id)
+
+
+async def increment_login_epoch(user_id: str) -> int | None:
+    registry = get_registry()
+    if registry is None:
+        return None
+    return await registry.increment_login_epoch(user_id)
 
 
 async def select(
@@ -171,16 +222,15 @@ async def presence(guild_id: int | None, actor: Actor | None) -> Presence:
             viewers=[],
             last_connection=None,
         )
-    resolved = resolve_guild_id(guild_id)
-    if resolved is None:
+    if guild_id is None:
         return Presence(guild_id=None, viewers=[], last_connection=None)
     if actor is not None:
-        place = place_of(resolved, None)
+        place = place_of(guild_id, None)
         if place is not None:
             await registry.touch(actor, place)
-    viewers = await registry.viewers(str(resolved))
-    last = await registry.last_connection(str(resolved))
-    return serialization.presence_data(resolved, viewers, last)
+    viewers = await registry.viewers(str(guild_id))
+    last = await registry.last_connection(str(guild_id))
+    return serialization.presence_data(guild_id, viewers, last)
 
 
 async def guild_status(guild_id: int | None) -> PlaybackStatus | None:
@@ -196,8 +246,7 @@ async def guild_status(guild_id: int | None) -> PlaybackStatus | None:
 
 
 async def status_snapshot(guild_id: int | None) -> StatusSnapshot:
-    resolved = resolve_guild_id(guild_id)
-    playback = await guild_status(resolved)
+    playback = await guild_status(guild_id)
 
     if playback is not None:
         connected = playback.connected
@@ -208,13 +257,39 @@ async def status_snapshot(guild_id: int | None) -> StatusSnapshot:
 
     if not connected:
         active = active_voice()
-        if active is not None and active[0] == resolved:
+        if active is not None and active[0] == guild_id:
             connected = True
             channel_id = serialization.optional_snowflake(active[1])
 
     return StatusSnapshot(
         bot=BotStatus(online=bot_connected()),
-        guild_id=serialization.optional_snowflake(resolved),
+        guild_id=serialization.optional_snowflake(guild_id),
         connection=Connection(connected=connected, channel_id=channel_id),
         playback=playback,
     )
+
+
+SECONDS_PER_DAY = 24 * 60 * 60
+
+
+def retention_cutoff(retention_days: int, *, now: int | None = None) -> int:
+    """The oldest instant a purge keeps; anything before it is deleted."""
+    moment = int(time.time()) if now is None else now
+    return moment - retention_days * SECONDS_PER_DAY
+
+
+async def purge_history(
+    retention_days: int, *, now: int | None = None
+) -> PurgedHistory | None:
+    registry = get_registry()
+    if registry is None:
+        return None
+    purged = await registry.purge_history(
+        before=retention_cutoff(retention_days, now=now)
+    )
+    logger.info(
+        f"History retention removed {purged.viewers} viewers and "
+        f"{purged.connection_events} connection events older than "
+        f"{retention_days} days"
+    )
+    return purged

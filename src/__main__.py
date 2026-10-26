@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import argparse
-import sys
 
 import uvicorn
 from dotenv import load_dotenv
 from loguru import logger
 
 from src.config import Settings
+from src.logging_setup import configure_logging
 
 
 def parse_args(settings: Settings) -> argparse.Namespace:
@@ -33,9 +33,7 @@ def parse_args(settings: Settings) -> argparse.Namespace:
 
 
 def setup_logging() -> None:
-    logger.remove()
-    logger.add(sys.stdout, level="INFO")
-    logger.add("spam.log", level="DEBUG")
+    configure_logging(Settings.from_env())
 
 
 def main() -> None:

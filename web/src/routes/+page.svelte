@@ -12,7 +12,7 @@
   const AUTH_MESSAGES: Record<string, string> = {
     unconfigured: "Discord sign-in is not configured on this server",
     cancelled: "Discord sign-in was cancelled",
-    denied: "That Discord account shares no server with Harpi",
+    denied: "That Discord account is not in an allowed server",
     unavailable: "Harpi could not verify your servers right now",
     failed: "Discord sign-in failed",
   };

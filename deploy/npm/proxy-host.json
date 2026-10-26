@@ -1,0 +1,22 @@
+{
+  "domain_names": ["harpi.smileydroid.com.br"],
+  "forward_scheme": "http",
+  "forward_host": "harpi-backend",
+  "forward_port": 8000,
+  "access_list_id": 0,
+  "certificate_id": "new",
+  "ssl_forced": true,
+  "caching_enabled": false,
+  "block_exploits": true,
+  "advanced_config": "{{ADVANCED_CONFIG}}",
+  "meta": {
+    "letsencrypt_agree": true,
+    "dns_challenge": false
+  },
+  "allow_websocket_upgrade": true,
+  "http2_support": true,
+  "hsts_enabled": true,
+  "hsts_subdomains": false,
+  "locations": [],
+  "enabled": true
+}

@@ -29,6 +29,7 @@ class Database:
         await connection.execute("PRAGMA busy_timeout=5000")
         self._connection = connection
         await self._migrate()
+        self._restrict_permissions()
 
     async def close(self) -> None:
         connection = self._connection
@@ -40,6 +41,14 @@ class Database:
         connection = self._require()
         await connection.execute(sql, params)
         await connection.commit()
+
+    async def execute_rowcount(
+        self, sql: str, params: Sequence[Any] = ()
+    ) -> int:
+        connection = self._require()
+        cursor = await connection.execute(sql, params)
+        await connection.commit()
+        return cursor.rowcount
 
     async def fetchall(
         self, sql: str, params: Sequence[Any] = ()
@@ -81,3 +90,9 @@ class Database:
         if self._connection is None:
             raise RuntimeError("Database is not open")
         return self._connection
+
+    def _restrict_permissions(self) -> None:
+        for suffix in ("", "-wal", "-shm"):
+            path = Path(f"{self._path}{suffix}")
+            if path.exists():
+                path.chmod(0o600)

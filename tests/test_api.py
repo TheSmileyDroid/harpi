@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import socket
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Iterable
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from types import SimpleNamespace
@@ -20,14 +20,18 @@ import httpx
 import pytest
 import uvicorn
 
+from app import MAX_REQUEST_BODY_BYTES
 from app import app as quart_app
+from app import configure_panel_session
 from src import bot_state as deps
+from src.config import Settings
 from src.harpi_lib.audio.session import LayerInfo, LoopMode
 from src.harpi_lib.harpi_bot import HarpiBot
+from src.harpi_lib.music import source_policy
 from src.harpi_lib.music.ytmusic import YTMusicData
-from src.storage import clear_registry, init_registry
-from src.storage.database import Database
-from src.storage.registry import SqliteRegistry
+from src.panel import login, rate_limit, state
+from src.storage import clear_registry
+from src.storage.registry import Actor
 from tests.fakes import (
     GUILD_A,
     GUILD_B,
@@ -42,6 +46,15 @@ from tests.fakes import (
 SECRET = "test-secret"
 CHANNEL_ID = 42
 SNOWFLAKE = 734174030701264912
+PUBLIC_ADDRESS = "142.251.152.4"
+
+
+def _resolves_public(host: str) -> tuple[str, ...]:
+    return (PUBLIC_ADDRESS,)
+
+
+def _no_redirect(url: str) -> str | None:
+    return None
 
 
 class ApiBot(FakeBot):
@@ -144,32 +157,55 @@ def bot() -> ApiBot:
 
 
 @pytest.fixture
-def client(bot: ApiBot, monkeypatch: pytest.MonkeyPatch):
+async def client(bot: ApiBot, storage, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("SECRET_KEY", SECRET)
     monkeypatch.setenv("DISCORD_TOKEN", "test")
-    quart_app.secret_key = SECRET
+    monkeypatch.delenv("PANEL_INSECURE_COOKIES", raising=False)
+    monkeypatch.delenv("PANEL_PUBLIC_MODE", raising=False)
+    monkeypatch.setattr(
+        source_policy, "resolve_host_addresses", _resolves_public
+    )
+    monkeypatch.setattr(source_policy, "fetch_redirect_location", _no_redirect)
+    monkeypatch.setattr(
+        "pages.api.SEARCH_BUCKETS",
+        rate_limit.UserTokenBuckets(rate_limit.SEARCHES_PER_MINUTE),
+    )
+    monkeypatch.setattr(
+        "pages.api.QUEUE_BUCKETS",
+        rate_limit.UserTokenBuckets(rate_limit.QUEUE_ACTIONS_PER_MINUTE),
+    )
+    monkeypatch.setattr("pages.events.STREAM_SLOTS", rate_limit.StreamSlots())
+    configure_panel_session(Settings.from_env())
     quart_app.config["TESTING"] = True
     deps.init_bot(cast(HarpiBot, bot))
+    await storage.sign_in(Actor(id="555", username="panel-user"))
     yield quart_app.test_client()
     deps._bot_ref = None
 
 
-@pytest.fixture
-async def storage(tmp_path):
-    database = Database(tmp_path / "panel.db")
-    await database.open()
-    registry = SqliteRegistry(database)
-    init_registry(registry)
-    yield registry
-    clear_registry()
-    await database.close()
-
-
-async def _login(client):
+async def _login(
+    client, guild_ids: Iterable[int] | None = None, user_id: str = "555"
+):
     async with client.session_transaction() as stored:
         stored["authenticated"] = True
-        stored["user_id"] = "555"
+        stored["user_id"] = user_id
         stored["username"] = "panel-user"
+        stored[login.ISSUED_AT_KEY] = login.now()
+        stored[login.LOGIN_EPOCH_KEY] = 0
+    allowed = (
+        frozenset(guild.id for guild in deps.get_bot().guilds)
+        if guild_ids is None
+        else frozenset(guild_ids)
+    )
+    await state.record_user_guilds(
+        Actor(id=user_id, username="panel-user"), allowed
+    )
+
+
+async def _second_actor(guild_ids: Iterable[int]):
+    other = quart_app.test_client()
+    await _login(other, guild_ids, user_id="777")
+    return other
 
 
 async def _refresh_current_music(bot: ApiBot, title: str) -> None:
@@ -222,6 +258,17 @@ async def _read_presence_frame(http: httpx.AsyncClient) -> dict[str, Any]:
         while True:
             line = await anext(lines)
             if line == "event: presence":
+                data = await anext(lines)
+                return json.loads(data.removeprefix("data: "))
+
+
+async def _read_directory_frame(http: httpx.AsyncClient) -> dict[str, Any]:
+    async with http.stream("GET", "/api/events") as response:
+        assert response.status_code == 200
+        lines = response.aiter_lines()
+        while True:
+            line = await anext(lines)
+            if line == "event: directory":
                 data = await anext(lines)
                 return json.loads(data.removeprefix("data: "))
 
@@ -280,6 +327,68 @@ async def test_session_check_reports_a_valid_session(client):
 
     assert response.status_code == 200
     assert json.loads(await response.get_data()) == {"authenticated": True}
+
+
+async def test_session_check_rejects_a_login_older_than_seven_days(client):
+    await _login(client)
+    async with client.session_transaction() as stored:
+        stored[login.ISSUED_AT_KEY] = (
+            login.now() - login.SESSION_LIFETIME_SECONDS - 1
+        )
+
+    response = await client.get("/api/session")
+
+    assert response.status_code == 401
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "unauthorized"
+
+
+async def test_session_check_rejects_a_stale_login_epoch(client, storage):
+    await _login(client)
+    await storage.increment_login_epoch("555")
+
+    response = await client.get("/api/session")
+
+    assert response.status_code == 401
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "unauthorized"
+
+
+async def test_session_check_rejects_a_login_without_issued_at(client):
+    async with client.session_transaction() as stored:
+        stored["authenticated"] = True
+        stored["user_id"] = "555"
+        stored["username"] = "panel-user"
+        stored[login.LOGIN_EPOCH_KEY] = 0
+
+    response = await client.get("/api/session")
+
+    assert response.status_code == 401
+
+
+async def test_session_check_fails_closed_without_the_registry(client):
+    await _login(client)
+    clear_registry()
+
+    response = await client.get("/api/session")
+
+    assert response.status_code == 401
+
+
+async def test_a_forged_host_header_is_rejected(client):
+    await _login(client)
+
+    response = await client.get(
+        "/api/session", headers={"Host": "evil.example"}
+    )
+    missing = await client.get(
+        "/api/definitely-missing", headers={"Host": "evil.example"}
+    )
+
+    assert response.status_code == 400
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "bad_request"
+    assert missing.status_code == 400
 
 
 async def test_unknown_api_path_is_rejected_before_routing(client):
@@ -478,22 +587,21 @@ async def test_guild_list_reports_only_shared_guilds(client):
     }
 
 
-async def test_guild_list_tracks_bot_membership(client, bot: ApiBot):
-    await _login(client)
+async def test_guild_list_hides_a_guild_the_actor_does_not_belong_to(
+    client, bot: ApiBot
+):
+    await _login(client, [GUILD_A])
     bot._guilds[GUILD_B] = FakeGuild(GUILD_B, "Beta Guild")
 
-    added = await client.get("/api/guilds")
+    listed = await client.get("/api/guilds")
     ids = [
-        guild["id"] for guild in json.loads(await added.get_data())["guilds"]
+        guild["id"] for guild in json.loads(await listed.get_data())["guilds"]
     ]
-    assert ids == [str(GUILD_A), str(GUILD_B)]
+    assert ids == [str(GUILD_A)]
 
     bot._guilds.pop(GUILD_A)
-    removed = await client.get("/api/guilds")
-    ids = [
-        guild["id"] for guild in json.loads(await removed.get_data())["guilds"]
-    ]
-    assert ids == [str(GUILD_B)]
+    gone = await client.get("/api/guilds")
+    assert json.loads(await gone.get_data())["guilds"] == []
 
 
 async def test_channel_list_reports_the_guilds_voice_channels(client):
@@ -518,8 +626,8 @@ async def test_channel_list_rejects_an_unshared_guild(client):
 
 
 async def test_snowflake_ids_stay_exact_over_the_json_api(client, bot: ApiBot):
-    await _login(client)
     bot._guilds[SNOWFLAKE] = FakeGuild(SNOWFLAKE, "The Nosbor's Hand")
+    await _login(client)
 
     response = await client.get("/api/guilds")
     guilds = json.loads(await response.get_data())["guilds"]
@@ -852,6 +960,100 @@ async def test_queue_trims_a_padded_url(client, bot: ApiBot):
     assert ("play", "https://example.com/song") in session_obj.calls
 
 
+async def test_search_refuses_a_url_outside_the_public_policy(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    monkeypatch.setenv("PANEL_PUBLIC_MODE", "1")
+    patch_search(monkeypatch, [found_track()])
+
+    response = await client.post(
+        "/api/search", json={"term": "https://example.com/song"}
+    )
+
+    assert response.status_code == 400
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "bad_request"
+    assert "not a YouTube source" in body["error"]["message"]
+
+
+async def test_search_accepts_a_youtube_url_in_public_mode(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    monkeypatch.setenv("PANEL_PUBLIC_MODE", "1")
+    patch_search(monkeypatch, [found_track()])
+
+    response = await client.post(
+        "/api/search", json={"term": "https://youtu.be/dQw4w9WgXcQ"}
+    )
+
+    assert response.status_code == 200
+    body = json.loads(await response.get_data())
+    assert body["results"][0]["title"] == "Found Track"
+
+
+@pytest.mark.parametrize("path", ["/api/queue", "/api/layers"])
+async def test_url_mutations_refuse_a_metadata_address(
+    client, bot: ApiBot, path: str
+):
+    await _login(client)
+    await _select_guild(client)
+
+    response = await client.post(
+        path, json={"url": "http://169.254.169.254/latest/meta-data/"}
+    )
+
+    assert response.status_code == 400
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "bad_request"
+    assert "cloud metadata address" in body["error"]["message"]
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert session_obj.calls == []
+
+
+async def test_queue_refuses_a_non_youtube_url_in_public_mode(
+    client, bot: ApiBot, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    await _select_guild(client)
+    monkeypatch.setenv("PANEL_PUBLIC_MODE", "1")
+
+    response = await client.post(
+        "/api/queue", json={"url": "https://example.com/song"}
+    )
+
+    assert response.status_code == 400
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "bad_request"
+    assert "not a YouTube source" in body["error"]["message"]
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert session_obj.calls == []
+
+
+async def test_queue_accepts_a_youtube_url_in_public_mode(
+    client, bot: ApiBot, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    await _select_guild(client)
+    monkeypatch.setenv("PANEL_PUBLIC_MODE", "1")
+
+    response = await client.post(
+        "/api/queue",
+        json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+    )
+
+    assert response.status_code == 200
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    assert (
+        "play",
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    ) in session_obj.calls
+
+
 async def test_queue_remove_dispatches_and_answers_with_the_same_truth_as_status(
     client, bot: ApiBot
 ):
@@ -975,17 +1177,84 @@ async def test_search_maps_a_failure_to_the_error_envelope(
     assert body["error"]["code"] == "internal_error"
 
 
+async def test_thirty_searches_in_a_minute_hit_the_bucket(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    patch_search(monkeypatch, [found_track()])
+
+    responses = [
+        await client.post("/api/search", json={"term": "found"})
+        for _ in range(30)
+    ]
+    statuses = [response.status_code for response in responses]
+
+    assert statuses.count(200) == rate_limit.SEARCHES_PER_MINUTE
+    assert statuses.count(429) == 30 - rate_limit.SEARCHES_PER_MINUTE
+    refused = responses[-1]
+    assert int(refused.headers["Retry-After"]) >= 1
+    body = json.loads(await refused.get_data())
+    assert body["error"]["code"] == "too_many_requests"
+
+
+async def test_queue_beyond_the_bucket_answers_429_with_retry_after(client):
+    await _login(client)
+    await _select_guild(client)
+    for _ in range(rate_limit.QUEUE_ACTIONS_PER_MINUTE):
+        allowed = await client.post("/api/queue/clear")
+        assert allowed.status_code == 200
+
+    response = await client.post("/api/queue/clear")
+
+    assert response.status_code == 429
+    assert int(response.headers["Retry-After"]) >= 1
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "too_many_requests"
+
+
+async def test_a_body_above_the_limit_answers_413(client):
+    await _login(client)
+
+    response = await client.post(
+        "/api/search",
+        data=b"x" * (MAX_REQUEST_BODY_BYTES * 16),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 413
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "payload_too_large"
+
+
+async def test_sse_rejects_a_stream_beyond_the_user_cap(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    slots = rate_limit.StreamSlots(per_user=1)
+    monkeypatch.setattr("pages.events.STREAM_SLOTS", slots)
+    assert slots.acquire("555", None) is not None
+
+    response = await client.get("/api/events")
+
+    assert response.status_code == 429
+    assert int(response.headers["Retry-After"]) >= 1
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "too_many_requests"
+
+
 async def test_sse_stream_reports_and_resyncs_status(client, bot: ApiBot):
     await _login(client)
     async with client.session_transaction() as stored:
         stored["guild_id"] = str(GUILD_A)
-    cookie = next(c for c in client.cookie_jar if c.name == "session").value
+    cookie = next(
+        c for c in client.cookie_jar if c.name == login.STRICT_COOKIE_NAME
+    ).value
 
     async with (
         _running_app(quart_app) as port,
         httpx.AsyncClient(
             base_url=f"http://127.0.0.1:{port}",
-            cookies={"session": cookie},
+            cookies={login.STRICT_COOKIE_NAME: cookie},
         ) as http,
     ):
         first = await _read_status_frame(http)
@@ -1011,13 +1280,15 @@ async def test_sse_stream_emits_the_roster(client, bot: ApiBot, storage):
         "/api/connect",
         json={"guild_id": str(GUILD_A), "channel_id": str(GUILD_A * 10)},
     )
-    cookie = next(c for c in client.cookie_jar if c.name == "session").value
+    cookie = next(
+        c for c in client.cookie_jar if c.name == login.STRICT_COOKIE_NAME
+    ).value
 
     async with (
         _running_app(quart_app) as port,
         httpx.AsyncClient(
             base_url=f"http://127.0.0.1:{port}",
-            cookies={"session": cookie},
+            cookies={login.STRICT_COOKIE_NAME: cookie},
         ) as http,
     ):
         presence = await _read_presence_frame(http)
@@ -1347,3 +1618,220 @@ async def test_layer_paths_reject_anonymous_calls(client, path: str):
     assert response.status_code == 401
     body = json.loads(await response.get_data())
     assert body["error"]["code"] == "unauthorized"
+
+
+CROSS_TENANT_MUTATIONS: list[tuple[str, dict[str, Any]]] = [
+    ("/api/queue", {"url": "https://example.com/song"}),
+    ("/api/queue/remove", {"url": "https://example.com/song"}),
+    ("/api/queue/clear", {}),
+    ("/api/layers", {"url": "https://example.com/layer"}),
+    ("/api/layers/remove", {"layer_id": "layer-1"}),
+    ("/api/layers/volume", {"layer_id": "layer-1", "volume": 0.5}),
+    *[(path, payload) for path, payload, _ in TRANSPORT_CALLS],
+]
+
+
+def _share_guild_b(bot: ApiBot) -> None:
+    bot._guilds[GUILD_B] = FakeGuild(GUILD_B, "Beta Guild")
+
+
+async def _select(client, guild_id: int) -> None:
+    async with client.session_transaction() as stored:
+        stored["guild_id"] = str(guild_id)
+
+
+async def test_each_actor_lists_only_their_own_guild(client, bot: ApiBot):
+    _share_guild_b(bot)
+    await _login(client, [GUILD_A])
+    other = await _second_actor([GUILD_B])
+
+    mine = json.loads(await (await client.get("/api/guilds")).get_data())
+    theirs = json.loads(await (await other.get("/api/guilds")).get_data())
+
+    assert mine == {"guilds": [{"id": str(GUILD_A), "name": "Alpha Guild"}]}
+    assert theirs == {"guilds": [{"id": str(GUILD_B), "name": "Beta Guild"}]}
+
+
+async def test_channel_list_denies_another_actors_guild(client, bot: ApiBot):
+    _share_guild_b(bot)
+    await _login(client, [GUILD_A])
+
+    denied = await client.get(f"/api/guilds/{GUILD_B}/channels")
+    allowed = await client.get(f"/api/guilds/{GUILD_A}/channels")
+
+    assert denied.status_code == 404
+    assert json.loads(await denied.get_data())["error"]["code"] == "not_found"
+    assert allowed.status_code == 200
+    assert json.loads(await allowed.get_data()) == {
+        "channels": [{"id": str(GUILD_A * 10), "name": f"Channel {GUILD_A}"}]
+    }
+
+
+async def test_connect_denies_another_actors_guild(client, bot: ApiBot):
+    _share_guild_b(bot)
+    await _login(client, [GUILD_A])
+
+    response = await client.post(
+        "/api/connect",
+        json={"guild_id": str(GUILD_B), "channel_id": str(GUILD_B * 10)},
+    )
+
+    assert response.status_code == 404
+    assert (
+        json.loads(await response.get_data())["error"]["code"] == "not_found"
+    )
+    assert bot.sessions.connect_calls == []
+    async with client.session_transaction() as stored:
+        assert "guild_id" not in stored
+
+
+async def test_selection_denies_another_actors_guild(client, bot: ApiBot):
+    _share_guild_b(bot)
+    await _login(client, [GUILD_A])
+
+    response = await client.post(
+        "/api/selection", json={"guild_id": str(GUILD_B)}
+    )
+
+    assert response.status_code == 404
+    assert (
+        json.loads(await response.get_data())["error"]["code"] == "not_found"
+    )
+    async with client.session_transaction() as stored:
+        assert "guild_id" not in stored
+
+
+async def test_status_hides_another_actors_guild(client, bot: ApiBot):
+    _share_guild_b(bot)
+    await _login(client, [GUILD_A])
+    await _select(client, GUILD_B)
+
+    response = await client.get("/api/status")
+
+    body = json.loads(await response.get_data())
+    assert body["guild_id"] is None
+    assert body["connection"] == {"connected": False, "channel_id": None}
+    assert body["playback"] is None
+
+
+async def test_status_does_not_fall_back_to_an_unauthorized_voice_guild(
+    client, bot: ApiBot
+):
+    _share_guild_b(bot)
+    bot._guilds[GUILD_B].voice_client = SimpleNamespace(
+        channel=SimpleNamespace(id=CHANNEL_ID),
+        is_connected=lambda: True,
+    )
+    await _login(client, [GUILD_A])
+
+    response = await client.get("/api/status")
+
+    assert json.loads(await response.get_data())["guild_id"] is None
+
+
+@pytest.mark.parametrize(("path", "payload"), CROSS_TENANT_MUTATIONS)
+async def test_mutations_deny_another_actors_guild(
+    client, bot: ApiBot, path: str, payload: dict[str, Any]
+):
+    _share_guild_b(bot)
+    await _login(client, [GUILD_A])
+    await _select(client, GUILD_B)
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+    session_obj.calls.clear()
+
+    response = await client.post(path, json=payload)
+
+    assert response.status_code == 404
+    assert (
+        json.loads(await response.get_data())["error"]["code"] == "not_found"
+    )
+    assert session_obj.calls == []
+
+
+async def test_disconnect_denies_another_actors_guild(client, bot: ApiBot):
+    _share_guild_b(bot)
+    bot._guilds[GUILD_B].voice_client = SimpleNamespace(
+        channel=SimpleNamespace(id=CHANNEL_ID),
+        is_connected=lambda: True,
+    )
+    await _login(client, [GUILD_A])
+    await _select(client, GUILD_B)
+
+    response = await client.post("/api/disconnect")
+
+    assert response.status_code == 200
+    assert bot.sessions.disconnect_calls == []
+    assert json.loads(await response.get_data())["guild_id"] is None
+
+
+async def test_each_actor_controls_only_their_own_guild(client, bot: ApiBot):
+    _share_guild_b(bot)
+    await _login(client, [GUILD_A])
+    other = await _second_actor([GUILD_B])
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+
+    await client.post(
+        "/api/selection",
+        json={"guild_id": str(GUILD_A), "channel_id": str(GUILD_A * 10)},
+    )
+    await other.post(
+        "/api/selection",
+        json={"guild_id": str(GUILD_B), "channel_id": str(GUILD_B * 10)},
+    )
+    session_obj.calls.clear()
+
+    mine = await client.post(
+        "/api/queue", json={"url": "https://example.com/mine"}
+    )
+    theirs = await other.post(
+        "/api/queue", json={"url": "https://example.com/theirs"}
+    )
+
+    assert json.loads(await mine.get_data())["guild_id"] == str(GUILD_A)
+    assert json.loads(await theirs.get_data())["guild_id"] == str(GUILD_B)
+    assert ("play", "https://example.com/mine") in session_obj.calls
+    assert ("play", "https://example.com/theirs") in session_obj.calls
+
+
+async def test_sse_stream_hides_another_actors_guild(client, bot: ApiBot):
+    _share_guild_b(bot)
+    await _login(client, [GUILD_A])
+    await _select(client, GUILD_B)
+    cookie = next(
+        c for c in client.cookie_jar if c.name == login.STRICT_COOKIE_NAME
+    ).value
+
+    async with (
+        _running_app(quart_app) as port,
+        httpx.AsyncClient(
+            base_url=f"http://127.0.0.1:{port}",
+            cookies={login.STRICT_COOKIE_NAME: cookie},
+        ) as http,
+    ):
+        first = await _read_status_frame(http)
+
+    assert first["guild_id"] is None
+    assert first["connection"] == {"connected": False, "channel_id": None}
+    assert first["playback"] is None
+
+
+async def test_sse_directory_lists_only_the_actors_guilds(client, bot: ApiBot):
+    _share_guild_b(bot)
+    await _login(client, [GUILD_A])
+    await _select(client, GUILD_A)
+    cookie = next(
+        c for c in client.cookie_jar if c.name == login.STRICT_COOKIE_NAME
+    ).value
+
+    async with (
+        _running_app(quart_app) as port,
+        httpx.AsyncClient(
+            base_url=f"http://127.0.0.1:{port}",
+            cookies={login.STRICT_COOKIE_NAME: cookie},
+        ) as http,
+    ):
+        directory = await _read_directory_frame(http)
+
+    assert [guild["id"] for guild in directory["guilds"]] == [str(GUILD_A)]
