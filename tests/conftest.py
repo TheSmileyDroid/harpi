@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import tempfile
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, ClassVar
 
@@ -15,6 +18,13 @@ from tests.network_harness import print_version_banner
 GUILD_ID = 1
 CHANNEL_ID = 10
 BOT_USER_ID = 1234
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    os.environ.setdefault(
+        "HARPI_LOG_PATH",
+        str(Path(tempfile.gettempdir()) / "harpi-tests" / "harpi.log"),
+    )
 
 
 @pytest.fixture
