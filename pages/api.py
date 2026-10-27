@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from quart import Blueprint, Response, g, jsonify, request, session
+from quart import (
+    Blueprint,
+    Response,
+    g,
+    has_request_context,
+    jsonify,
+    request,
+    session,
+)
 from quart_schema import document_request, document_response, validate_response
 
 from src.bot_state import bot_running
@@ -38,6 +46,8 @@ QUEUE_BUCKETS = rate_limit.UserTokenBuckets(
 
 
 def poke_sampler_after_mutation(response: Response) -> Response:
+    if not has_request_context():
+        return response
     if request.method != "POST" or not bot_running():
         return response
     guild_id = current_guild_id()

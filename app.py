@@ -7,7 +7,15 @@ import re
 from pathlib import Path
 
 from loguru import logger
-from quart import Quart, Response, g, request, send_from_directory, session
+from quart import (
+    Quart,
+    Response,
+    g,
+    has_request_context,
+    request,
+    send_from_directory,
+    session,
+)
 from quart_schema import QuartSchema
 from werkzeug.exceptions import HTTPException
 from werkzeug.wsgi import host_is_trusted
@@ -152,6 +160,8 @@ def _is_api_path() -> bool:
 
 @app.before_request
 def guard_trusted_host():
+    if not has_request_context():
+        return None
     if host_is_trusted(request.host, app.config["TRUSTED_HOSTS"]):
         return None
     if _is_api_path():
@@ -161,6 +171,8 @@ def guard_trusted_host():
 
 @app.before_request
 def guard_documentation():
+    if not has_request_context():
+        return None
     if app.config["PUBLIC_MODE"] and request.path in DOCUMENTATION_PATHS:
         return Response("Not Found", status=404)
     return None
@@ -174,6 +186,8 @@ def send_security_headers(response: Response) -> Response:
 
 @app.after_request
 def log_security_event(response: Response) -> Response:
+    if not has_request_context():
+        return response
     event = event_for_request(
         request.method,
         request.path,
@@ -193,6 +207,8 @@ def log_security_event(response: Response) -> Response:
 
 @app.after_request
 def alert_security_status(response: Response) -> Response:
+    if not has_request_context():
+        return response
     kind = alert_for_status(response.status_code)
     if kind is not None:
         alerts.notify(
@@ -231,6 +247,8 @@ async def _login_is_current() -> bool:
 
 @app.before_request
 async def guard_api():
+    if not has_request_context():
+        return None
     if not _is_api_path():
         return None
     g.security_user_id = session.get("user_id")
@@ -243,6 +261,8 @@ async def guard_api():
 
 @app.errorhandler(HTTPException)
 def handle_http_error(error: HTTPException):
+    if not has_request_context():
+        return error.get_response()
     if not _is_api_path():
         return error.get_response()
     code = API_ERROR_CODES.get(error.code or 500, "error")
