@@ -34,6 +34,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY . /app
 COPY --from=frontend /web/build /app/web/build
+COPY --from=frontend /usr/local/bin/bun /usr/local/bin/bun
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen
 
