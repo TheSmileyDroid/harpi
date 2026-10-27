@@ -30,7 +30,7 @@ fail() {
 }
 
 header_value() {
-  printf '%s' "$HEADERS" | tr -d '\r' | grep -i "^$1:" | head -n 1 | cut -d: -f2- | sed 's/^ *//'
+  printf '%s' "$HEADERS" | tr -d '\r' | grep -i "^$1:" | head -n 1 | cut -d: -f2- | sed 's/^ *//' || true
 }
 
 check_certificate() {
