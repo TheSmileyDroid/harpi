@@ -9,7 +9,7 @@ enabled = true
 filter = npm-admin-auth
 action = npm-docker-user
 port = 81
-logpath = /home/opc/external/nginx/data/logs/admin_access.log
+logpath = /var/log/npm/admin_access.log
 maxretry = 5
 
 [harpi-auth]
@@ -17,7 +17,7 @@ enabled = true
 filter = harpi-auth
 action = npm-docker-user
 port = http,https
-logpath = /home/opc/external/nginx/data/logs/proxy-host-*_access.log
+logpath = /var/log/npm/proxy-host-*_access.log
 maxretry = 10
 
 [sshd]

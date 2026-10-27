@@ -3,8 +3,8 @@ set -euo pipefail
 
 DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 TARGET=/etc/fail2ban
-ADMIN_LOG=/home/opc/external/nginx/data/logs/admin_access.log
-PROXY_LOG_GLOB='/home/opc/external/nginx/data/logs/proxy-host-*_access.log'
+ADMIN_LOG=/var/log/npm/admin_access.log
+PROXY_LOG_GLOB='/var/log/npm/proxy-host-*_access.log'
 
 die() {
   printf 'fail2ban install: %s\n' "$1" >&2

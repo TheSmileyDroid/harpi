@@ -169,16 +169,27 @@ Expected: the public address does not answer, the Tailscale address answers, and
 
 ## 6. Install fail2ban
 
-NPM writes the admin access log to `/dev/null` in the image, so failed admin logins leave no trace. `deploy/npm/admin-production.conf` is the NPM 2.12.6 admin server block with `access_log /data/logs/admin_access.log standard;` and `server_tokens off;`. Mount it read-only in the NPM compose service:
+NPM writes the admin access log to `/dev/null` in the image, so failed admin logins leave no trace. `deploy/npm/admin-production.conf` is the NPM 2.12.6 admin server block with `access_log /data/logs/admin_access.log standard;` and `server_tokens off;`. Copy it into `/home/opc/external/nginx/` and mount it read-write in the NPM compose service:
 
 ```yaml
 services:
   app:
     volumes:
-      - ./admin-production.conf:/etc/nginx/conf.d/production.conf:ro
+      - ./admin-production.conf:/etc/nginx/conf.d/production.conf
 ```
 
-Copy it into `/home/opc/external/nginx/` and recreate NPM as in the previous step. The file is tied to NPM 2.12.6: after an image upgrade, diff it against `/etc/nginx/conf.d/production.conf` in the new image and re-apply the two changed lines.
+The mount must be writable. NPM's IPv6 prepare script edits every file in `conf.d`, and a `:ro` mount aborts the container start with `Read-only file system`. The file is tied to NPM 2.12.6: after an image upgrade, diff it against `/etc/nginx/conf.d/production.conf` in the new image and re-apply the two changed lines.
+
+The NPM logs live under `/home/opc`, and the fail2ban service cannot read that path in its unit context. Bind-mount the log directory to `/var/log/npm` and persist it:
+
+```sh
+sudo mkdir -p /var/log/npm
+sudo mount --bind /home/opc/external/nginx/data/logs /var/log/npm
+grep -q '/var/log/npm' /etc/fstab \
+  || echo '/home/opc/external/nginx/data/logs /var/log/npm none bind 0 0' | sudo tee -a /etc/fstab
+sudo semanage fcontext -a -t var_log_t '/home/opc/external/nginx/data/logs(/.*)?'
+sudo restorecon -R /home/opc/external/nginx/data/logs
+```
 
 Then install the filters, the action, and the jails:
 
@@ -190,8 +201,8 @@ The jail file enables three jails:
 
 | Jail | Filter | Log |
 | --- | --- | --- |
-| `npm-admin-auth` | failed `POST /api/tokens` with 401 or 403 | `/home/opc/external/nginx/data/logs/admin_access.log` |
-| `harpi-auth` | failed `/api/auth/` requests with 401 or 403 | `/home/opc/external/nginx/data/logs/proxy-host-*_access.log` |
+| `npm-admin-auth` | failed `POST /api/tokens` with 401 or 403 | `/var/log/npm/admin_access.log` |
+| `harpi-auth` | failed `/api/auth/` requests with 401 or 403 | `/var/log/npm/proxy-host-*_access.log` |
 | `sshd` | failed SSH logins | the distribution default |
 
 Both proxy jails ban through `npm-docker-user`, which inserts a `DROP` into `DOCKER-USER`. The stock `iptables-multiport` action writes to `INPUT`, which never sees traffic to a Docker-published port. A ban drops every forwarded packet from that address, not only port 81, and it writes `iptables` rules only; a peer that reaches the panel over IPv6 needs an `ip6tables` action.

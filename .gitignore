@@ -177,3 +177,6 @@ mutants/
 
 # Harpi panel storage
 data/
+# Local operator credentials
+npm.env
+.env.bak*
