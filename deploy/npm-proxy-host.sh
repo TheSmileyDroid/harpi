@@ -26,6 +26,7 @@ die() {
 render() {
   python3 - "$TEMPLATE" "$ADVANCED" "$NPM_URL" "$HOSTNAME_VALUE" "$UPSTREAM" "$1" "$2" <<'PY'
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -41,6 +42,10 @@ def body_for(certificate_value):
         text.replace(placeholder, json.dumps(Path(advanced_path).read_text()))
     )
     payload["certificate_id"] = certificate_value
+    if certificate_value == "new":
+        payload.setdefault("meta", {})["letsencrypt_email"] = (
+            os.environ.get("NPM_EMAIL") or os.environ.get("NPM_IDENTITY", "")
+        )
     if certificate_value == 0:
         payload["ssl_forced"] = False
         payload["http2_support"] = False

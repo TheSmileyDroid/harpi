@@ -90,22 +90,27 @@ The snippet hides `Server` with `more_clear_headers`, which needs the
 headers-more module that NPM bundles. If nginx refuses to start after the
 snippet, check that module before removing the line.
 
-The Advanced tab is server context, so the two `limit_req_zone` lines cannot live there. They belong to the custom http context, in `deploy/npm/harpi-rate-limits-http.conf`:
+The Advanced tab is server context, so the zones and the status map cannot live there. They belong to the custom http context, in `deploy/npm/harpi-rate-limits-http.conf`:
 
 ```nginx
 limit_req_zone $binary_remote_addr zone=harpi_auth:1m rate=10r/m;
 limit_req_zone $binary_remote_addr zone=harpi_api:1m rate=60r/m;
+
+map $status $harpi_retry_after {
+	429 "30";
+	default "";
+}
 ```
 
-Install it before the host, because nginx refuses to render a `limit_req` whose zone is missing:
+Install it as `http_top.conf`, not `http.conf`. NPM includes `proxy_host/*.conf` before `http.conf`, so a `map` or zone defined in `http.conf` is still unknown when the host config is parsed:
 
 ```sh
-install -m 644 deploy/npm/harpi-rate-limits-http.conf /home/opc/external/nginx/data/nginx/custom/http.conf
+install -m 644 deploy/npm/harpi-rate-limits-http.conf /home/opc/external/nginx/data/nginx/custom/http_top.conf
 docker exec nginx-app-1 nginx -t
 docker exec nginx-app-1 nginx -s reload
 ```
 
-Expected: `syntax is ok` and `test is successful`. A stock NPM ships an empty `http.conf`; if the file already has content, append the two zone lines instead of overwriting. Without them, `nginx -t` fails with `unknown limit_req zone "harpi_api"`.
+Expected: `syntax is ok` and `test is successful`. A stock NPM ships neither file; if `http_top.conf` already has content, append these lines instead of overwriting. Without them, `nginx -t` fails with `unknown "harpi_retry_after" variable` or `unknown limit_req zone "harpi_api"`.
 
 | Zone | Rate | Burst | Applied to |
 | --- | --- | --- | --- |
