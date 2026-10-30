@@ -131,6 +131,24 @@ def test_work_directory_defaults_under_data(monkeypatch: pytest.MonkeyPatch):
     assert Settings.from_env().work_dir == "data/work"
 
 
+def test_vault_path_defaults_to_unset(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("HARPI_VAULT_PATH", raising=False)
+
+    assert Settings.from_env().vault_path is None
+
+
+def test_vault_path_reads_the_environment(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("HARPI_VAULT_PATH", "/vault")
+
+    assert Settings.from_env().vault_path == "/vault"
+
+
+def test_blank_vault_path_is_unset(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("HARPI_VAULT_PATH", "")
+
+    assert Settings.from_env().vault_path is None
+
+
 def test_retention_days_read_the_environment(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("PANEL_RETENTION_DAYS", "7")
 

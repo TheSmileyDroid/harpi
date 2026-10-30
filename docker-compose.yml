@@ -10,13 +10,17 @@ services:
       - HARPI_DB_PATH=/app/data/harpi.db
       - HARPI_WORK_DIR=/work
       - HARPI_LOG_PATH=/work/logs/harpi.log
+      - HARPI_VAULT_PATH=/vault
       - PANEL_PUBLIC_MODE=1
     env_file: ".env"
     volumes:
       - ./data:/app/data
       - harpi-work:/work
       - ./cookies.txt:/app/cookies.txt:ro
+      - "${HARPI_VAULT_HOST_PATH:?set HARPI_VAULT_HOST_PATH}:/vault:ro"
+      - "${HARPI_VAULT_HOST_PATH:?set HARPI_VAULT_HOST_PATH}/Harpi:/vault/Harpi:rw"
     working_dir: /work
+    user: "1000:1000"
     restart: unless-stopped
     read_only: true
     tmpfs:
