@@ -354,6 +354,7 @@ Uma fila por arquivo, coalescendo por 300 ms. Escrita atômica com `.harpi-tmp-<
 - `*.sync-conflict-*` do Syncthing é ignorado e fica no disco para o narrador resolver no Obsidian. O app nunca escolhe a versão verdadeira.
 - Arquivo apagado: estado `ausente`, snapshot continua servindo leitura, `restaurar` regrava `last_text` com rev novo e backup. O app nunca restaura sozinho.
 - Rename é detectado pelo mesmo `harpi-id` e só atualiza `path`. Id editado à mão vira `ausente` mais `desconhecido`; dois arquivos com o mesmo id ficam ambos intocados, com duplicata sinalizada.
+- Mensagens no Discord: uma por ficha em conflito no canal da Table, mencionando dono da ficha e narrador, com nome, campos e link; uma por ficha `ausente` e uma por `invalido`, uma vez cada; resolver edita a mensagem para `resolvido por <nome>`, sem repostar. Sem Table aberta, o aviso fica só no painel.
 
 ## 7. Mesa
 
@@ -656,6 +657,8 @@ As fatias abaixo viram issues de implementação, na ordem. Cada uma termina com
 7. **Stream e movimento**: `table_stream`, frames, `stream_rev`, cotas, `moves`.
 8. **Rolagens**: parser no painel, espelho no canal, log e `table.roll`.
 9. **Painel**: casca B, páginas por campanha, gaveta de ficha, celular, teclado e as seções novas do `DESIGN.md`.
+
+Os tickets de implementação estão em `.scratch/vtt-m1/issues/`, numerados na ordem de dependência.
 
 ## Reconciliações
 
