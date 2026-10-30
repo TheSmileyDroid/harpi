@@ -52,7 +52,7 @@ The transient list of candidates returned by the single search on the Music page
 _Avoid_: search panel (there is only one search), results page
 
 **Layers rail**:
-The collapsible right-hand column of the Music page (15.5rem, above 56rem) holding the Layers, the Session readouts and the Linked roster. The Queue lives in the main column under Now Playing.
+The collapsible right-hand column of the Music page (15.5rem, above 56rem) holding the Layers, the Session readouts and the Linked list. The Queue lives in the main column under Now Playing.
 _Avoid_: side panel, queue panel, layers panel
 
 **Toast**:
@@ -121,3 +121,153 @@ _Avoid_: design review, verdict (the gate is gone)
 **Snowflake**:
 A 64-bit Discord entity identifier (guild, channel, user, message). Harpi treats one as an opaque label, never as a quantity.
 _Avoid_: ID, Discord ID, entity id
+
+### Campaigns and content
+
+**Campaign**:
+A play group bound to one Discord guild, with a narrator, members and one content source. The slug is immutable and appears in three places: the vault folder, the `harpi-campaign` block and SQLite.
+_Avoid_: guild (one guild can hold several campaigns), game, table (the live session)
+
+**Content source**:
+Where a campaign's sheets live: `vault` (notes under `Harpi/Campaigns/<slug>/`) or `local` (SQLite, M2). The M1 ships `vault` only.
+_Avoid_: backend, storage, provider
+
+**Atlas**:
+The authored world map of nested maps, kept as an Obsidian Canvas. Read-only viewer in M2, editor in M3. It is not the map of a Table.
+_Avoid_: world map, overworld, campaign map
+
+### Characters and sheets
+
+**Character**:
+The identity and lore note of a person in the fiction (`tipo: personagem`), with a stable `chr_` id when the app creates it. Lore belongs to the campaign and has no owner.
+_Avoid_: sheet (the playable state), token (the piece on the map), NPC (a role)
+
+**Sheet**:
+The playable state of one Character: a note with a fenced `harpi-sheet` block, two prose sections, an owner and a status. A Character has at most one pending or active Sheet. UI: Ficha.
+_Avoid_: character, card, mechanics sheet
+
+**PC**:
+A Character whose Sheet is owned by a player.
+
+**NPC**:
+Every Character that is not a PC. Created by the narrator, starts active, and becomes visible to players when revealed.
+
+**Public card**:
+What a player sees of someone else's character: name, portrait, concept and summary. The sheet never leaves the server for anyone but its owner and the narrator.
+_Avoid_: preview, profile, summary view
+
+**Revealed character**:
+An NPC that entered the visible cast, by narrator action or by its first token landing in a revealed zone. It stays in the cast after its token leaves the scene.
+_Avoid_: discovered, unlocked, visible
+
+**Sheet conflict**:
+The same field changed in the panel and in the vault since the last version the app accepted. The file stays untouched and the sheet turns read-only until each field gets a decision. A sheet is `ok`, `conflito`, `ausente`, `invalido` or `desconhecido`.
+_Avoid_: merge error, divergence, dirty
+
+### Table
+
+**Table**:
+One live session of the tabletop: a campaign's scene, tokens, fog and turns, bound to one text channel. Only one is open per campaign and per channel. UI: Mesa.
+_Avoid_: session (that is playback), room, game
+
+**Scene**:
+A prepared map: image or drawing, grid, named zones and initial fog, authored under `scenes/` and loaded into a Table.
+_Avoid_: map (UI word for the rendered scene), encounter, level
+
+**Scene source**:
+Where a scene's image comes from: `image` (a vault image or an uploaded asset) or `sketch` (rooms drawn in the editor and saved as an SVG in the campaign's assets). UI: Origem da cena.
+_Avoid_: mode, type, style
+
+**Scene blueprint**:
+The authored scene file under `scenes/`, with image, grid, zones and initial fog, and no tokens.
+_Avoid_: template, definition
+
+**Table snapshot**:
+The periodic copy of live table state under `tables/`: current scene with fog, tokens, round and turn. A safety net for database loss, never a second source of truth.
+_Avoid_: save, backup state, persistence file
+
+**Zone**:
+A named area of a scene: a union of whole-cell rectangles revealed or hidden as one. In a drawn scene a room (*sala*) is a zone, so the drawn rooms are the map and the fog at once. UI: área (gallery, summaries), sala (drawing).
+_Avoid_: room (only for sketch), rect, mask
+
+**Fog**:
+The reveal state of a table: which zones are revealed, and whether the area outside every zone is hidden. Hidden zones are not drawn for players. A game aid, not a security boundary.
+_Avoid_: mask, shadow, visibility, darkness
+
+**Token**:
+A piece on the map bound to a Table and a scene: position in cells, size, label, optional owner and Character, color and visibility. Its portrait comes from the linked Character.
+_Avoid_: miniature, piece, actor, marker
+
+**Public token**:
+A token a player can see: `visible: true`, and either its center falls in a revealed zone or `fog_outside` is off and it sits outside every zone. Only public tokens take part in a round.
+_Avoid_: visible token (that is one field), revealed token
+
+**Turn**:
+The span in which one token acts during the current round. At most one is open per Table.
+_Avoid_: initiative, order, activation
+
+**Round**:
+One pass over the public tokens of the current scene. It closes when the last token that has not acted ends a turn, and the narrator opens the next.
+_Avoid_: cycle, initiative round, pending (that is a member role)
+
+**Table stream**:
+The SSE connection a viewer opens to one Table.
+_Avoid_: socket, channel, feed
+
+**Table presence**:
+The list of people with the table stream open right now, with display name and role (`table.viewers`), held in memory by the broadcaster. Never a snowflake. Not the panel **Viewer**: this one is per Table. UI: Na mesa.
+_Avoid_: roster, viewers (the panel concept), presence list
+
+**Stream revision**:
+The per-Table counter `stream_rev`, incremented once per accepted change, kept in memory and never persisted. Separate from the per-row revisions used for conflict checks.
+_Avoid_: version, rev (the row revs)
+
+**Table frame**:
+`table.snapshot` or `table.delta`: the state of the scene as it travels to the client.
+_Avoid_: update, payload, tick
+
+**Token move**:
+An accepted position change, sent at most 10 times per second per Table. The last drop wins.
+_Avoid_: drag event, position, delta
+
+**Drag marker**:
+The ephemeral notice that someone is dragging a token, renewed by each accepted move and gone 3 s after the last one. It never blocks anyone.
+_Avoid_: lock, claim, selection
+
+**Roll**:
+One accepted evaluation of a dice expression in an open Table: a row in `rolls` with the text frozen as the parser printed it.
+_Avoid_: dice result, check, throw
+
+**Roll message**:
+The Discord message that carries a roll: the author's message in the channel, the bot's message from the panel.
+_Avoid_: post, embed
+
+**Dice log**:
+The rolls of one Table ordered by `(created_at, id)`. Kept in SQLite only and recovered from the API, never from the table snapshot.
+_Avoid_: history, feed
+
+### Access
+
+**Narrator**:
+The campaign owner (`campaigns.narrator_id`), who approves sheets, prepares scenes and runs the table. UI: Narrador.
+_Avoid_: GM, DM, master, owner (ambiguous with the sheet owner)
+
+**Player**:
+A campaign member with an `ativo` Sheet. UI: Jogador.
+_Avoid_: user, member (any row in `members`), participant (a token)
+
+**Pending**:
+A campaign member with no `ativo` Sheet. UI: Pendente. Distinct from a pending sheet, which is a file status.
+_Avoid_: waiting, applicant
+
+**Spectator**:
+A signed-in user from an allowed guild, outside the campaign, who watches one Table with the spectator flag on, with no sheet access. UI: Espectador.
+_Avoid_: guest, anonymous, visitor
+
+**Sheet owner**:
+The Discord snowflake in `harpi-owner`: the truth of who plays a sheet. UI: Dono da ficha.
+_Avoid_: owner (that is the narrator), player (a role derived from the sheet)
+
+**Table access**:
+The condition that opens a table's stream, map and summary: campaign membership (the narrator included), or a spectator on a table with the flag on.
+_Avoid_: permission, grant

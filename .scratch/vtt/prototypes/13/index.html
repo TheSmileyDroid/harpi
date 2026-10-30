@@ -1,0 +1,1740 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protótipo · Editor de cenas e salas · Harpi VTT</title>
+<style>
+:root {
+  --ground: #14110d;
+  --plate: #1f1b15;
+  --plate-2: #2a241c;
+  --sunken: #0d0b08;
+  --rating: #191510;
+  --rule: #2a241c;
+  --rule-strong: #3d3527;
+  --sand: #e9dfc7;
+  --on-sand: #221e18;
+  --amber: #f2b24e;
+  --label: #c4b79d;
+  --dim: #a59a8a;
+  --faint: #948a79;
+  --oxide: #ce7442;
+  --alert: #f0604a;
+  --alert-well: #2a1712;
+  --alert-ink: #d9c7b4;
+  --idle: #7d7365;
+  --hazard-band: repeating-linear-gradient(45deg, var(--alert) 0 8px, var(--alert-well) 8px 16px);
+  --printed-grain:
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--on-sand) 6%, transparent) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--on-sand) 6%, transparent) 0 1px, transparent 1px 3px);
+  --font-display: "Urbanist", system-ui, sans-serif;
+  --font-label: "Barlow", system-ui, sans-serif;
+  --font-value: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --radius-key: 3px;
+  --radius-plate: 4px;
+  --proto: #8fa3bd;
+}
+* { box-sizing: border-box; }
+* { scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--rule-strong); border: 3px solid var(--ground); border-radius: var(--radius-key); }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--ground);
+  color: var(--label);
+  font-family: var(--font-value);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  caret-color: var(--amber);
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 4.6rem;
+}
+::selection { background: var(--amber); color: var(--ground); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1, h2, h3 { margin: 0; }
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.wordmark { display: flex; align-items: center; gap: 0.5rem; }
+.wordmark__mark { inline-size: 1.15rem; block-size: 1.15rem; background: var(--amber); border-radius: 1px; }
+.wordmark__text { font-family: var(--font-display); font-weight: 800; font-size: 0.85rem; letter-spacing: 0.24em; color: var(--sand); }
+
+.placard { display: flex; align-items: center; gap: 0.5rem; min-width: 0; min-block-size: 2.5rem; padding: 0.4rem 0.6rem; background: var(--plate-2); border-radius: var(--radius-key); }
+.placard__label { font-family: var(--font-label); font-weight: 600; font-size: 0.6875rem; line-height: 1; letter-spacing: 0.16em; text-transform: uppercase; color: var(--amber); }
+.placard__value { min-width: 0; font-size: 0.8125rem; line-height: 1.2; color: var(--sand); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.placard__meta { font-size: 0.6875rem; color: var(--faint); }
+
+.panel { background: var(--plate); border: 1px solid var(--rule-strong); border-radius: var(--radius-plate); padding: 0.9rem; }
+.panel + .panel { margin-top: 0.8rem; }
+.panel-band { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.panel-label { font-family: var(--font-display); font-weight: 700; font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sand); }
+.panel-label::after { content: ""; display: inline-block; vertical-align: middle; inline-size: 1.2rem; block-size: 1px; background: var(--rule); margin-inline-start: 0.5rem; }
+.panel-band__meta { margin-inline-start: auto; font-size: 0.6875rem; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+.key {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  min-block-size: 2.5rem; min-inline-size: 3.5rem; padding: 0.5rem 0.7rem;
+  background: transparent; color: var(--label);
+  border: 1px solid var(--rule-strong); border-radius: var(--radius-key);
+  font-family: var(--font-label); font-weight: 600; font-size: 0.72rem;
+  letter-spacing: 0.14em; text-transform: uppercase;
+}
+.key:hover { color: var(--sand); background: var(--plate-2); border-color: var(--oxide); }
+.key[aria-pressed="true"] { color: var(--sand); background: var(--plate-2); border-color: var(--amber); }
+.key--primary { background: var(--sand); background-image: var(--printed-grain); color: var(--on-sand); border-color: color-mix(in srgb, var(--on-sand) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-sand) 18%, transparent); }
+.key--primary:hover { background: color-mix(in srgb, var(--sand) 76%, white); color: var(--on-sand); }
+.key--small { min-block-size: 2rem; min-inline-size: 2rem; padding: 0.3rem 0.5rem; font-size: 0.6875rem; }
+.key--quiet { font-size: 0.65rem; letter-spacing: 0.1em; }
+.key--danger:hover { background: var(--alert-well); color: var(--alert); border-color: var(--alert); }
+.key:disabled { color: var(--idle); border-color: var(--rule); text-decoration: line-through; cursor: not-allowed; background: transparent; }
+
+.field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.field__label { font-family: var(--font-label); font-weight: 600; font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.input {
+  inline-size: 100%; min-block-size: 2.5rem; padding: 0.5rem 0.65rem;
+  background: var(--sunken); color: var(--sand);
+  border: 1px solid var(--rule-strong); border-radius: var(--radius-key);
+  font-family: var(--font-value); font-size: 0.8125rem;
+}
+.input:focus { outline: 2px solid var(--amber); outline-offset: 2px; }
+.input[type="number"] { font-variant-numeric: tabular-nums; }
+input[type="range"] { inline-size: 100%; accent-color: var(--amber); }
+.check { display: flex; align-items: center; gap: 0.5rem; min-block-size: 2.5rem; font-size: 0.75rem; color: var(--label); cursor: pointer; }
+.check input { inline-size: 1rem; block-size: 1rem; accent-color: var(--amber); }
+.hint { color: var(--faint); font-size: 0.6875rem; line-height: 1.5; }
+.mono { font-family: var(--font-value); font-variant-numeric: tabular-nums; }
+.chip { display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--font-label); font-weight: 600; font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.chip__lamp { inline-size: 0.4rem; block-size: 0.4rem; background: var(--dim); }
+.chip[data-tone="live"] { color: var(--amber); }
+.chip[data-tone="live"] .chip__lamp { background: var(--amber); }
+.chip[data-tone="dirty"] { color: var(--oxide); }
+.chip[data-tone="dirty"] .chip__lamp { background: var(--oxide); }
+.chip[data-tone="alert"] { color: var(--alert); }
+.chip[data-tone="alert"] .chip__lamp { background: var(--alert); }
+
+.shell { display: grid; grid-template-columns: 14rem minmax(0, 1fr); min-block-size: 100vh; }
+.rail { background: var(--plate); border-inline-end: 1px solid var(--rule-strong); padding: 1rem 0.8rem 5rem; display: flex; flex-direction: column; gap: 1rem; }
+.rail__nav { display: flex; flex-direction: column; gap: 0.2rem; }
+.nav-key { text-align: start; padding: 0.55rem 0.6rem; background: transparent; border: 0; border-radius: var(--radius-key); color: var(--label); font-family: var(--font-label); font-weight: 600; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; }
+.nav-key:hover { background: var(--plate-2); color: var(--sand); }
+.nav-key[aria-current="page"] { color: var(--on-sand); background: var(--sand); background-image: var(--printed-grain); }
+.nav-key[data-proto] { color: var(--proto); }
+.rail__label { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-display); font-weight: 700; font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
+.rail__label::after { content: ""; flex: 1; block-size: 1px; background: var(--rule); }
+.rail__list { display: flex; flex-direction: column; gap: 0.15rem; }
+.rail__scene { display: flex; align-items: center; gap: 0.4rem; inline-size: 100%; padding: 0.4rem 0.35rem; background: transparent; border: 0; border-radius: var(--radius-key); color: var(--label); font-size: 0.75rem; text-align: start; }
+.rail__scene:hover { background: var(--plate-2); color: var(--sand); }
+.rail__scene[data-current="true"] { color: var(--amber); background: color-mix(in srgb, var(--amber) 8%, transparent); }
+.rail__scene__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail__scene__dot { inline-size: 0.35rem; block-size: 0.35rem; flex: none; background: transparent; }
+.rail__scene[data-dirty="true"] .rail__scene__dot { background: var(--oxide); }
+.rail__scene__tag { font-family: var(--font-label); font-size: 0.55rem; letter-spacing: 0.1em; color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent); padding: 0 0.2rem; border-radius: 2px; }
+.rail__foot { margin-top: auto; display: flex; flex-direction: column; gap: 0.5rem; }
+.content { min-width: 0; padding: 1rem 1.25rem 6rem; }
+.topbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.topbar .placard { flex: none; }
+.topbar__right { margin-inline-start: auto; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.page-head { display: flex; align-items: flex-end; gap: 0.9rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+.page-title { font-family: var(--font-display); font-weight: 800; font-size: 1.375rem; letter-spacing: -0.01em; color: var(--sand); }
+.page-sub { color: var(--faint); font-size: 0.75rem; }
+.page-head__right { margin-inline-start: auto; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+.editor { display: grid; gap: 0.9rem; align-items: start; }
+.editor--a { grid-template-columns: minmax(0, 1fr) 20rem; }
+.editor--c { grid-template-columns: minmax(0, 1fr) 21rem; }
+.stage-col { min-width: 0; display: flex; flex-direction: column; gap: 0.9rem; }
+.inspector { display: flex; flex-direction: column; min-width: 0; }
+
+.stage-card { background: var(--plate); border: 1px solid var(--rule-strong); border-radius: var(--radius-plate); overflow: hidden; }
+.stage-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--rule); }
+.stage-head__title { font-family: var(--font-display); font-weight: 700; font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sand); }
+.stage-head__meta { font-size: 0.6875rem; color: var(--faint); }
+.stage-head__tools { margin-inline-start: auto; display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.stage-scroll { overflow: auto; background: var(--sunken); }
+.stage {
+  position: relative; aspect-ratio: 3 / 2; inline-size: 100%; min-inline-size: 34rem;
+  background: #0a0906; touch-action: none; user-select: none;
+}
+.stage svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.stage__grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    repeating-linear-gradient(to right, color-mix(in srgb, var(--sand) 12%, transparent) 0 1px, transparent 1px var(--cw)),
+    repeating-linear-gradient(to bottom, color-mix(in srgb, var(--sand) 12%, transparent) 0 1px, transparent 1px var(--ch));
+  background-position: var(--ox) var(--oy);
+}
+.stage__grid[data-visible="false"] { display: none; }
+.zone-fill { position: absolute; background: color-mix(in srgb, var(--oxide) 7%, transparent); pointer-events: none; }
+.zone-fill[data-revealed="true"] { background: color-mix(in srgb, var(--amber) 12%, transparent); }
+.zone-fill[data-selected="true"] { background: color-mix(in srgb, var(--amber) 19%, transparent); }
+.zone-lines { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; pointer-events: none; z-index: 4; }
+.zone__label { position: absolute; inset-block-start: 0.25rem; inset-inline-start: 0.3rem; z-index: 5; font-family: var(--font-label); font-size: 0.625rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sand); background: color-mix(in srgb, var(--ground) 78%, transparent); padding: 0.1rem 0.3rem; border-radius: 2px; white-space: nowrap; pointer-events: none; }
+.zone__label[data-hidden="true"] { color: var(--oxide); }
+.fog { position: absolute; background: color-mix(in srgb, #060504 88%, transparent); background-image: repeating-linear-gradient(45deg, color-mix(in srgb, var(--rule-strong) 32%, transparent) 0 6px, transparent 6px 12px); pointer-events: none; }
+.fog[data-flat="true"] { background: #0a0906; background-image: none; }
+.fog--cover { inset: 0; }
+.token { position: absolute; transform: translate(-50%, -50%); inline-size: max(1.75rem, 3.2%); aspect-ratio: 1; background: var(--sand); color: var(--on-sand); border: 2px solid var(--ground); border-radius: 2px; display: flex; align-items: center; justify-content: center; font-family: var(--font-label); font-weight: 600; font-size: 0.625rem; letter-spacing: 0.08em; pointer-events: none; z-index: 3; }
+.token[data-kind="npc"] { background: var(--oxide); }
+.token[data-ghost="true"] { opacity: 0.5; }
+.stage__draft { position: absolute; border: 2px solid var(--amber); background: color-mix(in srgb, var(--amber) 18%, transparent); pointer-events: none; z-index: 5; }
+.stage__crosshair { position: absolute; inset: 0; cursor: crosshair; z-index: 6; }
+.stage__crosshair[data-draw="false"] { pointer-events: none; }
+.stage__liveband { position: absolute; inset-block-start: 0; inset-inline: 0; z-index: 7; display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.6rem; background: color-mix(in srgb, var(--plate) 92%, transparent); border-block-end: 1px solid var(--rule-strong); font-family: var(--font-label); font-size: 0.625rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--amber); }
+.stage__liveband .key { margin-inline-start: auto; }
+.stage__empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--faint); font-family: var(--font-label); font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase; border: 1px dashed var(--rule-strong); }
+.stage__floor { position: absolute; inset: 0; background: #0f0c08; }
+.stage[data-source="sketch"] .zone-fill { background: #241d14; }
+.stage[data-source="sketch"] .zone-fill[data-revealed="true"] { background: #302517; }
+.stage[data-source="sketch"] .zone-fill[data-selected="true"] { background: #3b2d1b; }
+.stage[data-tool="draw"] { cursor: crosshair; }
+.stage[data-tool="erase"] { cursor: cell; }
+.stage[data-tool="erase"] .stage__draft { border-color: var(--alert); background: color-mix(in srgb, var(--alert) 16%, transparent); }
+.stage-wrap { display: grid; grid-template-columns: 5rem minmax(0, 1fr); background: var(--sunken); }
+.stage-wrap[data-live="true"] { grid-template-columns: minmax(0, 1fr); }
+.toolrail { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.45rem; border-inline-end: 1px solid var(--rule); background: var(--plate-2); }
+.tool { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.18rem; min-block-size: 3.6rem; padding: 0.35rem 0.15rem; background: transparent; border: 1px solid transparent; border-radius: var(--radius-key); color: var(--label); }
+.tool svg { inline-size: 1.25rem; block-size: 1.25rem; }
+.tool span { font-family: var(--font-label); font-size: 0.5rem; line-height: 1; letter-spacing: 0.02em; text-transform: uppercase; text-align: center; white-space: nowrap; }
+.tool:hover { background: var(--plate); color: var(--sand); border-color: var(--rule-strong); }
+.tool[aria-pressed="true"] { background: var(--sand); color: var(--on-sand); border-color: var(--sand); background-image: var(--printed-grain); }
+.tool:disabled { color: var(--idle); cursor: not-allowed; }
+.tool--sep { margin-top: auto; }
+.stage-status { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem 0.6rem; border-top: 1px solid var(--rule); background: var(--plate-2); }
+.stage-status__name { flex: 0 1 20rem; min-inline-size: 10rem; display: flex; align-items: center; gap: 0.45rem; }
+.stage-status__name input { inline-size: 100%; min-inline-size: 0; background: var(--sunken); border: 1px solid var(--rule-strong); border-radius: var(--radius-key); color: var(--sand); font-size: 0.9rem; font-weight: 600; padding: 0.45rem 0.55rem; }
+.stage-status__name input:focus { outline: 2px solid var(--amber); outline-offset: 2px; }
+.stage-status__hint { flex: 1 1 100%; color: var(--faint); font-size: 0.6875rem; }
+.stage-status .key { min-block-size: 2.4rem; }
+.table-banner { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.9rem; padding: 0.55rem 0.7rem; background: color-mix(in srgb, var(--amber) 7%, var(--plate)); border: 1px solid color-mix(in srgb, var(--amber) 35%, var(--rule-strong)); border-radius: var(--radius-plate); }
+.table-banner__meta { color: var(--label); font-size: 0.72rem; }
+.table-banner .key { margin-inline-start: auto; }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 0.8rem; }
+.gallery-card { display: flex; flex-direction: column; text-align: start; padding: 0; background: var(--plate); border: 1px solid var(--rule-strong); border-radius: var(--radius-plate); overflow: hidden; color: var(--label); }
+.gallery-card:hover { border-color: var(--oxide); color: var(--sand); }
+.gallery-card__art { display: block; aspect-ratio: 3 / 2; background: #0a0906; border-bottom: 1px solid var(--rule); overflow: hidden; }
+.gallery-card__art svg { inline-size: 100%; block-size: 100%; display: block; }
+.gallery-card__body { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.55rem 0.6rem; }
+.gallery-card__name { font-size: 0.85rem; color: var(--sand); }
+.gallery-card__meta { font-size: 0.65rem; color: var(--faint); }
+.gallery-card--new { align-items: center; justify-content: center; min-block-size: 11rem; border-style: dashed; color: var(--faint); }
+.gallery-card--new:hover { color: var(--sand); }
+.gallery-card__new { font-family: var(--font-display); font-weight: 700; font-size: 0.75rem; letter-spacing: 0.16em; text-transform: uppercase; }
+.room-row { display: flex; align-items: center; gap: 0.5rem; inline-size: 100%; padding: 0.55rem 0.3rem; background: transparent; border: 0; border-radius: var(--radius-key); color: var(--label); text-align: start; }
+.room-row:hover { background: var(--plate-2); color: var(--sand); }
+.room-row[data-selected="true"] { background: color-mix(in srgb, var(--amber) 8%, transparent); color: var(--sand); box-shadow: inset 2px 0 0 var(--amber); }
+.room-row__swatch { inline-size: 0.55rem; block-size: 0.55rem; flex: none; background: var(--oxide); }
+.room-row[data-revealed="true"] .room-row__swatch { background: var(--amber); }
+.room-row__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; }
+.room-row__meta { flex: none; font-size: 0.65rem; color: var(--faint); font-variant-numeric: tabular-nums; }
+.room-row .chip { flex: none; font-size: 0.6rem; }
+
+.toolstrip { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; padding: 0.55rem 0.7rem; border-top: 1px solid var(--rule); background: var(--plate-2); }
+.toolstrip__hint { margin-inline-start: auto; color: var(--faint); font-size: 0.6875rem; }
+
+.zone-row { border: 1px solid var(--rule); border-radius: var(--radius-key); padding: 0.55rem; background: var(--sunken); }
+.zone-row + .zone-row { margin-top: 0.45rem; }
+.zone-row[data-selected="true"] { border-color: var(--oxide); }
+.zone-row__head { display: flex; align-items: center; gap: 0.4rem; }
+.zone-row__swatch { inline-size: 0.5rem; block-size: 0.5rem; flex: none; background: var(--oxide); }
+.zone-row[data-revealed="true"] .zone-row__swatch { background: var(--amber); }
+.zone-row__name { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--sand); font-size: 0.75rem; padding: 0.15rem 0; }
+.zone-row__name:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
+.zone-row__rects { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
+.rect-chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.35rem; background: var(--plate-2); border: 1px solid var(--rule); border-radius: 2px; font-size: 0.625rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+.rect-chip button { background: transparent; border: 0; color: var(--faint); padding: 0 0.1rem; font-size: 0.7rem; line-height: 1; }
+.rect-chip button:hover { color: var(--alert); }
+.zone-row__foot { display: flex; align-items: center; gap: 0.35rem; margin-top: 0.4rem; flex-wrap: wrap; }
+.zone-row__foot .key { min-block-size: 1.9rem; min-inline-size: 2rem; padding: 0.2rem 0.4rem; font-size: 0.625rem; letter-spacing: 0.1em; }
+
+.rating { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: var(--rating); border: 1px solid var(--rule); border-radius: var(--radius-key); overflow: hidden; }
+.rating__cell { padding: 0.45rem 0.55rem; box-shadow: inset 1px 0 0 var(--rule), inset 0 -1px 0 var(--rule); }
+.data-label { display: block; font-family: var(--font-label); font-weight: 600; font-size: 0.625rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.data-value { display: block; color: var(--sand); font-size: 0.75rem; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.fault { background: var(--alert-well); border: 1px solid var(--alert); border-radius: var(--radius-plate); padding: 0.6rem 0.7rem; margin-top: 0.6rem; }
+.fault::before { content: ""; display: block; block-size: 0.4rem; margin: -0.6rem -0.7rem 0.5rem; background: var(--hazard-band); }
+.fault__stamp { font-family: var(--font-display); font-weight: 800; font-size: 0.75rem; letter-spacing: 0.14em; color: var(--alert); }
+.fault__text { color: var(--alert-ink); font-size: 0.72rem; margin: 0.2rem 0 0.5rem; }
+.notice { border-inline-start: 3px solid var(--amber); background: var(--plate-2); padding: 0.5rem 0.6rem; border-radius: 2px; margin-top: 0.6rem; color: var(--label); font-size: 0.72rem; }
+.notice[data-tone="warn"] { border-color: var(--oxide); }
+.save-log { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.save-log li { display: flex; gap: 0.4rem; font-size: 0.65rem; color: var(--dim); }
+.save-log li span:first-child { flex: none; inline-size: 4.2rem; color: var(--faint); text-transform: uppercase; letter-spacing: 0.08em; font-family: var(--font-label); }
+.hash-line { display: flex; align-items: center; gap: 0.4rem; font-size: 0.6875rem; color: var(--dim); }
+.hash-line code { color: var(--sand); font-size: 0.6875rem; }
+
+/* stepper, variant B */
+.steps { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+.step { flex: 1 1 6rem; text-align: start; padding: 0.5rem 0.6rem; background: var(--plate); border: 1px solid var(--rule-strong); border-radius: var(--radius-key); color: var(--dim); }
+.step__num { display: block; font-family: var(--font-value); font-size: 0.625rem; color: var(--faint); }
+.step__name { font-family: var(--font-label); font-weight: 600; font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.step[aria-current="true"] { border-color: var(--amber); color: var(--sand); }
+.step[aria-current="true"] .step__num { color: var(--amber); }
+.b-strip { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.2rem; margin-bottom: 0.9rem; }
+.b-scene { flex: none; min-inline-size: 10rem; text-align: start; padding: 0.5rem 0.6rem; background: var(--plate); border: 1px solid var(--rule-strong); border-radius: var(--radius-key); color: var(--label); }
+.b-scene[data-current="true"] { border-color: var(--amber); color: var(--sand); }
+.b-scene__name { display: block; font-size: 0.75rem; }
+.b-scene__meta { display: block; font-size: 0.625rem; color: var(--faint); }
+.b-body { display: grid; grid-template-columns: minmax(0, 1fr) 21rem; gap: 0.9rem; align-items: start; }
+.b-aside { display: flex; flex-direction: column; }
+
+/* variant C */
+.c-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.zone-card { background: var(--sunken); border: 1px solid var(--rule); border-radius: var(--radius-key); padding: 0.5rem; }
+.zone-card[data-selected="true"] { border-color: var(--oxide); }
+.zone-card__head { display: flex; align-items: center; gap: 0.35rem; }
+.zone-card__paint { inline-size: 1.9rem; block-size: 1.9rem; display: grid; place-items: center; background: var(--plate-2); border: 1px solid var(--rule-strong); border-radius: 2px; color: var(--label); font-size: 0.8rem; }
+.zone-card[data-paint="true"] .zone-card__paint { background: var(--amber); color: var(--on-sand); border-color: var(--amber); }
+.zone-card__name { flex: 1; min-width: 0; font-size: 0.7rem; color: var(--sand); line-height: 1.25; }
+.zone-card__meta { font-size: 0.6rem; color: var(--faint); }
+.c-dock { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem 0.7rem; background: var(--plate-2); border-top: 1px solid var(--rule); }
+
+/* modal */
+.backdrop { position: fixed; inset: 0; z-index: 100; background: rgb(0 0 0 / 0.66); display: grid; place-items: center; padding: 1rem; }
+.modal { inline-size: min(52rem, 100%); max-block-size: 88vh; overflow: auto; background: var(--plate); border: 1px solid var(--rule-strong); border-radius: var(--radius-plate); padding: 1rem; }
+.modal--narrow { inline-size: min(30rem, 100%); }
+.modal__head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.8rem; }
+.modal__title { font-family: var(--font-display); font-weight: 800; font-size: 1rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sand); }
+.modal__close { margin-inline-start: auto; }
+.tabs { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+.tab { padding: 0.45rem 0.6rem; background: transparent; border: 1px solid var(--rule-strong); border-radius: var(--radius-key); color: var(--dim); font-family: var(--font-label); font-weight: 600; font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.tab[aria-selected="true"] { background: var(--plate-2); border-color: var(--amber); color: var(--sand); }
+.picker-layout { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 0.7rem; }
+.folder-list { display: flex; flex-direction: column; gap: 0.15rem; }
+.folder { display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.5rem; background: transparent; border: 0; border-radius: var(--radius-key); color: var(--label); font-size: 0.7rem; text-align: start; }
+.folder:hover { background: var(--plate-2); color: var(--sand); }
+.folder[aria-current="true"] { color: var(--amber); background: color-mix(in srgb, var(--amber) 8%, transparent); }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: 0.5rem; }
+.thumb { padding: 0.35rem; background: var(--sunken); border: 1px solid var(--rule-strong); border-radius: var(--radius-key); text-align: start; color: var(--label); }
+.thumb:hover { border-color: var(--oxide); color: var(--sand); }
+.thumb__art { block-size: 4.5rem; background: var(--plate-2); border: 1px solid var(--rule); border-radius: 2px; margin-bottom: 0.3rem; display: grid; place-items: center; color: var(--faint); font-size: 0.625rem; overflow: hidden; }
+.thumb__art svg { inline-size: 100%; block-size: 100%; }
+.thumb__name { display: block; font-size: 0.65rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thumb__meta { display: block; font-size: 0.6rem; color: var(--faint); }
+.dropzone { display: grid; place-items: center; gap: 0.4rem; min-block-size: 12rem; border: 1px dashed var(--rule-strong); border-radius: var(--radius-plate); color: var(--faint); text-align: center; padding: 1rem; }
+.dropzone:hover { border-color: var(--oxide); color: var(--label); }
+.modal__foot { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--rule); }
+.modal__foot .key:last-child { margin-inline-start: auto; }
+.path-preview { margin-top: 0.5rem; padding: 0.45rem 0.55rem; background: var(--sunken); border: 1px solid var(--rule); border-radius: 2px; font-size: 0.7rem; color: var(--dim); overflow-x: auto; white-space: nowrap; }
+
+.toast { position: fixed; inset-block-end: 4.8rem; inset-inline-end: 1rem; z-index: 120; background: var(--plate-2); border: 1px solid var(--rule-strong); border-inline-start: 3px solid var(--amber); border-radius: var(--radius-key); padding: 0.5rem 0.7rem; color: var(--sand); font-size: 0.72rem; }
+
+.proto-bar {
+  position: fixed; inset-inline: 0; inset-block-end: 0; z-index: 130;
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.5rem;
+  padding: 0.45rem 0.9rem; background: #10161f; border-top: 2px dashed var(--proto); color: var(--proto);
+  font-family: var(--font-label); font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase;
+}
+.proto-bar__tag { font-weight: 600; color: #c9d6e6; }
+.proto-bar__key { min-block-size: 2rem; min-inline-size: 2rem; padding: 0.3rem 0.6rem; background: transparent; border: 1px solid var(--proto); border-radius: var(--radius-key); color: #c9d6e6; font-family: var(--font-label); font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.proto-bar__key:hover { background: #1c2635; }
+.proto-bar__key[aria-pressed="true"] { background: var(--proto); color: #10161f; }
+.proto-bar__label { color: var(--sand); font-family: var(--font-value); letter-spacing: 0; text-transform: none; }
+.proto-bar__hint { color: #7e8ea3; text-transform: none; letter-spacing: 0.02em; }
+
+@media (max-width: 64rem) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .rail { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.45rem; padding: 0.5rem; border-inline-end: 0; border-block-end: 1px solid var(--rule-strong); }
+  .rail__nav { flex-direction: row; flex-wrap: wrap; }
+  .rail__label, .rail__list, .rail__foot .placard { display: none; }
+  .editor--a, .editor--c, .b-body { grid-template-columns: minmax(0, 1fr); }
+  .stage { min-inline-size: 32rem; }
+}
+@media (max-width: 40rem) {
+  body { padding-bottom: 8rem; }
+  .content { padding: 0.8rem 0.7rem 8rem; }
+  .picker-layout { grid-template-columns: minmax(0, 1fr); }
+  .stage { min-inline-size: 28rem; }
+  .c-board { grid-template-columns: minmax(0, 1fr); }
+  .page-title { font-size: 1.125rem; }
+  .topbar .placard { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div class="proto-bar" role="toolbar" aria-label="Controles do protótipo">
+  <span class="proto-bar__tag">Protótipo</span>
+  <button class="proto-bar__key" data-act="variant-prev" aria-label="Variante anterior">←</button>
+  <span class="proto-bar__label" id="variant-label"></span>
+  <button class="proto-bar__key" data-act="variant-next" aria-label="Próxima variante">→</button>
+  <span class="proto-bar__hint">Cena:</span>
+  <button class="proto-bar__key" data-act="table-toggle" id="table-toggle">Fora da mesa</button>
+  <button class="proto-bar__key" data-act="reset">Zerar</button>
+  <span class="proto-bar__hint">setas trocam · Esc fecha</span>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+const CELL = 100;
+const COLS = 30;
+const ROWS = 20;
+const CAMPAIGN = "paratheos";
+const SCENE_DIR = `Harpi/Campaigns/${CAMPAIGN}/scenes/`;
+
+const SVG_MAP = {
+  cripta: `
+    <svg viewBox="0 0 3000 2000" preserveAspectRatio="none" aria-hidden="true">
+      <rect width="3000" height="2000" fill="#0a0906"/>
+      <g fill="#17130e" stroke="#3d3527" stroke-width="6">
+        <rect x="400" y="300" width="600" height="400" rx="6"/>
+        <rect x="400" y="700" width="200" height="300" rx="6"/>
+        <rect x="1000" y="400" width="600" height="200" rx="6"/>
+        <rect x="1200" y="700" width="200" height="200" rx="6"/>
+        <rect x="1600" y="470" width="100" height="560" rx="6"/>
+        <rect x="1600" y="970" width="500" height="100" rx="6"/>
+        <rect x="2000" y="1000" width="800" height="700" rx="6"/>
+      </g>
+      <g fill="#0d0b08" stroke="#3d3527" stroke-width="4">
+        <rect x="960" y="560" width="80" height="16"/>
+        <rect x="1560" y="760" width="80" height="16"/>
+        <rect x="2050" y="1010" width="80" height="16"/>
+      </g>
+      <g fill="#2a241c">
+        <rect x="430" y="330" width="120" height="40"/>
+        <rect x="1180" y="430" width="180" height="30"/>
+        <rect x="2180" y="1180" width="60" height="220"/>
+        <rect x="2180" y="1480" width="420" height="40"/>
+      </g>
+    </svg>`,
+  patio: `
+    <svg viewBox="0 0 3000 2000" preserveAspectRatio="none" aria-hidden="true">
+      <rect width="3000" height="2000" fill="#0a0906"/>
+      <g fill="#17130e" stroke="#3d3527" stroke-width="6">
+        <rect x="200" y="200" width="900" height="700" rx="6"/>
+        <rect x="1300" y="400" width="500" height="300" rx="6"/>
+        <rect x="2000" y="300" width="700" height="900" rx="6"/>
+      </g>
+      <g fill="#2a241c">
+        <rect x="320" y="320" width="120" height="60"/>
+        <rect x="700" y="620" width="180" height="120"/>
+        <rect x="2140" y="480" width="120" height="480"/>
+      </g>
+    </svg>`,
+  porto: `
+    <svg viewBox="0 0 2400 1600" preserveAspectRatio="none" aria-hidden="true">
+      <rect width="2400" height="1600" fill="#0a0906"/>
+      <g fill="#17130e" stroke="#3d3527" stroke-width="6">
+        <rect x="180" y="220" width="780" height="520" rx="6"/>
+        <rect x="1040" y="300" width="360" height="240" rx="6"/>
+        <rect x="1500" y="260" width="720" height="680" rx="6"/>
+        <rect x="300" y="960" width="900" height="420" rx="6"/>
+      </g>
+      <g fill="#2a241c">
+        <rect x="260" y="300" width="140" height="70"/>
+        <rect x="1560" y="340" width="90" height="420"/>
+        <rect x="400" y="1060" width="240" height="60"/>
+      </g>
+    </svg>`
+};
+
+const FOLDERS = {
+  "Recursos/anexos": [
+    ["cripta.png", 3000, 2000, "cripta"],
+    ["patio-ossos.png", 3000, 2000, "patio"],
+    ["porto-neblina.jpg", 2400, 1600, null],
+    ["capela.jpg", 2048, 1536, null]
+  ],
+  "Recursos/mapas": [
+    ["mercado-noturno.jpg", 3200, 2000, null],
+    ["estaleiro.jpg", 2800, 1800, null]
+  ],
+  "Harpi/Campaigns/paratheos/assets": [
+    ["cripta-anotada.png", 3000, 2000, "cripta"]
+  ]
+};
+
+const TOKENS = {
+  cripta: [
+    { id: "tok_ir1s", label: "IR1S", x: 5.7, y: 4.6, kind: "pc", visible: true },
+    { id: "tok_sela", label: "Sela", x: 7.7, y: 5.9, kind: "pc", visible: true },
+    { id: "tok_corvo", label: "Corvo", x: 5.0, y: 6.6, kind: "pc", visible: true },
+    { id: "tok_gob1", label: "Goblin 1", x: 9.1, y: 3.9, kind: "npc", visible: true },
+    { id: "tok_gob2", label: "Goblin 2", x: 9.8, y: 6.6, kind: "npc", visible: true },
+    { id: "tok_sac", label: "Sacerdote", x: 22.5, y: 12.5, kind: "npc", visible: true }
+  ],
+  patio: [
+    { id: "tok_ir1s_p", label: "IR1S", x: 4.5, y: 5.5, kind: "pc", visible: true },
+    { id: "tok_sela_p", label: "Sela", x: 6.5, y: 6.5, kind: "pc", visible: true },
+    { id: "tok_sac_p", label: "Sacerdote", x: 23.5, y: 6.5, kind: "npc", visible: true }
+  ]
+};
+
+function seedScenes() {
+  return {
+    cripta: {
+      key: "cripta",
+      id: "scn_7f3a",
+      name: "Cripta",
+      slug: "cripta",
+      image: { path: "Recursos/anexos/cripta.png", width: 3000, height: 2000 },
+      source: "image",
+      grid: { cell: 100, offsetX: 0, offsetY: 0, visible: true },
+      fogOutside: false,
+      zones: [
+        { id: "zon_a1", label: "Sala principal", rects: [{ x: 4, y: 3, w: 6, h: 4 }, { x: 4, y: 7, w: 2, h: 3 }], revealed: true, live: true },
+        { id: "zon_c3", label: "Corredor leste", rects: [{ x: 10, y: 4, w: 6, h: 2 }], revealed: true, live: true },
+        { id: "zon_b2", label: "Banheiro", rects: [{ x: 12, y: 7, w: 2, h: 2 }], revealed: false, live: false },
+        { id: "zon_d4", label: "Câmara do selo", rects: [{ x: 20, y: 10, w: 8, h: 7 }], revealed: false, live: false }
+      ],
+      dirty: false,
+      savedHash: "sha256:9f2c41d8a0b7",
+      diskHash: "sha256:9f2c41d8a0b7",
+      loadedHash: "sha256:9f2c41d8a0b7",
+      tableLoadedZoneIds: ["zon_a1", "zon_c3", "zon_b2", "zon_d4"],
+      lastLog: [],
+      loadedAt: "há 12 min"
+    },
+    patio: {
+      key: "patio",
+      id: "scn_b81c",
+      name: "Pátio dos Ossos",
+      slug: "patio",
+      image: { path: "Recursos/anexos/patio-ossos.png", width: 3000, height: 2000 },
+      source: "image",
+      grid: { cell: 100, offsetX: 0, offsetY: 0, visible: true },
+      fogOutside: true,
+      zones: [
+        { id: "zon_p1", label: "Pátio", rects: [{ x: 2, y: 2, w: 9, h: 7 }], revealed: true, live: true },
+        { id: "zon_p2", label: "Arco norte", rects: [{ x: 13, y: 4, w: 5, h: 3 }], revealed: false, live: false },
+        { id: "zon_p3", label: "Ossário", rects: [{ x: 20, y: 3, w: 7, h: 9 }], revealed: false, live: false }
+      ],
+      dirty: false,
+      savedHash: "sha256:4b81e0c39f12",
+      diskHash: "sha256:4b81e0c39f12",
+      loadedHash: "sha256:4b81e0c39f12",
+      tableLoadedZoneIds: ["zon_p1", "zon_p2", "zon_p3"],
+      lastLog: [],
+      loadedAt: "—"
+    },
+    porto: {
+      key: "porto",
+      id: "scn_d22e",
+      name: "Porto na Neblina",
+      slug: "porto",
+      image: { path: "Recursos/anexos/porto-neblina.jpg", width: 2400, height: 1600 },
+      source: "image",
+      grid: { cell: 80, offsetX: 0, offsetY: 0, visible: false },
+      fogOutside: false,
+      zones: [],
+      dirty: false,
+      savedHash: "sha256:07ae5b2d991c",
+      diskHash: "sha256:07ae5b2d991c",
+      loadedHash: "sha256:07ae5b2d991c",
+      tableLoadedZoneIds: [],
+      lastLog: [],
+      loadedAt: "—"
+    }
+  };
+}
+
+const params = new URLSearchParams(location.search);
+const state = {
+  variant: ["A", "B", "C"].includes((params.get("variant") || "A").toUpperCase()) ? (params.get("variant") || "A").toUpperCase() : "A",
+  step: 1,
+  sceneKey: params.get("scene") || "cripta",
+  page: params.get("page") === "editor" ? "editor" : "gallery",
+  tableOpen: params.get("table") === "open",
+  tableSceneKey: "cripta",
+  role: params.get("role") === "player" ? "player" : "narrator",
+  view: params.get("view") === "live" || params.get("table") === "open" ? "live" : "mold",
+  tool: "select",
+  history: [],
+  activeZone: "",
+  draft: null,
+  picker: null,
+  folder: "Recursos/anexos",
+  newScene: false,
+  newSceneName: "",
+  conflict: false,
+  toast: "",
+  scenes: seedScenes()
+};
+
+const app = document.getElementById("app");
+const variantNames = { A: "Bancada", B: "Passo a passo", C: "Quadro de salas" };
+
+function scene() { return state.scenes[state.sceneKey]; }
+function inTable() { return state.tableOpen && state.sceneKey === state.tableSceneKey; }
+function liveView() { return false; }
+function playerView() { return liveView() && state.role === "player"; }
+function hashOf(text) {
+  let h = 5381;
+  for (let i = 0; i < text.length; i += 1) h = ((h * 33) ^ text.charCodeAt(i)) >>> 0;
+  let g = 2166136261;
+  for (let i = 0; i < text.length; i += 1) g = ((g ^ text.charCodeAt(i)) * 16777619) >>> 0;
+  return `sha256:${h.toString(16).padStart(8, "0")}${g.toString(16).padStart(8, "0")}`;
+}
+function serialize(target) {
+  return JSON.stringify({
+    version: 1,
+    kind: "scene",
+    id: target.id,
+    name: target.name,
+    campaign: CAMPAIGN,
+    image: { path: target.image.path, width_px: target.image.width, height_px: target.image.height },
+    source: target.source,
+    grid: { cell_px: target.grid.cell, offset_x: target.grid.offsetX, offset_y: target.grid.offsetY, visible: target.grid.visible },
+    fog_outside: target.fogOutside,
+    zones: target.zones.map((z) => ({ id: z.id, label: z.label, rects: z.rects.map((r) => ({ x: r.x, y: r.y, w: r.w, h: r.h })), revealed: z.revealed }))
+  }, null, 2);
+}
+function uid(prefix) {
+  return `${prefix}_${Math.random().toString(16).slice(2, 6)}`;
+}
+function esc(value) {
+  return String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function pct(part, whole) { return `${(part / whole) * 100}%`; }
+function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+
+function markDirty() {
+  scene().dirty = true;
+  scene().lastLog = [];
+}
+function toast(message) {
+  state.toast = message;
+  render();
+  const text = message;
+  setTimeout(() => { if (state.toast === text) { state.toast = ""; render(); } }, 2600);
+}
+function zoneById(id) { return scene().zones.find((z) => z.id === id); }
+
+function gridVars(target) {
+  return `--cw:${pct(target.grid.cell, target.image.width)};--ch:${pct(target.grid.cell, target.image.height)};--ox:${pct(target.grid.offsetX, target.image.width)};--oy:${pct(target.grid.offsetY, target.image.height)}`;
+}
+
+function pointInRect(x, y, r) { return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; }
+
+function tokenSeenByPlayer(token, target) {
+  if (!token.visible) return false;
+  const holders = target.zones.filter((z) => z.rects.some((r) => pointInRect(token.x, token.y, r)));
+  if (holders.length) return holders.some((z) => z.live);
+  return !target.fogOutside;
+}
+
+function zoneCells(zone) {
+  const cells = new Set();
+  zone.rects.forEach((r) => {
+    for (let x = r.x; x < r.x + r.w; x += 1) for (let y = r.y; y < r.y + r.h; y += 1) cells.add(`${x},${y}`);
+  });
+  return cells;
+}
+
+function zoneSegments(zone) {
+  const cells = zoneCells(zone);
+  const has = (x, y) => cells.has(`${x},${y}`);
+  const segments = [];
+  cells.forEach((key) => {
+    const [x, y] = key.split(",").map(Number);
+    if (!has(x, y - 1)) segments.push([x, y, x + 1, y]);
+    if (!has(x, y + 1)) segments.push([x, y + 1, x + 1, y + 1]);
+    if (!has(x - 1, y)) segments.push([x, y, x, y + 1]);
+    if (!has(x + 1, y)) segments.push([x + 1, y, x + 1, y + 1]);
+  });
+  return segments;
+}
+
+function zoneSvg(target, editing) {
+  const lines = [];
+  target.zones.forEach((z) => {
+    if (playerView() && !z.live) return;
+    const revealed = playerView() ? true : liveView() ? z.live : z.revealed;
+    const selected = editing && state.activeZone === z.id;
+    const color = selected ? "var(--sand)" : revealed ? "var(--amber)" : "var(--oxide)";
+    const width = selected ? 0.13 : 0.075;
+    const dash = revealed || selected ? "" : ' stroke-dasharray="0.45 0.3"';
+    zoneSegments(z).forEach(([x1, y1, x2, y2]) => {
+      lines.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}"${dash} stroke-linecap="square"/>`);
+    });
+  });
+  return `<svg class="zone-lines" viewBox="0 0 ${COLS} ${ROWS}" preserveAspectRatio="none" aria-hidden="true">${lines.join("")}</svg>`;
+}
+
+function zonePieces(target, editing) {
+  const pieces = [];
+  if (playerView()) {
+    target.zones.filter((z) => z.live).forEach((z) => {
+      z.rects.forEach((r) => pieces.push(`<div class="zone-fill" data-revealed="true" style="left:${pct(r.x, COLS)};top:${pct(r.y, ROWS)};width:${pct(r.w, COLS)};height:${pct(r.h, ROWS)}"></div>`));
+      const first = z.rects[0];
+      if (first) pieces.push(`<span class="zone__label" data-zone="${z.id}" style="left:${pct(first.x, COLS)};top:${pct(first.y, ROWS)}">${esc(z.label)}</span>`);
+    });
+    target.zones.filter((z) => !z.live).flatMap((z) => z.rects).forEach((r) => pieces.push(`<div class="fog" data-flat="true" style="left:${pct(r.x, COLS)};top:${pct(r.y, ROWS)};width:${pct(r.w, COLS)};height:${pct(r.h, ROWS)}"></div>`));
+    pieces.push(zoneSvg(target, editing));
+    return pieces.join("");
+  }
+  target.zones.forEach((z) => {
+    const revealed = liveView() ? z.live : z.revealed;
+    z.rects.forEach((r) => pieces.push(`<div class="zone-fill" data-revealed="${revealed}" data-selected="${editing && state.activeZone === z.id}" style="left:${pct(r.x, COLS)};top:${pct(r.y, ROWS)};width:${pct(r.w, COLS)};height:${pct(r.h, ROWS)}"></div>`));
+    const first = z.rects[0];
+    if (first) pieces.push(`<span class="zone__label" data-zone="${z.id}" data-hidden="${!revealed}" style="left:${pct(first.x, COLS)};top:${pct(first.y, ROWS)}">${esc(z.label)}${revealed ? "" : " · oculta"}</span>`);
+  });
+  if (liveView()) {
+    target.zones.filter((z) => !z.live).flatMap((z) => z.rects).forEach((r) => pieces.push(`<div class="fog" style="left:${pct(r.x, COLS)};top:${pct(r.y, ROWS)};width:${pct(r.w, COLS)};height:${pct(r.h, ROWS)}"></div>`));
+  }
+  pieces.push(zoneSvg(target, editing));
+  return pieces.join("");
+}
+
+function fogCover(target) {
+  if (!liveView()) return "";
+  const flat = playerView() ? `data-flat="true"` : "";
+  if (!target.fogOutside) return "";
+  const revealed = target.zones.filter((z) => z.live).flatMap((z) => z.rects);
+  if (!revealed.length) return `<div class="fog fog--cover" ${flat}></div>`;
+  return `<div class="fog fog--cover" ${flat}></div>${revealed.map((r) => `<div class="fog" style="left:${pct(r.x, COLS)};top:${pct(r.y, ROWS)};width:${pct(r.w, COLS)};height:${pct(r.h, ROWS)};background:transparent;background-image:none"></div>`).join("")}`;
+}
+
+function tokenPieces(target) {
+  if (!liveView()) return "";
+  return (TOKENS[target.key] || [])
+    .filter((t) => (playerView() ? tokenSeenByPlayer(t, target) : t.visible))
+    .map((t) =>
+      `<div class="token" data-kind="${t.kind}" style="left:${pct(t.x, COLS)};top:${pct(t.y, ROWS)}" title="${esc(t.label)}">${esc(t.label.slice(0, 2).toUpperCase())}</div>`
+    ).join("");
+}
+
+function draftPiece() {
+  if (!state.draft) return "";
+  const d = state.draft;
+  return `<div class="stage__draft" style="left:${pct(d.x, COLS)};top:${pct(d.y, ROWS)};width:${pct(d.w, COLS)};height:${pct(d.h, ROWS)}"></div>`;
+}
+
+function stageInner() {
+  const target = scene();
+  const editing = !liveView();
+  const art = target.source === "sketch" ? `<div class="stage__floor"></div>` : target.image.path ? (SVG_MAP[target.key] || SVG_MAP.cripta) : `<div class="stage__empty">Escolha uma imagem para esta cena</div>`;
+  return `
+    ${art}
+    ${fogCover(target)}
+    <div class="stage__grid" data-visible="${target.grid.visible}" style="${gridVars(target)}"></div>
+    ${zonePieces(target, editing)}
+    ${tokenPieces(target)}
+    ${draftPiece()}
+  `;
+}
+
+function stageCard() {
+  const target = scene();
+  const live = liveView();
+  return `
+  <section class="stage-card" aria-label="Palco da cena">
+    <div class="stage-head">
+      <span class="stage-head__title">Mapa</span>
+      <span class="stage-head__meta mono">${target.image.width} × ${target.image.height} px · ${Math.round(target.image.width / target.grid.cell)} × ${Math.round(target.image.height / target.grid.cell)} células</span>
+      <div class="stage-head__tools">
+        <button class="key key--small" data-act="grid-toggle" aria-pressed="${target.grid.visible}">Grid</button>
+      </div>
+    </div>
+    <div class="stage-wrap" data-live="false">
+      ${toolrail()}
+      <div class="stage-scroll">
+        <div class="stage" id="stage" data-editing="true" data-tool="${state.tool}" data-source="${target.source}">
+          ${stageInner()}
+        </div>
+      </div>
+    </div>
+    ${stageStatus()}
+  </section>`;
+}
+
+const ICON_SELECT = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 8-6 1.5L10 19 5 3z"/></svg>`;
+const ICON_ROOM = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="14"/></svg>`;
+const ICON_ERASE = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16l8-9 8 8-3 4H8l-4-3z"/><path d="M9 12l5 5"/></svg>`;
+const ICON_UNDO = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 7H5v-4"/><path d="M5 7a8 8 0 1 1-1 7"/></svg>`;
+
+function toolrail() {
+  return `
+    <div class="toolrail" role="toolbar" aria-label="Ferramentas do mapa">
+      <button class="tool" data-act="tool" data-tool="select" aria-pressed="${state.tool === "select"}" title="Selecionar (V)">${ICON_SELECT}<span>Selecionar</span></button>
+      <button class="tool" data-act="tool" data-tool="draw" aria-pressed="${state.tool === "draw"}" title="Sala (R)">${ICON_ROOM}<span>Sala</span></button>
+      <button class="tool" data-act="tool" data-tool="erase" aria-pressed="${state.tool === "erase"}" title="Apagar (E)">${ICON_ERASE}<span>Apagar</span></button>
+      <button class="tool tool--sep" data-act="undo" title="Desfazer (Ctrl+Z)" ${state.history.length ? "" : "disabled"}>${ICON_UNDO}<span>Desfazer</span></button>
+    </div>`;
+}
+
+function stageStatus() {
+  const target = scene();
+  const zone = zoneById(state.activeZone);
+  if (!zone) {
+    return `
+    <div class="stage-status">
+      <span class="stage-status__hint">Clique numa sala para selecionar. Escolha <b>Sala</b> e arraste para desenhar. Só sobrepondo um pouco é que duas salas viram uma.</span>
+    </div>`;
+  }
+  return `
+    <div class="stage-status">
+      <span class="room-row__swatch" data-revealed="${zone.revealed}" style="inline-size:0.7rem;block-size:0.7rem"></span>
+      <label class="stage-status__name"><input value="${esc(zone.label)}" data-act="zone-label" data-zone="${zone.id}" aria-label="Nome da sala"></label>
+      <span class="room-row__meta">${zone.rects.length} ${zone.rects.length === 1 ? "pedaço" : "pedaços"}</span>
+      <button class="key key--small" data-act="zone-toggle-revealed" data-zone="${zone.id}" aria-pressed="${zone.revealed}">${zone.revealed ? "Começa revelada" : "Começa oculta"}</button>
+      <button class="key key--small key--danger" data-act="zone-delete">Excluir</button>
+      <span class="stage-status__hint">Arraste com Sala para somar um pedaço · clique numa sala vazia para desmarcar · Ctrl+Z desfaz</span>
+    </div>`;
+}
+
+function imagePanel() {
+  const target = scene();
+  const sketch = target.source === "sketch";
+  return `
+    <section class="panel" aria-label="Origem do mapa">
+      <div class="panel-band"><h2 class="panel-label">Mapa</h2><span class="panel-band__meta">${sketch ? `${target.zones.length} ${target.zones.length === 1 ? "sala" : "salas"}` : `${target.image.width} × ${target.image.height}`}</span></div>
+      <div class="tabs" style="margin-bottom:0.6rem">
+        <button class="tab" data-act="source" data-source="image" aria-selected="${!sketch}">Imagem</button>
+        <button class="tab" data-act="source" data-source="sketch" aria-selected="${sketch}">Desenho</button>
+      </div>
+      ${sketch ? `
+        <div class="thumb__art" style="block-size:4.5rem;margin-bottom:0.5rem">desenhado no Harpi</div>
+        <p class="hint" style="margin:0">As salas desenhadas formam o mapa. O save gera <span class="mono">assets/${esc(target.slug)}-map.svg</span>.</p>
+      ` : `
+        <div class="thumb__art" style="block-size:5.5rem;margin-bottom:0.5rem">${target.image.path ? SVG_MAP[target.key] || "" : "sem imagem"}</div>
+        <div class="hash-line"><code>${esc(target.image.path)}</code></div>
+        <button class="key key--small" data-act="picker" style="margin-top:0.5rem">Trocar imagem</button>
+        <p class="hint" style="margin:0.5rem 0 0">A imagem não é copiada nem movida. A cena aponta para o original no vault.</p>
+      `}
+    </section>`;
+}
+
+function gridPanel() {
+  const target = scene();
+  const cols = Math.round(target.image.width / target.grid.cell);
+  const rows = Math.round(target.image.height / target.grid.cell);
+  return `
+    <section class="panel" aria-label="Grid">
+      <div class="panel-band"><h2 class="panel-label">Grid</h2><span class="panel-band__meta">${cols} × ${rows}</span></div>
+      <div class="field">
+        <span class="field__label">Célula (px da imagem)</span>
+        <div style="display:flex;gap:0.4rem;align-items:center">
+          <input class="input" type="number" min="20" max="400" step="10" value="${target.grid.cell}" data-act="grid-cell" style="inline-size:6rem">
+          <input type="range" min="20" max="400" step="10" value="${target.grid.cell}" data-act="grid-cell" aria-label="Célula em pixels">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.5rem">
+        <label class="field"><span class="field__label">Offset X</span><input class="input" type="number" step="5" value="${target.grid.offsetX}" data-act="grid-offset" data-axis="x"></label>
+        <label class="field"><span class="field__label">Offset Y</span><input class="input" type="number" step="5" value="${target.grid.offsetY}" data-act="grid-offset" data-axis="y"></label>
+      </div>
+      <label class="check" style="margin-top:0.35rem"><input type="checkbox" data-act="grid-visible" ${target.grid.visible ? "checked" : ""}> Grade visível na mesa</label>
+      <p class="hint" style="margin:0.2rem 0 0">Mesmo invisível, o grid existe: célula e offset continuam valendo em toda a cena.</p>
+    </section>`;
+}
+
+function zonesPanel() {
+  const target = scene();
+  return `
+    <section class="panel" aria-label="Salas">
+      <div class="panel-band">
+        <h2 class="panel-label">Salas</h2>
+        <span class="panel-band__meta">${target.zones.length} ${target.zones.length === 1 ? "sala" : "salas"}</span>
+      </div>
+      <label class="check" style="margin:-0.2rem 0 0.5rem"><input type="checkbox" data-act="fog-outside" ${target.fogOutside ? "checked" : ""}> Névoa fora das salas</label>
+      <p class="hint" style="margin:0 0 0.6rem">${target.fogOutside ? "O mapa inteiro começa coberto. Só salas reveladas aparecem." : "O que está fora de qualquer sala aparece. Salas ocultas continuam cobertas."}</p>
+      <div>${target.zones.map(zoneRow).join("") || `<p class="hint">Nenhuma sala. Escolha Sala e arraste no mapa.</p>`}</div>
+      <p class="hint" style="margin:0.5rem 0 0">Clique numa sala da lista ou no mapa para editar o nome e a névoa.</p>
+    </section>`;
+}
+
+function zoneRow(z) {
+  const live = liveView();
+  const revealed = live ? z.live : z.revealed;
+  return `
+    <button class="room-row" data-act="zone-select" data-zone="${z.id}" data-selected="${state.activeZone === z.id}" data-revealed="${revealed}">
+      <span class="room-row__swatch"></span>
+      <span class="room-row__name">${esc(z.label)}</span>
+      <span class="room-row__meta">${z.rects.length} ${z.rects.length === 1 ? "pedaço" : "pedaços"}</span>
+      <span class="chip" data-tone="${revealed ? "live" : ""}">${revealed ? "on" : "off"}</span>
+    </button>`;
+}
+
+function savePanel() {
+  const target = scene();
+  const base = target.savedHash;
+  const disk = target.diskHash;
+  const changed = disk !== base;
+  const diff = diffZones(target);
+  return `
+    <section class="panel" aria-label="Salvar molde">
+      <div class="panel-band"><h2 class="panel-label">Molde</h2><span class="panel-band__meta">${target.dirty ? "não salvo" : "salvo"}</span></div>
+      <div class="hash-line"><span class="chip__lamp" style="background:${target.dirty ? "var(--oxide)" : "var(--amber)"}"></span>base <code>${base.slice(0, 15)}</code></div>
+      <div class="path-preview">${esc(SCENE_DIR + target.slug + ".json")}</div>
+      ${inTable() ? `<div class="notice" data-tone="warn">A mesa está aberta nesta cena. Salvar grava só o molde; a mesa continua com o que carregou. A mudança entra na próxima carga.</div>` : ""}
+      ${changed ? `
+        <div class="fault">
+          <div class="fault__stamp">Conflito de molde</div>
+          <p class="fault__text">O arquivo mudou no disco depois que você abriu. Nada foi sobrescrito.</p>
+          <div style="display:flex;gap:0.35rem;flex-wrap:wrap">
+            <button class="key key--small" data-act="reimport">Reimportar do disco</button>
+            <button class="key key--small key--danger" data-act="overwrite">Sobrescrever</button>
+          </div>
+        </div>` : ""}
+      ${inTable() && target.lastLog.length ? `
+        <div class="notice">Salvo. Na próxima carga da mesa: ${diff.kept.length} sala(s) mantêm a névoa, ${diff.added.length} nasce(m) oculta(s), ${diff.removed.length} perde(m) a névoa.</div>` : ""}
+      <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.6rem">
+        <button class="key key--primary key--small" data-act="save" ${changed ? "disabled" : ""}>Salvar molde</button>
+        <button class="key key--small" data-act="reimport">Reimportar</button>
+      </div>
+      <ul class="save-log">
+        ${(target.lastLog.length ? target.lastLog : [["—", "nenhuma escrita nesta sessão"]]).map(([k, v]) => `<li><span>${esc(k)}</span><span>${esc(v)}</span></li>`).join("")}
+      </ul>
+      <button class="key key--quiet key--danger" data-act="simulate-external" style="margin-top:0.5rem">Simular edição externa</button>
+    </section>`;
+}
+
+function diffZones(target) {
+  const current = target.zones.map((z) => z.id);
+  const loaded = target.tableLoadedZoneIds;
+  return {
+    kept: current.filter((id) => loaded.includes(id)),
+    added: current.filter((id) => !loaded.includes(id)),
+    removed: loaded.filter((id) => !current.includes(id))
+  };
+}
+
+function sceneList() {
+  return Object.values(state.scenes).map((s) => `
+    <button class="rail__scene" data-act="scene" data-scene="${s.key}" data-current="${s.key === state.sceneKey}" data-dirty="${s.dirty}">
+      <span class="rail__scene__dot"></span>
+      <span class="rail__scene__name">${esc(s.name)}</span>
+      ${state.tableOpen && s.key === state.tableSceneKey ? `<span class="rail__scene__tag">Em mesa</span>` : ""}
+    </button>`).join("");
+}
+
+function rail() {
+  return `
+  <aside class="rail">
+    <div class="wordmark"><span class="wordmark__mark"></span><span class="wordmark__text">HARPI</span></div>
+    <nav class="rail__nav" aria-label="Páginas">
+      <button class="nav-key" data-act="page" data-page="table">Mesa</button>
+      <button class="nav-key" data-act="page" data-page="chars">Personagens</button>
+      <button class="nav-key" data-act="page" data-page="sheet">Ficha</button>
+      <button class="nav-key" data-act="page" data-page="scenes" aria-current="page">Cenas</button>
+    </nav>
+    <div>
+      <div class="rail__label">Cenas</div>
+      <div class="rail__list">${sceneList()}</div>
+      <button class="key key--small" data-act="new-scene" style="inline-size:100%;margin-top:0.4rem">＋ Nova cena</button>
+    </div>
+    <div class="rail__foot">
+      <div class="placard"><span class="placard__label">Campanha</span><span class="placard__value">Paratheos</span></div>
+      <span class="chip" data-tone="${state.tableOpen ? "live" : ""}"><span class="chip__lamp"></span>${state.tableOpen ? "Mesa aberta" : "Sem mesa"}</span>
+    </div>
+  </aside>`;
+}
+
+function topbar() {
+  const target = scene();
+  return `
+  <div class="topbar">
+    <div class="placard"><span class="placard__label">Campanha</span><span class="placard__value">Paratheos</span></div>
+    <div class="topbar__right">
+      <span class="chip" data-tone="${inTable() ? "live" : ""}"><span class="chip__lamp"></span>${inTable() ? "Em mesa aberta" : state.tableOpen ? "Mesa em outra cena" : "Fora da mesa"}</span>
+      ${state.page === "editor" ? `<button class="key key--primary key--small" data-act="save" ${target.diskHash !== target.savedHash ? "disabled" : ""}>Salvar</button>` : ""}
+    </div>
+  </div>`;
+}
+
+function pageHead() {
+  const target = scene();
+  return `
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">${esc(target.name)}</h1>
+      <p class="page-sub"><span class="mono">${esc(SCENE_DIR + target.slug + ".json")}</span> · <span class="mono">${target.id}</span></p>
+    </div>
+    <div class="page-head__right">
+      <button class="key key--small" data-act="gallery">← Cenas</button>
+      <span class="chip" data-tone="${target.dirty ? "dirty" : "live"}"><span class="chip__lamp"></span>${target.dirty ? "Molde não salvo" : "Molde salvo"}</span>
+      <span class="chip" data-tone="${target.diskHash !== target.savedHash ? "alert" : ""}"><span class="chip__lamp"></span>${target.diskHash !== target.savedHash ? "Conflito no disco" : target.savedHash.slice(0, 14)}</span>
+    </div>
+  </div>`;
+}
+
+function newSceneModal() {
+  const slug = (state.newSceneName || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `
+  <div class="backdrop">
+    <div class="modal modal--narrow" role="dialog" aria-modal="true" aria-label="Nova cena" data-stop="true">
+      <div class="modal__head"><h2 class="modal__title">Nova cena</h2><button class="key key--small modal__close" data-act="close-modal">Fechar</button></div>
+      <label class="field"><span class="field__label">Nome</span><input class="input" data-act="new-scene-name" value="${esc(state.newSceneName)}" placeholder="Câmara do selo" autofocus></label>
+      <p class="hint" style="margin-top:0.4rem">O arquivo não é renomeado depois. O slug vira o nome do arquivo.</p>
+      <div class="path-preview">${esc(SCENE_DIR + (slug || "…") + ".json")}</div>
+      <div class="modal__foot">
+        <button class="key key--small" data-act="close-modal">Cancelar</button>
+        <button class="key key--small" data-act="create-scene" data-source="image" ${slug ? "" : "disabled"}>Criar com imagem</button>
+        <button class="key key--primary key--small" data-act="create-scene" data-source="sketch" ${slug ? "" : "disabled"}>Criar desenhando</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function pickerModal() {
+  if (!state.picker) return "";
+  const tab = state.picker;
+  return `
+  <div class="backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Escolher imagem" data-stop="true">
+      <div class="modal__head"><h2 class="modal__title">Imagem da cena</h2><button class="key key--small modal__close" data-act="close-modal">Fechar</button></div>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="${tab === "vault"}" data-act="picker-tab" data-tab="vault">Índice do vault</button>
+        <button class="tab" role="tab" aria-selected="${tab === "upload"}" data-act="picker-tab" data-tab="upload">Enviar arquivo</button>
+        <button class="tab" role="tab" aria-selected="${tab === "embed"}" data-act="picker-tab" data-tab="embed">Embed</button>
+      </div>
+      ${tab === "vault" ? `
+        <div class="picker-layout">
+          <div class="folder-list">
+            ${Object.keys(FOLDERS).map((f) => `<button class="folder" data-act="folder" data-folder="${f}" aria-current="${state.folder === f}">${esc(f)}</button>`).join("")}
+          </div>
+          <div class="thumbs">
+            ${(FOLDERS[state.folder] || []).map(([name, w, h, kind]) => `
+              <button class="thumb" data-act="pick-image" data-path="${esc(state.folder + "/" + name)}" data-w="${w}" data-h="${h}" data-kind="${kind || ""}">
+                <span class="thumb__art">${kind ? SVG_MAP[kind] : "sem prévia"}</span>
+                <span class="thumb__name">${esc(name)}</span>
+                <span class="thumb__meta">${w} × ${h}</span>
+              </button>`).join("")}
+          </div>
+        </div>
+        <p class="hint" style="margin-top:0.6rem">Qualquer imagem do vault serve, inclusive de <span class="mono">Recursos/anexos</span>. O caminho fica relativo à raiz do vault.</p>
+      ` : ""}
+      ${tab === "upload" ? `
+        <label class="dropzone">
+          <span class="chip" data-tone="live"><span class="chip__lamp"></span>Upload</span>
+          <span>Arraste um arquivo ou clique para escolher</span>
+          <span class="hint">Grava em <span class="mono">Harpi/Campaigns/paratheos/assets/</span> e aponta a cena para a cópia. O original do vault fica onde está.</span>
+          <input type="file" accept="image/*" data-act="upload-file" style="display:none">
+        </label>
+        <p class="hint" style="margin-top:0.6rem">A cena passa a depender de um arquivo dentro da campanha, não do acervo compartilhado.</p>
+      ` : ""}
+      ${tab === "embed" ? `
+        <label class="field"><span class="field__label">URL da imagem</span><input class="input" data-act="embed-url" placeholder="https://…" value=""></label>
+        <p class="hint" style="margin-top:0.5rem">Exige allowlist de host, cache no servidor e um caminho que não é do vault. Sem a allowlist, é um buraco de SSRF.</p>
+        <div class="modal__foot"><button class="key key--primary key--small" data-act="embed-apply">Usar URL</button></div>
+      ` : ""}
+    </div>
+  </div>`;
+}
+
+function sceneSummary() {
+  const target = scene();
+  const live = liveView();
+  const revealed = target.zones.filter((z) => (live ? z.live : z.revealed)).length;
+  const visibleTokens = (TOKENS[target.key] || []).filter((t) => t.visible).length;
+  return `
+    <section class="panel" aria-label="Leitura da cena">
+      <div class="panel-band"><h2 class="panel-label">Leitura</h2><span class="panel-band__meta">${live ? "mesa ao vivo" : "molde"}</span></div>
+      <div class="rating">
+        <div class="rating__cell"><span class="data-label">Imagem</span><span class="data-value">${esc(target.image.path.split("/").pop() || "—")}</span></div>
+        <div class="rating__cell"><span class="data-label">Célula</span><span class="data-value">${target.grid.cell} px · ${Math.round(target.image.width / target.grid.cell)} × ${Math.round(target.image.height / target.grid.cell)}</span></div>
+        <div class="rating__cell"><span class="data-label">Salas</span><span class="data-value">${revealed} de ${target.zones.length} ${live ? "reveladas agora" : "reveladas no início"}</span></div>
+        <div class="rating__cell"><span class="data-label">Névoa</span><span class="data-value">${target.fogOutside ? "fora coberto" : "fora visível"}${live ? ` · ${visibleTokens} tokens` : ""}</span></div>
+      </div>
+      <p class="hint" style="margin:0.5rem 0 0">${live ? "A vista viva é só leitura: revelar, cobrir e mover token continuam na mesa." : "O molde não tem tokens. O jogador só encontra esta cena quando o narrador a carrega numa mesa."}</p>
+    </section>`;
+}
+
+function renderVariantA() {
+  const target = scene();
+  return `
+  <div class="shell">
+    ${rail()}
+    <main class="content">
+      ${topbar()}
+      ${pageHead()}
+      ${tableBanner()}
+      <div class="editor editor--a">
+        <div class="stage-col">${stageCard()}${sceneSummary()}</div>
+        <div class="inspector">
+          ${imagePanel()}
+          ${gridPanel()}
+          ${zonesPanel()}
+          ${savePanel()}
+        </div>
+      </div>
+      <p class="hint" style="margin-top:0.8rem">Bancada: palco e inspetor ao mesmo tempo. Lista de cenas no rail, salvamento no cabeçalho e no fim do inspetor.</p>
+    </main>
+  </div>`;
+}
+
+function renderVariantB() {
+  const target = scene();
+  const steps = [
+    [1, "Imagem"], [2, "Grid"], [3, "Salas"], [4, "Salvar"]
+  ];
+  const aside = state.step === 1 ? imagePanel() : state.step === 2 ? gridPanel() : state.step === 3 ? zonesPanel() : savePanel();
+  return `
+  <div class="content" style="max-inline-size:78rem;margin-inline:auto">
+    ${topbar()}
+    ${pageHead()}
+    ${tableBanner()}
+    <div class="b-strip">
+      ${Object.values(state.scenes).map((s) => `<button class="b-scene" data-act="scene" data-scene="${s.key}" data-current="${s.key === state.sceneKey}"><span class="b-scene__name">${esc(s.name)}</span><span class="b-scene__meta">${s.zones.length} salas · ${s.dirty ? "não salvo" : s.savedHash.slice(0, 14)}</span></button>`).join("")}
+      <button class="b-scene" data-act="new-scene" style="display:grid;place-items:center"><span class="b-scene__name">＋ Nova cena</span></button>
+    </div>
+    <div class="steps">
+      ${steps.map(([n, name]) => `<button class="step" data-act="step" data-step="${n}" aria-current="${state.step === n}"><span class="step__num">0${n}</span><span class="step__name">${name}</span></button>`).join("")}
+    </div>
+    <div class="b-body">
+      <div class="stage-col">${stageCard()}</div>
+      <div class="b-aside">${aside}</div>
+    </div>
+    <p class="hint" style="margin-top:0.8rem">Passo a passo: um assunto por vez, com o palco sempre à vista. Salvar é o último passo.</p>
+  </div>`;
+}
+
+function renderVariantC() {
+  const target = scene();
+  return `
+  <div class="shell">
+    ${rail()}
+    <main class="content">
+      ${topbar()}
+      ${pageHead()}
+      ${tableBanner()}
+      <div class="editor editor--c">
+        <div class="stage-col">
+          ${stageCard()}
+          <div class="stage-card">
+            <div class="c-dock">
+              <span class="chip" data-tone="${target.fogOutside ? "live" : ""}"><span class="chip__lamp"></span>${target.fogOutside ? "Névoa fora das salas" : "Fora das salas visível"}</span>
+              <button class="key key--small" data-act="fog-outside" aria-pressed="${target.fogOutside}">Alternar névoa externa</button>
+              <button class="key key--primary key--small" data-act="save" style="margin-inline-start:auto" ${target.diskHash !== target.savedHash ? "disabled" : ""}>Salvar molde</button>
+            </div>
+          </div>
+        </div>
+        <div class="inspector">
+          <section class="panel">
+            <div class="panel-band"><h2 class="panel-label">Quadro de salas</h2><span class="panel-band__meta">${target.zones.length}</span></div>
+            <div class="c-board">${target.zones.map(zoneCard).join("") || `<p class="hint">Nenhuma zona.</p>`}</div>
+            <div style="display:flex;gap:0.35rem;margin-top:0.5rem;flex-wrap:wrap">
+              <button class="key key--small" data-act="tool" data-tool="draw" aria-pressed="${state.tool === "draw"}">Retângulo</button>
+              <button class="key key--small" data-act="tool" data-tool="erase" aria-pressed="${state.tool === "erase"}">Apagar</button>
+              <button class="key key--small" data-act="new-zone">Nova sala</button>
+            </div>
+            <p class="hint" style="margin-top:0.4rem">Arraste no mapa. Encostar cria outra sala; sobrepor um pouco junta na mesma sala. O lápis seleciona a sala que recebe o próximo pedaço.</p>
+          </section>
+          ${imagePanel()}
+          ${gridPanel()}
+          ${savePanel()}
+        </div>
+      </div>
+      <p class="hint" style="margin-top:0.8rem">Quadro de salas: a sala é o objeto, o mapa é a folha. Desenho direto no mapa com a ferramenta Sala.</p>
+    </main>
+  </div>`;
+}
+
+function zoneCard(z) {
+  const live = liveView();
+  const revealed = live ? z.live : z.revealed;
+  const paint = state.activeZone === z.id && state.tool === "draw";
+  return `
+    <div class="zone-card" data-zone="${z.id}" data-selected="${state.activeZone === z.id}" data-paint="${paint}">
+      <div class="zone-card__head">
+        <button class="zone-card__paint" data-act="zone-paint" data-zone="${z.id}" aria-pressed="${paint}" aria-label="Desenhar retângulo em ${esc(z.label)}">✎</button>
+        <span class="zone-card__name">${esc(z.label)}</span>
+        <span class="chip" data-tone="${revealed ? "live" : ""}">${revealed ? "on" : "off"}</span>
+      </div>
+      <div class="zone-card__meta">${z.rects.length} ret. · ${z.rects.map((r) => `${r.w}×${r.h}`).join(" + ")}</div>
+    </div>`;
+}
+
+function sceneThumb(s) {
+  if (s.source === "sketch") {
+    const rects = s.zones.flatMap((z) => z.rects.map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="#241d14" stroke="#3d3527" stroke-width="0.15"/>`)).join("");
+    return `<svg viewBox="0 0 30 20" preserveAspectRatio="none" aria-hidden="true"><rect width="30" height="20" fill="#0f0c08"/>${rects}</svg>`;
+  }
+  return SVG_MAP[s.key] || `<span class="hint">sem prévia</span>`;
+}
+
+function renderGallery() {
+  const target = scene();
+  return `
+  <div class="shell">
+    ${rail()}
+    <main class="content">
+      ${topbar()}
+      <div class="gallery-head">
+        <div>
+          <h1 class="page-title">Cenas</h1>
+          <p class="page-sub">Mapas prontos para carregar na mesa. Clique num cartão para editar.</p>
+        </div>
+        <button class="key key--primary" data-act="new-scene" style="margin-inline-start:auto">＋ Nova cena</button>
+      </div>
+      <div class="gallery-grid">
+        ${Object.values(state.scenes).map((s) => `
+          <button class="gallery-card" data-act="scene" data-scene="${s.key}">
+            <span class="gallery-card__art">${sceneThumb(s)}</span>
+            <span class="gallery-card__body">
+              <span class="gallery-card__name">${esc(s.name)}</span>
+              <span class="gallery-card__meta">${s.source === "sketch" ? "desenhada" : "imagem"} · ${s.zones.length} ${s.zones.length === 1 ? "área" : "áreas"} · ${s.dirty ? "não salva" : "salva"}</span>
+              ${inTable() && s.key === state.tableSceneKey ? `<span class="chip" data-tone="live"><span class="chip__lamp"></span>em mesa</span>` : ""}
+            </span>
+          </button>`).join("")}
+        <button class="gallery-card gallery-card--new" data-act="new-scene">
+          <span class="gallery-card__new">＋ Nova cena</span>
+          <span class="gallery-card__meta">imagem ou desenho</span>
+        </button>
+      </div>
+    </main>
+  </div>`;
+}
+
+function tableBanner() {
+  if (!inTable()) return "";
+  const target = scene();
+  const revealed = target.zones.filter((z) => z.live).length;
+  const tokens = (TOKENS[target.key] || []).filter((t) => t.visible).length;
+  return `
+    <div class="table-banner">
+      <span class="chip" data-tone="live"><span class="chip__lamp"></span>Em uso na mesa</span>
+      <span class="table-banner__meta">${tokens} tokens · ${revealed} de ${target.zones.length} áreas reveladas agora. O que você salvar entra quando a cena for recarregada na Mesa.</span>
+      <button class="key key--small" data-act="goto-table">Abrir Mesa</button>
+    </div>`;
+}
+
+function render() {
+  const target = scene();
+  if (state.activeZone && !zoneById(state.activeZone)) state.activeZone = "";
+  const body = state.variant === "A" && state.page === "gallery" ? renderGallery() : state.variant === "A" ? renderVariantA() : state.variant === "B" ? renderVariantB() : renderVariantC();
+  app.innerHTML = body + (state.newScene ? newSceneModal() : "") + pickerModal() + (state.toast ? `<div class="toast" role="status">${esc(state.toast)}</div>` : "");
+  document.getElementById("variant-label").textContent = `${state.variant} (${variantNames[state.variant]})`;
+  const tableToggle = document.getElementById("table-toggle");
+  tableToggle.textContent = state.tableOpen ? "Mesa aberta" : "Fora da mesa";
+  tableToggle.setAttribute("aria-pressed", String(state.tableOpen));
+  syncUrl();
+  wireStage();
+}
+
+function syncUrl() {
+  const next = new URLSearchParams();
+  next.set("variant", state.variant);
+  next.set("scene", state.sceneKey);
+  if (state.tableOpen) next.set("table", "open");
+  if (state.page === "editor") next.set("page", "editor");
+  history.replaceState(null, "", `?${next}`);
+}
+
+function wireStage() {
+  const stage = document.getElementById("stage");
+  if (!stage) return;
+  const editable = stage.dataset.editing === "true";
+  const toCell = (event) => {
+    const box = stage.getBoundingClientRect();
+    const cx = clamp((event.clientX - box.left) / box.width, 0, 0.9999);
+    const cy = clamp((event.clientY - box.top) / box.height, 0, 0.9999);
+    return { x: Math.floor(cx * COLS), y: Math.floor(cy * ROWS) };
+  };
+  let origin = null;
+  let moved = false;
+  let startX = 0;
+  let startY = 0;
+  const draftEl = () => {
+    let el = stage.querySelector(".stage__draft");
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "stage__draft";
+      stage.appendChild(el);
+    }
+    return el;
+  };
+  const paintDraft = () => {
+    if (!state.draft) return;
+    const d = state.draft;
+    const el = draftEl();
+    el.style.left = pct(d.x, COLS);
+    el.style.top = pct(d.y, ROWS);
+    el.style.width = pct(d.w, COLS);
+    el.style.height = pct(d.h, ROWS);
+  };
+  stage.addEventListener("pointerdown", (event) => {
+    if (!editable || event.button !== 0) return;
+    event.preventDefault();
+    try { stage.setPointerCapture(event.pointerId); } catch { }
+    origin = toCell(event);
+    moved = false;
+    startX = event.clientX;
+    startY = event.clientY;
+    if (state.tool === "draw" || state.tool === "erase") {
+      state.draft = { x: origin.x, y: origin.y, w: 1, h: 1 };
+      paintDraft();
+    }
+  });
+  stage.addEventListener("pointermove", (event) => {
+    if (!origin) return;
+    if (Math.hypot(event.clientX - startX, event.clientY - startY) > 5) moved = true;
+    if (!moved || state.tool === "select") return;
+    const cell = toCell(event);
+    state.draft = {
+      x: Math.min(origin.x, cell.x),
+      y: Math.min(origin.y, cell.y),
+      w: Math.abs(cell.x - origin.x) + 1,
+      h: Math.abs(cell.y - origin.y) + 1
+    };
+    paintDraft();
+  });
+  stage.addEventListener("pointerup", (event) => {
+    if (!origin) return;
+    const cell = toCell(event);
+    const rect = {
+      x: Math.min(origin.x, cell.x),
+      y: Math.min(origin.y, cell.y),
+      w: Math.abs(cell.x - origin.x) + 1,
+      h: Math.abs(cell.y - origin.y) + 1
+    };
+    origin = null;
+    state.draft = null;
+    if (!moved) {
+      selectAt(cell.x, cell.y);
+      return;
+    }
+    if (state.tool === "draw" || state.tool === "erase") commitRect(rect);
+    else render();
+  });
+  stage.addEventListener("pointercancel", () => { origin = null; state.draft = null; render(); });
+  stage.addEventListener("dblclick", (event) => {
+    if (!editable) return;
+    const cell = toCell(event);
+    const hit = zoneAt(cell.x, cell.y);
+    if (!hit) return;
+    state.activeZone = hit.id;
+    render();
+    const input = document.querySelector(".stage-status__name input");
+    if (input) { input.focus(); input.select(); }
+  });
+}
+
+function zoneAt(x, y) {
+  return scene().zones.find((z) => z.rects.some((r) => pointInRect(x, y, r)));
+}
+
+function selectAt(x, y) {
+  const hit = zoneAt(x, y);
+  if (hit) state.activeZone = hit.id;
+  else state.activeZone = "";
+  render();
+}
+
+function pushHistory() {
+  state.history.push({ key: state.sceneKey, zones: JSON.stringify(scene().zones) });
+  if (state.history.length > 40) state.history.shift();
+}
+
+function undo() {
+  const last = state.history.pop();
+  if (!last || last.key !== state.sceneKey) {
+    toast("Nada para desfazer");
+    render();
+    return;
+  }
+  scene().zones = JSON.parse(last.zones);
+  if (!zoneById(state.activeZone)) state.activeZone = scene().zones[0]?.id || "";
+  markDirty();
+  toast("Desfeito");
+  render();
+}
+
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+function rectsToCells(rects) {
+  const cells = new Set();
+  rects.forEach((r) => {
+    for (let x = r.x; x < r.x + r.w; x += 1) for (let y = r.y; y < r.y + r.h; y += 1) cells.add(`${x},${y}`);
+  });
+  return cells;
+}
+
+function normalizeRects(rects) {
+  const cells = rectsToCells(rects);
+  const used = new Set();
+  const out = [];
+  const keys = Array.from(cells).sort((a, b) => {
+    const [ax, ay] = a.split(",").map(Number);
+    const [bx, by] = b.split(",").map(Number);
+    return ay - by || ax - bx;
+  });
+  keys.forEach((key) => {
+    if (used.has(key)) return;
+    const [x, y] = key.split(",").map(Number);
+    let w = 1;
+    while (cells.has(`${x + w},${y}`) && !used.has(`${x + w},${y}`)) w += 1;
+    let h = 1;
+    const rowClear = (yy) => {
+      for (let i = 0; i < w; i += 1) {
+        const k = `${x + i},${yy}`;
+        if (!cells.has(k) || used.has(k)) return false;
+      }
+      return true;
+    };
+    while (rowClear(y + h)) h += 1;
+    for (let i = 0; i < w; i += 1) for (let j = 0; j < h; j += 1) used.add(`${x + i},${y + j}`);
+    out.push({ x, y, w, h });
+  });
+  return out;
+}
+
+function subtractRect(rects, cut) {
+  const out = [];
+  rects.forEach((r) => {
+    if (!rectsOverlap(r, cut)) {
+      out.push(r);
+      return;
+    }
+    const x1 = r.x;
+    const y1 = r.y;
+    const x2 = r.x + r.w;
+    const y2 = r.y + r.h;
+    const cx1 = Math.max(x1, cut.x);
+    const cy1 = Math.max(y1, cut.y);
+    const cx2 = Math.min(x2, cut.x + cut.w);
+    const cy2 = Math.min(y2, cut.y + cut.h);
+    if (cy1 > y1) out.push({ x: x1, y: y1, w: x2 - x1, h: cy1 - y1 });
+    if (cy2 < y2) out.push({ x: x1, y: cy2, w: x2 - x1, h: y2 - cy2 });
+    if (cx1 > x1) out.push({ x: x1, y: cy1, w: cx1 - x1, h: cy2 - cy1 });
+    if (cx2 < x2) out.push({ x: cx2, y: cy1, w: x2 - cx2, h: cy2 - cy1 });
+  });
+  return out;
+}
+
+function commitRect(rect) {
+  const target = scene();
+  if (state.tool === "erase") {
+    let removed = 0;
+    const nextZones = [];
+    target.zones.forEach((z) => {
+      const kept = subtractRect(z.rects, rect);
+      const cellsBefore = rectsToCells(z.rects).size;
+      const cellsAfter = rectsToCells(kept).size;
+      removed += cellsBefore - cellsAfter;
+      if (cellsAfter > 0) nextZones.push({ ...z, rects: normalizeRects(kept) });
+    });
+    if (!removed) {
+      render();
+      return;
+    }
+    pushHistory();
+    target.zones = nextZones;
+    if (!zoneById(state.activeZone)) state.activeZone = "";
+    markDirty();
+    toast(`Apagado · ${removed} célula(s)`);
+    render();
+    return;
+  }
+  const overlapping = target.zones.filter((z) => z.rects.some((r) => rectsOverlap(r, rect)));
+  const active = zoneById(state.activeZone);
+  const base = (active && overlapping.includes(active) ? active : overlapping[0]) || null;
+  if (base) {
+    pushHistory();
+    const pieces = [rect];
+    overlapping.forEach((z) => {
+      if (z.id !== base.id) pieces.push(...z.rects);
+    });
+    base.rects = normalizeRects([...base.rects, ...pieces]);
+    target.zones = target.zones.filter((z) => z.id === base.id || !overlapping.includes(z));
+    state.activeZone = base.id;
+    markDirty();
+    toast(`Pedaço somado a ${base.label}`);
+    render();
+    return;
+  }
+  pushHistory();
+  const zone = { id: uid("zon"), label: `Sala ${target.zones.length + 1}`, rects: [rect], revealed: false, live: false };
+  target.zones.push(zone);
+  state.activeZone = zone.id;
+  markDirty();
+  toast(`Sala criada · ${rect.w}×${rect.h} células`);
+  render();
+}
+
+function selectZone(id) {
+  state.activeZone = id;
+  render();
+}
+
+function saveScene(force) {
+  const target = scene();
+  if (target.diskHash !== target.savedHash && !force) {
+    toast("Conflito: reimporte ou sobrescreva");
+    return;
+  }
+  const json = serialize(target);
+  const nextHash = hashOf(json);
+  const tmp = `${SCENE_DIR}${target.slug}.json.harpi-tmp-${Math.random().toString(16).slice(2, 8)}`;
+  if (target.source === "sketch") {
+    target.image.path = `Harpi/Campaigns/${CAMPAIGN}/assets/${target.slug}-map.svg`;
+  }
+  target.savedHash = nextHash;
+  target.diskHash = nextHash;
+  target.dirty = false;
+  target.lastLog = [
+    ["tmp", tmp],
+    ["flush+fsync", "ok"],
+    ["replace", `${SCENE_DIR}${target.slug}.json`],
+    ...(target.source === "sketch" ? [["svg", target.image.path]] : []),
+    ["hash", nextHash.slice(0, 22)]
+  ];
+  state.conflict = false;
+  toast("Cena salva · escrita atômica");
+  render();
+}
+
+function reimportScene() {
+  const target = scene();
+  target.savedHash = target.diskHash;
+  target.loadedHash = target.diskHash;
+  target.dirty = false;
+  toast("Molde reimportado do disco");
+  render();
+}
+
+function createScene(source = "sketch") {
+  const name = state.newSceneName.trim();
+  const slug = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  if (!slug) return;
+  const key = slug;
+  state.scenes[key] = {
+    key,
+    id: uid("scn"),
+    name,
+    slug,
+    image: { path: "", width: 3000, height: 2000 },
+    source,
+    grid: { cell: 100, offsetX: 0, offsetY: 0, visible: true },
+    fogOutside: false,
+    zones: [],
+    dirty: true,
+    savedHash: "sha256:000000000000",
+    diskHash: "sha256:000000000000",
+    loadedHash: "sha256:000000000000",
+    tableLoadedZoneIds: [],
+    lastLog: [],
+    loadedAt: "—"
+  };
+  state.sceneKey = key;
+  state.page = "editor";
+  state.activeZone = "";
+  state.history = [];
+  state.tool = source === "sketch" ? "draw" : "select";
+  state.newScene = false;
+  state.newSceneName = "";
+  state.picker = source === "image" ? "vault" : null;
+  render();
+}
+
+function pickImage(path, w, h, kind) {
+  const target = scene();
+  target.image = { path, width: w, height: h };
+  if (kind && SVG_MAP[kind] && !SVG_MAP[target.key]) target.key = target.key;
+  target.key = kind === "patio" ? "patio" : kind === "cripta" ? "cripta" : target.key;
+  markDirty();
+  state.picker = null;
+  toast(`Imagem trocada · ${path.split("/").pop()}`);
+  render();
+}
+
+function toggleTable() {
+  state.tableOpen = !state.tableOpen;
+  if (state.tableOpen) state.tableSceneKey = state.sceneKey;
+  if (state.tableOpen && !scene().tableLoadedZoneIds.length) scene().tableLoadedZoneIds = scene().zones.map((z) => z.id);
+  render();
+}
+
+function reset() {
+  Object.assign(state, {
+    sceneKey: "cripta", page: "gallery", tableOpen: false, role: "narrator", view: "mold", tool: "select", history: [],
+    activeZone: "", draft: null, picker: null, newScene: false, newSceneName: "", conflict: false, toast: ""
+  });
+  state.scenes = seedScenes();
+  render();
+}
+
+document.addEventListener("click", (event) => {
+  if (event.target.classList && event.target.classList.contains("backdrop")) {
+    state.newScene = false;
+    state.picker = null;
+    render();
+    return;
+  }
+  const act = event.target.closest("[data-act]");
+  if (!act) return;
+  const action = act.dataset.act;
+
+  if (action === "variant-prev" || action === "variant-next") {
+    const order = ["A", "B", "C"];
+    const index = order.indexOf(state.variant);
+    state.variant = order[(index + (action === "variant-next" ? 1 : 2)) % 3];
+    render();
+    return;
+  }
+  if (action === "table-toggle") { toggleTable(); return; }
+  if (action === "reset") { reset(); return; }
+  if (action === "gallery") { state.page = "gallery"; render(); return; }
+  if (action === "goto-table") { toast("A Mesa é outra página; aqui é só o preparo."); return; }
+  if (action === "page") { if (act.dataset.page === "scenes") { state.page = "gallery"; render(); } else toast("Página fora deste protótipo"); return; }
+  if (action === "scene") { state.sceneKey = act.dataset.scene; state.page = "editor"; state.activeZone = ""; state.tool = "select"; state.history = []; render(); return; }
+  if (action === "step") { state.step = Number(act.dataset.step); render(); return; }
+  if (action === "new-scene") { state.newScene = true; render(); return; }
+  if (action === "close-modal") { state.newScene = false; state.picker = null; render(); return; }
+  if (action === "create-scene") { createScene(act.dataset.source); return; }
+  if (action === "picker") { state.picker = "vault"; render(); return; }
+  if (action === "picker-tab") { state.picker = act.dataset.tab; render(); return; }
+  if (action === "folder") { state.folder = act.dataset.folder; render(); return; }
+  if (action === "pick-image") { pickImage(act.dataset.path, Number(act.dataset.w), Number(act.dataset.h), act.dataset.kind); return; }
+  if (action === "tool") {
+    state.tool = act.dataset.tool;
+    render();
+    return;
+  }
+  if (action === "new-zone") {
+    state.activeZone = "";
+    state.tool = "draw";
+    toast("Nova sala: arraste no mapa");
+    render();
+    return;
+  }
+  if (action === "source") {
+    const source = act.dataset.source;
+    scene().source = source;
+    if (source === "sketch") {
+      state.tool = "draw";
+      toast("Origem: desenho. As salas formam o mapa.");
+    } else {
+      state.tool = "select";
+      if (!scene().image.path) state.picker = "vault";
+      else toast("Origem: imagem do vault.");
+    }
+    markDirty();
+    render();
+    return;
+  }
+  if (action === "zone-paint") {
+    state.activeZone = act.dataset.zone;
+    state.tool = "draw";
+    render();
+    return;
+  }
+  if (action === "zone-select") { selectZone(act.dataset.zone); return; }
+  if (action === "view") { state.view = act.dataset.view; render(); return; }
+  if (action === "save") { saveScene(false); return; }
+  if (action === "reimport") { reimportScene(); return; }
+  if (action === "overwrite") { saveScene(true); return; }
+  if (action === "simulate-external") {
+    scene().diskHash = `sha256:${Math.random().toString(16).slice(2, 14)}`;
+    render();
+    return;
+  }
+  if (action === "grid-toggle") { const t = scene(); t.grid.visible = !t.grid.visible; markDirty(); render(); return; }
+  if (action === "fog-outside") { const t = scene(); t.fogOutside = !t.fogOutside; markDirty(); render(); return; }
+  if (action === "zone-delete") { if (state.activeZone) removeZone(state.activeZone); return; }
+  if (action === "undo") { undo(); return; }
+  if (action === "zone-remove") { removeZone(act.dataset.zone); return; }
+  if (action === "zone-toggle-revealed") { const z = zoneById(act.dataset.zone); if (z) { pushHistory(); z.revealed = !z.revealed; markDirty(); } render(); return; }
+  if (action === "rect-remove") {
+    const z = zoneById(act.dataset.zone);
+    if (z) { z.rects.splice(Number(act.dataset.index), 1); if (!z.rects.length) removeZone(z.id); else markDirty(); }
+    render();
+    return;
+  }
+  if (action === "embed-apply") { pickImage("https://exemplo.invalid/mapa.jpg", 3000, 2000, ""); toast("Embed é simulado neste protótipo"); return; }
+});
+
+function removeZone(id) {
+  const target = scene();
+  pushHistory();
+  target.zones = target.zones.filter((z) => z.id !== id);
+  if (state.activeZone === id) state.activeZone = "";
+  markDirty();
+  render();
+}
+
+document.addEventListener("change", (event) => {
+  const el = event.target.closest("[data-act]");
+  if (!el) return;
+  const action = el.dataset.act;
+  const target = scene();
+  if (action === "grid-cell") {
+    target.grid.cell = clamp(Number(el.value) || 100, 20, 400);
+    markDirty();
+    render();
+  }
+  if (action === "grid-offset") {
+    if (el.dataset.axis === "x") target.grid.offsetX = Number(el.value) || 0;
+    else target.grid.offsetY = Number(el.value) || 0;
+    markDirty();
+    render();
+  }
+  if (action === "grid-visible") { target.grid.visible = el.checked; markDirty(); render(); }
+  if (action === "fog-outside") { target.fogOutside = el.checked; markDirty(); render(); }
+  if (action === "upload-file") {
+    const file = el.files && el.files[0];
+    if (file) pickImage(`Harpi/Campaigns/${CAMPAIGN}/assets/${file.name}`, 3000, 2000, "");
+  }
+});
+
+document.addEventListener("input", (event) => {
+  const el = event.target.closest("[data-act]");
+  if (!el) return;
+  const action = el.dataset.act;
+  if (action === "new-scene-name") { state.newSceneName = el.value; render(); return; }
+  if (action === "zone-label") {
+    const z = zoneById(el.dataset.zone);
+    if (z) {
+      z.label = el.value;
+      markDirty();
+      const label = document.querySelector(`.zone__label[data-zone="${z.id}"]`);
+      if (label) label.textContent = z.label;
+      const rowName = document.querySelector(`.room-row[data-zone="${z.id}"] .room-row__name`);
+      if (rowName) rowName.textContent = z.label;
+    }
+    return;
+  }
+  if (action === "grid-cell") {
+    const value = clamp(Number(el.value) || 100, 20, 400);
+    const target = scene();
+    target.grid.cell = value;
+    markDirty();
+    const grid = document.querySelector(".stage__grid");
+    if (grid) grid.style.cssText = gridVars(target);
+    document.querySelectorAll("[data-act='grid-cell']").forEach((other) => { if (other !== el && other.type === "number") other.value = value; });
+    return;
+  }
+  if (action === "embed-url") {
+    const apply = document.querySelector("[data-act='embed-apply']");
+    if (apply) apply.disabled = !el.value.trim();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName) || document.activeElement.isContentEditable;
+  if (event.key === "Escape") {
+    if (state.picker || state.newScene) { state.picker = null; state.newScene = false; render(); return; }
+    if (typing) { document.activeElement.blur(); return; }
+    state.activeZone = "";
+    render();
+    return;
+  }
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") { event.preventDefault(); undo(); return; }
+  if (typing) return;
+  const key = event.key.toLowerCase();
+  if (key === "v") { state.tool = "select"; render(); return; }
+  if (key === "r") { state.tool = "draw"; render(); return; }
+  if (key === "e") { state.tool = "erase"; render(); return; }
+  if ((event.key === "Delete" || event.key === "Backspace") && state.activeZone) { event.preventDefault(); removeZone(state.activeZone); return; }
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    const order = ["A", "B", "C"];
+    const index = order.indexOf(state.variant);
+    state.variant = order[(index + (event.key === "ArrowRight" ? 1 : 2)) % 3];
+    render();
+  }
+  if (key === "s") { saveScene(false); }
+});
+
+render();
+window.__protoState = state;
+})();
+</script>
+</body>
+</html>

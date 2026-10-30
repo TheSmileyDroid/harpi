@@ -1,0 +1,2138 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protótipo · UX da mesa · Harpi VTT</title>
+<style>
+:root {
+  --ground: #14110d;
+  --plate: #1f1b15;
+  --plate-2: #2a241c;
+  --sunken: #0d0b08;
+  --rating: #191510;
+  --rule: #2a241c;
+  --rule-strong: #3d3527;
+  --sand: #e9dfc7;
+  --on-sand: #221e18;
+  --amber: #f2b24e;
+  --label: #c4b79d;
+  --dim: #a59a8a;
+  --faint: #948a79;
+  --oxide: #ce7442;
+  --alert: #f0604a;
+  --alert-well: #2a1712;
+  --alert-ink: #d9c7b4;
+  --idle: #7d7365;
+  --hazard-band: repeating-linear-gradient(45deg, var(--alert) 0 8px, var(--alert-well) 8px 16px);
+  --printed-grain:
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--on-sand) 6%, transparent) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--on-sand) 6%, transparent) 0 1px, transparent 1px 3px);
+  --step-lit: repeating-linear-gradient(90deg, var(--amber) 0 7px, transparent 7px 10px);
+  --font-display: "Urbanist", system-ui, sans-serif;
+  --font-label: "Barlow", system-ui, sans-serif;
+  --font-value: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --radius-key: 3px;
+  --radius-plate: 4px;
+  --motion-quick: 140ms;
+  --motion-settle: 220ms;
+  --ease-arrive: cubic-bezier(0.16, 1, 0.3, 1);
+  --proto: #8fa3bd;
+}
+
+* { box-sizing: border-box; }
+* { scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--rule-strong); border: 3px solid var(--ground); border-radius: var(--radius-key); }
+
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--ground);
+  color: var(--label);
+  font-family: var(--font-value);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  caret-color: var(--amber);
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 4.6rem;
+}
+::selection { background: var(--amber); color: var(--ground); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+
+.proto-bar {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.45rem 0.9rem;
+  background: #10161f;
+  border-top: 2px dashed var(--proto);
+  color: var(--proto);
+  font-family: var(--font-label);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.proto-bar__tag { font-weight: 600; color: #c9d6e6; }
+.proto-bar__key {
+  min-block-size: 2rem;
+  min-inline-size: 2rem;
+  padding: 0.3rem 0.6rem;
+  background: transparent;
+  border: 1px solid var(--proto);
+  border-radius: var(--radius-key);
+  color: #c9d6e6;
+  font-family: var(--font-label);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.proto-bar__key:hover { background: #1c2635; }
+.proto-bar__label { color: var(--sand); font-family: var(--font-value); letter-spacing: 0; text-transform: none; }
+.proto-bar__roles { display: flex; gap: 2px; }
+.proto-bar__roles button[aria-pressed="true"] { background: var(--proto); color: #10161f; border-color: var(--proto); }
+.proto-bar__hint { color: #7e8ea3; text-transform: none; letter-spacing: 0.02em; }
+
+.wordmark { display: flex; align-items: center; gap: 0.5rem; }
+.wordmark__mark { inline-size: 1.15rem; block-size: 1.15rem; background: var(--amber); border-radius: 1px; }
+.wordmark__text {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.24em;
+  color: var(--sand);
+}
+
+.placard {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  min-block-size: 2.5rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--plate-2);
+  border-radius: var(--radius-key);
+}
+.placard__label {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.placard__value {
+  min-width: 0;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  color: var(--sand);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.placard__meta { font-size: 0.75rem; color: var(--faint); }
+
+.hud-panel {
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-plate);
+  background: var(--plate);
+  padding: 1rem;
+  min-width: 0;
+}
+.panel-band { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.panel-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 5rem;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.75rem;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sand);
+}
+.panel-label::after { content: ""; flex: 1; block-size: 1px; background: var(--rule); }
+.panel-band__meta { flex: none; font-size: 0.75rem; line-height: 1; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+.hud-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 0.72rem;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--label);
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-key);
+  min-block-size: 2.5rem;
+  min-inline-size: 3.5rem;
+  padding: 0.65rem 0.8rem;
+  transition: color var(--motion-quick) ease, background-color var(--motion-quick) ease, border-color var(--motion-quick) ease;
+}
+.hud-btn:hover { color: var(--sand); background: var(--plate-2); border-color: var(--oxide); }
+.hud-btn:active { translate: 0 1px; }
+.hud-btn:disabled { color: var(--idle); background: transparent; border-color: var(--rule); text-decoration: line-through; cursor: not-allowed; }
+.hud-btn--primary {
+  color: var(--on-sand);
+  background-color: var(--sand);
+  background-image: var(--printed-grain);
+  border-color: color-mix(in srgb, var(--on-sand) 30%, var(--sand));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-sand) 18%, transparent);
+}
+.hud-btn--primary:hover { color: var(--on-sand); background-color: color-mix(in srgb, var(--sand) 76%, white); border-color: var(--on-sand); }
+.hud-btn--small { min-block-size: 2rem; min-inline-size: 0; padding: 0.4rem 0.6rem; }
+.hud-btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.hud-input {
+  background: var(--sunken);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-key);
+  color: var(--sand);
+  font-size: 0.8125rem;
+  min-block-size: 2.5rem;
+  padding: 0.55rem 0.7rem;
+  min-width: 0;
+}
+.hud-input::placeholder { color: var(--faint); }
+.hud-input:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.nav-key {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--label);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-key);
+  padding: 0.6rem 0.8rem;
+  min-block-size: 2.4rem;
+}
+.nav-key:hover { color: var(--sand); background: var(--plate-2); border-color: var(--oxide); }
+.nav-key[aria-current="page"] { color: var(--on-sand); background: var(--sand); background-image: var(--printed-grain); }
+.nav-key:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.stamp {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.8125rem;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.stamp.is-hazard { color: var(--alert); }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.chip__lamp { inline-size: 0.4rem; block-size: 0.4rem; border-radius: 1px; background: var(--amber); }
+.chip[data-tone="live"] { color: var(--amber); }
+.chip[data-tone="warn"] { color: var(--oxide); }
+.chip[data-tone="off"] { color: var(--alert); }
+.chip[data-tone="off"] .chip__lamp { background: var(--alert); }
+.tag {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  padding: 0.22rem 0.36rem;
+}
+.tag[data-tone="alert"] { color: var(--alert); border-color: var(--alert); }
+.tag[data-tone="state"] { color: var(--amber); border-color: var(--amber); }
+.tag[data-tone="oxide"] { color: var(--oxide); border-color: var(--oxide); }
+
+.rating { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.4rem, 1fr)); background: var(--rating); border-radius: var(--radius-key); overflow: hidden; }
+.rating__cell { padding: 0.5rem 0.6rem; min-width: 0; box-shadow: inset 1px 0 0 var(--rule), inset 0 -1px 0 var(--rule); }
+.data-label {
+  display: block;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 0.3rem;
+}
+.data-value { display: block; color: var(--sand); font-size: 0.9375rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.data-value.is-empty { color: var(--dim); font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--plate-2);
+  border: 1px solid var(--rule-strong);
+  border-inline-start: 1px solid var(--amber);
+  border-radius: var(--radius-key);
+  color: var(--sand);
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.5rem 0.7rem;
+}
+.fault {
+  background-color: var(--alert-well);
+  background-image: var(--hazard-band);
+  background-repeat: no-repeat;
+  background-size: 100% 0.4rem;
+  background-position: top;
+  border: 1px solid var(--alert);
+  border-radius: var(--radius-plate);
+  color: var(--alert-ink);
+  font-family: var(--font-label);
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+  padding: 0.85rem 0.7rem 0.7rem 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.fault__body { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.overlays { position: fixed; inset-inline: 1rem; inset-block-end: 4.9rem; z-index: 80; display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; align-items: flex-end; pointer-events: none; }
+.overlays > * { pointer-events: auto; max-width: min(28rem, 100%); }
+
+.app { max-width: 96rem; margin-inline: auto; padding: 0.75rem 1.25rem 1.5rem; }
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.page-title { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 1.375rem; line-height: 1.15; letter-spacing: -0.01em; color: var(--sand); }
+.page-note { margin: 0.25rem 0 0; color: var(--dim); font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.02em; }
+
+.topbar { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem; background: var(--plate); border: 1px solid var(--rule-strong); border-radius: var(--radius-plate); }
+.topbar .wordmark { margin-inline-end: 0.35rem; }
+.topbar__spacer { flex: 1; }
+.navband { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 0.6rem 0 1rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--rule); }
+.navband__meta { margin-inline-start: auto; color: var(--faint); font-size: 0.75rem; }
+
+.table-layout { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: 1rem; align-items: start; }
+.side-stack { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.rollbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.rollbar .hud-input { flex: 1; min-width: 8rem; }
+.rollbar__hint { color: var(--faint); font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.02em; }
+.mesa-banner { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; background: var(--plate-2); border: 1px solid var(--rule-strong); border-inline-start: 1px solid var(--amber); border-radius: var(--radius-key); padding: 0.6rem 0.8rem; margin-bottom: 1rem; }
+.mesa-banner__text { flex: 1 1 14rem; min-width: 0; color: var(--sand); font-family: var(--font-label); font-size: 0.8125rem; }
+.mesa-banner__text strong { color: var(--amber); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.6875rem; }
+
+.map-panel { padding: 0.85rem; }
+.map-tools { display: flex; gap: 0.35rem; }
+.map-scroll { margin-top: 0.7rem; overflow: auto; background: var(--sunken); border: 1px solid var(--rule-strong); border-radius: var(--radius-key); }
+.map-stage { position: relative; aspect-ratio: 3 / 2; width: calc(100% * var(--zoom, 1)); background: #0b0a07; touch-action: pan-x pan-y; }
+.map-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.map-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--rule-strong) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--rule-strong) 45%, transparent) 1px, transparent 1px);
+  background-size: calc(100% / 30) calc(100% / 20);
+  opacity: 0.5;
+}
+.zone-fog {
+  position: absolute;
+  background-color: #0a0906;
+  border: 1px dashed var(--rule-strong);
+  border-radius: 2px;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(45deg, #14110d 0 6px, #0a0906 6px 12px);
+}
+.zone-fog[data-narrator="true"] { background-color: color-mix(in srgb, #0a0906 72%, transparent); background-image: repeating-linear-gradient(45deg, color-mix(in srgb, var(--rule-strong) 40%, transparent) 0 6px, transparent 6px 12px); pointer-events: auto; cursor: pointer; }
+.zone-fog[data-narrator="true"]:hover, .zone-tint[data-act]:hover { border-color: var(--oxide); box-shadow: inset 0 0 0 1px var(--oxide); }
+.zone-fog--hidden { display: none; }
+.zone-fog__label {
+  position: absolute;
+  inset-block-start: 0.25rem;
+  inset-inline-start: 0.3rem;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  white-space: nowrap;
+}
+.zone-tint { position: absolute; border: 1px solid color-mix(in srgb, var(--amber) 22%, transparent); border-radius: 2px; }
+.zone-tint[data-act] { cursor: pointer; }
+.zone-tint__label { position: absolute; inset-block-start: 0.15rem; inset-inline-start: 0.25rem; padding: 0.08rem 0.28rem; background: color-mix(in srgb, var(--ground) 80%, transparent); border-radius: 2px; font-family: var(--font-label); font-size: 0.625rem; letter-spacing: 0.1em; text-transform: uppercase; color: color-mix(in srgb, var(--amber) 70%, transparent); white-space: nowrap; }
+
+.token {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius-key);
+  background: var(--sand);
+  color: var(--on-sand);
+  border: 1px solid var(--on-sand);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-sand) 18%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  touch-action: none;
+  user-select: none;
+  cursor: default;
+}
+.token[data-kind="npc"] { background: var(--oxide); color: var(--on-sand); border-color: var(--on-sand); }
+.token[data-own="true"] { outline: 2px solid var(--amber); outline-offset: 2px; }
+.token[data-drag="true"] { cursor: grab; transition: border-color var(--motion-quick) ease, box-shadow var(--motion-quick) ease, transform var(--motion-quick) ease; }
+.token[data-drag="true"]:hover { border-color: var(--oxide); box-shadow: inset 0 0 0 1px var(--oxide); transform: translate(-50%, calc(-50% - 2px)); }
+.token[data-drag="true"]:active { cursor: grabbing; }
+.token.is-dragging { z-index: 40; outline-color: var(--sand); cursor: grabbing; }
+.token__name {
+  position: absolute;
+  inset-block-start: calc(100% + 0.3rem);
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  padding: 0.16rem 0.32rem;
+  background: var(--plate-2);
+  border-radius: 2px;
+  color: var(--sand);
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 0.625rem;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.token:focus-visible { outline: 2px solid var(--amber); outline-offset: 4px; }
+.token[data-hidden="true"] { background: var(--plate-2); color: var(--dim); border-color: var(--rule-strong); outline-color: var(--rule-strong); }
+.token[data-current="true"]::after {
+  content: "TURNO";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: calc(100% + 0.3rem);
+  translate: 0 -50%;
+  background: var(--amber);
+  color: var(--on-sand);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.5625rem;
+  letter-spacing: 0.12em;
+  padding: 0.1rem 0.25rem;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.turn-list { list-style: none; margin: 0.7rem 0 0; padding: 0; }
+.turn-row { display: flex; align-items: center; gap: 0.5rem; padding-block: 0.4rem; border-bottom: 1px solid var(--rule); font-size: 0.8125rem; }
+.turn-row:last-child { border-bottom: 0; }
+.turn-row__name { flex: 1; min-width: 0; color: var(--sand); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.turn-row[data-state="acted"] .turn-row__name { color: var(--dim); }
+.turn-row__lamp { inline-size: 0.4rem; block-size: 0.4rem; border-radius: 1px; background: var(--rule-strong); flex: none; }
+.turn-row__call { min-inline-size: 2rem; padding: 0.4rem 0.5rem; font-size: 0.9rem; line-height: 1; flex: none; }
+.turn-row[data-state="current"] .turn-row__lamp { background: var(--amber); }
+.turn-row[data-state="acted"] .turn-row__lamp { background: var(--oxide); }
+
+.log { margin-top: 0.7rem; max-height: 19rem; overflow-y: auto; border-top: 1px solid var(--rule); }
+.log-row { padding-block: 0.45rem; border-bottom: 1px solid var(--rule); font-size: 0.75rem; line-height: 1.5; }
+.log-row__head { display: flex; align-items: baseline; gap: 0.4rem; }
+.log-row__actor { color: var(--sand); font-weight: 600; }
+.log-row__meta { color: var(--faint); font-size: 0.6875rem; }
+.log-row__text { color: var(--label); font-size: 0.75rem; word-break: break-word; }
+.log-row__text b { color: var(--amber); }
+.log-empty { color: var(--dim); font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; padding-block: 0.6rem; }
+
+.zone-list { list-style: none; margin: 0.7rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.zone-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.55rem; background: var(--rating); border-radius: var(--radius-key); }
+.zone-row__name { flex: 1; min-width: 0; color: var(--sand); font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conductor-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
+.select-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.6rem; }
+.select-row select { flex: 1; }
+.select-wrap { position: relative; flex: 1; min-width: 0; }
+.select-wrap select {
+  appearance: none;
+  width: 100%;
+  background: var(--plate-2);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-key);
+  color: var(--sand);
+  font-size: 0.8125rem;
+  padding: 0.5rem 1.75rem 0.5rem 0.6rem;
+  min-block-size: 2.5rem;
+}
+.select-wrap::after {
+  content: "";
+  position: absolute;
+  inset-inline-end: 0.75rem;
+  inset-block-start: 50%;
+  inline-size: 0.4rem;
+  block-size: 0.4rem;
+  border-inline-end: 1px solid var(--label);
+  border-block-end: 1px solid var(--label);
+  rotate: 45deg;
+  translate: 0 -50%;
+  pointer-events: none;
+}
+
+.drawer-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 0.6); z-index: 70; }
+.drawer {
+  position: fixed;
+  z-index: 71;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: min(28rem, 100vw);
+  background: var(--plate);
+  border-inline-start: 1px solid var(--rule-strong);
+  padding: 1rem 1rem 5.4rem;
+  overflow-y: auto;
+  animation: plate-side var(--motion-settle) var(--ease-arrive);
+}
+@keyframes plate-side { from { translate: 1rem 0; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+.drawer__head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.85rem; }
+.drawer__head .panel-label { flex: 1; }
+
+.sheet-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.85rem; align-items: start; }
+.portrait {
+  inline-size: 4rem;
+  block-size: 4rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-key);
+  background: var(--plate-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+  color: var(--sand);
+}
+.portrait--lg { inline-size: 6rem; block-size: 6rem; font-size: 1.5rem; }
+.sheet-name { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 1.375rem; line-height: 1.15; color: var(--sand); }
+.sheet-concept { margin: 0.2rem 0 0; color: var(--label); }
+.sheet-section { margin-top: 1rem; }
+.sheet-section .panel-label { margin-bottom: 0.5rem; }
+.aspect { padding: 0.5rem 0.6rem; background: var(--rating); border-radius: var(--radius-key); margin-bottom: 0.4rem; }
+.aspect__kind { display: block; font-family: var(--font-label); font-weight: 600; font-size: 0.625rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--amber); }
+.aspect__text { color: var(--sand); }
+.skill-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0; background: var(--rating); border-radius: var(--radius-key); overflow: hidden; }
+.skill { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.55rem; box-shadow: inset 1px 0 0 var(--rule), inset 0 -1px 0 var(--rule); }
+.skill__rank { font-family: var(--font-value); color: var(--amber); font-variant-numeric: tabular-nums; }
+.skill__name { color: var(--sand); font-size: 0.8125rem; }
+.stress-row { display: flex; align-items: center; gap: 0.5rem; padding-block: 0.35rem; }
+.stress-row__label { flex: none; inline-size: 6rem; font-family: var(--font-label); font-weight: 600; font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.stress-boxes { display: flex; gap: 0.3rem; }
+.stress-box {
+  inline-size: 1.5rem; block-size: 1.5rem;
+  background: var(--sunken);
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  padding: 0;
+}
+.stress-box[data-marked="true"] { background: var(--amber); border-color: var(--amber); }
+.consequence-row { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: 0.5rem; align-items: center; padding-block: 0.3rem; }
+.consequence-slot {
+  text-align: start;
+  background: var(--sunken);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-key);
+  color: var(--dim);
+  font-size: 0.75rem;
+  padding: 0.4rem 0.5rem;
+  min-block-size: 2rem;
+}
+.consequence-slot[data-used="true"] { background: var(--rating); border-color: var(--oxide); color: var(--sand); }
+.inventory-row { display: flex; gap: 0.5rem; padding-block: 0.3rem; border-bottom: 1px solid var(--rule); }
+.inventory-row__qty { color: var(--amber); font-variant-numeric: tabular-nums; flex: none; }
+.inventory-row__name { color: var(--sand); }
+.inventory-row__note { color: var(--faint); font-size: 0.75rem; margin-inline-start: auto; }
+
+.char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; }
+.char-card { border: 1px solid var(--rule-strong); border-radius: var(--radius-plate); background: var(--plate); padding: 0.85rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.char-card__head { display: flex; gap: 0.7rem; align-items: flex-start; }
+.char-card__name { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 1rem; color: var(--sand); }
+.char-card__concept { margin: 0.15rem 0 0; color: var(--dim); font-family: var(--font-label); font-size: 0.75rem; }
+.char-card__summary { margin: 0; color: var(--label); font-size: 0.75rem; }
+.char-card__foot { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-top: auto; }
+.char-card[data-hidden="true"] { border-style: dashed; }
+.char-card[data-hidden="true"] .portrait { opacity: 0.5; }
+
+.entry-steps { list-style: none; margin: 0.8rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.entry-step { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.55rem 0.65rem; background: var(--rating); border-radius: var(--radius-key); }
+.entry-step__index { font-family: var(--font-value); color: var(--amber); }
+.entry-step__name { color: var(--sand); }
+.entry-step__note { color: var(--dim); font-size: 0.75rem; }
+.entry-form { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.8rem; }
+.entry-form label { display: flex; flex-direction: column; gap: 0.25rem; font-family: var(--font-label); font-weight: 600; font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+
+.rail { position: fixed; inset-block: 0; inset-inline-start: 0; inline-size: 14rem; z-index: 20; background: var(--plate); border-inline-end: 1px solid var(--rule-strong); padding: 1rem 0.8rem 5.4rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
+.rail .nav-key { text-align: start; }
+.rail__nav { display: flex; flex-direction: column; gap: 0.2rem; }
+.rail__label { font-family: var(--font-display); font-weight: 700; font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); margin-top: 0.8rem; }
+.rail__item { display: flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0; color: var(--label); font-size: 0.75rem; }
+.rail__item .chip__lamp { inline-size: 0.35rem; block-size: 0.35rem; }
+.rail__item[data-current="true"] { color: var(--amber); }
+.has-rail .app { margin-inline-start: 14rem; max-width: none; }
+
+.canvas-shell { position: relative; height: calc(100vh - 4.6rem); min-height: 32rem; overflow: hidden; background: var(--ground); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.canvas-shell .map-scroll { display: flex; align-items: center; justify-content: center; overflow: hidden; border: 0; border-radius: 0; }
+.canvas-shell .map-stage { height: 100%; width: auto; aspect-ratio: 3 / 2; max-width: 100%; }
+.canvas-top { position: relative; z-index: 30; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; background: var(--plate); border-block-end: 1px solid var(--rule-strong); padding: 0.5rem 0.75rem; }
+.dock { position: relative; z-index: 30; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; background: var(--plate); border-block-start: 1px solid var(--rule-strong); padding: 0.55rem 0.75rem; }
+.dock .rating { flex: 1 1 18rem; }
+.dock .rollbar { flex: 1 1 15rem; }
+.dock__keys { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.float { position: absolute; z-index: 30; background: var(--plate); border: 1px solid var(--rule-strong); border-radius: var(--radius-plate); padding: 0.55rem; box-shadow: 0 0.75rem 1.6rem rgb(0 0 0 / 0.55); }
+.float--conductor { inset-block: 5rem 6rem; inset-inline-start: 0.75rem; inline-size: min(18rem, calc(100% - 1.5rem)); overflow-y: auto; }
+.float--log { inset-block: 5rem 6rem; inset-inline-end: 0.75rem; inline-size: min(22rem, calc(100% - 1.5rem)); overflow-y: auto; }
+.float__label { font-family: var(--font-display); font-weight: 700; font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sand); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+.float__label::after { content: ""; flex: 1; block-size: 1px; background: var(--rule); }
+.drawer--bottom { inset: auto 0 0 0; width: 100%; height: min(70vh, 34rem); border-inline-start: 0; border-block-start: 1px solid var(--rule-strong); border-radius: var(--radius-plate) var(--radius-plate) 0 0; animation: none; }
+
+@media (max-width: 56rem) {
+  .table-layout { grid-template-columns: minmax(0, 1fr); }
+  .side-stack { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); align-items: start; }
+  .has-rail .app { margin-inline-start: 0; padding-top: 0.75rem; }
+  .rail { position: static; inline-size: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.5rem; border-inline-end: 0; border-block-end: 1px solid var(--rule-strong); }
+  .rail__nav { flex-direction: row; flex-wrap: wrap; }
+  .rail__nav .nav-key[aria-current="page"] { background: var(--sand); }
+  .rail__label, .rail__roster, .rail__scenes, .rail__link, .rail .placard { display: none; }
+  .canvas-shell { height: calc(100vh - 4.6rem); }
+}
+
+@media (max-width: 40rem) {
+  body { padding-bottom: 7.2rem; }
+  .app { padding-inline: 0.75rem; }
+  .proto-bar { gap: 0.3rem; padding: 0.35rem 0.5rem; }
+  .proto-bar__hint { display: none; }
+  .proto-bar__tag { font-size: 0.6rem; letter-spacing: 0.08em; }
+  .topbar { gap: 0.35rem; }
+  .topbar .placard { flex: 1 1 8rem; }
+  .map-panel { padding: 0.6rem; }
+  .map-scroll { overflow: auto; }
+  .map-stage { min-width: 40rem; }
+  .canvas-shell { height: calc(100vh - 7.2rem); }
+  .canvas-shell .map-scroll { justify-content: flex-start; }
+  .dock { padding: 0.5rem; gap: 0.4rem; }
+  .dock .rating { flex: 1 1 100%; grid-template-columns: repeat(2, 1fr); }
+  .dock .rollbar { flex: 1 1 100%; }
+  .float--conductor { inset-block: 4.5rem 12rem; }
+  .float--log { inset-block: 4.5rem 12rem; }
+  .canvas-top { padding: 0.4rem 0.5rem; }
+  .canvas-top .placard { flex: 1 1 7rem; }
+  .token__name { display: none; }
+  .tag { font-size: 0.625rem; }
+  .log { max-height: 16rem; }
+  .drawer { width: 100vw; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .drawer { animation: plate-side var(--motion-settle) var(--ease-arrive); }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="overlays" class="overlays"></div>
+<div class="proto-bar">
+  <span class="proto-bar__tag">Protótipo descartável</span>
+  <button class="proto-bar__key" data-act="variant" data-step="-1" aria-label="Variante anterior">←</button>
+  <span class="proto-bar__label" id="variant-label">A · Faixa de superfícies</span>
+  <button class="proto-bar__key" data-act="variant" data-step="1" aria-label="Próxima variante">→</button>
+  <span class="proto-bar__roles" role="group" aria-label="Papel simulado">
+    <button class="proto-bar__key" data-act="role" data-role="narrator">Narrador</button>
+    <button class="proto-bar__key" data-act="role" data-role="player">Jogador</button>
+    <button class="proto-bar__key" data-act="role" data-role="pending">Pendente</button>
+    <button class="proto-bar__key" data-act="role" data-role="spectator">Espectador</button>
+  </span>
+  <span class="proto-bar__hint">← → variantes · N turno · D rolar · Esc fechar</span>
+</div>
+<script>
+const CELLS_W = 30;
+const CELLS_H = 20;
+
+const VARIANTS = {
+  A: "A · Faixa de superfícies",
+  B: "B · Rail de campanha",
+  C: "C · Mesa de condução"
+};
+
+const ROLE_NAMES = {
+  narrator: "Narrador",
+  player: "Jogador",
+  pending: "Pendente",
+  spectator: "Espectador"
+};
+
+const USER = { narrator: "Rafa", player: "Nina", pending: "Nina", spectator: "Nina" };
+
+const CHARS = {
+  ir1s: {
+    id: "chr_ir1s", name: "IR1S", owner: "Nina", kind: "pc", status: "ativo", revealed: true,
+    concept: "Piloto de carga da Casa Vhal",
+    trouble: "Deve dinheiro a todo porto",
+    summary: "Braços de graxa, um mapa rasgado no bolso e a teimosia de quem já caiu e voltou.",
+    aspects: [
+      ["Conceito", "Piloto de carga da Casa Vhal"],
+      ["Problema", "Deve dinheiro a todo porto"],
+      ["Ligação", "Sela respondeu quando ninguém mais respondeu"],
+      ["Livre", "Nada nesta cripta é o que o mapa diz"]
+    ],
+    groups: [
+      ["+4", ["Percepção"]],
+      ["+3", ["Pilotagem", "Vontade"]],
+      ["+2", ["Briga", "Vigor", "Enganação"]],
+      ["+1", ["Atletismo", "Investigar", "Furtividade", "Recursos"]]
+    ],
+    stress: { fisico: { size: 3, marked: 1 }, mental: { size: 3, marked: 0 } },
+    consequences: [
+      ["Leve", "Costela trincada", true],
+      ["Moderada", "", false],
+      ["Grave", "", false]
+    ],
+    extras: ["Pistola de sinal, kind: equipamento", "Olho mecânico, kind: aprimoramento"],
+    inventory: [["2", "Lâmpada de óleo", ""], ["1", "Corda de 15 m", ""], ["1", "Mapa da cripta", "rasgado"]]
+  },
+  sela: {
+    id: "chr_sela", name: "Sela", owner: "Téo", kind: "pc", status: "ativo", revealed: true,
+    concept: "Médica de campo do sindicato",
+    trouble: "Não deixa ninguém para trás",
+    summary: "Carrega mais bandagem do que comida e cobra em favor, nunca em moeda.",
+    aspects: [
+      ["Conceito", "Médica de campo do sindicato"],
+      ["Problema", "Não deixa ninguém para trás"],
+      ["Ligação", "IR1S é a pior paciente que já teve"],
+      ["Livre", "A cripta está respirando"]
+    ],
+    groups: [
+      ["+4", ["Medicina"]],
+      ["+3", ["Empatia", "Vontade"]],
+      ["+2", ["Percepção", "Vigor", "Contatos"]],
+      ["+1", ["Atletismo", "Furtividade", "Recursos", "Vontade"]]
+    ],
+    stress: { fisico: { size: 3, marked: 0 }, mental: { size: 3, marked: 2 } },
+    consequences: [["Leve", "", false], ["Moderada", "", false], ["Grave", "", false]],
+    extras: ["Bolsa cirúrgica, kind: equipamento"],
+    inventory: [["4", "Bandagem", ""], ["1", "Lanterna elétrica", "bateria fraca"]]
+  },
+  corvo: {
+    id: "chr_corvo", name: "Corvo", owner: "Bia", kind: "pc", status: "ativo", revealed: true,
+    concept: "Contrabandista de relíquias",
+    trouble: "Toda relíquia tem dono",
+    summary: "Sabe o preço de tudo e o valor de quase nada.",
+    aspects: [["Conceito", "Contrabandista de relíquias"], ["Problema", "Toda relíquia tem dono"]],
+    groups: [["+4", ["Enganação"]], ["+3", ["Furtividade", "Recursos"]], ["+2", ["Percepção", "Briga"]], ["+1", ["Atletismo", "Vontade"]]],
+    stress: { fisico: { size: 3, marked: 0 }, mental: { size: 3, marked: 0 } },
+    consequences: [["Leve", "", false], ["Moderada", "", false], ["Grave", "", false]],
+    extras: ["Gazuas finas, kind: ferramenta"],
+    inventory: [["1", "Gazuas", ""], ["1", "Selo falso", "falso"]]
+  },
+  sac: {
+    id: "chr_sac", name: "Sacerdote de Osso", owner: null, kind: "npc", status: "ativo", revealed: true,
+    concept: "Guardião da câmara do selo",
+    trouble: "Não pode abandonar o selo",
+    summary: "Uma figura alta demais, coberta de contas de osso que batem quando ele se move.",
+    aspects: [["Conceito", "Guardião da câmara do selo"], ["Problema", "Não pode abandonar o selo"]],
+    groups: [["+4", ["Vontade"]], ["+3", ["Ocultismo", "Percepção"]], ["+2", ["Briga", "Vigor"]], ["+1", ["Atletismo", "Enganação"]]],
+    stress: { fisico: { size: 4, marked: 0 }, mental: { size: 4, marked: 0 } },
+    consequences: [["Leve", "", false], ["Moderada", "", false], ["Grave", "", false]],
+    extras: ["Cajado de osso, kind: arma"],
+    inventory: []
+  },
+  vex: {
+    id: "chr_vex", name: "Vex", owner: "Nina", kind: "pc", status: "pendente", revealed: false,
+    concept: "Mensageira sem memória",
+    trouble: "Não lembra o próprio nome",
+    summary: "Chegou ao porto com uma carta endereçada a si mesma.",
+    aspects: [["Conceito", "Mensageira sem memória"], ["Problema", "Não lembra o próprio nome"]],
+    groups: [["+4", ["Atletismo"]], ["+3", ["Percepção", "Furtividade"]], ["+2", ["Vontade", "Contatos"]], ["+1", ["Briga", "Recursos"]]],
+    stress: { fisico: { size: 3, marked: 0 }, mental: { size: 3, marked: 0 } },
+    consequences: [["Leve", "", false], ["Moderada", "", false], ["Grave", "", false]],
+    extras: [],
+    inventory: [["1", "Carta sem remetente", "lacrada"]]
+  }
+};
+
+const SCENES = {
+  cripta: {
+    id: "scn_7f3a",
+    name: "Cripta",
+    blueprint: "scenes/cripta.json",
+    fogOutside: false,
+    rooms: [
+      [400, 300, 600, 400], [400, 700, 200, 300],
+      [1000, 400, 600, 200],
+      [1200, 700, 200, 200],
+      [1600, 470, 100, 560],
+      [1600, 970, 500, 100],
+      [2000, 1000, 800, 700]
+    ],
+    zones: [
+      { id: "zon_a1", label: "Sala principal", rects: [{ x: 4, y: 3, w: 6, h: 4 }, { x: 4, y: 7, w: 2, h: 3 }], revealed: true },
+      { id: "zon_c3", label: "Corredor leste", rects: [{ x: 10, y: 4, w: 6, h: 2 }], revealed: true },
+      { id: "zon_b2", label: "Banheiro", rects: [{ x: 12, y: 7, w: 2, h: 2 }], revealed: false },
+      { id: "zon_d4", label: "Câmara do selo", rects: [{ x: 20, y: 10, w: 8, h: 7 }], revealed: false }
+    ],
+    tokens: [
+      { id: "tok_ir1s", label: "IR1S", char: "ir1s", owner: "me", x: 5.2, y: 4.1, w: 1, h: 1, visible: true, kind: "pc" },
+      { id: "tok_sela", label: "Sela", char: "sela", owner: "other", x: 7.2, y: 5.4, w: 1, h: 1, visible: true, kind: "pc" },
+      { id: "tok_corvo", label: "Corvo", char: "corvo", owner: "bia", x: 4.5, y: 6.1, w: 1, h: 1, visible: true, kind: "pc" },
+      { id: "tok_gob1", label: "Goblin 1", char: null, owner: null, x: 8.6, y: 3.4, w: 1, h: 1, visible: true, kind: "npc" },
+      { id: "tok_gob2", label: "Goblin 2", char: null, owner: null, x: 9.3, y: 6.1, w: 1, h: 1, visible: true, kind: "npc" },
+      { id: "tok_sac", label: "Sacerdote", char: "sac", owner: null, x: 22, y: 12, w: 1, h: 1, visible: true, kind: "npc" }
+    ]
+  },
+  patio: {
+    id: "scn_b81c",
+    name: "Pátio dos Ossos",
+    blueprint: "scenes/patio.json",
+    fogOutside: true,
+    rooms: [
+      [200, 200, 900, 700], [1300, 400, 500, 300], [2000, 300, 700, 900]
+    ],
+    zones: [
+      { id: "zon_p1", label: "Pátio", rects: [{ x: 2, y: 2, w: 9, h: 7 }], revealed: true },
+      { id: "zon_p2", label: "Arco norte", rects: [{ x: 13, y: 4, w: 5, h: 3 }], revealed: false },
+      { id: "zon_p3", label: "Ossário", rects: [{ x: 20, y: 3, w: 7, h: 9 }], revealed: false }
+    ],
+    tokens: [
+      { id: "tok_ir1s_p", label: "IR1S", char: "ir1s", owner: "me", x: 4, y: 5, w: 1, h: 1, visible: true, kind: "pc" },
+      { id: "tok_sela_p", label: "Sela", char: "sela", owner: "other", x: 6, y: 6, w: 1, h: 1, visible: true, kind: "pc" },
+      { id: "tok_sac_p", label: "Sacerdote", char: "sac", owner: null, x: 23, y: 6, w: 1, h: 1, visible: true, kind: "npc" }
+    ]
+  }
+};
+
+const state = {
+  variant: "B",
+  page: "table",
+  role: "narrator",
+  sceneKey: "cripta",
+  acted: ["tok_sela"],
+  turnTokenId: "tok_ir1s",
+  round: 3,
+  rolls: [
+    { id: "rol_01J8Q1", actor: "Sela", source: "panel", text: "` 3 ` ⟵ [+, +, +, 0] 4dF+3", scene: "Cripta" },
+    { id: "rol_01J8Q2", actor: "Goblin 1", source: "discord", text: "` -1 ` ⟵ [-, 0, 0, 0] 4dF", scene: "Cripta" },
+    { id: "rol_01J8Q3", actor: "IR1S", source: "panel", text: "` +2 ` ⟵ [+, +, 0, -] 4dF+2", scene: "Cripta" }
+  ],
+  toast: "",
+  fault: "",
+  toastAt: 0,
+  zoom: 1,
+  drawer: "",
+  panel: "",
+  entryOpen: false,
+  avatars: false
+};
+
+function scene() {
+  return SCENES[state.sceneKey];
+}
+
+function me() {
+  return USER[state.role];
+}
+
+function roleIsNarrator() {
+  return state.role === "narrator";
+}
+
+function canSeePage(page) {
+  if (state.role === "spectator") return page === "table";
+  return true;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function inRect(rect, x, y) {
+  return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+}
+
+function zoneHas(zone, x, y) {
+  return zone.rects.some((rect) => inRect(rect, x, y));
+}
+
+function tokenInZone(token, zone) {
+  return zoneHas(zone, token.x + token.w / 2, token.y + token.h / 2);
+}
+
+function tokenPublic(token) {
+  if (!token.visible) return false;
+  const zones = scene().zones.filter((zone) => tokenInZone(token, zone));
+  if (zones.length > 0) return zones.some((zone) => zone.revealed);
+  return !scene().fogOutside;
+}
+
+function tokenVisible(token) {
+  return roleIsNarrator() ? true : tokenPublic(token);
+}
+
+function canDrag(token) {
+  if (roleIsNarrator()) return true;
+  if (state.role !== "player") return false;
+  return token.owner === "me";
+}
+
+function canRoll() {
+  return state.role === "narrator" || state.role === "player";
+}
+
+function canUseDecisions() {
+  return state.role === "narrator" || state.role === "player";
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function toast(message) {
+  state.toast = message;
+  state.fault = "";
+  state.toastAt = Date.now();
+  render();
+  window.setTimeout(() => {
+    if (state.toast === message) {
+      state.toast = "";
+      renderOverlays();
+    }
+  }, 2600);
+}
+
+function fault(code, message) {
+  state.fault = `${code} · ${message}`;
+  state.toast = "";
+  render();
+}
+
+function currentToken() {
+  return scene().tokens.find((token) => token.id === state.turnTokenId) ?? null;
+}
+
+function visibleTokens() {
+  return scene().tokens.filter((token) => tokenPublic(token));
+}
+
+function pendingTokens() {
+  return visibleTokens().filter((token) => !state.acted.includes(token.id) && token.id !== state.turnTokenId);
+}
+
+function turnLabel() {
+  const token = currentToken();
+  if (!token) return "Nenhum";
+  return tokenPublic(token) ? token.label : "Aguardando";
+}
+
+function nextTurn() {
+  if (!roleIsNarrator() && !(state.role === "player")) {
+    fault("403 forbidden", "Pendente e espectador não conduzem turno");
+    return;
+  }
+  const token = currentToken();
+  if (token) {
+    if (state.role === "player" && token.owner !== "me") {
+      fault("403 forbidden", "Só quem tem o turno passa ou encerra");
+      return;
+    }
+    if (!state.acted.includes(token.id)) state.acted.push(token.id);
+  }
+  const candidates = visibleTokens().filter((candidate) => !state.acted.includes(candidate.id));
+  if (candidates.length > 0) {
+    state.turnTokenId = candidates[0].id;
+    toast(`Turno de ${candidates[0].label}`);
+    return;
+  }
+  state.round += 1;
+  state.acted = [];
+  state.turnTokenId = "";
+  toast(`Rodada ${state.round} · todos pendentes`);
+}
+
+function callTurn(tokenId) {
+  if (!roleIsNarrator()) {
+    fault("403 forbidden", "Só o narrador escolhe de quem é o turno");
+    return;
+  }
+  const token = visibleTokens().find((candidate) => candidate.id === tokenId);
+  if (!token) {
+    fault("422 invalid_token", "Este participante não está em jogo nesta rodada");
+    return;
+  }
+  if (state.acted.includes(tokenId)) {
+    fault("422 already_acted", "Este participante já agiu nesta rodada");
+    return;
+  }
+  state.turnTokenId = tokenId;
+  toast(`Turno de ${token.label}`);
+}
+
+function endTurn() {
+  const token = currentToken();
+  if (!token) return;
+  if (!roleIsNarrator() && token.owner !== "me") {
+    fault("403 forbidden", "Só quem tem o turno encerra");
+    return;
+  }
+  if (!state.acted.includes(token.id)) state.acted.push(token.id);
+  const remaining = visibleTokens().filter((candidate) => !state.acted.includes(candidate.id));
+  if (remaining.length === 0) {
+    state.round += 1;
+    state.acted = [];
+    state.turnTokenId = "";
+    toast(`Rodada ${state.round} · todos pendentes`);
+    return;
+  }
+  state.turnTokenId = "";
+  toast("Turno encerrado · abra o próximo");
+}
+
+function openTurn() {
+  if (!roleIsNarrator()) {
+    fault("403 forbidden", "Só o narrador abre turno");
+    return;
+  }
+  if (currentToken()) {
+    fault("409 turn_open", "Já há um turno aberto. Use Chamar ou Passar.");
+    return;
+  }
+  const candidate = visibleTokens().find((token) => !state.acted.includes(token.id));
+  if (!candidate) {
+    toast("Todos já agiram nesta rodada");
+    return;
+  }
+  state.turnTokenId = candidate.id;
+  toast(`Turno de ${candidate.label}`);
+}
+
+function revealZone(zoneId) {
+  if (!roleIsNarrator()) {
+    fault("403 forbidden", "Só o narrador revela zona");
+    return;
+  }
+  const zone = scene().zones.find((item) => item.id === zoneId);
+  if (!zone) return;
+  zone.revealed = !zone.revealed;
+  toast(zone.revealed ? `${zone.label} revelada` : `${zone.label} coberta`);
+}
+
+function switchScene(key) {
+  state.sceneKey = key;
+  state.acted = [];
+  state.turnTokenId = "";
+  state.zoom = 1;
+  toast(`${SCENES[key].name} carregada · tokens entram pendentes`);
+}
+
+function addToken() {
+  if (!roleIsNarrator()) {
+    fault("403 forbidden", "Só o narrador cria token");
+    return;
+  }
+  const target = scene();
+  const index = target.tokens.filter((token) => token.kind === "npc").length + 1;
+  target.tokens.push({
+    id: `tok_npc_${Date.now()}`,
+    label: `Goblin ${index}`,
+    char: null,
+    owner: null,
+    x: clamp(6 + index * 0.8, 0, CELLS_W - 1),
+    y: clamp(10 + index * 0.6, 0, CELLS_H - 1),
+    w: 1,
+    h: 1,
+    visible: true,
+    kind: "npc"
+  });
+  toast(`Goblin ${index} colocado na cena`);
+}
+
+function rollDice(raw) {
+  if (!canRoll()) {
+    fault("403 forbidden", "Pendente e espectador não rolam");
+    return;
+  }
+  const text = raw.trim();
+  if (!text) return;
+  const repeat = text.match(/^(\d{1,2})#(.+)$/);
+  const count = repeat ? clamp(Number(repeat[1]), 1, 10) : 1;
+  const expression = repeat ? repeat[2].trim() : text;
+  const parsed = expression.match(/^(\d{0,2})d(F|\d{1,3})([+-]\d{1,3})?$/i);
+  if (!parsed) {
+    fault("422 invalid_expression", "Use 4dF, 4dF+2 ou 3#d20+5");
+    return;
+  }
+  const faces = parsed[1] === "" ? 1 : Number(parsed[1]);
+  const die = parsed[2].toUpperCase();
+  const modifier = parsed[3] ? Number(parsed[3]) : 0;
+  if (faces > 20) {
+    fault("422 too_many_dice", "Até 20 dados por grupo");
+    return;
+  }
+  const rows = [];
+  for (let index = 0; index < count; index += 1) {
+    if (die === "F") {
+      const values = Array.from({ length: faces }, () => [-1, 0, 1][Math.floor(Math.random() * 3)]);
+      const total = values.reduce((sum, value) => sum + value, 0) + modifier;
+      const facesText = values.map((value) => (value === 1 ? "+" : value === -1 ? "-" : "0")).join(", ");
+      const sign = total > 0 ? "+" : total < 0 ? "-" : " ";
+      const body = `\` ${sign}${Math.abs(total)} \` ⟵ [${facesText}] ${faces}dF${parsed[3] ?? ""}`;
+      rows.push(body);
+    } else {
+      const values = Array.from({ length: faces }, () => 1 + Math.floor(Math.random() * Number(die)));
+      const total = values.reduce((sum, value) => sum + value, 0) + modifier;
+      const body = `\` ${total} \` ⟵ [${values.join(", ")}] ${faces}d${die}${parsed[3] ?? ""}`;
+      rows.push(body);
+    }
+  }
+  rows.forEach((body, index) => {
+    state.rolls.push({
+      id: `rol_${Date.now()}_${index}`,
+      actor: me(),
+      source: "panel",
+      text: body,
+      scene: scene().name
+    });
+  });
+  toast(`Rolagem espelhada em #mesa-paratheos`);
+}
+
+function openSheet(charKey) {
+  state.drawer = charKey;
+  render();
+}
+
+function closeDrawer() {
+  state.drawer = "";
+  render();
+}
+
+function pageNav() {
+  const items = [
+    ["table", "Mesa"],
+    ["chars", "Personagens"],
+    ["sheet", "Ficha"]
+  ].filter(([page]) => canSeePage(page));
+  return items
+    .map(
+      ([page, label]) =>
+        `<button class="nav-key" data-act="page" data-page="${page}" ${state.page === page ? 'aria-current="page"' : ""}>${label}</button>`
+    )
+    .join("");
+}
+
+function linkChip() {
+  return `<span class="chip" data-tone="live"><span class="chip__lamp"></span>Link live</span>`;
+}
+
+function identityBar() {
+  return `
+    <div class="wordmark"><span class="wordmark__mark"></span><span class="wordmark__text">HARPI</span></div>
+    <div class="placard"><span class="placard__label">Campanha</span><span class="placard__value">Paratheos</span></div>
+    <div class="placard"><span class="placard__label">Mesa</span><span class="placard__value">Sessão 12</span><span class="placard__meta">#mesa-paratheos</span></div>
+    <div class="placard"><span class="placard__label">Na mesa</span><span class="placard__value">4 / 16</span></div>
+  `;
+}
+
+function readouts() {
+  return `
+    <div class="rating">
+      <div class="rating__cell"><span class="data-label">Cena</span><span class="data-value">${scene().name}</span></div>
+      <div class="rating__cell"><span class="data-label">Rodada</span><span class="data-value">${state.round}</span></div>
+      <div class="rating__cell"><span class="data-label">Turno</span><span class="data-value ${currentToken() ? "" : "is-empty"}">${turnLabel()}</span></div>
+      <div class="rating__cell"><span class="data-label">Pendentes</span><span class="data-value">${pendingTokens().length}</span></div>
+    </div>
+  `;
+}
+
+function roomVisibleInPlayerView(x, y, w, h) {
+  const cx = (x + w / 2) / 100;
+  const cy = (y + h / 2) / 100;
+  const zones = scene().zones.filter((zone) => zoneHas(zone, cx, cy));
+  if (zones.length > 0) return zones.some((zone) => zone.revealed);
+  return !scene().fogOutside;
+}
+
+function mapStageInner() {
+  const target = scene();
+  const isNarrator = roleIsNarrator();
+  const roomList = target.rooms.filter(([x, y, w, h]) => isNarrator || roomVisibleInPlayerView(x, y, w, h));
+  const rooms = roomList
+    .map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#17130e" stroke="#3d3527" stroke-width="6" rx="6"/>`)
+    .join("");
+  const doors = roomList
+    .slice(0, 4)
+    .map(([x, y, w, h]) => `<rect x="${x + w / 2 - 40}" y="${y - 8}" width="80" height="16" fill="#0d0b08" stroke="#3d3527" stroke-width="4"/>`)
+    .join("");
+  const zoneTints = target.zones
+    .filter((zone) => zone.revealed)
+    .flatMap((zone) =>
+      zone.rects
+        .map((rect, index) => {
+          const label = index === 0 ? `<span class="zone-tint__label">${escapeHtml(zone.label)}</span>` : "";
+          const attrs = isNarrator
+            ? ` data-act="zone" data-zone="${zone.id}" role="button" tabindex="0" title="Cobrir ${escapeHtml(zone.label)}"`
+            : "";
+          return `<div class="zone-tint"${attrs} style="left:${(rect.x / CELLS_W) * 100}%;top:${(rect.y / CELLS_H) * 100}%;width:${(rect.w / CELLS_W) * 100}%;height:${(rect.h / CELLS_H) * 100}%">${label}</div>`;
+        })
+        .join("")
+    )
+    .join("");
+  const fog = isNarrator
+    ? target.zones
+        .filter((zone) => !zone.revealed)
+        .flatMap((zone) =>
+          zone.rects
+            .map(
+              (rect, index) =>
+                `<div class="zone-fog" data-act="zone" data-zone="${zone.id}" role="button" tabindex="0" title="Revelar ${escapeHtml(zone.label)}" data-narrator="true" style="left:${(rect.x / CELLS_W) * 100}%;top:${(rect.y / CELLS_H) * 100}%;width:${(rect.w / CELLS_W) * 100}%;height:${(rect.h / CELLS_H) * 100}%">${index === 0 ? `<span class="zone-fog__label">${escapeHtml(zone.label)} · oculta</span>` : ""}</div>`
+            )
+            .join("")
+        )
+        .join("")
+    : "";
+  const tokens = target.tokens
+    .filter((token) => tokenVisible(token))
+    .map((token) => {
+      const own = canDrag(token) && token.owner === "me";
+      const actionable = canDrag(token);
+      return `<div class="token" data-token="${token.id}" data-kind="${token.kind}" data-own="${own}" data-drag="${actionable}" data-current="${token.id === state.turnTokenId}"
+        tabindex="${actionable ? "0" : "-1"}" role="button" aria-label="Token ${escapeHtml(token.label)}"
+        style="left:${((token.x + token.w / 2) / CELLS_W) * 100}%;top:${((token.y + token.h / 2) / CELLS_H) * 100}%;width:max(calc(${(token.w / CELLS_W) * 100}%), 2.25rem);height:max(calc(${(token.h / CELLS_H) * 100}%), 2.25rem)"
+        title="${escapeHtml(token.label)}">${escapeHtml(token.label.slice(0, 2).toUpperCase())}<span class="token__name">${escapeHtml(token.label)}</span></div>`;
+    })
+    .join("");
+  return `
+    <svg viewBox="0 0 3000 2000" preserveAspectRatio="none" aria-hidden="true">${rooms}${doors}</svg>
+    <div class="map-grid"></div>
+    ${zoneTints}
+    ${fog}
+    ${tokens}
+  `;
+}
+
+function mapHTML() {
+  return `
+    <div class="map-scroll">
+      <div class="map-stage" style="--zoom:${state.zoom}">
+        ${mapStageInner()}
+      </div>
+    </div>
+  `;
+}
+
+function mapPanel() {
+  return `
+    <section class="hud-panel map-panel" aria-label="Cena">
+      <div class="panel-band">
+        <h2 class="panel-label">Cena</h2>
+        <span class="panel-band__meta">${escapeHtml(scene().name.toUpperCase())} · ${scene().id}</span>
+        <div class="map-tools">
+          <button class="hud-btn hud-btn--small" data-act="zoom" data-step="-1" aria-label="Diminuir zoom">−</button>
+          <button class="hud-btn hud-btn--small" data-act="zoom" data-step="1" aria-label="Aumentar zoom">＋</button>
+          <button class="hud-btn hud-btn--small" data-act="zoom" data-step="0">Enquadrar</button>
+        </div>
+      </div>
+      ${mapHTML()}
+      <p class="system-note">${roleIsNarrator() ? "Você vê todos os tokens. Clique numa zona para revelar ou cobrir; o jogador recebe só o recorte revelado." : state.role === "player" ? "Você vê só o que está revelado. Arraste o seu token ou foque nele e use as setas." : "Você vê o recorte de jogador. Sem ficha ativa, não move token nem rola."}</p>
+    </section>
+  `;
+}
+
+function turnPanel() {
+  const token = currentToken();
+  const participants = visibleTokens();
+  const rows = participants
+    .map((participant) => {
+      const acted = state.acted.includes(participant.id);
+      const current = participant.id === state.turnTokenId;
+      const status = current ? "current" : acted ? "acted" : "pending";
+      return `<li class="turn-row" data-state="${status}">
+        <span class="turn-row__lamp"></span>
+        <span class="turn-row__name">${escapeHtml(participant.label)}</span>
+        <span class="tag" ${current ? 'data-tone="state"' : acted ? 'data-tone="oxide"' : ""}>${current ? "Vez" : acted ? "Agiu" : "Pendente"}</span>
+        ${roleIsNarrator() && status === "pending" ? `<button class="hud-btn hud-btn--small turn-row__call" data-act="set-turn" data-target="${participant.id}" aria-label="Chamar ${escapeHtml(participant.label)} para o turno" title="Chamar ${escapeHtml(participant.label)} para o turno">→</button>` : ""}
+        ${participant.char && (roleIsNarrator() || (state.role === "player" && participant.owner === "me")) ? `<button class="hud-btn hud-btn--small" data-act="sheet" data-char="${participant.char}">Ficha</button>` : ""}
+      </li>`;
+    })
+    .join("");
+  const turnKey = roleIsNarrator() || (state.role === "player" && token && token.owner === "me")
+    ? `<button class="hud-btn" data-act="pass" title="Passar turno (N)">Passar</button>`
+    : `<button class="hud-btn" data-act="pass" disabled title="Sem permissão">Passar</button>`;
+  const openKey = roleIsNarrator() ? `<button class="hud-btn" data-act="open-turn" ${token ? "disabled" : ""}>Abrir turno</button>` : "";
+  return `
+    <section class="hud-panel" aria-label="Turno">
+      <div class="panel-band">
+        <h2 class="panel-label">Turno</h2>
+        <span class="stamp">${token && tokenPublic(token) ? token.label.toUpperCase() : currentToken() ? "AGUARDANDO" : "SEM TURNO"}</span>
+      </div>
+      <p class="system-note" style="margin:0.35rem 0 0">Rodada ${state.round} · ${pendingTokens().length} pendentes</p>
+      <ul class="turn-list">${rows}</ul>
+      <div class="conductor-actions">
+        ${turnKey}
+        <button class="hud-btn" data-act="end">Encerrar</button>
+        ${openKey}
+      </div>
+      ${roleIsNarrator() ? '<p class="system-note" style="margin-top:0.5rem">A seta chama o participante para o turno. Passar marca quem já agiu.</p>' : ""}
+    </section>
+  `;
+}
+
+function rollPanel() {
+  const disabled = canRoll() ? "" : "disabled";
+  return `
+    <section class="hud-panel" aria-label="Rolagem">
+      <div class="panel-band">
+        <h2 class="panel-label">Rolagem</h2>
+        <span class="panel-band__meta">Espelhada em #mesa-paratheos</span>
+      </div>
+      <div class="rollbar" style="margin-top:0.7rem">
+        <input class="hud-input" id="dice-input" placeholder="4dF+2 · 3#d20+5" ${disabled} aria-label="Expressão de dados">
+        <button class="hud-btn hud-btn--primary" data-act="roll" ${disabled}>Rolar</button>
+      </div>
+      <p class="rollbar__hint">${canRoll() ? "A mensagem vai ao canal antes de gravar. O log lê igual dos dois lados." : "Pendente e espectador não rolam nesta mesa."}</p>
+    </section>
+  `;
+}
+
+function logPanel() {
+  const rows = state.rolls
+    .map(
+      (roll) => `<div class="log-row">
+        <div class="log-row__head">
+          <span class="log-row__actor">${escapeHtml(roll.actor)}</span>
+          <span class="log-row__meta">· ${escapeHtml(roll.scene)}</span>
+          <span class="tag" data-tone="${roll.source === "discord" ? "oxide" : "state"}">${roll.source === "discord" ? "Discord" : "Painel"}</span>
+        </div>
+        <div class="log-row__text">${escapeHtml(roll.text).replaceAll("`", "").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")}</div>
+      </div>`
+    )
+    .join("");
+  return `
+    <section class="hud-panel" aria-label="Log de dados">
+      <div class="panel-band">
+        <h2 class="panel-label">Log de dados</h2>
+        <span class="panel-band__meta">${state.rolls.length} linhas</span>
+      </div>
+      <div class="log" data-log>${rows || '<p class="log-empty">Sem rolagens nesta mesa.</p>'}</div>
+    </section>
+  `;
+}
+
+function conductorPanel() {
+  if (!roleIsNarrator()) return "";
+  const zones = scene()
+    .zones.map(
+      (zone) => `<li class="zone-row">
+        <span class="zone-row__name">${escapeHtml(zone.label)}</span>
+        <span class="tag" ${zone.revealed ? 'data-tone="state"' : ""}>${zone.revealed ? "Revelada" : "Oculta"}</span>
+      </li>`
+    )
+    .join("");
+  const options = Object.entries(SCENES)
+    .map(([key, value]) => `<option value="${key}" ${state.sceneKey === key ? "selected" : ""}>${escapeHtml(value.name)}</option>`)
+    .join("");
+  return `
+    <section class="hud-panel" aria-label="Condução">
+      <div class="panel-band">
+        <h2 class="panel-label">Condução</h2>
+        <span class="tag">Narrador</span>
+      </div>
+      <div class="select-row">
+        <span class="data-label" style="margin:0">Cena</span>
+        <span class="select-wrap">
+          <select data-act="scene" aria-label="Trocar cena">${options}</select>
+        </span>
+      </div>
+      <ul class="zone-list">${zones}</ul>
+      <div class="conductor-actions">
+        <button class="hud-btn" data-act="add-token">Adicionar token</button>
+        <button class="hud-btn" data-act="reveal-all">Revelar tudo</button>
+      </div>
+    </section>
+  `;
+}
+
+function mesaBanner() {
+  if (state.role !== "pending") return "";
+  const ownPending = Object.values(CHARS).find((char) => char.owner === me() && char.status === "pendente");
+  return `<div class="mesa-banner">
+    <span class="mesa-banner__text"><strong>Sua ficha está pendente</strong> · o narrador precisa aprovar antes de você agir na mesa.</span>
+    ${ownPending ? `<button class="hud-btn hud-btn--small" data-act="sheet" data-char="${ownPending.id}">Ver ficha</button>` : ""}
+    <button class="hud-btn hud-btn--small" data-act="page" data-page="chars">Como entrar</button>
+  </div>`;
+}
+
+function tablePageA() {
+  const side = `
+    <div class="side-stack">
+      ${turnPanel()}
+      ${rollPanel()}
+      ${logPanel()}
+      ${conductorPanel()}
+    </div>
+  `;
+  return `
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Mesa</h1>
+        <p class="page-note">Sessão 12 · ${scene().name} · rodada ${state.round}</p>
+      </div>
+      <div class="chip" data-tone="live"><span class="chip__lamp"></span>${ROLE_NAMES[state.role]}</div>
+    </div>
+    ${mesaBanner()}
+    <div class="table-layout">
+      ${mapPanel()}
+      ${side}
+    </div>
+  `;
+}
+
+function tablePageB() {
+  return `
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">${escapeHtml(scene().name)}</h1>
+        <p class="page-note">Sessão 12 · #mesa-paratheos · rodada ${state.round} · turno ${currentToken() ? turnLabel() : "fechado"}</p>
+      </div>
+      <div class="chip" data-tone="live"><span class="chip__lamp"></span>${ROLE_NAMES[state.role]}</div>
+    </div>
+    <div class="table-layout">
+      ${mapPanel()}
+      <div class="side-stack">
+        ${turnPanel()}
+        ${rollPanel()}
+        ${logPanel()}
+        ${conductorPanel()}
+      </div>
+    </div>
+  `;
+}
+
+function tablePageC() {
+  const token = currentToken();
+  const logButton = `<button class="hud-btn hud-btn--small" data-act="log">Log · ${state.rolls.length}</button>`;
+  const turnsButton = `<button class="hud-btn hud-btn--small" data-act="turns">Turnos</button>`;
+  const conductorButton = roleIsNarrator() ? `<button class="hud-btn hud-btn--small" data-act="conductor">Condução</button>` : "";
+  const ownChar = Object.values(CHARS).find((char) => char.owner === me());
+  const sheetButton = ownChar ? `<button class="hud-btn hud-btn--small" data-act="sheet" data-char="${ownChar.id}">Ficha</button>` : "";
+  return `
+    <div class="canvas-shell">
+      <div class="canvas-top">
+        <div class="wordmark"><span class="wordmark__mark"></span><span class="wordmark__text">HARPI</span></div>
+        <nav class="rail__nav" aria-label="Páginas" style="flex-direction:row">${pageNav()}</nav>
+        <span class="topbar__spacer"></span>
+        <span class="chip" data-tone="live"><span class="chip__lamp"></span>${ROLE_NAMES[state.role]}</span>
+        ${linkChip()}
+      </div>
+      <div class="map-scroll">
+        <div class="map-stage">
+          ${mapStageInner()}
+        </div>
+      </div>
+      <div class="dock">
+        ${readouts()}
+        <div class="dock__keys">
+          <button class="hud-btn hud-btn--small" data-act="pass" title="Passar turno (N)">Passar</button>
+          <button class="hud-btn hud-btn--small" data-act="end">Encerrar</button>
+          ${roleIsNarrator() ? '<button class="hud-btn hud-btn--small" data-act="open-turn">Abrir</button>' : ""}
+          ${turnsButton}
+          ${sheetButton}
+          ${conductorButton}
+          ${logButton}
+        </div>
+        <div class="rollbar">
+          <input class="hud-input" id="dice-input" placeholder="4dF+2" ${canRoll() ? "" : "disabled"} aria-label="Expressão de dados">
+          <button class="hud-btn hud-btn--primary" data-act="roll" ${canRoll() ? "" : "disabled"}>Rolar</button>
+        </div>
+      </div>
+      ${state.panel === "conductor" && roleIsNarrator() ? `<aside class="float float--conductor" role="dialog" aria-label="Condução"><div class="float__label">Condução <button class="hud-btn hud-btn--small" data-act="panel">Fechar</button></div>${conductorBody()}</aside>` : ""}
+      ${state.panel === "turns" ? `<aside class="float float--log" role="dialog" aria-label="Turnos"><div class="float__label">Turno <button class="hud-btn hud-btn--small" data-act="panel">Fechar</button></div>${turnListHTML()}</aside>` : ""}
+      ${state.panel === "log" ? `<aside class="float float--log" role="dialog" aria-label="Log de dados"><div class="float__label">Log <button class="hud-btn hud-btn--small" data-act="panel">Fechar</button></div>${logRowsHTML()}</aside>` : ""}
+    </div>
+  `;
+}
+
+function turnListHTML() {
+  return `
+    ${readouts()}
+    <ul class="turn-list">${visibleTokens()
+      .map((participant) => {
+        const acted = state.acted.includes(participant.id);
+        const current = participant.id === state.turnTokenId;
+        return `<li class="turn-row" data-state="${current ? "current" : acted ? "acted" : "pending"}">
+          <span class="turn-row__lamp"></span>
+          <span class="turn-row__name">${escapeHtml(participant.label)}</span>
+          <span class="tag" ${current ? 'data-tone="state"' : acted ? 'data-tone="oxide"' : ""}>${current ? "Vez" : acted ? "Agiu" : "Pendente"}</span>
+          ${roleIsNarrator() && !current && !acted ? `<button class="hud-btn hud-btn--small turn-row__call" data-act="set-turn" data-target="${participant.id}" aria-label="Chamar ${escapeHtml(participant.label)} para o turno" title="Chamar ${escapeHtml(participant.label)} para o turno">→</button>` : ""}
+          ${participant.char && (roleIsNarrator() || (state.role === "player" && participant.owner === "me")) ? `<button class="hud-btn hud-btn--small" data-act="sheet" data-char="${participant.char}">Ficha</button>` : ""}
+        </li>`;
+      })
+      .join("")}</ul>
+  `;
+}
+
+function logRowsHTML() {
+  return `<div class="log" data-log>${state.rolls
+    .map(
+      (roll) => `<div class="log-row">
+        <div class="log-row__head">
+          <span class="log-row__actor">${escapeHtml(roll.actor)}</span>
+          <span class="log-row__meta">· ${escapeHtml(roll.scene)}</span>
+          <span class="tag" data-tone="${roll.source === "discord" ? "oxide" : "state"}">${roll.source === "discord" ? "Discord" : "Painel"}</span>
+        </div>
+        <div class="log-row__text">${escapeHtml(roll.text).replaceAll("`", "").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")}</div>
+      </div>`
+    )
+    .join("")}</div>`;
+}
+
+function conductorBody() {
+  const zones = scene()
+    .zones.map(
+      (zone) => `<li class="zone-row">
+        <span class="zone-row__name">${escapeHtml(zone.label)}</span>
+        <span class="tag" ${zone.revealed ? 'data-tone="state"' : ""}>${zone.revealed ? "Revelada" : "Oculta"}</span>
+      </li>`
+    )
+    .join("");
+  const options = Object.entries(SCENES)
+    .map(([key, value]) => `<option value="${key}" ${state.sceneKey === key ? "selected" : ""}>${escapeHtml(value.name)}</option>`)
+    .join("");
+  return `
+    <div class="select-row" style="margin-top:0">
+      <span class="select-wrap"><select data-act="scene" aria-label="Trocar cena">${options}</select></span>
+    </div>
+    <ul class="zone-list">${zones}</ul>
+    <div class="conductor-actions">
+      <button class="hud-btn hud-btn--small" data-act="add-token">Token</button>
+      <button class="hud-btn hud-btn--small" data-act="reveal-all">Revelar tudo</button>
+    </div>
+  `;
+}
+
+function charsPage() {
+  if (state.role === "spectator") return outOfScope("Espectador vê a mesa, não as fichas.");
+  const visible = Object.values(CHARS).filter((char) => {
+    if (state.role === "narrator") return true;
+    if (char.status === "pendente") return char.owner === me();
+    if (!char.revealed) return false;
+    return true;
+  });
+  const cards = visible
+    .map((char) => {
+      const hidden = !char.revealed;
+      const isOwn = char.owner === me();
+      const statusTag =
+        char.status === "pendente"
+          ? '<span class="tag" data-tone="oxide">Aguardando aprovação</span>'
+          : isOwn
+            ? '<span class="tag" data-tone="state">Sua ficha</span>'
+            : `<span class="tag">${char.kind === "npc" ? "NPC" : "PC"}</span>`;
+      const keys = [];
+      if (char.status !== "pendente" || state.role === "narrator" || char.owner === me()) {
+        keys.push(`<button class="hud-btn hud-btn--small" data-act="sheet" data-char="${char.id}">Abrir ficha</button>`);
+      }
+      if (hidden && state.role === "narrator") {
+        keys.push(`<button class="hud-btn hud-btn--small" data-act="reveal-char" data-char="${char.id}">Revelar</button>`);
+      }
+      return `<article class="char-card" data-hidden="${hidden}">
+        <div class="char-card__head">
+          <div class="portrait">${escapeHtml(char.name.slice(0, 2).toUpperCase())}</div>
+          <div>
+            <h2 class="char-card__name">${escapeHtml(char.name)}${hidden && char.owner !== me() ? " · oculto" : ""}</h2>
+            <p class="char-card__concept">${escapeHtml(char.concept)}</p>
+          </div>
+        </div>
+        <p class="char-card__summary">${escapeHtml(char.summary)}</p>
+        <div class="char-card__foot">${statusTag}${keys.join("")}</div>
+      </article>`;
+    })
+    .join("");
+  const entry =
+    state.role === "pending"
+      ? `<section class="hud-panel" style="margin-bottom:1rem">
+          <div class="panel-band"><h2 class="panel-label">Entrada na campanha</h2><span class="tag" data-tone="oxide">Pendente</span></div>
+          <p class="system-note">Sua ficha existe e está aguardando o narrador. Enquanto isso, você lê a sua ficha e acompanha a mesa sem agir.</p>
+          <ol class="entry-steps">
+            <li class="entry-step"><span class="entry-step__index">01</span><span><span class="entry-step__name">Crie o personagem</span><span class="entry-step__note"> · nome, conceito e problema</span></span></li>
+            <li class="entry-step"><span class="entry-step__index">02</span><span><span class="entry-step__name">Envie para aprovação</span><span class="entry-step__note"> · o narrador vê a ficha na fila</span></span></li>
+            <li class="entry-step"><span class="entry-step__index">03</span><span><span class="entry-step__name">Ficha ativa</span><span class="entry-step__note"> · você entra no elenco, move seu token e rola</span></span></li>
+          </ol>
+          <div class="conductor-actions"><button class="hud-btn hud-btn--primary" data-act="entry">Criar personagem</button></div>
+          ${state.entryOpen ? entryForm() : ""}
+        </section>`
+      : "";
+  return `
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Personagens</h1>
+        <p class="page-note">${state.role === "narrator" ? "Todos os personagens, inclusive os ainda não revelados." : state.role === "pending" ? "Personagens revelados e a sua ficha pendente. Ficha alheia é card público." : "Só personagens revelados. Ficha alheia é card público."}</p>
+      </div>
+      <button class="hud-btn" data-act="page" data-page="table">Voltar à mesa</button>
+    </div>
+    ${entry}
+    <div class="char-grid">${cards}</div>
+  `;
+}
+
+function entryForm() {
+  return `
+    <div class="entry-form">
+      <label>Nome<input class="hud-input" value="Vex" aria-label="Nome do personagem"></label>
+      <label>Conceito<input class="hud-input" value="Mensageira sem memória" aria-label="Conceito"></label>
+      <div class="conductor-actions">
+        <button class="hud-btn hud-btn--primary" data-act="submit-entry">Enviar para aprovação</button>
+        <button class="hud-btn" data-act="entry">Cancelar</button>
+      </div>
+    </div>
+  `;
+}
+
+function outOfScope(message) {
+  return `
+    <div class="page-head"><h1 class="page-title">Fora de escopo</h1></div>
+    <div class="fault" role="alert">
+      <div class="fault__body"><span class="stamp is-hazard">404</span><span>${escapeHtml(message)}</span></div>
+      <button class="hud-btn" data-act="page" data-page="table">Voltar à mesa</button>
+    </div>
+  `;
+}
+
+function sheetPage() {
+  if (state.role === "spectator") return outOfScope("Espectador não abre ficha.");
+  const keys = state.role === "narrator" ? Object.keys(CHARS) : Object.keys(CHARS).filter((key) => CHARS[key].owner === me() || state.role === "pending");
+  const active = state.drawer && CHARS[state.drawer] ? state.drawer : keys[0];
+  const char = CHARS[active];
+  const selector =
+    state.role === "narrator"
+      ? `<div class="conductor-actions" style="margin-bottom:1rem">${Object.values(CHARS)
+          .map((item) => `<button class="hud-btn hud-btn--small" data-act="sheet-page" data-char="${item.id}" ${item.id === char.id ? 'aria-current="page"' : ""}>${escapeHtml(item.name)}</button>`)
+          .join("")}</div>`
+      : "";
+  const banner =
+    char.status === "pendente"
+      ? `<div class="hud-panel" style="margin-bottom:1rem"><div class="panel-band"><h2 class="panel-label">Aguardando aprovação</h2><span class="tag" data-tone="oxide">Pendente</span></div><p class="system-note">Você lê a sua ficha, mas só entra no elenco e na mesa depois que o narrador aprovar. Ficha pendente de outro jogador não aparece para ninguém além dele e do narrador.</p></div>`
+      : "";
+  return `
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Ficha</h1>
+        <p class="page-note">${state.role === "narrator" ? "Narrador lê e edita qualquer ficha." : "Você lê e edita a própria ficha."}</p>
+      </div>
+      <button class="hud-btn" data-act="page" data-page="table">Voltar à mesa</button>
+    </div>
+    ${banner}
+    ${selector}
+    <section class="hud-panel">${sheetBody(char, true)}</section>
+  `;
+}
+
+function sheetBody(char, full) {
+  const aspects = (char.aspects ?? [])
+    .map(
+      ([kind, text]) => `<div class="aspect"><span class="aspect__kind">${escapeHtml(kind)}</span><span class="aspect__text">${escapeHtml(text)}</span></div>`
+    )
+    .join("");
+  const skills = (char.groups ?? [])
+    .flatMap(([rank, names]) => names.map((name) => `<div class="skill"><span class="skill__rank">${rank}</span><span class="skill__name">${escapeHtml(name)}</span></div>`))
+    .join("");
+  const stress = Object.entries(char.stress)
+    .map(
+      ([track, value]) => `<div class="stress-row">
+        <span class="stress-row__label">${track === "fisico" ? "Físico" : "Mental"}</span>
+        <span class="stress-boxes">${Array.from({ length: value.size }, (_, index) => `<button class="stress-box" data-act="stress" data-char="${char.id}" data-track="${track}" data-index="${index}" data-marked="${index < value.marked}" aria-label="${track} ${index + 1}"></button>`).join("")}</span>
+      </div>`
+    )
+    .join("");
+  const consequences = (char.consequences ?? [])
+    .map(
+      ([slot, text, used]) => `<div class="consequence-row">
+        <span class="data-label" style="margin:0">${escapeHtml(slot)}</span>
+        <button class="consequence-slot" data-act="consequence" data-char="${char.id}" data-slot="${slot}" data-used="${used}">${used ? escapeHtml(text) : "Livre"}</button>
+      </div>`
+    )
+    .join("");
+  const extras = (char.extras ?? []).map((extra) => `<div class="inventory-row"><span class="inventory-row__name">${escapeHtml(extra)}</span></div>`).join("");
+  const inventory = (char.inventory ?? [])
+    .map(
+      ([qty, name, note]) => `<div class="inventory-row"><span class="inventory-row__qty">${qty}x</span><span class="inventory-row__name">${escapeHtml(name)}</span><span class="inventory-row__note">${escapeHtml(note)}</span></div>`
+    )
+    .join("");
+  return `
+    <div class="sheet-head">
+      <div class="portrait ${full ? "portrait--lg" : ""}">${escapeHtml(char.name.slice(0, 2).toUpperCase())}</div>
+      <div style="min-width:0">
+        <h2 class="sheet-name">${escapeHtml(char.name)}</h2>
+        <p class="sheet-concept">${escapeHtml(char.concept)}</p>
+        <div class="char-card__foot" style="margin-top:0.5rem">
+          <span class="tag" data-tone="${char.status === "ativo" ? "state" : "oxide"}">${char.status === "ativo" ? "Ativa" : "Pendente"}</span>
+          <span class="tag">${char.kind === "npc" ? "NPC" : "PC"}</span>
+          ${char.owner ? `<span class="tag">${escapeHtml(char.owner)}</span>` : ""}
+        </div>
+      </div>
+    </div>
+    <div class="sheet-section"><h3 class="panel-label">Aspectos</h3>${aspects}</div>
+    <div class="sheet-section"><h3 class="panel-label">Perícias</h3><div class="skill-grid">${skills}</div></div>
+    <div class="sheet-section"><h3 class="panel-label">Estresse</h3>${stress}</div>
+    <div class="sheet-section"><h3 class="panel-label">Consequências</h3>${consequences}</div>
+    ${extras ? `<div class="sheet-section"><h3 class="panel-label">Extras</h3>${extras}</div>` : ""}
+    <div class="sheet-section"><h3 class="panel-label">Inventário</h3>${inventory || '<p class="system-note">Inventário vazio.</p>'}</div>
+  `;
+}
+
+function drawerHTML() {
+  if (!state.drawer) return "";
+  const char = CHARS[state.drawer];
+  if (!char) return "";
+  return `
+    <div class="drawer-backdrop" data-act="close-drawer"></div>
+    <aside class="drawer ${state.variant === "C" ? "drawer--bottom" : ""}" role="dialog" aria-label="Ficha de ${escapeHtml(char.name)}">
+      <div class="drawer__head">
+        <h2 class="panel-label">Ficha · ${escapeHtml(char.name)}</h2>
+        <button class="hud-btn hud-btn--small" data-act="close-drawer">Fechar</button>
+      </div>
+      ${sheetBody(char, false)}
+    </aside>
+  `;
+}
+
+function railHTML() {
+  const scenes = Object.entries(SCENES)
+    .map(
+      ([key, value]) =>
+        `<button class="rail__item" data-act="scene" data-scene="${key}" data-current="${state.sceneKey === key}" style="background:transparent;border:0;text-align:start">
+          <span class="chip__lamp" style="background:${state.sceneKey === key ? "var(--amber)" : "var(--rule-strong)"}"></span>${escapeHtml(value.name)}
+        </button>`
+    )
+    .join("");
+  return `
+    <aside class="rail">
+      <div class="wordmark" style="padding-inline:0.4rem"><span class="wordmark__mark"></span><span class="wordmark__text">HARPI</span></div>
+      <div class="placard"><span class="placard__label">Campanha</span><span class="placard__value">Paratheos</span></div>
+      <nav class="rail__nav" aria-label="Páginas">${pageNav()}</nav>
+      <div class="rail__scenes">
+        <div class="rail__label">Cenas</div>
+        ${scenes}
+      </div>
+      <div class="rail__roster">
+        <div class="rail__label">Na mesa</div>
+        <div class="rail__item"><span class="chip__lamp"></span>Rafa · narrador</div>
+        <div class="rail__item"><span class="chip__lamp"></span>Nina · jogadora</div>
+        <div class="rail__item"><span class="chip__lamp"></span>Téo · jogador</div>
+        <div class="rail__item"><span class="chip__lamp"></span>Bia · jogadora</div>
+      </div>
+      <div class="rail__link" style="margin-top:auto;padding-inline:0.4rem">${linkChip()}</div>
+    </aside>
+  `;
+}
+
+function shellA() {
+  return `
+    <div class="app">
+      <div class="topbar">
+        ${identityBar()}
+        <span class="topbar__spacer"></span>
+        ${linkChip()}
+      </div>
+      <div class="navband" role="navigation" aria-label="Páginas">${pageNav()}<span class="navband__meta">Paratheos · sessão 12</span></div>
+      ${pageHTML("A")}
+    </div>
+  `;
+}
+
+function shellB() {
+  return `
+    ${railHTML()}
+    <div class="app">
+      <div class="topbar">
+        <div class="placard"><span class="placard__label">Mesa</span><span class="placard__value">Sessão 12</span><span class="placard__meta">#mesa-paratheos</span></div>
+        <div class="placard"><span class="placard__label">Papel</span><span class="placard__value">${ROLE_NAMES[state.role]}</span></div>
+        <span class="topbar__spacer"></span>
+        ${linkChip()}
+      </div>
+      <div style="margin-top:1rem">${pageHTML("B")}</div>
+    </div>
+  `;
+}
+
+function shellC() {
+  if (state.page !== "table") {
+    return `
+      <div class="app">
+        <div class="topbar">
+          <div class="wordmark"><span class="wordmark__mark"></span><span class="wordmark__text">HARPI</span></div>
+          <div class="navband" style="margin:0;border:0;padding:0">${pageNav()}</div>
+          <span class="topbar__spacer"></span>
+          ${linkChip()}
+        </div>
+        <div style="margin-top:1rem">${pageHTML("C")}</div>
+      </div>
+    `;
+  }
+  return tablePageC();
+}
+
+function pageHTML(variant) {
+  if (state.page === "chars") return charsPage();
+  if (state.page === "sheet") return sheetPage();
+  if (variant === "A") return tablePageA();
+  if (variant === "B") return tablePageB();
+  return "";
+}
+
+function render() {
+  const root = document.getElementById("root");
+  document.body.dataset.variant = state.variant;
+  document.body.classList.toggle("has-rail", state.variant === "B");
+  root.innerHTML = state.variant === "A" ? shellA() : state.variant === "B" ? shellB() : shellC();
+  root.insertAdjacentHTML("beforeend", drawerHTML());
+  renderOverlays();
+  renderProtoBar();
+  const log = root.querySelector("[data-log]");
+  if (log) log.scrollTop = log.scrollHeight;
+}
+
+function renderProtoBar() {
+  document.getElementById("variant-label").textContent = VARIANTS[state.variant];
+  document.querySelectorAll(".proto-bar__roles button").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.role === state.role));
+  });
+}
+
+function renderOverlays() {
+  const overlays = document.getElementById("overlays");
+  const parts = [];
+  if (state.fault) {
+    parts.push(`<div class="fault" role="alert"><div class="fault__body"><span class="stamp is-hazard">Falha</span><span>${escapeHtml(state.fault)}</span></div><button class="hud-btn hud-btn--small" data-act="dismiss">Dispensar</button></div>`);
+  }
+  if (state.toast) {
+    parts.push(`<div class="toast" role="status">${escapeHtml(state.toast)}</div>`);
+  }
+  overlays.innerHTML = parts.join("");
+}
+
+function setPage(page) {
+  if (!canSeePage(page)) {
+    fault("404 not_found", "Página fora do escopo deste papel");
+    return;
+  }
+  state.page = page;
+  state.drawer = "";
+  render();
+}
+
+function setRole(role) {
+  state.role = role;
+  if (!canSeePage(state.page)) state.page = "table";
+  state.drawer = "";
+  render();
+}
+
+function setVariant(variant) {
+  state.variant = variant;
+  state.drawer = "";
+  const url = new URL(window.location.href);
+  url.searchParams.set("variant", variant);
+  history.replaceState(null, "", url);
+  render();
+}
+
+document.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-act]");
+  if (!target) return;
+  const act = target.dataset.act;
+  if (act === "variant") {
+    const order = Object.keys(VARIANTS);
+    const index = order.indexOf(state.variant);
+    const step = Number(target.dataset.step);
+    setVariant(order[(index + step + order.length) % order.length]);
+    return;
+  }
+  if (act === "role") {
+    setRole(target.dataset.role);
+    return;
+  }
+  if (act === "page") {
+    setPage(target.dataset.page);
+    return;
+  }
+  if (act === "reveal") {
+    revealZone(target.dataset.zone);
+    return;
+  }
+  if (act === "zone") {
+    revealZone(target.dataset.zone);
+    return;
+  }
+  if (act === "reveal-all") {
+    if (!roleIsNarrator()) {
+      fault("403 forbidden", "Só o narrador revela zona");
+      return;
+    }
+    scene().zones.forEach((zone) => { zone.revealed = true; });
+    toast("Todas as zonas reveladas");
+    return;
+  }
+  if (act === "pass") {
+    nextTurn();
+    return;
+  }
+  if (act === "end") {
+    endTurn();
+    return;
+  }
+  if (act === "open-turn") {
+    openTurn();
+    return;
+  }
+  if (act === "set-turn") {
+    callTurn(target.dataset.target);
+    return;
+  }
+  if (act === "add-token") {
+    addToken();
+    return;
+  }
+  if (act === "roll") {
+    const input = document.getElementById("dice-input");
+    rollDice(input ? input.value : "");
+    return;
+  }
+  if (act === "zoom") {
+    const step = Number(target.dataset.step);
+    state.zoom = step === 0 ? 1 : clamp(state.zoom + step * 0.25, 1, 3);
+    render();
+    return;
+  }
+  if (act === "sheet") {
+    openSheet(target.dataset.char);
+    return;
+  }
+  if (act === "sheet-page") {
+    state.drawer = target.dataset.char;
+    state.page = "sheet";
+    render();
+    return;
+  }
+  if (act === "close-drawer") {
+    closeDrawer();
+    return;
+  }
+  if (act === "stress") {
+    const char = CHARS[target.dataset.char];
+    const track = char.stress[target.dataset.track];
+    const index = Number(target.dataset.index);
+    track.marked = index + 1 === track.marked ? index : index + 1;
+    render();
+    return;
+  }
+  if (act === "consequence") {
+    const char = CHARS[target.dataset.char];
+    const slot = char.consequences.find((item) => item[0] === target.dataset.slot);
+    slot[2] = !slot[2];
+    slot[1] = slot[2] ? "Abalado" : "";
+    render();
+    return;
+  }
+  if (act === "reveal-char") {
+    const char = CHARS[target.dataset.char];
+    if (!roleIsNarrator()) {
+      fault("403 forbidden", "Só o narrador revela personagem");
+      return;
+    }
+    char.revealed = true;
+    toast(`${char.name} revelado no elenco`);
+    return;
+  }
+  if (act === "entry") {
+    state.entryOpen = !state.entryOpen;
+    render();
+    return;
+  }
+  if (act === "submit-entry") {
+    toast("Ficha enviada · aguardando o narrador");
+    return;
+  }
+  if (act === "scene") {
+    if (!roleIsNarrator()) return;
+    switchScene(target.dataset.scene);
+    return;
+  }
+  if (act === "log") {
+    state.panel = state.panel === "log" ? "" : "log";
+    render();
+    return;
+  }
+  if (act === "turns") {
+    state.panel = state.panel === "turns" ? "" : "turns";
+    render();
+    return;
+  }
+  if (act === "conductor") {
+    state.panel = state.panel === "conductor" ? "" : "conductor";
+    render();
+    return;
+  }
+  if (act === "panel") {
+    state.panel = "";
+    render();
+    return;
+  }
+  if (act === "dismiss") {
+    state.fault = "";
+    render();
+    return;
+  }
+});
+
+document.addEventListener("change", (event) => {
+  const select = event.target.closest("select[data-act='scene']");
+  if (!select) return;
+  if (!roleIsNarrator()) {
+    fault("403 forbidden", "Só o narrador troca de cena");
+    return;
+  }
+  switchScene(select.value);
+});
+
+let drag = null;
+
+document.addEventListener("pointerdown", (event) => {
+  const element = event.target.closest(".token[data-token]");
+  if (!element) return;
+  const token = scene().tokens.find((item) => item.id === element.dataset.token);
+  if (!token || !canDrag(token)) return;
+  const stage = element.closest(".map-stage");
+  if (!stage) {
+    fault("403 forbidden", "Sem permissão para mover este token");
+    return;
+  }
+  const rect = stage.getBoundingClientRect();
+  drag = { element, token, rect, startX: event.clientX, startY: event.clientY, originX: token.x, originY: token.y };
+  element.classList.add("is-dragging");
+  element.focus?.();
+  element.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+});
+
+document.addEventListener("pointermove", (event) => {
+  if (!drag) return;
+  const dx = ((event.clientX - drag.startX) / drag.rect.width) * CELLS_W;
+  const dy = ((event.clientY - drag.startY) / drag.rect.height) * CELLS_H;
+  drag.token.x = clamp(drag.originX + dx, 0, CELLS_W - drag.token.w);
+  drag.token.y = clamp(drag.originY + dy, 0, CELLS_H - drag.token.h);
+  drag.element.style.left = `${((drag.token.x + drag.token.w / 2) / CELLS_W) * 100}%`;
+  drag.element.style.top = `${((drag.token.y + drag.token.h / 2) / CELLS_H) * 100}%`;
+});
+
+function endDrag() {
+  if (!drag) return;
+  drag.element.classList.remove("is-dragging");
+  drag = null;
+  render();
+}
+
+document.addEventListener("pointerup", endDrag);
+document.addEventListener("pointercancel", endDrag);
+
+document.addEventListener("keydown", (event) => {
+  const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName ?? "") || document.activeElement?.isContentEditable;
+  if ((event.key === "Enter" || event.key === " ") && document.activeElement?.dataset?.act === "zone") {
+    event.preventDefault();
+    revealZone(document.activeElement.dataset.zone);
+    return;
+  }
+  if (event.key === "Escape") {
+    if (state.drawer) {
+      closeDrawer();
+      return;
+    }
+    if (state.panel) {
+      state.panel = "";
+      render();
+      return;
+    }
+    if (state.fault) {
+      state.fault = "";
+      render();
+      return;
+    }
+    return;
+  }
+  if (typing) return;
+  const tokenElement = document.activeElement?.dataset?.token ? document.activeElement : null;
+  if (tokenElement) {
+    const token = scene().tokens.find((item) => item.id === tokenElement.dataset.token);
+    if (token && event.key.startsWith("Arrow")) {
+      if (!canDrag(token)) return;
+      const step = event.shiftKey ? 5 : 1;
+      if (event.key === "ArrowLeft") token.x = clamp(token.x - step, 0, CELLS_W - token.w);
+      if (event.key === "ArrowRight") token.x = clamp(token.x + step, 0, CELLS_W - token.w);
+      if (event.key === "ArrowUp") token.y = clamp(token.y - step, 0, CELLS_H - token.h);
+      if (event.key === "ArrowDown") token.y = clamp(token.y + step, 0, CELLS_H - token.h);
+      render();
+      document.querySelector(`[data-token="${token.id}"]`)?.focus();
+      event.preventDefault();
+      return;
+    }
+    if (event.key === "Enter" && token?.char) {
+      openSheet(token.char);
+      return;
+    }
+  }
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    const order = Object.keys(VARIANTS);
+    const index = order.indexOf(state.variant);
+    setVariant(order[(index + (event.key === "ArrowRight" ? 1 : -1) + order.length) % order.length]);
+    event.preventDefault();
+    return;
+  }
+  if (event.key.toLowerCase() === "n") {
+    nextTurn();
+    return;
+  }
+  if (event.key.toLowerCase() === "d") {
+    const input = document.getElementById("dice-input");
+    if (input) input.focus();
+  }
+});
+
+const params = new URLSearchParams(window.location.search);
+if (params.get("variant") && VARIANTS[params.get("variant")]) state.variant = params.get("variant");
+if (params.get("page")) state.page = params.get("page");
+if (params.get("role")) state.role = params.get("role");
+if (params.get("drawer")) state.drawer = params.get("drawer");
+
+render();
+</script>
+</body>
+</html>
