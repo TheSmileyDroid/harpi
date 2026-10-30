@@ -1516,6 +1516,22 @@
         }
       }
     },
+    "/c/{path}": {
+      "get": {
+        "operationId": "get_panel_campaign_route",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {}
+      }
+    },
     "/{filename}": {
       "get": {
         "operationId": "get_panel_asset",

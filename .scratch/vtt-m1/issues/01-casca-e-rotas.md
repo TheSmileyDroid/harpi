@@ -4,10 +4,10 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `/` renderiza a página de música atual, sem rail nem dock de VTT.
-- [ ] `/c/paratheos/mesa`, `/personagens`, `/ficha` e `/cenas` renderizam a casca com a página ativa marcada.
-- [ ] O rail mostra wordmark, campanha, páginas e link; abaixo de 56rem vira faixa no topo.
-- [ ] O build de produção serve `/c/...` direto, sem 404.
-- [ ] `DESIGN.md` ganha a seção de navegação e `make check` passa.
+- [x] `/` renderiza a página de música atual, sem rail nem dock de VTT.
+- [x] `/c/paratheos/mesa`, `/personagens`, `/ficha` e `/cenas` renderizam a casca com a página ativa marcada.
+- [x] O rail mostra wordmark, campanha, páginas e link; abaixo de 56rem vira faixa no topo.
+- [x] O build de produção serve `/c/...` direto, sem 404.
+- [x] `DESIGN.md` ganha a seção de navegação e `make check` passa.
