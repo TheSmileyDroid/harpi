@@ -276,6 +276,12 @@ async def panel_index() -> Response:
     return await send_from_directory(WEB_BUILD, "index.html")
 
 
+@app.get("/c/<path:path>")
+async def panel_campaign_route(path: str) -> Response:
+    del path
+    return await panel_index()
+
+
 @app.get("/<path:filename>")
 async def panel_asset(filename: str) -> Response:
     return await send_from_directory(WEB_BUILD, filename)

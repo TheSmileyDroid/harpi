@@ -43,6 +43,21 @@ async def test_root_serves_built_assets(client):
 
 
 @pytest.mark.usefixtures("built")
+async def test_campaign_routes_serve_the_built_index(client):
+    for path in (
+        "/c/paratheos/mesa",
+        "/c/paratheos/personagens",
+        "/c/paratheos/ficha",
+        "/c/paratheos/cenas",
+        "/c/paratheos/cenas/cripta",
+    ):
+        response = await client.get(path)
+
+        assert response.status_code == 200, path
+        assert b"Harpi" in await response.get_data(), path
+
+
+@pytest.mark.usefixtures("built")
 async def test_missing_asset_is_a_plain_404(client):
     response = await client.get("/nope.js")
 

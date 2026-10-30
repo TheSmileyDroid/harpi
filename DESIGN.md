@@ -262,7 +262,9 @@ A warm near-black board carrying plate-toned placards, inked in amber for state 
 
 ## Layout
 
-A single column capped at 72rem and centred, padded 0.75rem at the top, 1.25rem at the sides and `calc(var(--transport-height) + 1.5rem)` at the bottom so the fixed dock never sits over content. The placard bar wraps at the top with 0.5rem gaps and 0.5rem padding. Panels stack with 1rem gaps and pad 1rem, and a panel band sits 0.85rem above its content.
+The music page is a single column capped at 72rem and centred, padded 0.75rem at the top, 1.25rem at the sides and `calc(var(--transport-height) + 1.5rem)` at the bottom so the fixed dock never sits over content. The placard bar wraps at the top with 0.5rem gaps and 0.5rem padding. Panels stack with 1rem gaps and pad 1rem, and a panel band sits 0.85rem above its content.
+
+The campaign shell is a fixed 14rem rail beside a fluid content column. The content column caps at 72rem, pads 0.75rem at the top and 1.25rem at the sides, and clears its own bottom with 2rem; no dock takes part. Below 56rem the rail becomes a band across the top and the content column starts under it. Panels inside the shell follow the same 1rem stack and 1rem padding as the music page.
 
 The console is one column until 56rem, where it splits into a fluid main column (Now Playing over Queue) and a 15.5rem rail (Layers, Session, Linked). The rail collapses behind a Hide layers key and reopens with Show layers. The rating grid auto-fits at `minmax(7rem, 1fr)`, so four readouts sit in one row on desktop and wrap to two columns on a phone. The queue list caps at 60vh and scrolls until 56rem, where it takes the height left over so the plates meet the dock.
 
@@ -344,8 +346,24 @@ Placards are the state unit, keys are instrument keys, and plates are what holds
 - **Volume scale:** a native range restyled as a ruled scale. Sunken fill, 1px bright rule, 3px corners, a 1px tick every 4px, an amber 0.4rem thumb with 2px corners, 8rem wide in the dock and 6rem in a layer row. It is 16px tall on desktop and 44px in the dock on coarse pointers, the one native control below the 40px authored floor.
 
 ### Navigation
-- There is no nav: the panel is a single surface. The placard bar is the wayfinding. It holds the wordmark placard (the pixel mark at 1.6rem beside HARPI in Urbanist 800 at 0.85rem tracking 0.24em), the output placard (guild and channel, hover-lifted), the carrier placard, the voice placard, then the Search key with its shortcut hint (Ctrl K, or the command key on a Mac, hidden under 30rem) and the Sign out key.
-- The output placard is also the control: it opens a popover holding the Guild and Channel selects, an optional hint, and the Connect or Reconnect key beside Disconnect. Under 30rem the bar wraps and the output placard takes a full row.
+
+The panel has two surfaces and two ways of getting around. They share placards and keys, and never share a frame.
+
+**The music page** has no nav: the placard bar is the wayfinding. It holds the wordmark placard (the pixel mark at 1.6rem beside HARPI in Urbanist 800 at 0.85rem tracking 0.24em), the output placard (guild and channel, hover-lifted), the carrier placard, the voice placard, then the Search key with its shortcut hint (Ctrl K, or the command key on a Mac, hidden under 30rem) and the Sign out key. The output placard is also the control: it opens a popover holding the Guild and Channel selects, an optional hint, and the Connect or Reconnect key beside Disconnect. Under 30rem the bar wraps and the output placard takes a full row.
+
+**The campaign shell** frames every `/c/<campaign>/…` page. A 14rem rail runs the full viewport height, fixed, on the plate tone with a 1px bright rule on its inner edge. From top to bottom it holds:
+
+- **The wordmark** as the way home: the pixel mark at 1.6rem beside HARPI in Urbanist 800 at 0.85rem tracking 0.24em, on a link that takes the usual 2px amber focus outline.
+- **The campaign placard:** a placard stacked label over value, the claim CAMPANHA in Barlow 600 at 0.6875rem tracking 0.16em amber, and the campaign name in JetBrains Mono 0.8125rem sand, ellipsised at the rail width.
+- **The pages:** MESA, PERSONAGENS, FICHA and CENAS in one column, each a 2.5rem row in Barlow 600 at 0.72rem tracking 0.14em, divided by 1px `rule` hairlines. A 0.4rem square lamp leads each row. The inactive row is dim ash with a bright-rule lamp; hover lifts the ink to sand, the fill to the raised plate and the border to oxide, exactly like a key. The active row is a raised-plate fill, a sand label and an amber lamp, and it carries `aria-current="page"`. The active row is never a sand fill: sand stays the pressed surface.
+- **The link placard** at the foot of the rail: the claim LINK over the state, ATIVO in amber when the stream is live, PERDIDO in hazard red when it is reconnecting, CONECTANDO in dim ash before the first frame. It is a reading, not a control.
+
+Below 56rem the rail turns into a band across the top. The wordmark and the campaign placard share the first row, the four page links wrap under them as a row of keys with the lamps, and the link placard takes the end of the band. The band is not fixed and scrolls away with the page; the content column starts under it. The shell's content column caps at 72rem and centres while the rail stays put; below 56rem the band is the full width of the page.
+
+The campaign shell never carries the music dock, and the music page never carries the campaign rail. A VTT page owns its bottom edge and has no `--transport-height` to clear.
+
+### Named Rules
+**The Two Surfaces Rule.** Music and the table never share a frame: the music page keeps the placard bar and the transport dock, the campaign shell keeps the 14rem rail and no dock. A placard, a key or a reading may cross over; a fixed frame may not.
 
 ### The Seek Scale (signature)
 - The seek control is a stepped amber scale in the dock: flex 1, min-width 8rem, 2.5rem tall (2.75rem on coarse pointers), sunken fill ruled with the unlit steps (7px of raised plate, 3px off), inside a 1px bright rule with 3px corners.
