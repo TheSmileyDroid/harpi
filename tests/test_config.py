@@ -143,6 +143,31 @@ def test_vault_path_reads_the_environment(monkeypatch: pytest.MonkeyPatch):
     assert Settings.from_env().vault_path == "/vault"
 
 
+def test_narrator_and_guild_ids_read_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("HARPI_NARRATOR_ID", "100")
+    monkeypatch.setenv("HARPI_GUILD_ID", "734174030701264906")
+
+    settings = Settings.from_env()
+
+    assert settings.narrator_id == "100"
+    assert settings.campaign_guild_id == "734174030701264906"
+
+
+@pytest.mark.parametrize("value", ["", "   ", "not-a-snowflake", "12.5"])
+def test_invalid_narrator_and_guild_ids_are_unset(
+    monkeypatch: pytest.MonkeyPatch, value: str
+):
+    monkeypatch.setenv("HARPI_NARRATOR_ID", value)
+    monkeypatch.setenv("HARPI_GUILD_ID", value)
+
+    settings = Settings.from_env()
+
+    assert settings.narrator_id is None
+    assert settings.campaign_guild_id is None
+
+
 def test_blank_vault_path_is_unset(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("HARPI_VAULT_PATH", "")
 

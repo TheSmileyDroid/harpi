@@ -29,6 +29,102 @@
         "title": "BotStatus",
         "type": "object"
       },
+      "CampaignDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "open_table": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpenTable"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "enum": [
+              "narrator",
+              "player",
+              "pending"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "system": {
+            "title": "System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "system",
+          "role",
+          "open_table"
+        ],
+        "title": "CampaignDetail",
+        "type": "object"
+      },
+      "CampaignList": {
+        "additionalProperties": false,
+        "properties": {
+          "campaigns": {
+            "items": {
+              "$ref": "#/components/schemas/CampaignSummary"
+            },
+            "title": "Campaigns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "campaigns"
+        ],
+        "title": "CampaignList",
+        "type": "object"
+      },
+      "CampaignSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "narrator",
+              "player",
+              "pending"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "system": {
+            "title": "System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "system",
+          "role"
+        ],
+        "title": "CampaignSummary",
+        "type": "object"
+      },
       "Channel": {
         "additionalProperties": false,
         "properties": {
@@ -398,6 +494,30 @@
           }
         },
         "title": "LoopRequest",
+        "type": "object"
+      },
+      "OpenTable": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "channel_id"
+        ],
+        "title": "OpenTable",
         "type": "object"
       },
       "PlaybackStatus": {
@@ -832,6 +952,61 @@
         "operationId": "get_discord_callback",
         "parameters": [],
         "responses": {}
+      }
+    },
+    "/api/campaigns": {
+      "get": {
+        "operationId": "get_read_campaigns",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignList"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/campaigns/{slug}": {
+      "get": {
+        "operationId": "get_read_campaign",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignDetail"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
       }
     },
     "/api/connect": {

@@ -8,6 +8,18 @@ export const Authenticated = z.strictObject({ authenticated: z.boolean() });
 export type BotStatus = z.infer<typeof BotStatus>;
 export const BotStatus = z.strictObject({ online: z.boolean() });
 
+export type OpenTable = z.infer<typeof OpenTable>;
+export const OpenTable = z.strictObject({ channel_id: z.string(), id: z.string(), name: z.string() });
+
+export type CampaignDetail = z.infer<typeof CampaignDetail>;
+export const CampaignDetail = z.strictObject({ name: z.string(), open_table: OpenTable.nullable(), role: z.enum(["narrator", "player", "pending"]), slug: z.string(), system: z.string() });
+
+export type CampaignSummary = z.infer<typeof CampaignSummary>;
+export const CampaignSummary = z.strictObject({ name: z.string(), role: z.enum(["narrator", "player", "pending"]), slug: z.string(), system: z.string() });
+
+export type CampaignList = z.infer<typeof CampaignList>;
+export const CampaignList = z.strictObject({ campaigns: z.array(CampaignSummary) });
+
 export type Channel = z.infer<typeof Channel>;
 export const Channel = z.strictObject({ id: z.string(), name: z.string() });
 
