@@ -36,6 +36,16 @@ def _env_or_none(name: str) -> str | None:
     return os.getenv(name) or None
 
 
+def _snowflake_from_env(name: str) -> str | None:
+    raw = os.getenv(name)
+    if raw is None:
+        return None
+    text = raw.strip()
+    if not text or not text.isascii() or not text.isdigit():
+        return None
+    return str(int(text))
+
+
 def _allowlist_from_env() -> frozenset[int]:
     raw = os.getenv("PANEL_GUILD_ALLOWLIST", "")
     entries = [entry for entry in re.split(r"[,\s]+", raw.strip()) if entry]
@@ -76,6 +86,8 @@ class Settings:
     trusted_hosts: tuple[str, ...] = DEFAULT_TRUSTED_HOSTS
     work_dir: str = "data/work"
     vault_path: str | None = None
+    narrator_id: str | None = None
+    campaign_guild_id: str | None = None
     log_path: str = "data/logs/harpi.log"
     log_level: str = "INFO"
     retention_days: int = DEFAULT_RETENTION_DAYS
@@ -103,6 +115,8 @@ class Settings:
             trusted_hosts=_trusted_hosts_from_env(),
             work_dir=_env_or("HARPI_WORK_DIR", "data/work"),
             vault_path=_env_or_none("HARPI_VAULT_PATH"),
+            narrator_id=_snowflake_from_env("HARPI_NARRATOR_ID"),
+            campaign_guild_id=_snowflake_from_env("HARPI_GUILD_ID"),
             log_path=_env_or("HARPI_LOG_PATH", "data/logs/harpi.log"),
             log_level=_env_or("HARPI_LOG_LEVEL", "INFO").upper(),
             retention_days=_int_from_env(

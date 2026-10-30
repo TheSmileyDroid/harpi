@@ -11,6 +11,8 @@ services:
       - HARPI_WORK_DIR=/work
       - HARPI_LOG_PATH=/work/logs/harpi.log
       - HARPI_VAULT_PATH=/vault
+      - HARPI_NARRATOR_ID=${HARPI_NARRATOR_ID}
+      - HARPI_GUILD_ID=${HARPI_GUILD_ID}
       - PANEL_PUBLIC_MODE=1
     env_file: ".env"
     volumes:

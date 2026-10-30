@@ -26,6 +26,7 @@ from pages.auth import CALLBACK_PATH as AUTH_CALLBACK_PATH
 from pages.auth import LOGIN_PATH as AUTH_LOGIN_PATH
 from pages.auth import LOGOUT_PATH as AUTH_LOGOUT_PATH
 from pages.auth import bp as auth_bp
+from pages.campaigns import bp as campaigns_bp
 from pages.contract import ContractOpenAPIProvider
 from pages.events import bp as events_bp
 
@@ -33,11 +34,18 @@ from src import alerts
 from src.config import Settings
 from src.discord_bot import run_bot_in_background
 from src.logging_setup import configure_logging
-from src.panel import backup, disk_pressure, login, retention, state
+from src.panel import backup, disk_pressure, login, retention, state, vault
 from src.security_log import alert_for_status, event_for_request, record_event
-from src.storage import clear_registry, get_registry, init_registry
+from src.storage import (
+    clear_database,
+    clear_registry,
+    get_registry,
+    init_database,
+    init_registry,
+)
 from src.storage.database import Database
 from src.storage.registry import SqliteRegistry
+from src.storage.seed import paratheos
 
 BOOT_SETTINGS = Settings.from_env()
 configure_logging(BOOT_SETTINGS)
@@ -290,6 +298,7 @@ async def panel_asset(filename: str) -> Response:
 app.register_blueprint(events_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(auth_bp)
+app.register_blueprint(campaigns_bp)
 
 _database: Database | None = None
 _retention_task: asyncio.Task[None] | None = None
@@ -302,11 +311,19 @@ async def startup():
     global _database, _retention_task, _backup_task, _disk_task
     settings = Settings.from_env()
     alerts.configure_alerts(settings.alert_webhook)
+    vault.configure(vault.from_settings(settings))
+    campaign = paratheos(settings.narrator_id, settings.campaign_guild_id)
+    if campaign is None:
+        logger.warning(
+            "HARPI_NARRATOR_ID and HARPI_GUILD_ID are unset or invalid: "
+            "the Paratheos campaign was not seeded"
+        )
     if get_registry() is None:
         try:
-            _database = Database(settings.db_path)
+            _database = Database(settings.db_path, campaign=campaign)
             await _database.open()
             init_registry(SqliteRegistry(_database))
+            init_database(_database)
             await state.restrict_user_guilds(settings.guild_allowlist)
             logger.info(f"Panel storage ready at {settings.db_path}")
         except Exception as e:
@@ -338,8 +355,10 @@ async def shutdown():
     if disk_task is not None:
         await disk_pressure.stop_disk_watch(disk_task)
     await alerts.stop_alerts()
+    vault.configure(vault.Vault())
     database = _database
     _database = None
+    clear_database()
     clear_registry()
     if database is not None:
         await database.close()

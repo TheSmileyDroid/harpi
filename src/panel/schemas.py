@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, RootModel
 
@@ -154,6 +154,30 @@ class GuildList(_Response):
 
 class ChannelList(_Response):
     channels: list[Channel]
+
+
+CampaignRole = Literal["narrator", "player", "pending"]
+
+
+class OpenTable(_Response):
+    id: str
+    name: str
+    channel_id: Snowflake
+
+
+class CampaignSummary(_Response):
+    slug: str
+    name: str
+    system: str
+    role: CampaignRole
+
+
+class CampaignDetail(CampaignSummary):
+    open_table: OpenTable | None
+
+
+class CampaignList(_Response):
+    campaigns: list[CampaignSummary]
 
 
 class SearchResults(_Response):

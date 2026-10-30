@@ -18,6 +18,9 @@ def build_fixtures() -> dict[str, object]:
     from src.panel.schemas import (
         Authenticated,
         BotStatus,
+        CampaignDetail,
+        CampaignList,
+        CampaignSummary,
         Channel,
         ChannelList,
         Connection,
@@ -55,6 +58,23 @@ def build_fixtures() -> dict[str, object]:
     )
     fixtures: dict[str, BaseModel] = {
         "Authenticated": Authenticated(authenticated=True),
+        "CampaignDetail": CampaignDetail(
+            slug="paratheos",
+            name="Paratheos",
+            system="fate",
+            role="narrator",
+            open_table=None,
+        ),
+        "CampaignList": CampaignList(
+            campaigns=[
+                CampaignSummary(
+                    slug="paratheos",
+                    name="Paratheos",
+                    system="fate",
+                    role="player",
+                )
+            ],
+        ),
         "Directory": Directory(
             guild_id="7",
             guilds=[Guild(id="1", name="Alpha")],

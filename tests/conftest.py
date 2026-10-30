@@ -13,7 +13,12 @@ import discord
 import pytest
 
 from src.harpi_lib.music.ytmusic import YTMusicData
-from src.storage import clear_registry, init_registry
+from src.storage import (
+    clear_database,
+    clear_registry,
+    init_database,
+    init_registry,
+)
 from src.storage.database import Database
 from src.storage.registry import SqliteRegistry
 from tests.network_harness import print_version_banner
@@ -48,8 +53,10 @@ async def storage(tmp_path):
     await database.open()
     registry = SqliteRegistry(database)
     init_registry(registry)
+    init_database(database)
     yield registry
     clear_registry()
+    clear_database()
     await database.close()
 
 

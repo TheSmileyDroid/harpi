@@ -2,6 +2,23 @@
   "Authenticated": {
     "authenticated": true
   },
+  "CampaignDetail": {
+    "name": "Paratheos",
+    "open_table": null,
+    "role": "narrator",
+    "slug": "paratheos",
+    "system": "fate"
+  },
+  "CampaignList": {
+    "campaigns": [
+      {
+        "name": "Paratheos",
+        "role": "player",
+        "slug": "paratheos",
+        "system": "fate"
+      }
+    ]
+  },
   "ChannelList": {
     "channels": [
       {
