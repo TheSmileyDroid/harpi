@@ -4,13 +4,13 @@
 
 **Blocked by:** 04 — Ficha: leitura.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] A escrita usa temporário na mesma pasta, `flush`, `fsync` e `os.replace`; o arquivo final nunca é escrito direto.
-- [ ] Antes de sobrescrever, a versão anterior vai para `data/vault-backups/<slug>/<harpi-id>/`, com 20 por arquivo.
-- [ ] O patch troca só `tipo`, `harpi-*`, o bloco e as seções `## História` e `## Anotações`; o resto fica byte a byte.
-- [ ] Marcar estresse, editar aspecto, consequência, extra e inventário grava e recarrega com o valor novo.
-- [ ] A prosa do Sheet é editada só nas duas seções do app, com markdown canônico.
-- [ ] `base_hash` velho responde 409, sem tocar no disco.
-- [ ] YAML inválido continua somente leitura e nunca é sobrescrito.
-- [ ] `make check` verde.
+- [x] A escrita usa temporário na mesma pasta, `flush`, `fsync` e `os.replace`; o arquivo final nunca é escrito direto.
+- [x] Antes de sobrescrever, a versão anterior vai para `data/vault-backups/<slug>/<harpi-id>/`, com 20 por arquivo.
+- [x] O patch troca só `tipo`, `harpi-*`, o bloco e as seções `## História` e `## Anotações`; o resto fica byte a byte.
+- [x] Marcar estresse, editar aspecto, consequência, extra e inventário grava e recarrega com o valor novo.
+- [x] A prosa do Sheet é editada só nas duas seções do app, com markdown canônico.
+- [x] `base_hash` velho responde 409, sem tocar no disco.
+- [x] YAML inválido continua somente leitura e nunca é sobrescrito.
+- [x] `make check` verde.

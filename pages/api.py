@@ -67,7 +67,7 @@ def error_response(code: str, message: str, status: int) -> Response:
     return response
 
 
-def _rate_limit_response(
+def rate_limit_response(
     buckets: rate_limit.UserTokenBuckets,
 ) -> Response | None:
     """A 429 for the signed-in actor, or None while the bucket has room."""
@@ -249,7 +249,7 @@ async def disconnect_voice() -> Any:
 @document_request(SearchRequest)
 @validate_response(SearchResults, 200)
 async def api_search() -> Any:
-    refusal = _rate_limit_response(SEARCH_BUCKETS)
+    refusal = rate_limit_response(SEARCH_BUCKETS)
     if refusal is not None:
         return refusal
     data = _parse(SearchRequest, await request.get_json(silent=True))
@@ -295,7 +295,7 @@ async def _transport(mutation: Any) -> Any:
 @document_response(ErrorEnvelope, 404)
 @validate_response(StatusSnapshot, 200)
 async def queue_track() -> Any:
-    refusal = _rate_limit_response(QUEUE_BUCKETS)
+    refusal = rate_limit_response(QUEUE_BUCKETS)
     if refusal is not None:
         return refusal
     return await _mutate_url(actions.add_track)
@@ -306,7 +306,7 @@ async def queue_track() -> Any:
 @document_response(ErrorEnvelope, 404)
 @validate_response(StatusSnapshot, 200)
 async def remove_queued_track() -> Any:
-    refusal = _rate_limit_response(QUEUE_BUCKETS)
+    refusal = rate_limit_response(QUEUE_BUCKETS)
     if refusal is not None:
         return refusal
     return await _mutate_url(actions.remove_track)
@@ -316,7 +316,7 @@ async def remove_queued_track() -> Any:
 @document_response(ErrorEnvelope, 404)
 @validate_response(StatusSnapshot, 200)
 async def clear_queued_tracks() -> Any:
-    refusal = _rate_limit_response(QUEUE_BUCKETS)
+    refusal = rate_limit_response(QUEUE_BUCKETS)
     if refusal is not None:
         return refusal
     guild = _live_guild_id()

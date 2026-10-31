@@ -120,6 +120,11 @@ def build_fixtures() -> dict[str, object]:
                 state="ok",
                 read_only=False,
                 error=None,
+                hash="a" * 64,
+                rev=2,
+                history="Uma piloto.",
+                notes="",
+                warnings=[],
                 refresh=7,
                 fate_points=3,
                 ladder=[

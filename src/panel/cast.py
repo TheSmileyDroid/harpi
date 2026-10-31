@@ -205,30 +205,7 @@ class CampaignCast:
         note = member.sheet
         if note is None:
             raise ValueError("a sheet detail needs a sheet note")
-        status = _sheet_status(member)
-        try:
-            block = read_sheet(note.loaded, config)
-        except SheetError as failure:
-            return _broken_detail(note, status, config, str(failure))
-        return SheetDetail(
-            id=note.id,
-            character_id=note.character,
-            owner=note.owner,
-            status=status,
-            state="ok",
-            read_only=status == "archived",
-            error=None,
-            refresh=block.refresh,
-            fate_points=block.fate_points,
-            ladder=_ladder_rows(config),
-            aspects=_aspect_rows(block),
-            skills=_skill_rows(block, config),
-            stunts=_stunt_rows(block),
-            stress=_stress_rows(block, config),
-            consequences=_consequence_rows(block, config),
-            extras=_extra_rows(block),
-            inventory=_inventory_rows(block),
-        )
+        return sheet_detail(note, config, archived=member.archived)
 
     def portrait(self, member: CastMember) -> Path | None:
         return self._index.portrait_path(member.portrait_ref)
@@ -270,10 +247,48 @@ def _full_access(member: CastMember, user_id: str, role: CampaignRole) -> bool:
     return role == "narrator" or member.owner == user_id
 
 
-def _sheet_status(member: CastMember) -> SheetStatus:
-    if member.archived:
+def _note_status(note: SheetNote, archived: bool) -> SheetStatus:
+    if archived:
         return "archived"
-    return "pending" if member.status == "pending" else "active"
+    return "pending" if note.status == PENDING else "active"
+
+
+def sheet_detail(
+    note: SheetNote,
+    config: CampaignConfig,
+    warnings: tuple[str, ...] = (),
+    archived: bool | None = None,
+) -> SheetDetail:
+    is_archived = note.status == ARCHIVED if archived is None else archived
+    status = _note_status(note, is_archived)
+    try:
+        block = read_sheet(note.loaded, config)
+    except SheetError as failure:
+        return _broken_detail(note, status, config, str(failure))
+    return SheetDetail(
+        id=note.id,
+        character_id=note.character,
+        owner=note.owner,
+        status=status,
+        state="ok",
+        read_only=status == "archived",
+        error=None,
+        hash=note.hash,
+        rev=note.rev,
+        history=note.history,
+        notes=note.notes,
+        warnings=list(warnings),
+        refresh=block.refresh,
+        fate_points=block.fate_points,
+        ladder=_ladder_rows(config),
+        aspects=_aspect_rows(block),
+        skills=_skill_rows(block, config),
+        stunts=_stunt_rows(block),
+        stress=_stress_rows(block, config),
+        consequences=_consequence_rows(block, config),
+        extras=_extra_rows(block),
+        inventory=_inventory_rows(block),
+    )
 
 
 def _broken_detail(
@@ -290,6 +305,11 @@ def _broken_detail(
         state="invalid",
         read_only=True,
         error=error,
+        hash=note.hash,
+        rev=note.rev,
+        history=note.history,
+        notes=note.notes,
+        warnings=[],
         refresh=None,
         fate_points=None,
         ladder=_ladder_rows(config),

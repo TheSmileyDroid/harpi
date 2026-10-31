@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import re
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from io import StringIO
 from typing import Any
@@ -40,6 +41,14 @@ DEFAULT_REFRESH = 3
 
 class SheetError(ValueError):
     pass
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def decode_text(data: bytes) -> str:
+    return data.decode("utf-8-sig")
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,6 +202,7 @@ def _yaml() -> YAML:
     yaml = YAML(typ="rt")
     yaml.preserve_quotes = True
     yaml.width = 4096
+    yaml.indent(mapping=2, sequence=4, offset=2)
     return yaml
 
 
@@ -225,6 +235,99 @@ def dump_block(document: CommentedMap) -> str:
     stream = StringIO()
     _yaml().dump(document, stream)
     return stream.getvalue()
+
+
+def yaml_scalar(value: str) -> str:
+    stream = StringIO()
+    _yaml().dump(value, stream)
+    lines = stream.getvalue().strip().splitlines()
+    if lines and lines[-1] == "...":
+        lines.pop()
+    return " ".join(lines).strip()
+
+
+def canonical_prose(text: str) -> str:
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    cleaned = [line.rstrip() for line in lines]
+    while cleaned and not cleaned[0]:
+        cleaned.pop(0)
+    while cleaned and not cleaned[-1]:
+        cleaned.pop()
+    return "\n".join(cleaned)
+
+
+def major_heading(line: str) -> bool:
+    return bool(re.match(r"^#{1,2}[ \t]", line))
+
+
+def content_lines(lines: Sequence[str]) -> Iterator[tuple[int, str]]:
+    in_fence = False
+    in_block = False
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if in_block:
+            if stripped.startswith("```"):
+                in_block = False
+            continue
+        if stripped == f"```{SHEET_TAG}":
+            in_block = True
+            continue
+        if stripped.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence:
+            yield index, line
+
+
+def section_count(lines: Sequence[str], heading: str) -> int:
+    return sum(
+        1 for _, line in content_lines(lines) if line.strip() == heading
+    )
+
+
+def section_bounds(
+    lines: Sequence[str], heading: str
+) -> tuple[int, int] | None:
+    start = next(
+        (
+            index
+            for index, line in content_lines(lines)
+            if line.strip() == heading
+        ),
+        None,
+    )
+    if start is None:
+        return None
+    return start, section_end(lines, start + 1)
+
+
+def section_end(lines: Sequence[str], offset: int) -> int:
+    in_fence = False
+    while offset < len(lines):
+        stripped = lines[offset].strip()
+        if stripped == f"```{SHEET_TAG}":
+            return offset
+        if stripped.startswith("```"):
+            in_fence = not in_fence
+        elif not in_fence and major_heading(lines[offset]):
+            return offset
+        offset += 1
+    return offset
+
+
+def section_text(lines: Sequence[str], heading: str) -> str:
+    bounds = section_bounds(lines, heading)
+    if bounds is None:
+        return ""
+    start, end = bounds
+    return "".join(lines[start + 1 : end]).strip("\r\n")
+
+
+def prose_sections(text: str) -> tuple[str, str]:
+    lines = text.splitlines(keepends=True)
+    return section_text(lines, "## História"), section_text(
+        lines, "## Anotações"
+    )
 
 
 def parse_config(text: str) -> CampaignConfig | None:

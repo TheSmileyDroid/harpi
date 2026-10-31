@@ -867,6 +867,24 @@
         "title": "SheetAspect",
         "type": "object"
       },
+      "SheetAspectInput": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "SheetAspectInput",
+        "type": "object"
+      },
       "SheetConsequence": {
         "additionalProperties": false,
         "properties": {
@@ -889,6 +907,24 @@
           "text"
         ],
         "title": "SheetConsequence",
+        "type": "object"
+      },
+      "SheetConsequenceInput": {
+        "properties": {
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "severity"
+        ],
+        "title": "SheetConsequenceInput",
         "type": "object"
       },
       "SheetDetail": {
@@ -948,6 +984,14 @@
             ],
             "title": "Fate Points"
           },
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "history": {
+            "title": "History",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -965,6 +1009,10 @@
             },
             "title": "Ladder",
             "type": "array"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
           },
           "owner": {
             "anyOf": [
@@ -991,6 +1039,10 @@
               }
             ],
             "title": "Refresh"
+          },
+          "rev": {
+            "title": "Rev",
+            "type": "integer"
           },
           "skills": {
             "items": {
@@ -1029,6 +1081,13 @@
             },
             "title": "Stunts",
             "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
           }
         },
         "required": [
@@ -1039,6 +1098,11 @@
           "state",
           "read_only",
           "error",
+          "hash",
+          "rev",
+          "history",
+          "notes",
+          "warnings",
           "refresh",
           "fate_points",
           "ladder",
@@ -1089,6 +1153,41 @@
         "title": "SheetExtra",
         "type": "object"
       },
+      "SheetExtraInput": {
+        "properties": {
+          "cost": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cost"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "SheetExtraInput",
+        "type": "object"
+      },
       "SheetInventoryEntry": {
         "additionalProperties": false,
         "properties": {
@@ -1113,6 +1212,29 @@
         "title": "SheetInventoryEntry",
         "type": "object"
       },
+      "SheetInventoryInput": {
+        "properties": {
+          "item": {
+            "title": "Item",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "qty": {
+            "default": 1,
+            "title": "Qty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "title": "SheetInventoryInput",
+        "type": "object"
+      },
       "SheetLadderStep": {
         "additionalProperties": false,
         "properties": {
@@ -1130,6 +1252,189 @@
           "label"
         ],
         "title": "SheetLadderStep",
+        "type": "object"
+      },
+      "SheetPatch": {
+        "properties": {
+          "aspects": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SheetAspectInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Aspects"
+          },
+          "base_hash": {
+            "title": "Base Hash",
+            "type": "string"
+          },
+          "consequences": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SheetConsequenceInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Consequences"
+          },
+          "extras": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SheetExtraInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Extras"
+          },
+          "fate_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Fate Points"
+          },
+          "history": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "History"
+          },
+          "inventory": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SheetInventoryInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Inventory"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Notes"
+          },
+          "refresh": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Refresh"
+          },
+          "skills": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SheetSkillInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Skills"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "active",
+                  "pending",
+                  "archived"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "stress": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SheetStressTrackInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Stress"
+          },
+          "stunts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SheetStuntInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Stunts"
+          }
+        },
+        "required": [
+          "base_hash"
+        ],
+        "title": "SheetPatch",
         "type": "object"
       },
       "SheetSkill": {
@@ -1156,6 +1461,24 @@
         "title": "SheetSkill",
         "type": "object"
       },
+      "SheetSkillInput": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "rank"
+        ],
+        "title": "SheetSkillInput",
+        "type": "object"
+      },
       "SheetStressBox": {
         "additionalProperties": false,
         "properties": {
@@ -1173,6 +1496,24 @@
           "checked"
         ],
         "title": "SheetStressBox",
+        "type": "object"
+      },
+      "SheetStressBoxInput": {
+        "properties": {
+          "checked": {
+            "default": false,
+            "title": "Checked",
+            "type": "boolean"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "SheetStressBoxInput",
         "type": "object"
       },
       "SheetStressTrack": {
@@ -1197,6 +1538,26 @@
         "title": "SheetStressTrack",
         "type": "object"
       },
+      "SheetStressTrackInput": {
+        "properties": {
+          "boxes": {
+            "items": {
+              "$ref": "#/components/schemas/SheetStressBoxInput"
+            },
+            "title": "Boxes",
+            "type": "array"
+          },
+          "track": {
+            "title": "Track",
+            "type": "string"
+          }
+        },
+        "required": [
+          "track"
+        ],
+        "title": "SheetStressTrackInput",
+        "type": "object"
+      },
       "SheetStunt": {
         "additionalProperties": false,
         "properties": {
@@ -1219,6 +1580,29 @@
           "refresh_cost"
         ],
         "title": "SheetStunt",
+        "type": "object"
+      },
+      "SheetStuntInput": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "refresh_cost": {
+            "default": 0,
+            "title": "Refresh Cost",
+            "type": "integer"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SheetStuntInput",
         "type": "object"
       },
       "SseEnvelope": {
@@ -1624,6 +2008,130 @@
         ],
         "responses": {
           "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/campaigns/{slug}/sheets/{sheet_id}": {
+      "patch": {
+        "operationId": "patch_write_sheet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SheetPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SheetDetail"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "429": {
             "content": {
               "application/json": {
                 "schema": {

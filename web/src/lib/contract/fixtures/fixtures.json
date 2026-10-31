@@ -62,6 +62,8 @@
         }
       ],
       "fate_points": 3,
+      "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "history": "Uma piloto.",
       "id": "sht_ana",
       "inventory": [
         {
@@ -80,9 +82,11 @@
           "rank": 3
         }
       ],
+      "notes": "",
       "owner": "555",
       "read_only": false,
       "refresh": 7,
+      "rev": 2,
       "skills": [
         {
           "label": "\u00d3timo",
@@ -109,7 +113,8 @@
           "refresh_cost": 1,
           "text": "Torna um objeto indestrut\u00edvel."
         }
-      ]
+      ],
+      "warnings": []
     }
   },
   "CharacterList": {

@@ -5,7 +5,7 @@ Commands and panel are one feature on two surfaces. Fixing one is not fixing the
 - **Surfaces.** play, pause, skip, seek, queue and layers are reachable from both a `MusicCog` command and a `pages/api.py` endpoint. If you added one, check the other.
 - **Reverse states.** If you added a way in, add the way out. Connect needs disconnect. Loop on needs loop off. A one-way door is a bug.
 - **Both loops.** API code that touches discord.py internals goes through `run_on_bot_loop`, never calls the coroutine directly. See [architecture.md](architecture.md).
-- **One contract.** Pydantic models in `src/panel/schemas.py` are the single source of truth. `make contract` exports the OpenAPI document, generates the TypeScript types and the zod validators into `web/src/lib/contract/`, and emits the test fixtures. The committed artifacts are regenerated and diffed in `make check`, so the Svelte client and the API cannot drift. Every mutation answers the fresh `state.status_snapshot`, and the client applies it instead of guessing. pytest pins that parity.
+- **One contract.** Pydantic models in `src/panel/schemas.py` are the single source of truth. `make contract` exports the OpenAPI document, generates the TypeScript types and the zod validators into `web/src/lib/contract/`, and emits the test fixtures. The committed artifacts are regenerated and diffed in `make check`, so the Svelte client and the API cannot drift. Every music mutation answers the fresh `state.status_snapshot`, and the client applies it instead of guessing; campaign mutations answer the accepted resource (a sheet write answers its `SheetDetail`, ADR 0012). pytest pins that parity.
 
 ## The Svelte panel
 

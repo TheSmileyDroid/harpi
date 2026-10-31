@@ -10,7 +10,7 @@ from loguru import logger
 
 from src.panel import notes
 from src.panel.notes import CharacterNote, SheetNote, SheetSource
-from src.panel.sheets import CampaignConfig, parse_config
+from src.panel.sheets import CampaignConfig, decode_text, parse_config
 from src.panel.vault import Vault
 
 SCAN_INTERVAL_SECONDS = 60
@@ -110,6 +110,28 @@ class VaultIndex:
 
     def campaign(self, slug: str) -> CampaignNotes:
         return self.campaigns.get(slug, EMPTY_NOTES)
+
+    def refresh_sheet(self, path: str) -> SheetNote | None:
+        located = locate_note(path)
+        if located is None or located[1] != SHEETS_FOLDER:
+            return None
+        return self._refresh_sheet(path, located[0])
+
+    def _refresh_sheet(self, path: str, slug: str) -> SheetNote | None:
+        text = self._read(path)
+        if text is None:
+            return None
+        campaign = self.campaign(slug)
+        resolved = self._resolve_sheet(
+            notes.parse_sheet(path, text), campaign.characters, {}
+        )
+        sheets = tuple(
+            resolved if note.path == path else note for note in campaign.sheets
+        )
+        if not any(note.path == path for note in campaign.sheets):
+            sheets = (*sheets, resolved)
+        self.campaigns[slug] = replace(campaign, sheets=sheets)
+        return resolved
 
     def portrait_path(self, reference: str | None) -> Path | None:
         relative = clean_relative(reference)
@@ -324,7 +346,7 @@ class VaultIndex:
         if self.root is None:
             return None
         try:
-            return (self.root / path).read_text(encoding="utf-8")
+            return decode_text((self.root / path).read_bytes())
         except (OSError, UnicodeDecodeError):
             return None
 
