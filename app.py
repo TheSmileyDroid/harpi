@@ -27,6 +27,7 @@ from pages.auth import LOGIN_PATH as AUTH_LOGIN_PATH
 from pages.auth import LOGOUT_PATH as AUTH_LOGOUT_PATH
 from pages.auth import bp as auth_bp
 from pages.campaigns import bp as campaigns_bp
+from pages.campaigns import characters_page_refusal
 from pages.contract import ContractOpenAPIProvider
 from pages.events import bp as events_bp
 
@@ -34,7 +35,15 @@ from src import alerts
 from src.config import Settings
 from src.discord_bot import run_bot_in_background
 from src.logging_setup import configure_logging
-from src.panel import backup, disk_pressure, login, retention, state, vault
+from src.panel import (
+    backup,
+    disk_pressure,
+    login,
+    retention,
+    state,
+    vault,
+    vault_index,
+)
 from src.security_log import alert_for_status, event_for_request, record_event
 from src.storage import (
     clear_database,
@@ -284,6 +293,14 @@ async def panel_index() -> Response:
     return await send_from_directory(WEB_BUILD, "index.html")
 
 
+@app.get("/c/<slug>/personagens")
+async def panel_characters_page(slug: str) -> Response:
+    refusal = await characters_page_refusal(slug)
+    if refusal is not None:
+        return refusal
+    return await send_from_directory(WEB_BUILD, "index.html")
+
+
 @app.get("/c/<path:path>")
 async def panel_campaign_route(path: str) -> Response:
     del path
@@ -304,14 +321,17 @@ _database: Database | None = None
 _retention_task: asyncio.Task[None] | None = None
 _backup_task: asyncio.Task[None] | None = None
 _disk_task: asyncio.Task[None] | None = None
+_vault_task: asyncio.Task[None] | None = None
 
 
 @app.before_serving
 async def startup():
-    global _database, _retention_task, _backup_task, _disk_task
+    global _database, _retention_task, _backup_task, _disk_task, _vault_task
     settings = Settings.from_env()
     alerts.configure_alerts(settings.alert_webhook)
     vault.configure(vault.from_settings(settings))
+    await vault_index.refresh_once(vault.configured())
+    _vault_task = vault_index.start_scan(vault.configured())
     campaign = paratheos(settings.narrator_id, settings.campaign_guild_id)
     if campaign is None:
         logger.warning(
@@ -341,7 +361,7 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    global _database, _retention_task, _backup_task, _disk_task
+    global _database, _retention_task, _backup_task, _disk_task, _vault_task
     task = _retention_task
     _retention_task = None
     if task is not None:
@@ -354,8 +374,13 @@ async def shutdown():
     _disk_task = None
     if disk_task is not None:
         await disk_pressure.stop_disk_watch(disk_task)
+    vault_task = _vault_task
+    _vault_task = None
+    if vault_task is not None:
+        await vault_index.stop_scan(vault_task)
     await alerts.stop_alerts()
     vault.configure(vault.Vault())
+    vault_index.configure(vault_index.VaultIndex())
     database = _database
     _database = None
     clear_database()

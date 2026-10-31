@@ -26,6 +26,12 @@ export const Channel = z.strictObject({ id: z.string(), name: z.string() });
 export type ChannelList = z.infer<typeof ChannelList>;
 export const ChannelList = z.strictObject({ channels: z.array(Channel) });
 
+export type CharacterCard = z.infer<typeof CharacterCard>;
+export const CharacterCard = z.strictObject({ concept: z.string().nullable(), id: z.string(), name: z.string(), portrait: z.string().nullable(), summary: z.string().nullable() });
+
+export type CharacterList = z.infer<typeof CharacterList>;
+export const CharacterList = z.strictObject({ characters: z.array(CharacterCard) });
+
 export type ConnectRequest = z.infer<typeof ConnectRequest>;
 export const ConnectRequest = z.strictObject({ channel_id: z.string().nullable().default(null), guild_id: z.string().nullable().default(null) }).partial();
 

@@ -36,7 +36,11 @@ test("each campaign page renders the shell with its own mark", async ({
       "aria-current",
       "page",
     );
-    await expect(page.getByTestId("page-placeholder")).toBeVisible();
+    if (name === "personagens") {
+      await expect(page.getByTestId("cast")).toBeVisible();
+    } else {
+      await expect(page.getByTestId("page-placeholder")).toBeVisible();
+    }
   }
 
   await expect(page.getByTestId("transport")).toHaveCount(0);
@@ -61,9 +65,7 @@ test("the rail navigates between pages and reports the link", async ({
     "aria-current",
     "page",
   );
-  await expect(page.getByTestId("page-placeholder")).toContainText(
-    "Personagens",
-  );
+  await expect(page.getByTestId("cast")).toContainText("Personagens");
 });
 
 test("the rail turns into a top band below 56rem", async ({ page }) => {

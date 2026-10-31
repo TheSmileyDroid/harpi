@@ -27,6 +27,17 @@
       }
     ]
   },
+  "CharacterList": {
+    "characters": [
+      {
+        "concept": "Piloto de carga",
+        "id": "chr_ana",
+        "name": "Ana",
+        "portrait": "/api/campaigns/paratheos/characters/chr_ana/portrait",
+        "summary": "Mensageira sem mem\u00f3ria."
+      }
+    ]
+  },
   "Directory": {
     "channels": [
       {

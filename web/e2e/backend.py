@@ -8,6 +8,7 @@ status serialization all run as they do in production.
 
 from __future__ import annotations
 
+import base64
 import os
 import sys
 from dataclasses import replace
@@ -194,6 +195,61 @@ source_policy.resolve_host_addresses = lambda host: ("93.184.216.34",)
 
 HARNESS_ACTOR = Actor(id="555", username="harness")
 BASE_GUILDS = frozenset({GUILD_A, SECOND_GUILD_ID})
+
+TINY_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQ"
+    "HwAFAAH/q842iQAAAABJRU5ErkJggg=="
+)
+VAULT_ROOT = Path(os.environ.get("HARPI_VAULT_PATH", "data/e2e-vault"))
+
+
+def write_note(relative: str, body: str) -> None:
+    path = VAULT_ROOT / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+
+
+def seed_vault() -> None:
+    campaign = "Harpi/Campaigns/paratheos"
+    write_note(
+        f"{campaign}/characters/Ana.md",
+        "---\n"
+        "tipo: personagem\n"
+        "harpi-id: chr_ana\n"
+        "harpi-campanha: paratheos\n"
+        "harpi-status: ativo\n"
+        'imagem: "[[Arte/ana.png]]"\n'
+        "---\n"
+        "- **Conceito:** Piloto de carga\n\n"
+        "Mensageira sem memória.\n",
+    )
+    write_note(
+        f"{campaign}/sheets/Ana.md",
+        "---\n"
+        "tipo: ficha\n"
+        "harpi-id: sht_ana\n"
+        "harpi-campanha: paratheos\n"
+        "harpi-character-id: chr_ana\n"
+        "harpi-owner: '555'\n"
+        "harpi-status: ativo\n"
+        "---\n",
+    )
+    write_note(
+        f"{campaign}/characters/Velho.md",
+        "---\n"
+        "tipo: personagem\n"
+        "harpi-id: chr_velho\n"
+        "harpi-campanha: paratheos\n"
+        "harpi-status: arquivado\n"
+        "---\n"
+        "Saiu do elenco.\n",
+    )
+    portrait = VAULT_ROOT / "Arte" / "ana.png"
+    portrait.parent.mkdir(parents=True, exist_ok=True)
+    portrait.write_bytes(TINY_PNG)
+
+
+seed_vault()
 
 
 async def _run_inline(coro, timeout: float | None = None):
