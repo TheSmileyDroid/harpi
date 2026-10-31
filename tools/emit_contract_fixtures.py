@@ -21,6 +21,8 @@ def build_fixtures() -> dict[str, object]:
         CampaignDetail,
         CampaignList,
         CampaignSummary,
+        CharacterCard,
+        CharacterList,
         Channel,
         ChannelList,
         Connection,
@@ -74,6 +76,19 @@ def build_fixtures() -> dict[str, object]:
                     role="player",
                 )
             ],
+        ),
+        "CharacterList": CharacterList(
+            characters=[
+                CharacterCard(
+                    id="chr_ana",
+                    name="Ana",
+                    concept="Piloto de carga",
+                    summary="Mensageira sem memória.",
+                    portrait=(
+                        "/api/campaigns/paratheos/characters/chr_ana/portrait"
+                    ),
+                )
+            ]
         ),
         "Directory": Directory(
             guild_id="7",

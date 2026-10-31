@@ -180,6 +180,18 @@ class CampaignList(_Response):
     campaigns: list[CampaignSummary]
 
 
+class CharacterCard(_Response):
+    id: str
+    name: str
+    concept: str | None
+    summary: str | None
+    portrait: str | None
+
+
+class CharacterList(_Response):
+    characters: list[CharacterCard]
+
+
 class SearchResults(_Response):
     results: list[Track]
 

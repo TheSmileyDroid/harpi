@@ -161,6 +161,78 @@
         "title": "ChannelList",
         "type": "object"
       },
+      "CharacterCard": {
+        "additionalProperties": false,
+        "properties": {
+          "concept": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concept"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "portrait": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portrait"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "concept",
+          "summary",
+          "portrait"
+        ],
+        "title": "CharacterCard",
+        "type": "object"
+      },
+      "CharacterList": {
+        "additionalProperties": false,
+        "properties": {
+          "characters": {
+            "items": {
+              "$ref": "#/components/schemas/CharacterCard"
+            },
+            "title": "Characters",
+            "type": "array"
+          }
+        },
+        "required": [
+          "characters"
+        ],
+        "title": "CharacterList",
+        "type": "object"
+      },
       "ConnectRequest": {
         "properties": {
           "channel_id": {
@@ -1009,6 +1081,98 @@
         }
       }
     },
+    "/api/campaigns/{slug}/characters": {
+      "get": {
+        "operationId": "get_read_characters",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacterList"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/campaigns/{slug}/characters/{character_id}/portrait": {
+      "get": {
+        "operationId": "get_read_portrait",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "character_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/connect": {
       "post": {
         "operationId": "post_connect_voice",
@@ -1698,6 +1862,22 @@
           {
             "in": "path",
             "name": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/c/{slug}/personagens": {
+      "get": {
+        "operationId": "get_panel_characters_page",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
             "required": true,
             "schema": {
               "type": "string"
