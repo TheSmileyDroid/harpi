@@ -15,10 +15,11 @@ from src.panel.schemas import (
     CampaignDetail,
     CampaignList,
     CampaignRole,
+    CharacterDetail,
     CharacterList,
     ErrorEnvelope,
 )
-from src.panel.vault_index import PORTRAIT_TYPES
+from src.panel.vault_index import PORTRAIT_TYPES, configured
 
 bp = Blueprint("campaigns", __name__)
 
@@ -99,7 +100,9 @@ async def read_campaign(slug: str) -> Response | CampaignDetail:
     campaign = await access.campaign(slug, user_id, _allowed_guilds())
     if campaign is None:
         return _not_found()
-    return campaign
+    return campaign.model_copy(
+        update={"config_error": configured().campaign(slug).config_error}
+    )
 
 
 @bp.get("/api/campaigns/<slug>/characters")
@@ -115,6 +118,26 @@ async def read_characters(slug: str) -> Response | CharacterList:
     if cast is None:
         return _vault_not_ready()
     return CharacterList(characters=await cast.roster(slug, user_id, role))
+
+
+@bp.get("/api/campaigns/<slug>/characters/<character_id>")
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 503)
+@validate_response(CharacterDetail, 200)
+async def read_character(
+    slug: str, character_id: str
+) -> Response | CharacterDetail:
+    scope = await _character_scope(slug)
+    if isinstance(scope, Response):
+        return scope
+    user_id, role = scope
+    cast = campaign_cast()
+    if cast is None:
+        return _vault_not_ready()
+    detail = await cast.character(slug, character_id, user_id, role)
+    if detail is None:
+        return _hidden()
+    return detail
 
 
 @bp.get("/api/campaigns/<slug>/characters/<character_id>/portrait")

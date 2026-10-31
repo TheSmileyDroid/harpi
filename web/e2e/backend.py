@@ -209,8 +209,63 @@ def write_note(relative: str, body: str) -> None:
     path.write_text(body, encoding="utf-8")
 
 
+SHEET_BLOCK = """\
+```harpi-sheet
+refresh: 7
+fate_points: 3
+aspects:
+  - {label: Conceito, text: "Piloto de carga"}
+  - {label: Problema, text: "Sem memória"}
+  - {label: Aspecto, text: "Ligada à rede"}
+  - {label: Aspecto, text: "Ligada à rede"}
+  - {label: Aspecto, text: "Ligada à rede"}
+skills:
+  - {name: Hackear, rank: 4}
+  - {name: Atirar, rank: 3}
+stunts:
+  - {name: "Escudo", text: "Torna um objeto indestrutível.", refresh_cost: 1}
+  - {name: "Escudo", text: "Repete o nome de propósito.", refresh_cost: 0}
+stress:
+  - track: Físico
+    boxes:
+      - {value: 1, checked: true}
+      - {value: 2, checked: false}
+consequences:
+  - {severity: Leve, value: 2, text: "Casco rachado"}
+extras:
+  - {kind: Noética, name: Constructo, text: "Corpo artificial.", cost: 0}
+  - {kind: Noética, name: Constructo, text: "Repete o extra.", cost: 1}
+inventory:
+  - {item: "[[Espada de Lancelot]]", qty: 1, note: "Relíquia"}
+  - {item: "[[Espada de Lancelot]]", qty: 2, note: "Outra cópia"}
+```
+"""
+
+
 def seed_vault() -> None:
     campaign = "Harpi/Campaigns/paratheos"
+    write_note(
+        f"{campaign}/config.md",
+        "```harpi-campaign\n"
+        "name: Paratheos\n"
+        "system: fate\n"
+        "ladder:\n"
+        "  - {rank: 4, label: Ótimo}\n"
+        "  - {rank: 3, label: Bom}\n"
+        "  - {rank: 2, label: Razoável}\n"
+        "  - {rank: 1, label: Regular}\n"
+        "stress:\n"
+        "  - {track: Físico, boxes: [1, 2, 3]}\n"
+        "  - {track: Mental, boxes: [1, 2]}\n"
+        "consequences:\n"
+        "  - {severity: Leve, value: 2}\n"
+        "  - {severity: Moderada, value: 4}\n"
+        "  - {severity: Severa, value: 6}\n"
+        "refresh: 7\n"
+        "extras:\n"
+        "  - Noética\n"
+        "```\n",
+    )
     write_note(
         f"{campaign}/characters/Ana.md",
         "---\n"
@@ -232,7 +287,53 @@ def seed_vault() -> None:
         "harpi-character-id: chr_ana\n"
         "harpi-owner: '555'\n"
         "harpi-status: ativo\n"
-        "---\n",
+        "---\n"
+        "\n## História\n\nUma piloto sem memória.\n\n"
+        f"{SHEET_BLOCK}",
+    )
+    write_note(
+        f"{campaign}/characters/Eva.md",
+        "---\n"
+        "tipo: personagem\n"
+        "harpi-id: chr_eva\n"
+        "harpi-campanha: paratheos\n"
+        "harpi-status: arquivado\n"
+        "---\n"
+        "Saiu do elenco.\n",
+    )
+    write_note(
+        f"{campaign}/sheets/Eva.md",
+        "---\n"
+        "tipo: ficha\n"
+        "harpi-id: sht_eva\n"
+        "harpi-campanha: paratheos\n"
+        "harpi-character-id: chr_eva\n"
+        "harpi-owner: '555'\n"
+        "harpi-status: arquivado\n"
+        "---\n"
+        "\n```harpi-sheet\nrefresh: 2\n```\n",
+    )
+    write_note(
+        f"{campaign}/characters/Quebrado.md",
+        "---\n"
+        "tipo: personagem\n"
+        "harpi-id: chr_quebrado\n"
+        "harpi-campanha: paratheos\n"
+        "harpi-status: ativo\n"
+        "---\n"
+        "Ficha quebrada.\n",
+    )
+    write_note(
+        f"{campaign}/sheets/Quebrado.md",
+        "---\n"
+        "tipo: ficha\n"
+        "harpi-id: sht_quebrado\n"
+        "harpi-campanha: paratheos\n"
+        "harpi-character-id: chr_quebrado\n"
+        "harpi-owner: '555'\n"
+        "harpi-status: ativo\n"
+        "---\n"
+        "\n```harpi-sheet\nrefresh: [2\n```\n",
     )
     write_note(
         f"{campaign}/characters/Velho.md",

@@ -12,7 +12,7 @@ export type OpenTable = z.infer<typeof OpenTable>;
 export const OpenTable = z.strictObject({ channel_id: z.string(), id: z.string(), name: z.string() });
 
 export type CampaignDetail = z.infer<typeof CampaignDetail>;
-export const CampaignDetail = z.strictObject({ name: z.string(), open_table: OpenTable.nullable(), role: z.enum(["narrator", "player", "pending"]), slug: z.string(), system: z.string() });
+export const CampaignDetail = z.strictObject({ config_error: z.string().nullable().default(null), name: z.string(), open_table: OpenTable.nullable(), role: z.enum(["narrator", "player", "pending"]), slug: z.string(), system: z.string() });
 
 export type CampaignSummary = z.infer<typeof CampaignSummary>;
 export const CampaignSummary = z.strictObject({ name: z.string(), role: z.enum(["narrator", "player", "pending"]), slug: z.string(), system: z.string() });
@@ -28,6 +28,39 @@ export const ChannelList = z.strictObject({ channels: z.array(Channel) });
 
 export type CharacterCard = z.infer<typeof CharacterCard>;
 export const CharacterCard = z.strictObject({ concept: z.string().nullable(), id: z.string(), name: z.string(), portrait: z.string().nullable(), summary: z.string().nullable() });
+
+export type SheetAspect = z.infer<typeof SheetAspect>;
+export const SheetAspect = z.strictObject({ label: z.string(), text: z.string() });
+
+export type SheetConsequence = z.infer<typeof SheetConsequence>;
+export const SheetConsequence = z.strictObject({ severity: z.string(), text: z.string(), value: z.number().int() });
+
+export type SheetExtra = z.infer<typeof SheetExtra>;
+export const SheetExtra = z.strictObject({ cost: z.number().int().nullable(), kind: z.string(), name: z.string(), text: z.string() });
+
+export type SheetInventoryEntry = z.infer<typeof SheetInventoryEntry>;
+export const SheetInventoryEntry = z.strictObject({ item: z.string(), note: z.string(), qty: z.number().int() });
+
+export type SheetLadderStep = z.infer<typeof SheetLadderStep>;
+export const SheetLadderStep = z.strictObject({ label: z.string(), rank: z.number().int() });
+
+export type SheetSkill = z.infer<typeof SheetSkill>;
+export const SheetSkill = z.strictObject({ label: z.string(), name: z.string(), rank: z.number().int() });
+
+export type SheetStressBox = z.infer<typeof SheetStressBox>;
+export const SheetStressBox = z.strictObject({ checked: z.boolean(), value: z.number().int() });
+
+export type SheetStressTrack = z.infer<typeof SheetStressTrack>;
+export const SheetStressTrack = z.strictObject({ boxes: z.array(SheetStressBox), track: z.string() });
+
+export type SheetStunt = z.infer<typeof SheetStunt>;
+export const SheetStunt = z.strictObject({ name: z.string(), refresh_cost: z.number().int(), text: z.string() });
+
+export type SheetDetail = z.infer<typeof SheetDetail>;
+export const SheetDetail = z.strictObject({ aspects: z.array(SheetAspect), character_id: z.string().nullable(), consequences: z.array(SheetConsequence), error: z.string().nullable(), extras: z.array(SheetExtra), fate_points: z.number().int().nullable(), id: z.string(), inventory: z.array(SheetInventoryEntry), ladder: z.array(SheetLadderStep), owner: z.string().nullable(), read_only: z.boolean(), refresh: z.number().int().nullable(), skills: z.array(SheetSkill), state: z.enum(["ok", "invalid"]), status: z.enum(["active", "pending", "archived"]), stress: z.array(SheetStressTrack), stunts: z.array(SheetStunt) });
+
+export type CharacterDetail = z.infer<typeof CharacterDetail>;
+export const CharacterDetail = z.strictObject({ card: CharacterCard, kind: z.enum(["sheet", "card"]), sheet: SheetDetail.nullable() });
 
 export type CharacterList = z.infer<typeof CharacterList>;
 export const CharacterList = z.strictObject({ characters: z.array(CharacterCard) });

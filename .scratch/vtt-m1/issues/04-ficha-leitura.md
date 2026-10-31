@@ -4,11 +4,11 @@
 
 **Blocked by:** 02 — Campanha e acesso.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] O parser lê o bloco `harpi-sheet` e o `harpi-campaign`, valida rank na escada, perícia duplicada, trilhas e slots.
-- [ ] YAML inválido deixa a ficha somente leitura, com erro visível; o app não sobrescreve o bloco.
-- [ ] Dono e narrador recebem a ficha inteira; outro jogador recebe só o card público.
-- [ ] A página Ficha mostra aspectos, perícias por degrau, caixas, consequências, extras e inventário; arquivado é somente leitura e pendente lê e edita a própria, com banner.
-- [ ] Chaves desconhecidas não são descartadas pelo parser.
-- [ ] Contrato regenerado e `make check` verde.
+- [x] O parser lê o bloco `harpi-sheet` e o `harpi-campaign`, valida rank na escada, perícia duplicada, trilhas e slots.
+- [x] YAML inválido deixa a ficha somente leitura, com erro visível; o app não sobrescreve o bloco.
+- [x] Dono e narrador recebem a ficha inteira; outro jogador recebe só o card público.
+- [x] A página Ficha mostra aspectos, perícias por degrau, caixas, consequências, extras e inventário; arquivado é somente leitura e pendente lê e edita a própria, com banner.
+- [x] Chaves desconhecidas não são descartadas pelo parser.
+- [x] Contrato regenerado e `make check` verde.

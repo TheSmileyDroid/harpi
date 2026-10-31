@@ -2,6 +2,7 @@ import type { z } from "zod";
 import {
   Authenticated,
   ChannelList,
+  CharacterDetail,
   CharacterList,
   ConnectRequest,
   ErrorEnvelope,
@@ -167,6 +168,12 @@ export function createApiClient({
       return request(
         `/api/campaigns/${encodeURIComponent(slug)}/characters`,
         CharacterList,
+      );
+    },
+    campaignCharacter(slug: string, characterId: string) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/characters/${encodeURIComponent(characterId)}`,
+        CharacterDetail,
       );
     },
     connect(guildId: string | null, channelId: string | null) {

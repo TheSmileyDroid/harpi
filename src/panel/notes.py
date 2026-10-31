@@ -5,6 +5,8 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
+from src.panel.sheets import LoadedSheet, load_sheet
+
 _DELIMITER = "---"
 _EMBED = re.compile(r"!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
 _LINK = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
@@ -36,6 +38,7 @@ class SheetNote:
     character: str | None
     owner: str | None
     status: str | None
+    loaded: LoadedSheet
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +180,7 @@ def parse_sheet(path: str, text: str) -> SheetSource:
         character=None,
         owner=field_front(fields, "harpi-owner"),
         status=field_front(fields, "harpi-status"),
+        loaded=load_sheet(text),
     )
     return SheetSource(
         note=note,
