@@ -1,16 +1,32 @@
 from __future__ import annotations
 
+import asyncio
+import json
+from dataclasses import replace
 from pathlib import Path
 
+from loguru import logger
+from pydantic import ValidationError
 from quart import Blueprint, Response, g, request, send_file, session
-from quart_schema import document_response, validate_response
+from quart_schema import (
+    document_request,
+    document_response,
+    validate_response,
+)
 from werkzeug.http import http_date
 
-from pages.api import error_response
+from pages.api import error_response, rate_limit_response
 from pages.guard import csrf_refusal, vault_unavailable
-from src.panel import state
+from src.panel import (
+    notes,
+    rate_limit,
+    sheet_store,
+    sheet_write,
+    state,
+    vault_index,
+)
 from src.panel.campaigns import campaign_access
-from src.panel.cast import campaign_cast
+from src.panel.cast import campaign_cast, sheet_detail
 from src.panel.schemas import (
     CampaignDetail,
     CampaignList,
@@ -18,13 +34,28 @@ from src.panel.schemas import (
     CharacterDetail,
     CharacterList,
     ErrorEnvelope,
+    SheetDetail,
+    SheetPatch,
 )
-from src.panel.vault_index import PORTRAIT_TYPES, configured
+from src.panel.sheets import default_config
+from src.panel.notes import SheetNote
+from src.panel.vault_index import (
+    PORTRAIT_TYPES,
+    VaultIndex,
+    configured,
+    locate_note,
+)
+from src.storage import get_database
+from src.storage.database import Database
 
 bp = Blueprint("campaigns", __name__)
 
 ALLOWED_GUILDS = "campaign_allowed_guilds"
 PORTRAIT_CACHE = "private, max-age=60, must-revalidate"
+SHEET_BODY_BYTES = 64 * 1024
+SHEET_WRITE_BUCKETS = rate_limit.UserTokenBuckets(
+    rate_limit.SHEET_WRITES_PER_MINUTE
+)
 
 
 @bp.before_request
@@ -138,6 +169,184 @@ async def read_character(
     if detail is None:
         return _hidden()
     return detail
+
+
+@bp.patch("/api/campaigns/<slug>/sheets/<sheet_id>")
+@document_request(SheetPatch)
+@document_response(ErrorEnvelope, 400)
+@document_response(ErrorEnvelope, 403)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 409)
+@document_response(ErrorEnvelope, 413)
+@document_response(ErrorEnvelope, 422)
+@document_response(ErrorEnvelope, 429)
+@document_response(ErrorEnvelope, 503)
+@validate_response(SheetDetail, 200)
+async def write_sheet(slug: str, sheet_id: str) -> Response | SheetDetail:
+    scope = await _character_scope(slug)
+    if isinstance(scope, Response):
+        return scope
+    user_id, role = scope
+    patch = await _prepared_patch()
+    if isinstance(patch, Response):
+        return patch
+    index = vault_index.configured()
+    target = await _write_target(index, slug, sheet_id, user_id, role, patch)
+    if isinstance(target, Response):
+        return target
+    note, database, record = target
+    result = await _run_write(
+        database, index, slug, sheet_id, note, patch, record
+    )
+    if isinstance(result, Response):
+        return result
+    persisted = await _persist_or_restore(database, index, slug, note, result)
+    if isinstance(persisted, Response):
+        return persisted
+    fresh = (
+        index.refresh_sheet(note.path)
+        or notes.parse_sheet(note.path, result.text).note
+    )
+    return sheet_detail(
+        replace(fresh, character=note.character),
+        index.campaign(slug).config or default_config(),
+        result.warnings,
+    )
+
+
+async def _prepared_patch() -> SheetPatch | Response:
+    refusal = rate_limit_response(SHEET_WRITE_BUCKETS)
+    if refusal is not None:
+        return refusal
+    raw = await request.get_data()
+    if len(raw) > SHEET_BODY_BYTES:
+        return error_response("payload_too_large", "Payload too large", 413)
+    try:
+        payload = json.loads(raw)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return error_response("bad_request", "Invalid JSON body", 400)
+    if not isinstance(payload, dict):
+        return error_response("bad_request", "Invalid JSON body", 400)
+    try:
+        return SheetPatch.model_validate(payload)
+    except ValidationError:
+        return error_response("invalid_payload", "Invalid sheet payload", 422)
+
+
+async def _write_target(
+    index: VaultIndex,
+    slug: str,
+    sheet_id: str,
+    user_id: str,
+    role: CampaignRole,
+    patch: SheetPatch,
+) -> tuple[SheetNote, Database, sheet_write.SheetRecord | None] | Response:
+    note = _find_sheet(index, slug, sheet_id)
+    if note is None:
+        return _hidden()
+    database = get_database()
+    if database is None:
+        return _not_found()
+    record = await sheet_store.sheet_record(database, note.path)
+    refusal = _owner_refusal(note, record, user_id, role, patch)
+    if refusal is not None:
+        return refusal
+    return note, database, record
+
+
+def _owner_refusal(
+    note: SheetNote,
+    record: sheet_write.SheetRecord | None,
+    user_id: str,
+    role: CampaignRole,
+    patch: SheetPatch,
+) -> Response | None:
+    owner = (
+        record.owner
+        if record is not None and record.owner is not None
+        else note.owner
+    )
+    if role == "narrator":
+        return None
+    if owner != user_id:
+        return error_response("forbidden", "Forbidden", 403)
+    if patch.status == "active" and note.status == "arquivado":
+        return error_response(
+            "forbidden", "Only the narrator can unarchive a sheet", 403
+        )
+    return None
+
+
+async def _persist_or_restore(
+    database: Database,
+    index: VaultIndex,
+    slug: str,
+    note: SheetNote,
+    result: sheet_write.SheetWriteResult,
+) -> Response | None:
+    try:
+        await sheet_store.store_sheet(database, slug, note.path, result)
+    except Exception as failure:
+        logger.opt(exception=True).error(f"Sheet storage failed: {failure}")
+        root = index.root
+        if root is not None:
+            await asyncio.to_thread(
+                sheet_write.restore_sheet,
+                root / note.path,
+                result.previous_text,
+            )
+        return error_response(
+            "storage_unavailable", "Sheet storage failed", 503
+        )
+    return None
+
+
+async def _run_write(
+    database: Database,
+    index: VaultIndex,
+    slug: str,
+    sheet_id: str,
+    note: SheetNote,
+    patch: SheetPatch,
+    record: sheet_write.SheetRecord | None,
+) -> sheet_write.SheetWriteResult | Response:
+    root = index.root
+    if root is None:
+        return _vault_not_ready()
+    try:
+        return await asyncio.to_thread(
+            sheet_write.write_sheet,
+            root / note.path,
+            slug,
+            sheet_id,
+            patch,
+            index.campaign(slug).config or default_config(),
+            record,
+            sheet_store.backup_root(database),
+        )
+    except sheet_write.SheetWriteError as failure:
+        return _write_failure(failure)
+
+
+def _write_failure(failure: sheet_write.SheetWriteError) -> Response:
+    if isinstance(failure, sheet_write.SheetConflict):
+        return error_response("sheet_conflict", "Sheet changed on disk", 409)
+    if isinstance(failure, sheet_write.SheetInvalid):
+        return error_response("sheet_invalid", str(failure), 422)
+    if isinstance(failure, sheet_write.SheetReadOnly):
+        return error_response("sheet_read_only", str(failure), 403)
+    return error_response("invalid_sheet", str(failure), 422)
+
+
+def _find_sheet(
+    index: VaultIndex, slug: str, sheet_id: str
+) -> SheetNote | None:
+    for note in index.campaign(slug).sheets:
+        if note.id != sheet_id:
+            continue
+        place = locate_note(note.path)
+        return note if place is not None and place[1] == "sheets" else None
+    return None
 
 
 @bp.get("/api/campaigns/<slug>/characters/<character_id>/portrait")

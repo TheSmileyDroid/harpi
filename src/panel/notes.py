@@ -5,7 +5,12 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
-from src.panel.sheets import LoadedSheet, load_sheet
+from src.panel.sheets import (
+    LoadedSheet,
+    load_sheet,
+    prose_sections,
+    sha256_text,
+)
 
 _DELIMITER = "---"
 _EMBED = re.compile(r"!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
@@ -39,6 +44,10 @@ class SheetNote:
     owner: str | None
     status: str | None
     loaded: LoadedSheet
+    hash: str
+    rev: int
+    history: str
+    notes: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,10 +65,23 @@ def normalize(text: str) -> str:
 
 
 def scalar(value: str) -> str | None:
-    text = value.strip()
+    text = without_comment(value).strip()
     if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
         text = text[1:-1].strip()
     return None if text.casefold() in _EMPTY else text or None
+
+
+def without_comment(value: str) -> str:
+    quote = ""
+    for index, char in enumerate(value):
+        if quote:
+            if char == quote:
+                quote = ""
+        elif char in "\"'":
+            quote = char
+        elif char == "#" and (index == 0 or value[index - 1] in " \t"):
+            return value[:index]
+    return value
 
 
 def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
@@ -174,6 +196,7 @@ def parse_character(path: str, text: str, fallback_id: str) -> CharacterNote:
 def parse_sheet(path: str, text: str) -> SheetSource:
     fields, _ = split_frontmatter(text)
     link = field_front(fields, "harpi-character")
+    history, notes_body = prose_sections(text)
     note = SheetNote(
         id=field_front(fields, "harpi-id") or path,
         path=path,
@@ -181,9 +204,20 @@ def parse_sheet(path: str, text: str) -> SheetSource:
         owner=field_front(fields, "harpi-owner"),
         status=field_front(fields, "harpi-status"),
         loaded=load_sheet(text),
+        hash=sha256_text(text),
+        rev=revision(fields),
+        history=history,
+        notes=notes_body,
     )
     return SheetSource(
         note=note,
         character_id=field_front(fields, "harpi-character-id"),
         link=link_target(link) if link else None,
     )
+
+
+def revision(fields: dict[str, str]) -> int:
+    try:
+        return int(field_front(fields, "harpi-rev") or "0")
+    except ValueError:
+        return 0

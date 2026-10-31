@@ -57,7 +57,7 @@ export type SheetStunt = z.infer<typeof SheetStunt>;
 export const SheetStunt = z.strictObject({ name: z.string(), refresh_cost: z.number().int(), text: z.string() });
 
 export type SheetDetail = z.infer<typeof SheetDetail>;
-export const SheetDetail = z.strictObject({ aspects: z.array(SheetAspect), character_id: z.string().nullable(), consequences: z.array(SheetConsequence), error: z.string().nullable(), extras: z.array(SheetExtra), fate_points: z.number().int().nullable(), id: z.string(), inventory: z.array(SheetInventoryEntry), ladder: z.array(SheetLadderStep), owner: z.string().nullable(), read_only: z.boolean(), refresh: z.number().int().nullable(), skills: z.array(SheetSkill), state: z.enum(["ok", "invalid"]), status: z.enum(["active", "pending", "archived"]), stress: z.array(SheetStressTrack), stunts: z.array(SheetStunt) });
+export const SheetDetail = z.strictObject({ aspects: z.array(SheetAspect), character_id: z.string().nullable(), consequences: z.array(SheetConsequence), error: z.string().nullable(), extras: z.array(SheetExtra), fate_points: z.number().int().nullable(), hash: z.string(), history: z.string(), id: z.string(), inventory: z.array(SheetInventoryEntry), ladder: z.array(SheetLadderStep), notes: z.string(), owner: z.string().nullable(), read_only: z.boolean(), refresh: z.number().int().nullable(), rev: z.number().int(), skills: z.array(SheetSkill), state: z.enum(["ok", "invalid"]), status: z.enum(["active", "pending", "archived"]), stress: z.array(SheetStressTrack), stunts: z.array(SheetStunt), warnings: z.array(z.string()) });
 
 export type CharacterDetail = z.infer<typeof CharacterDetail>;
 export const CharacterDetail = z.strictObject({ card: CharacterCard, kind: z.enum(["sheet", "card"]), sheet: SheetDetail.nullable() });
@@ -130,6 +130,33 @@ export const SearchResults = z.strictObject({ results: z.array(Track) });
 
 export type SeekRequest = z.infer<typeof SeekRequest>;
 export const SeekRequest = z.strictObject({ position: z.number().nullable().default(null) }).partial();
+
+export type SheetAspectInput = z.infer<typeof SheetAspectInput>;
+export const SheetAspectInput = z.strictObject({ label: z.string(), text: z.string().default("") });
+
+export type SheetConsequenceInput = z.infer<typeof SheetConsequenceInput>;
+export const SheetConsequenceInput = z.strictObject({ severity: z.string(), text: z.string().default("") });
+
+export type SheetExtraInput = z.infer<typeof SheetExtraInput>;
+export const SheetExtraInput = z.strictObject({ cost: z.number().int().nullable().default(null), kind: z.string(), name: z.string().default(""), text: z.string().default("") });
+
+export type SheetInventoryInput = z.infer<typeof SheetInventoryInput>;
+export const SheetInventoryInput = z.strictObject({ item: z.string(), note: z.string().default(""), qty: z.number().int().default(1) });
+
+export type SheetSkillInput = z.infer<typeof SheetSkillInput>;
+export const SheetSkillInput = z.strictObject({ name: z.string(), rank: z.number().int() });
+
+export type SheetStressBoxInput = z.infer<typeof SheetStressBoxInput>;
+export const SheetStressBoxInput = z.strictObject({ checked: z.boolean().default(false), value: z.number().int() });
+
+export type SheetStressTrackInput = z.infer<typeof SheetStressTrackInput>;
+export const SheetStressTrackInput = z.strictObject({ boxes: z.array(SheetStressBoxInput).optional(), track: z.string() });
+
+export type SheetStuntInput = z.infer<typeof SheetStuntInput>;
+export const SheetStuntInput = z.strictObject({ name: z.string(), refresh_cost: z.number().int().default(0), text: z.string().default("") });
+
+export type SheetPatch = z.infer<typeof SheetPatch>;
+export const SheetPatch = z.strictObject({ aspects: z.array(SheetAspectInput).nullable().default(null), base_hash: z.string(), consequences: z.array(SheetConsequenceInput).nullable().default(null), extras: z.array(SheetExtraInput).nullable().default(null), fate_points: z.number().int().nullable().default(null), history: z.string().nullable().default(null), inventory: z.array(SheetInventoryInput).nullable().default(null), notes: z.string().nullable().default(null), refresh: z.number().int().nullable().default(null), skills: z.array(SheetSkillInput).nullable().default(null), status: z.enum(["active", "pending", "archived"]).nullable().default(null), stress: z.array(SheetStressTrackInput).nullable().default(null), stunts: z.array(SheetStuntInput).nullable().default(null) });
 
 export type StatusSnapshot = z.infer<typeof StatusSnapshot>;
 export const StatusSnapshot = z.strictObject({ bot: BotStatus, connection: Connection, guild_id: z.string().nullable(), playback: PlaybackStatus.nullable() });

@@ -3,7 +3,13 @@ from __future__ import annotations
 import math
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, RootModel
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    RootModel,
+)
 
 
 def _as_snowflake(value: Any) -> str:
@@ -256,6 +262,11 @@ class SheetDetail(_Response):
     state: SheetReadState
     read_only: bool
     error: str | None
+    hash: str
+    rev: int
+    history: str
+    notes: str
+    warnings: list[str]
     refresh: int | None
     fate_points: int | None
     ladder: list[SheetLadderStep]
@@ -266,6 +277,66 @@ class SheetDetail(_Response):
     consequences: list[SheetConsequence]
     extras: list[SheetExtra]
     inventory: list[SheetInventoryEntry]
+
+
+class SheetAspectInput(BaseModel):
+    label: str
+    text: str = ""
+
+
+class SheetSkillInput(BaseModel):
+    name: str
+    rank: int
+
+
+class SheetStuntInput(BaseModel):
+    name: str
+    text: str = ""
+    refresh_cost: int = 0
+
+
+class SheetStressBoxInput(BaseModel):
+    value: int
+    checked: bool = False
+
+
+class SheetStressTrackInput(BaseModel):
+    track: str
+    boxes: list[SheetStressBoxInput] = Field(default_factory=list)
+
+
+class SheetConsequenceInput(BaseModel):
+    severity: str
+    text: str = ""
+
+
+class SheetExtraInput(BaseModel):
+    kind: str
+    name: str = ""
+    text: str = ""
+    cost: int | None = None
+
+
+class SheetInventoryInput(BaseModel):
+    item: str
+    qty: int = 1
+    note: str = ""
+
+
+class SheetPatch(BaseModel):
+    base_hash: str
+    status: SheetStatus | None = None
+    refresh: int | None = None
+    fate_points: int | None = None
+    aspects: list[SheetAspectInput] | None = None
+    skills: list[SheetSkillInput] | None = None
+    stunts: list[SheetStuntInput] | None = None
+    stress: list[SheetStressTrackInput] | None = None
+    consequences: list[SheetConsequenceInput] | None = None
+    extras: list[SheetExtraInput] | None = None
+    inventory: list[SheetInventoryInput] | None = None
+    history: str | None = None
+    notes: str | None = None
 
 
 class CharacterDetail(_Response):

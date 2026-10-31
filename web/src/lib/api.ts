@@ -13,6 +13,8 @@ import {
   SearchRequest,
   SearchResults,
   SeekRequest,
+  SheetDetail,
+  SheetPatch,
   StatusSnapshot,
   UrlRequest,
   VolumeRequest,
@@ -174,6 +176,22 @@ export function createApiClient({
       return request(
         `/api/campaigns/${encodeURIComponent(slug)}/characters/${encodeURIComponent(characterId)}`,
         CharacterDetail,
+      );
+    },
+    writeSheet(
+      slug: string,
+      sheetId: string,
+      body: z.input<typeof SheetPatch>,
+    ) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/sheets/${encodeURIComponent(sheetId)}`,
+        SheetDetail,
+        {
+          method: "PATCH",
+          requestSchema: SheetPatch,
+          body,
+          silent: true,
+        },
       );
     },
     connect(guildId: string | null, channelId: string | null) {
