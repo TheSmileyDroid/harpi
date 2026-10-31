@@ -1,4 +1,18 @@
 {
+  "ApprovalList": {
+    "approvals": [
+      {
+        "character_id": "chr_ana",
+        "character_name": "Ana",
+        "id": "apr_1",
+        "note": "",
+        "owner": "555",
+        "owner_name": "Harpi",
+        "requested_at": 1700000000,
+        "sheet_id": "sht_ana"
+      }
+    ]
+  },
   "Authenticated": {
     "authenticated": true
   },
@@ -87,6 +101,7 @@
       "read_only": false,
       "refresh": 7,
       "rev": 2,
+      "review_note": null,
       "skills": [
         {
           "label": "\u00d3timo",
@@ -126,7 +141,8 @@
         "portrait": "/api/campaigns/paratheos/characters/chr_ana/portrait",
         "summary": "Mensageira sem mem\u00f3ria."
       }
-    ]
+    ],
+    "own_character_id": "chr_ana"
   },
   "Directory": {
     "channels": [

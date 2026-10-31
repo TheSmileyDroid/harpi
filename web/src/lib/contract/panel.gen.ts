@@ -2,6 +2,15 @@
   import { z } from "zod";
 
 // <Schemas>
+export type ApprovalDecision = z.infer<typeof ApprovalDecision>;
+export const ApprovalDecision = z.strictObject({ decision: z.enum(["approve", "reject"]), note: z.string().default("") });
+
+export type ApprovalItem = z.infer<typeof ApprovalItem>;
+export const ApprovalItem = z.strictObject({ character_id: z.string().nullable(), character_name: z.string(), id: z.string(), note: z.string(), owner: z.string().nullable(), owner_name: z.string().nullable(), requested_at: z.number().int(), sheet_id: z.string().nullable() });
+
+export type ApprovalList = z.infer<typeof ApprovalList>;
+export const ApprovalList = z.strictObject({ approvals: z.array(ApprovalItem) });
+
 export type Authenticated = z.infer<typeof Authenticated>;
 export const Authenticated = z.strictObject({ authenticated: z.boolean() });
 
@@ -28,6 +37,9 @@ export const ChannelList = z.strictObject({ channels: z.array(Channel) });
 
 export type CharacterCard = z.infer<typeof CharacterCard>;
 export const CharacterCard = z.strictObject({ concept: z.string().nullable(), id: z.string(), name: z.string(), portrait: z.string().nullable(), summary: z.string().nullable() });
+
+export type CharacterCreate = z.infer<typeof CharacterCreate>;
+export const CharacterCreate = z.strictObject({ concept: z.string().nullable().default(null), name: z.string(), sheet: z.boolean().nullable().default(null), summary: z.string().nullable().default(null) });
 
 export type SheetAspect = z.infer<typeof SheetAspect>;
 export const SheetAspect = z.strictObject({ label: z.string(), text: z.string() });
@@ -57,13 +69,13 @@ export type SheetStunt = z.infer<typeof SheetStunt>;
 export const SheetStunt = z.strictObject({ name: z.string(), refresh_cost: z.number().int(), text: z.string() });
 
 export type SheetDetail = z.infer<typeof SheetDetail>;
-export const SheetDetail = z.strictObject({ aspects: z.array(SheetAspect), character_id: z.string().nullable(), consequences: z.array(SheetConsequence), error: z.string().nullable(), extras: z.array(SheetExtra), fate_points: z.number().int().nullable(), hash: z.string(), history: z.string(), id: z.string(), inventory: z.array(SheetInventoryEntry), ladder: z.array(SheetLadderStep), notes: z.string(), owner: z.string().nullable(), read_only: z.boolean(), refresh: z.number().int().nullable(), rev: z.number().int(), skills: z.array(SheetSkill), state: z.enum(["ok", "invalid"]), status: z.enum(["active", "pending", "archived"]), stress: z.array(SheetStressTrack), stunts: z.array(SheetStunt), warnings: z.array(z.string()) });
+export const SheetDetail = z.strictObject({ aspects: z.array(SheetAspect), character_id: z.string().nullable(), consequences: z.array(SheetConsequence), error: z.string().nullable(), extras: z.array(SheetExtra), fate_points: z.number().int().nullable(), hash: z.string(), history: z.string(), id: z.string(), inventory: z.array(SheetInventoryEntry), ladder: z.array(SheetLadderStep), notes: z.string(), owner: z.string().nullable(), read_only: z.boolean(), refresh: z.number().int().nullable(), rev: z.number().int(), review_note: z.string().nullable(), skills: z.array(SheetSkill), state: z.enum(["ok", "invalid"]), status: z.enum(["active", "pending", "archived"]), stress: z.array(SheetStressTrack), stunts: z.array(SheetStunt), warnings: z.array(z.string()) });
 
 export type CharacterDetail = z.infer<typeof CharacterDetail>;
 export const CharacterDetail = z.strictObject({ card: CharacterCard, kind: z.enum(["sheet", "card"]), sheet: SheetDetail.nullable() });
 
 export type CharacterList = z.infer<typeof CharacterList>;
-export const CharacterList = z.strictObject({ characters: z.array(CharacterCard) });
+export const CharacterList = z.strictObject({ characters: z.array(CharacterCard), own_character_id: z.string().nullable().default(null) });
 
 export type ConnectRequest = z.infer<typeof ConnectRequest>;
 export const ConnectRequest = z.strictObject({ channel_id: z.string().nullable().default(null), guild_id: z.string().nullable().default(null) }).partial();

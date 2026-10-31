@@ -151,6 +151,14 @@ class CampaignCast:
         cards = [self._card(slug, member) for member in shown]
         return sorted(cards, key=lambda card: (card.name.casefold(), card.id))
 
+    def own_character_id(self, slug: str, user_id: str) -> str | None:
+        for member in members(self._index.campaign(slug)):
+            if member.owner != user_id or member.archived:
+                continue
+            if member.status in ("pending", "active"):
+                return member.id
+        return None
+
     async def member(
         self, slug: str, character_id: str, user_id: str, role: CampaignRole
     ) -> CastMember | None:
@@ -277,6 +285,7 @@ def sheet_detail(
         rev=note.rev,
         history=note.history,
         notes=note.notes,
+        review_note=note.review_note,
         warnings=list(warnings),
         refresh=block.refresh,
         fate_points=block.fate_points,
@@ -309,6 +318,7 @@ def _broken_detail(
         rev=note.rev,
         history=note.history,
         notes=note.notes,
+        review_note=note.review_note,
         warnings=[],
         refresh=None,
         fate_points=None,

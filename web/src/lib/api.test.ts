@@ -317,6 +317,82 @@ describe("createApiClient", () => {
     });
   });
 
+  it("reads the campaign and its role", async () => {
+    const client = createApiClient({
+      fetchImpl: async (path) => {
+        expect(path).toBe("/api/campaigns/paratheos");
+        return jsonResponse(200, fixtures.CampaignDetail);
+      },
+    });
+
+    await expect(client.campaign("paratheos")).resolves.toEqual(
+      fixtures.CampaignDetail,
+    );
+  });
+
+  it("creates a character from the draft", async () => {
+    const { client, calls } = recordingClient(fixtures.CharacterDetail);
+
+    await client.createCharacter("paratheos", {
+      name: "Nina",
+      concept: "Mensageira",
+      summary: "Sem memória.",
+    });
+
+    expect(calls[0]!.path).toBe("/api/campaigns/paratheos/characters");
+    expect(calls[0]!.options.method).toBe("POST");
+    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
+      name: "Nina",
+      concept: "Mensageira",
+      summary: "Sem memória.",
+      sheet: null,
+    });
+  });
+
+  it("submits a sheet with an empty JSON body", async () => {
+    const { client, calls } = recordingClient(fixtures.CharacterDetail.sheet);
+
+    await client.submitSheet("paratheos", "sht_ana");
+
+    expect(calls[0]!.path).toBe(
+      "/api/campaigns/paratheos/sheets/sht_ana/submit",
+    );
+    expect(calls[0]!.options.method).toBe("POST");
+    expect(calls[0]!.options.body).toBe("{}");
+    expect(calls[0]!.options.headers).toEqual({
+      "Content-Type": "application/json",
+    });
+  });
+
+  it("reads the approval queue", async () => {
+    const client = createApiClient({
+      fetchImpl: async (path) => {
+        expect(path).toBe("/api/campaigns/paratheos/approvals");
+        return jsonResponse(200, fixtures.ApprovalList);
+      },
+    });
+
+    await expect(client.approvals("paratheos")).resolves.toEqual(
+      fixtures.ApprovalList,
+    );
+  });
+
+  it("decides an approval with a note", async () => {
+    const { client, calls } = recordingClient(fixtures.ApprovalList);
+
+    await client.decideApproval("paratheos", "apr_1", {
+      decision: "reject",
+      note: "Falta o problema.",
+    });
+
+    expect(calls[0]!.path).toBe("/api/campaigns/paratheos/approvals/apr_1");
+    expect(calls[0]!.options.method).toBe("POST");
+    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
+      decision: "reject",
+      note: "Falta o problema.",
+    });
+  });
+
   it("rejects a drifted response as a contract violation", async () => {
     const reported: ApiError[] = [];
     const client = createApiClient({

@@ -155,6 +155,8 @@ ignore_names = [
     "scope",
     "read_only",
     "preserve_quotes",
+    # ApprovalList.approvals: the queue payload the client reads.
+    "approvals",
     # YtMusicData.uploader: property consumed through panel serialization.
     "uploader",
     # ASGI entry point (imported by uvicorn via the "app:asgi_app" string in

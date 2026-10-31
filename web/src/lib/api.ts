@@ -1,7 +1,11 @@
 import type { z } from "zod";
 import {
+  ApprovalDecision,
+  ApprovalList,
   Authenticated,
+  CampaignDetail,
   ChannelList,
+  CharacterCreate,
   CharacterDetail,
   CharacterList,
   ConnectRequest,
@@ -57,6 +61,7 @@ export interface ApiClientOptions {
 interface RequestBaseOptions {
   method?: string;
   silent?: boolean;
+  json?: boolean;
 }
 
 interface RequestBodyOptions<
@@ -86,13 +91,16 @@ export function createApiClient({
     responseSchema: z.ZodTypeAny,
     options: RequestBodyOptions<z.ZodTypeAny> | RequestBaseOptions = {},
   ): Promise<unknown> {
-    const { method = "GET", silent = false } = options;
+    const { method = "GET", silent = false, json = false } = options;
     const init: RequestInit = { method, credentials };
 
     if ("requestSchema" in options) {
       const wireBody = options.requestSchema.parse(options.body);
       init.headers = { "Content-Type": "application/json" };
       init.body = JSON.stringify(wireBody);
+    } else if (json) {
+      init.headers = { "Content-Type": "application/json" };
+      init.body = "{}";
     }
 
     let response: FetchResponse;
@@ -170,6 +178,53 @@ export function createApiClient({
       return request(
         `/api/campaigns/${encodeURIComponent(slug)}/characters`,
         CharacterList,
+      );
+    },
+    campaign(slug: string) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}`,
+        CampaignDetail,
+      );
+    },
+    createCharacter(slug: string, body: z.input<typeof CharacterCreate>) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/characters`,
+        CharacterDetail,
+        {
+          method: "POST",
+          requestSchema: CharacterCreate,
+          body,
+          silent: true,
+        },
+      );
+    },
+    submitSheet(slug: string, sheetId: string) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/sheets/${encodeURIComponent(sheetId)}/submit`,
+        SheetDetail,
+        { method: "POST", json: true, silent: true },
+      );
+    },
+    approvals(slug: string) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/approvals`,
+        ApprovalList,
+      );
+    },
+    decideApproval(
+      slug: string,
+      approvalId: string,
+      body: z.input<typeof ApprovalDecision>,
+    ) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/approvals/${encodeURIComponent(approvalId)}`,
+        ApprovalList,
+        {
+          method: "POST",
+          requestSchema: ApprovalDecision,
+          body,
+          silent: true,
+        },
       );
     },
     campaignCharacter(slug: string, characterId: string) {
