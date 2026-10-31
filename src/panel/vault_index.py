@@ -10,6 +10,7 @@ from loguru import logger
 
 from src.panel import notes
 from src.panel.notes import CharacterNote, SheetNote, SheetSource
+from src.panel.sheets import CampaignConfig, parse_config
 from src.panel.vault import Vault
 
 SCAN_INTERVAL_SECONDS = 60
@@ -38,9 +39,13 @@ class VaultFile:
 class CampaignNotes:
     characters: dict[str, CharacterNote]
     sheets: tuple[SheetNote, ...]
+    config: CampaignConfig | None
+    config_error: str | None
 
 
-EMPTY_NOTES = CampaignNotes(characters={}, sheets=())
+EMPTY_NOTES = CampaignNotes(
+    characters={}, sheets=(), config=None, config_error=None
+)
 
 
 def skipped(name: str) -> bool:
@@ -64,6 +69,15 @@ def locate_note(path: str) -> tuple[str, str] | None:
     if folder not in NOTE_FOLDERS or not name.endswith(".md"):
         return None
     return slug, folder
+
+
+def locate_config(path: str) -> str | None:
+    parts = PurePosixPath(path).parts
+    depth = len(CAMPAIGN_ROOT)
+    if len(parts) != depth + 2 or tuple(parts[:depth]) != CAMPAIGN_ROOT:
+        return None
+    slug, name = parts[depth:]
+    return slug if name == "config.md" else None
 
 
 def clean_relative(reference: str | None) -> str | None:
@@ -142,33 +156,69 @@ class VaultIndex:
     def _parse_campaigns(self) -> dict[str, CampaignNotes]:
         characters: dict[str, dict[str, CharacterNote]] = {}
         sheets: dict[str, list[SheetSource]] = {}
+        configs: dict[str, CampaignConfig] = {}
+        config_errors: dict[str, str] = {}
         for path in self.files:
-            located = locate_note(path)
-            if located is None:
-                continue
-            slug, folder = located
-            text = self._read(path)
-            if text is None:
-                continue
-            if folder == CHARACTERS_FOLDER:
-                note = notes.parse_character(path, text, fallback_id=path)
-                characters.setdefault(slug, {}).setdefault(note.id, note)
-            else:
-                sheets.setdefault(slug, []).append(
-                    notes.parse_sheet(path, text)
-                )
-        slugs = set(characters) | set(sheets)
+            self._parse_file(path, characters, sheets, configs, config_errors)
+        slugs = (
+            set(characters) | set(sheets) | set(configs) | set(config_errors)
+        )
         return {
             slug: self._campaign_notes(
-                characters.get(slug, {}), sheets.get(slug, [])
+                characters.get(slug, {}),
+                sheets.get(slug, []),
+                configs.get(slug),
+                config_errors.get(slug),
             )
             for slug in slugs
         }
+
+    def _parse_file(
+        self,
+        path: str,
+        characters: dict[str, dict[str, CharacterNote]],
+        sheets: dict[str, list[SheetSource]],
+        configs: dict[str, CampaignConfig],
+        config_errors: dict[str, str],
+    ) -> None:
+        config_slug = locate_config(path)
+        if config_slug is not None:
+            config, error = self._load_config(path)
+            if config is not None:
+                configs[config_slug] = config
+            if error is not None:
+                config_errors[config_slug] = error
+            return
+        located = locate_note(path)
+        if located is None:
+            return
+        slug, folder = located
+        text = self._read(path)
+        if text is None:
+            return
+        if folder == CHARACTERS_FOLDER:
+            note = notes.parse_character(path, text, fallback_id=path)
+            characters.setdefault(slug, {}).setdefault(note.id, note)
+        else:
+            sheets.setdefault(slug, []).append(notes.parse_sheet(path, text))
+
+    def _load_config(
+        self, path: str
+    ) -> tuple[CampaignConfig | None, str | None]:
+        text = self._read(path)
+        if text is None:
+            return None, "config.md da campanha não pôde ser lido"
+        config = parse_config(text)
+        if config is not None:
+            return config, None
+        return None, "config.md da campanha inválido"
 
     def _campaign_notes(
         self,
         characters: dict[str, CharacterNote],
         sources: list[SheetSource],
+        config: CampaignConfig | None,
+        config_error: str | None,
     ) -> CampaignNotes:
         external: dict[str, CharacterNote] = {}
         resolved = tuple(
@@ -178,7 +228,12 @@ class VaultIndex:
         merged = dict(characters)
         for note in external.values():
             merged.setdefault(note.id, note)
-        return CampaignNotes(characters=merged, sheets=resolved)
+        return CampaignNotes(
+            characters=merged,
+            sheets=resolved,
+            config=config,
+            config_error=config_error,
+        )
 
     def _resolve_sheet(
         self,

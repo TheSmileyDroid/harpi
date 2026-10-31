@@ -186,6 +186,7 @@ async def test_the_detail_reports_the_role_and_no_open_table(client):
         "system": "fate",
         "role": "narrator",
         "open_table": None,
+        "config_error": None,
     }
 
 

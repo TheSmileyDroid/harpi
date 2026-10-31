@@ -3,6 +3,7 @@
     "authenticated": true
   },
   "CampaignDetail": {
+    "config_error": null,
     "name": "Paratheos",
     "open_table": null,
     "role": "narrator",
@@ -26,6 +27,90 @@
         "name": "Voice"
       }
     ]
+  },
+  "CharacterDetail": {
+    "card": {
+      "concept": "Piloto de carga",
+      "id": "chr_ana",
+      "name": "Ana",
+      "portrait": "/api/campaigns/paratheos/characters/chr_ana/portrait",
+      "summary": "Mensageira sem mem\u00f3ria."
+    },
+    "kind": "sheet",
+    "sheet": {
+      "aspects": [
+        {
+          "label": "Conceito",
+          "text": "Piloto de carga"
+        }
+      ],
+      "character_id": "chr_ana",
+      "consequences": [
+        {
+          "severity": "Leve",
+          "text": "",
+          "value": 2
+        }
+      ],
+      "error": null,
+      "extras": [
+        {
+          "cost": 0,
+          "kind": "No\u00e9tica",
+          "name": "Constructo",
+          "text": "Corpo artificial."
+        }
+      ],
+      "fate_points": 3,
+      "id": "sht_ana",
+      "inventory": [
+        {
+          "item": "[[Espada de Lancelot]]",
+          "note": "Rel\u00edquia",
+          "qty": 1
+        }
+      ],
+      "ladder": [
+        {
+          "label": "\u00d3timo",
+          "rank": 4
+        },
+        {
+          "label": "Bom",
+          "rank": 3
+        }
+      ],
+      "owner": "555",
+      "read_only": false,
+      "refresh": 7,
+      "skills": [
+        {
+          "label": "\u00d3timo",
+          "name": "Hackear",
+          "rank": 4
+        }
+      ],
+      "state": "ok",
+      "status": "active",
+      "stress": [
+        {
+          "boxes": [
+            {
+              "checked": true,
+              "value": 1
+            }
+          ],
+          "track": "F\u00edsico"
+        }
+      ],
+      "stunts": [
+        {
+          "name": "Escudo",
+          "refresh_cost": 1,
+          "text": "Torna um objeto indestrut\u00edvel."
+        }
+      ]
+    }
   },
   "CharacterList": {
     "characters": [

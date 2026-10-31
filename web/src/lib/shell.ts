@@ -3,7 +3,7 @@ export type ShellLinkState = "connecting" | "connected" | "reconnecting";
 type ShellRoute =
   | "/c/[campaign]/mesa"
   | "/c/[campaign]/personagens"
-  | "/c/[campaign]/ficha"
+  | "/c/[campaign]/ficha/[[character]]"
   | "/c/[campaign]/cenas";
 
 export interface ShellPage {
@@ -19,7 +19,11 @@ export const SHELL_PAGES: readonly ShellPage[] = [
     label: "Personagens",
     route: "/c/[campaign]/personagens",
   },
-  { slug: "ficha", label: "Ficha", route: "/c/[campaign]/ficha" },
+  {
+    slug: "ficha",
+    label: "Ficha",
+    route: "/c/[campaign]/ficha/[[character]]",
+  },
   { slug: "cenas", label: "Cenas", route: "/c/[campaign]/cenas" },
 ];
 

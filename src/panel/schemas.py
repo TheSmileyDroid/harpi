@@ -174,6 +174,7 @@ class CampaignSummary(_Response):
 
 class CampaignDetail(CampaignSummary):
     open_table: OpenTable | None
+    config_error: str | None = None
 
 
 class CampaignList(_Response):
@@ -190,6 +191,87 @@ class CharacterCard(_Response):
 
 class CharacterList(_Response):
     characters: list[CharacterCard]
+
+
+SheetStatus = Literal["active", "pending", "archived"]
+SheetReadState = Literal["ok", "invalid"]
+
+
+class SheetLadderStep(_Response):
+    rank: int
+    label: str
+
+
+class SheetAspect(_Response):
+    label: str
+    text: str
+
+
+class SheetSkill(_Response):
+    name: str
+    rank: int
+    label: str
+
+
+class SheetStunt(_Response):
+    name: str
+    text: str
+    refresh_cost: int
+
+
+class SheetStressBox(_Response):
+    value: int
+    checked: bool
+
+
+class SheetStressTrack(_Response):
+    track: str
+    boxes: list[SheetStressBox]
+
+
+class SheetConsequence(_Response):
+    severity: str
+    value: int
+    text: str
+
+
+class SheetExtra(_Response):
+    kind: str
+    name: str
+    text: str
+    cost: int | None
+
+
+class SheetInventoryEntry(_Response):
+    item: str
+    qty: int
+    note: str
+
+
+class SheetDetail(_Response):
+    id: str
+    character_id: str | None
+    owner: SnowflakeInput
+    status: SheetStatus
+    state: SheetReadState
+    read_only: bool
+    error: str | None
+    refresh: int | None
+    fate_points: int | None
+    ladder: list[SheetLadderStep]
+    aspects: list[SheetAspect]
+    skills: list[SheetSkill]
+    stunts: list[SheetStunt]
+    stress: list[SheetStressTrack]
+    consequences: list[SheetConsequence]
+    extras: list[SheetExtra]
+    inventory: list[SheetInventoryEntry]
+
+
+class CharacterDetail(_Response):
+    kind: Literal["sheet", "card"]
+    card: CharacterCard
+    sheet: SheetDetail | None
 
 
 class SearchResults(_Response):

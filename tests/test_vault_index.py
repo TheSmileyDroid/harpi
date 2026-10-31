@@ -173,6 +173,81 @@ async def test_the_periodic_scan_rebuilds_the_configured_index(tmp_path: Path):
     assert "chr_bia" in vault_index.configured().campaign(SLUG).characters
 
 
+def test_the_index_reads_the_campaign_config_at_boot(tmp_path: Path):
+    write(
+        tmp_path,
+        f"{CAMPAIGN}/config.md",
+        "```harpi-campaign\n"
+        "name: Paratheos\n"
+        "ladder:\n"
+        "  - {rank: 4, label: Ótimo}\n"
+        "  - {rank: 3, label: Bom}\n"
+        "refresh: 7\n"
+        "```\n",
+    )
+    write(tmp_path, f"{CAMPAIGN}/characters/Ana.md", character())
+
+    config = VaultIndex(tmp_path).campaign(SLUG).config
+
+    assert config is not None
+    assert config.name == "Paratheos"
+    assert [(step.rank, step.label) for step in config.ladder] == [
+        (4, "Ótimo"),
+        (3, "Bom"),
+    ]
+    assert config.refresh == 7
+
+
+def test_a_missing_config_leaves_the_campaign_without_one(tmp_path: Path):
+    write(tmp_path, f"{CAMPAIGN}/characters/Ana.md", character())
+
+    campaign = VaultIndex(tmp_path).campaign(SLUG)
+
+    assert campaign.config is None
+    assert campaign.config_error is None
+
+
+def test_a_broken_config_is_reported(tmp_path: Path):
+    write(
+        tmp_path,
+        f"{CAMPAIGN}/config.md",
+        "```harpi-campaign\nname: [Paratheos\n```\n",
+    )
+    write(tmp_path, f"{CAMPAIGN}/characters/Ana.md", character())
+
+    campaign = VaultIndex(tmp_path).campaign(SLUG)
+
+    assert campaign.config is None
+    assert campaign.config_error is not None
+
+
+def test_the_index_keeps_the_sheet_block_with_the_note(tmp_path: Path):
+    write(
+        tmp_path,
+        f"{CAMPAIGN}/sheets/Ana.md",
+        sheet() + "\n```harpi-sheet\nrefresh: 5\n```\n",
+    )
+
+    loaded = VaultIndex(tmp_path).campaign(SLUG).sheets[0].loaded
+
+    assert loaded.error is None
+    assert loaded.document is not None
+    assert loaded.document["refresh"] == 5
+
+
+def test_an_invalid_sheet_block_keeps_the_scan_alive(tmp_path: Path):
+    write(
+        tmp_path,
+        f"{CAMPAIGN}/sheets/Ana.md",
+        sheet() + "\n```harpi-sheet\nrefresh: [5\n```\n",
+    )
+
+    note = VaultIndex(tmp_path).campaign(SLUG).sheets[0]
+
+    assert note.loaded.document is None
+    assert note.loaded.error is not None
+
+
 def test_a_sheet_resolves_an_external_character_by_name(tmp_path: Path):
     write(
         tmp_path,

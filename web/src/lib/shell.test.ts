@@ -20,7 +20,7 @@ describe("SHELL_PAGES", () => {
     expect(SHELL_PAGES.map((page) => page.route)).toEqual([
       "/c/[campaign]/mesa",
       "/c/[campaign]/personagens",
-      "/c/[campaign]/ficha",
+      "/c/[campaign]/ficha/[[character]]",
       "/c/[campaign]/cenas",
     ]);
   });

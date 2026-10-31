@@ -1,13 +1,15 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { createApiClient } from "$lib/api";
-  import { castInitials, castPhaseForError, castStateNote } from "$lib/cast";
-  import type { CastPhase } from "$lib/cast";
+  import { castInitials, castStateNote } from "$lib/cast";
   import { formatCount } from "$lib/format";
+  import { phaseForError } from "$lib/phase";
+  import type { LoadPhase } from "$lib/phase";
   import type { CharacterCard } from "$lib/contract/panel.gen";
 
-  let phase = $state<CastPhase>("loading");
+  let phase = $state<LoadPhase>("loading");
   let cards = $state<CharacterCard[]>([]);
 
   const api = createApiClient();
@@ -21,7 +23,7 @@
       phase = "ready";
     } catch (error) {
       cards = [];
-      phase = castPhaseForError(error);
+      phase = phaseForError(error);
     }
   }
 
@@ -79,6 +81,16 @@
             {#if card.summary}
               <p class="cast__summary">{card.summary}</p>
             {/if}
+            <a
+              class="cast__open"
+              href={resolve("/c/[campaign]/ficha/[[character]]", {
+                campaign: slug,
+                character: card.id,
+              })}
+              data-testid="cast-open"
+            >
+              Abrir ficha
+            </a>
           </div>
         </li>
       {/each}
@@ -160,6 +172,29 @@
     font-size: 0.8125rem;
     line-height: 1.4;
     color: var(--label);
+  }
+
+  .cast__open {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2rem;
+    margin-block-start: 0.5rem;
+    font-family: var(--font-label);
+    font-weight: 600;
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--label);
+    text-decoration: none;
+  }
+
+  .cast__open:hover {
+    color: var(--sand);
+  }
+
+  .cast__open:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
   }
 
   .cast__retry {

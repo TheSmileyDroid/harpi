@@ -22,6 +22,7 @@ def build_fixtures() -> dict[str, object]:
         CampaignList,
         CampaignSummary,
         CharacterCard,
+        CharacterDetail,
         CharacterList,
         Channel,
         ChannelList,
@@ -39,6 +40,16 @@ def build_fixtures() -> dict[str, object]:
         Presence,
         ReloadEvent,
         SearchResults,
+        SheetAspect,
+        SheetConsequence,
+        SheetDetail,
+        SheetExtra,
+        SheetInventoryEntry,
+        SheetLadderStep,
+        SheetSkill,
+        SheetStressBox,
+        SheetStressTrack,
+        SheetStunt,
         StatusSnapshot,
         Track,
         Viewer,
@@ -89,6 +100,68 @@ def build_fixtures() -> dict[str, object]:
                     ),
                 )
             ]
+        ),
+        "CharacterDetail": CharacterDetail(
+            kind="sheet",
+            card=CharacterCard(
+                id="chr_ana",
+                name="Ana",
+                concept="Piloto de carga",
+                summary="Mensageira sem memória.",
+                portrait=(
+                    "/api/campaigns/paratheos/characters/chr_ana/portrait"
+                ),
+            ),
+            sheet=SheetDetail(
+                id="sht_ana",
+                character_id="chr_ana",
+                owner="555",
+                status="active",
+                state="ok",
+                read_only=False,
+                error=None,
+                refresh=7,
+                fate_points=3,
+                ladder=[
+                    SheetLadderStep(rank=4, label="Ótimo"),
+                    SheetLadderStep(rank=3, label="Bom"),
+                ],
+                aspects=[
+                    SheetAspect(label="Conceito", text="Piloto de carga")
+                ],
+                skills=[SheetSkill(name="Hackear", rank=4, label="Ótimo")],
+                stunts=[
+                    SheetStunt(
+                        name="Escudo",
+                        text="Torna um objeto indestrutível.",
+                        refresh_cost=1,
+                    )
+                ],
+                stress=[
+                    SheetStressTrack(
+                        track="Físico",
+                        boxes=[SheetStressBox(value=1, checked=True)],
+                    )
+                ],
+                consequences=[
+                    SheetConsequence(severity="Leve", value=2, text="")
+                ],
+                extras=[
+                    SheetExtra(
+                        kind="Noética",
+                        name="Constructo",
+                        text="Corpo artificial.",
+                        cost=0,
+                    )
+                ],
+                inventory=[
+                    SheetInventoryEntry(
+                        item="[[Espada de Lancelot]]",
+                        qty=1,
+                        note="Relíquia",
+                    )
+                ],
+            ),
         ),
         "Directory": Directory(
             guild_id="7",
