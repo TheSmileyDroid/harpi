@@ -20,6 +20,11 @@ def atomic_write(path: Path, text: str) -> None:
         _replace(path, text.encode("utf-8"))
 
 
+def atomic_write_bytes(path: Path, data: bytes) -> None:
+    with _WRITE_LOCK:
+        _replace(path, data)
+
+
 def create_exclusive(path: Path, text: str) -> None:
     with _WRITE_LOCK:
         descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)

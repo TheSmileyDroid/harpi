@@ -11,6 +11,7 @@ from loguru import logger
 from pydantic import BaseModel, ValidationError
 from quart import Blueprint, Response, g, request, send_file, session
 from quart_schema import (
+    DataSource,
     document_request,
     document_response,
     validate_response,
@@ -20,6 +21,7 @@ from werkzeug.http import http_date
 from pages.api import error_response, rate_limit_response
 from pages.guard import csrf_refusal, vault_unavailable
 from src.panel import (
+    assets,
     enrollment,
     notes,
     rate_limit,
@@ -37,6 +39,8 @@ from src.panel.schemas import (
     ApprovalDecision,
     ApprovalItem,
     ApprovalList,
+    AssetDetail,
+    AssetUpload,
     CampaignDetail,
     CampaignList,
     CampaignRole,
@@ -56,7 +60,7 @@ from src.panel.schemas import (
 from src.panel.sheets import default_config
 from src.panel.notes import SheetNote
 from src.panel.vault_index import (
-    PORTRAIT_TYPES,
+    IMAGE_TYPES,
     VaultIndex,
     configured,
     locate_note,
@@ -69,17 +73,24 @@ BODY_MODEL = TypeVar("BODY_MODEL", bound=BaseModel)
 bp = Blueprint("campaigns", __name__)
 
 ALLOWED_GUILDS = "campaign_allowed_guilds"
-PORTRAIT_CACHE = "private, max-age=60, must-revalidate"
+IMAGE_CACHE = "private, max-age=60, must-revalidate"
 SHEET_BODY_BYTES = 64 * 1024
+UPLOAD_ENDPOINT = "campaigns.upload_asset"
 SHEET_WRITE_BUCKETS = rate_limit.UserTokenBuckets(
     rate_limit.SHEET_WRITES_PER_MINUTE
 )
 APPROVAL_BUCKETS = rate_limit.UserTokenBuckets(rate_limit.APPROVALS_PER_MINUTE)
+ASSET_READ_BUCKETS = rate_limit.UserTokenBuckets(
+    rate_limit.ASSET_READS_PER_MINUTE
+)
+ASSET_UPLOAD_BUCKETS = rate_limit.UserTokenBuckets(
+    rate_limit.ASSET_UPLOADS_PER_MINUTE
+)
 
 
 @bp.before_request
 async def guard_campaign_request() -> Response | None:
-    refusal = csrf_refusal()
+    refusal = csrf_refusal(allow_multipart=request.endpoint == UPLOAD_ENDPOINT)
     if refusal is not None:
         return refusal
     setattr(g, ALLOWED_GUILDS, await _guilds(_user_id()))
@@ -1100,7 +1111,128 @@ async def read_portrait(slug: str, character_id: str) -> Response:
     path = None if member is None else cast.portrait(member)
     if path is None:
         return _hidden()
-    return await _portrait_response(path)
+    return await image_response(path)
+
+
+@bp.post("/api/campaigns/<slug>/assets")
+@document_request(AssetUpload, source=DataSource.FORM_MULTIPART)
+@document_response(AssetDetail, 200)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 413)
+@document_response(ErrorEnvelope, 422)
+@document_response(ErrorEnvelope, 429)
+@document_response(ErrorEnvelope, 503)
+@validate_response(AssetDetail, 200)
+async def upload_asset(slug: str) -> Response | AssetDetail:
+    scope = await _character_scope(slug)
+    if isinstance(scope, Response):
+        return scope
+    user_id, _role = scope
+    refusal = rate_limit_response(ASSET_UPLOAD_BUCKETS)
+    if refusal is not None:
+        return refusal
+    target = _database_index()
+    if isinstance(target, Response):
+        return target
+    database, index = target
+    root = index.root
+    if root is None:
+        return _vault_not_ready()
+    saved = await _store_upload(database, root, slug, user_id)
+    if isinstance(saved, Response):
+        return saved
+    await _reload_vault()
+    return AssetDetail(
+        name=saved.name,
+        path=saved.path,
+        url=f"/api/campaigns/{slug}/assets/{saved.name}",
+        hash=saved.digest,
+        size=saved.size,
+        content_type=saved.content_type,
+        new_file=saved.new_file,
+    )
+
+
+async def _store_upload(
+    database: Database,
+    root: Path,
+    slug: str,
+    user_id: str,
+) -> assets.SavedAsset | Response:
+    raw = await _uploaded_bytes()
+    if isinstance(raw, Response):
+        return raw
+    try:
+        return await assets.save_upload(database, root, slug, raw, user_id)
+    except assets.ImageTooLarge as failure:
+        return error_response("payload_too_large", str(failure), 413)
+    except assets.QuotaExceeded as failure:
+        return error_response("quota_exceeded", str(failure), 413)
+    except assets.UnsupportedImage as failure:
+        return error_response("invalid_payload", str(failure), 422)
+    except (assets.UnsafeLocation, OSError) as failure:
+        return _upload_failure(failure)
+
+
+def _upload_failure(failure: Exception) -> Response:
+    logger.opt(exception=failure).error(f"Asset write failed: {failure}")
+    return error_response(
+        "vault_write_failed", "The vault could not store the file", 503
+    )
+
+
+async def _uploaded_bytes() -> bytes | Response:
+    upload = (await request.files).get("file")
+    if upload is None:
+        return error_response("invalid_payload", "A file is required", 422)
+    return upload.read()
+
+
+@bp.get("/api/campaigns/<slug>/assets/<name>")
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 429)
+@document_response(ErrorEnvelope, 503)
+async def read_asset(slug: str, name: str) -> Response:
+    refusal = await _asset_read_refusal(slug)
+    if refusal is not None:
+        return refusal
+    target = _database_index()
+    if isinstance(target, Response):
+        return target
+    database, index = target
+    if index.root is None:
+        return _vault_not_ready()
+    if not await assets.registered(database, slug, name):
+        return _hidden()
+    path = assets.resolve_upload(index.root, slug, name)
+    if path is None:
+        return _hidden()
+    return await image_response(path)
+
+
+@bp.get("/api/campaigns/<slug>/images/<name>")
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 429)
+@document_response(ErrorEnvelope, 503)
+async def read_image(slug: str, name: str) -> Response:
+    refusal = await _asset_read_refusal(slug)
+    if refusal is not None:
+        return refusal
+    index = configured()
+    path = index.portrait_path(name) if assets.valid_image_name(name) else None
+    owner = None if path is None else index.campaign_of(path)
+    if path is None or index.is_upload(path):
+        return _hidden()
+    if owner is not None and owner != slug:
+        return _hidden()
+    return await image_response(path)
+
+
+async def _asset_read_refusal(slug: str) -> Response | None:
+    scope = await _character_scope(slug)
+    if isinstance(scope, Response):
+        return scope
+    return rate_limit_response(ASSET_READ_BUCKETS)
 
 
 async def _character_scope(
@@ -1119,7 +1251,21 @@ async def _character_scope(
     return user_id, campaign.role
 
 
-async def _portrait_response(path: Path) -> Response:
+def _etag_matches(header: str | None, token: str) -> bool:
+    if header is None:
+        return False
+    for candidate in header.split(","):
+        value = candidate.strip()
+        if value == "*":
+            return True
+        if value.startswith("W/"):
+            value = value[2:].strip()
+        if value.strip('"') == token:
+            return True
+    return False
+
+
+async def image_response(path: Path) -> Response:
     try:
         stat = path.stat()
     except OSError:
@@ -1127,15 +1273,15 @@ async def _portrait_response(path: Path) -> Response:
     token = f"{stat.st_mtime_ns:x}-{stat.st_size:x}"
     etag = f'"{token}"'
     headers = {
-        "Cache-Control": PORTRAIT_CACHE,
+        "Cache-Control": IMAGE_CACHE,
         "ETag": etag,
         "Last-Modified": http_date(stat.st_mtime),
     }
-    if request.if_none_match.contains(token):
+    if _etag_matches(request.headers.get("If-None-Match"), token):
         return Response(status=304, headers=headers)
     response = await send_file(
         path,
-        mimetype=PORTRAIT_TYPES[path.suffix.casefold()],
+        mimetype=IMAGE_TYPES[path.suffix.casefold()],
         conditional=False,
     )
     response.headers.update(headers)

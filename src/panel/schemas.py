@@ -200,6 +200,20 @@ class CharacterList(_Response):
     own_character_id: str | None = None
 
 
+class AssetDetail(_Response):
+    name: str
+    path: str
+    url: str
+    hash: str
+    size: int
+    content_type: str
+    new_file: bool
+
+
+class AssetUpload(BaseModel):
+    file: bytes
+
+
 SheetStatus = Literal["active", "pending", "archived"]
 SheetReadState = Literal["ok", "conflict", "missing", "invalid"]
 

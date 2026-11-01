@@ -167,6 +167,10 @@ ignore_names = [
     # Module-level pytest attribute (read by pytest, not our code):
     # applies the network marker + banner fixture to network test files.
     "pytestmark",
+    # Quart reads the request class from the app and the per-request body
+    # limit from the request instance; this code only sets them.
+    "request_class",
+    "_max_content_length",
     # Framework-read flags: Quart's signed-session flag and URL-map slash
     # merging (set in pages/api.py and app.py), plus uvicorn's server stop
     # flag (set in tests); all assigned for the framework to consume.

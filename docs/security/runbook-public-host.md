@@ -70,6 +70,29 @@ location /api/auth/ {
 	proxy_set_header X-Real-IP $remote_addr;
 }
 
+location /api/campaigns/ {
+	client_max_body_size 17m;
+	limit_req zone=harpi_campaigns burst=60 nodelay;
+	proxy_pass http://harpi-backend:8000;
+	proxy_http_version 1.1;
+	proxy_set_header Host $host;
+	proxy_set_header X-Forwarded-Scheme $scheme;
+	proxy_set_header X-Forwarded-Proto $scheme;
+	proxy_set_header X-Forwarded-For $remote_addr;
+	proxy_set_header X-Real-IP $remote_addr;
+}
+
+location /api/tables/ {
+	limit_req zone=harpi_tables burst=30 nodelay;
+	proxy_pass http://harpi-backend:8000;
+	proxy_http_version 1.1;
+	proxy_set_header Host $host;
+	proxy_set_header X-Forwarded-Scheme $scheme;
+	proxy_set_header X-Forwarded-Proto $scheme;
+	proxy_set_header X-Forwarded-For $remote_addr;
+	proxy_set_header X-Real-IP $remote_addr;
+}
+
 location /api/ {
 	limit_req zone=harpi_api burst=10 nodelay;
 	proxy_pass http://harpi-backend:8000;
@@ -82,7 +105,7 @@ location /api/ {
 }
 ```
 
-`proxy_set_header Host $host` keeps the panel's trusted-host check on the public name; without it the app sees `harpi-backend:8000` and answers 400. Both locations repeat the proxy headers because NPM's own `location /` does not share them with a sibling location.
+`proxy_set_header Host $host` keeps the panel's trusted-host check on the public name; without it the app sees `harpi-backend:8000` and answers 400. Every location repeats the proxy headers because NPM's own `location /` does not share them with a sibling location.
 
 `proxy_buffering off` keeps the `/api/events` SSE stream live. The app does not send `X-Accel-Buffering`, and nginx buffers event streams by default.
 
@@ -94,6 +117,8 @@ The Advanced tab is server context, so the zones and the status map cannot live 
 
 ```nginx
 limit_req_zone $binary_remote_addr zone=harpi_auth:1m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=harpi_campaigns:1m rate=300r/m;
+limit_req_zone $binary_remote_addr zone=harpi_tables:1m rate=600r/m;
 limit_req_zone $binary_remote_addr zone=harpi_api:1m rate=60r/m;
 
 map $status $harpi_retry_after {
@@ -115,9 +140,11 @@ Expected: `syntax is ok` and `test is successful`. A stock NPM ships neither fil
 | Zone | Rate | Burst | Applied to |
 | --- | --- | --- | --- |
 | `harpi_auth` | 10 requests per minute per IP | 3 | `/api/auth/` |
+| `harpi_campaigns` | 300 requests per minute per IP | 60 | `/api/campaigns/` |
+| `harpi_tables` | 600 requests per minute per IP | 30 | `/api/tables/` |
 | `harpi_api` | 60 requests per minute per IP | 10 | the rest of `/api/` |
 
-`client_max_body_size 64k` rejects a larger body at the proxy. The app applies the same cap itself, so a direct container request gets the JSON envelope.
+`client_max_body_size 64k` rejects a larger body at the proxy, except on `/api/campaigns/`, which accepts 17 MB for the 16 MB asset upload. The app caps the upload route at 16 MB plus 64 KB and every other route at 64 KB, so a direct container request gets the JSON envelope.
 
 The host exists without a certificate at this point, so NPM stores it with forced HTTPS, HTTP/2, and HSTS off. NPM 2.12.6 clears those flags whenever no certificate is attached, and a request that carries them anyway is silently normalized.
 

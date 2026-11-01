@@ -4,11 +4,15 @@ import asyncio
 import base64
 import hashlib
 import re
+from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import Any, cast
 
+from hypercorn.typing import HTTPScope
 from loguru import logger
 from quart import (
     Quart,
+    Request,
     Response,
     g,
     has_request_context,
@@ -17,6 +21,7 @@ from quart import (
     session,
 )
 from quart_schema import QuartSchema
+from werkzeug.datastructures import Headers
 from werkzeug.exceptions import HTTPException
 from werkzeug.wsgi import host_is_trusted
 
@@ -63,7 +68,52 @@ configure_logging(BOOT_SETTINGS)
 
 WEB_BUILD = Path(__file__).resolve().parent / "web" / "build"
 
+MAX_REQUEST_BODY_BYTES = 64 * 1024
+UPLOAD_REQUEST_BODY_BYTES = vault_index.MAX_IMAGE_BYTES + 64 * 1024
+ASSET_UPLOAD_PATH = re.compile(r"^/api/campaigns/[^/]+/assets$")
+
+
+def _is_asset_upload(method: str, path: str) -> bool:
+    return method == "POST" and ASSET_UPLOAD_PATH.fullmatch(path) is not None
+
+
+class PanelRequest(Request):
+    def __init__(
+        self,
+        method: str,
+        scheme: str,
+        path: str,
+        query_string: bytes,
+        headers: Headers,
+        root_path: str,
+        http_version: str,
+        scope: HTTPScope,
+        *,
+        max_content_length: int | None = None,
+        body_timeout: int | None = None,
+        send_push_promise: Callable[[str, Headers], Awaitable[None]],
+    ) -> None:
+        limit = max_content_length or MAX_REQUEST_BODY_BYTES
+        if _is_asset_upload(method, path):
+            limit = UPLOAD_REQUEST_BODY_BYTES
+        super().__init__(
+            method,
+            scheme,
+            path,
+            query_string,
+            headers,
+            root_path,
+            http_version,
+            scope,
+            max_content_length=limit,
+            body_timeout=body_timeout,
+            send_push_promise=send_push_promise,
+        )
+        self._max_content_length = limit
+
+
 app = Quart(__name__, static_folder=None)
+app.request_class = cast(Any, PanelRequest)
 
 
 def configure_panel_session(settings: Settings) -> None:
@@ -147,6 +197,7 @@ MAX_REQUEST_BODY_BYTES = 64 * 1024
 def configure_security(settings: Settings) -> None:
     app.config["PUBLIC_MODE"] = settings.public_mode
     app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BODY_BYTES
+    app.config["MAX_FORM_MEMORY_SIZE"] = UPLOAD_REQUEST_BODY_BYTES
     app.config["SECURITY_HEADERS"] = build_security_headers(WEB_BUILD)
 
 
