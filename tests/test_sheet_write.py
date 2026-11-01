@@ -764,3 +764,221 @@ def test_an_archived_sheet_rejects_field_edits_but_can_come_back():
     )
 
     assert "harpi-status: ativo" in result.text
+
+
+def record(base_json: str | None = None) -> SheetRecord:
+    return SheetRecord("sht_ana", "555", "ativo", 3, base_json=base_json)
+
+
+def stale_write(target: Path, source: str, patch_value: SheetPatch):
+    return write_sheet(
+        target,
+        "paratheos",
+        "sht_ana",
+        patch_value,
+        config(),
+        record(sheet_store.base_state(source)),
+        target.parent / "vault-backups",
+    )
+
+
+def test_a_stale_write_merges_a_field_the_vault_did_not_touch(tmp_path):
+    target = tmp_path / "Ana.md"
+    target.write_text(SOURCE, encoding="utf-8")
+    target.write_text(
+        SOURCE.replace("fate_points: 2", "fate_points: 5"), encoding="utf-8"
+    )
+
+    result = stale_write(
+        target, SOURCE, SheetPatch(base_hash=base_hash(), refresh=9)
+    )
+
+    text = target.read_text(encoding="utf-8")
+    assert "refresh: 9" in text
+    assert "fate_points: 5" in text
+    assert result.rev == 4
+
+
+def test_the_same_field_changed_on_both_sides_is_a_merge_conflict(tmp_path):
+    target = tmp_path / "Ana.md"
+    target.write_text(SOURCE, encoding="utf-8")
+    theirs = SOURCE.replace("refresh: 7", "refresh: 4")
+    target.write_text(theirs, encoding="utf-8")
+    before = target.read_bytes()
+    from src.panel import sheet_write
+
+    with pytest.raises(sheet_write.SheetMergeConflict) as raised:
+        stale_write(
+            target, SOURCE, SheetPatch(base_hash=base_hash(), refresh=9)
+        )
+
+    assert [c.field_path for c in raised.value.conflicts] == ["block.refresh"]
+    assert target.read_bytes() == before
+    assert not (tmp_path / "vault-backups").exists()
+
+
+def test_an_untracked_sheet_still_conflicts_on_a_stale_hash(tmp_path):
+    target = tmp_path / "Ana.md"
+    target.write_text(
+        SOURCE.replace("refresh: 7", "refresh: 4"), encoding="utf-8"
+    )
+
+    with pytest.raises(SheetConflict):
+        write_sheet(
+            target,
+            "paratheos",
+            "sht_ana",
+            SheetPatch(base_hash=base_hash(), refresh=9),
+            config(),
+            None,
+            tmp_path / "vault-backups",
+        )
+
+
+def test_a_merge_retries_when_the_disk_moves_under_the_write(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    target = tmp_path / "Ana.md"
+    target.write_text(SOURCE, encoding="utf-8")
+    theirs = SOURCE.replace("fate_points: 2", "fate_points: 5")
+    calls = iter([SOURCE, theirs, theirs, theirs])
+    from src.panel import sheet_write
+
+    monkeypatch.setattr(sheet_write, "read_text", lambda path: next(calls))
+
+    result = stale_write(
+        target, SOURCE, SheetPatch(base_hash=base_hash(), refresh=9)
+    )
+
+    assert "refresh: 9" in result.text
+    assert "fate_points: 5" in result.text
+
+
+def test_a_merge_gives_up_after_three_attempts(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    target = tmp_path / "Ana.md"
+    target.write_text(SOURCE, encoding="utf-8")
+    theirs = SOURCE.replace("fate_points: 2", "fate_points: 5")
+    seen: list[str] = []
+    from src.panel import sheet_write
+
+    def moving(path):
+        seen.append(path.name)
+        return SOURCE if len(seen) % 2 else theirs
+
+    monkeypatch.setattr(sheet_write, "read_text", moving)
+
+    with pytest.raises(SheetConflict):
+        stale_write(
+            target, SOURCE, SheetPatch(base_hash=base_hash(), refresh=9)
+        )
+
+    assert len(seen) == 6
+
+
+def previous_record(base: str, accepted: str) -> SheetRecord:
+    previous = sheet_store.previous_state(base)
+    return SheetRecord(
+        "sht_ana",
+        "555",
+        "ativo",
+        3,
+        base_json=sheet_store.base_state(accepted, previous=previous),
+        previous_hash=previous["hash"],
+        previous_json=sheet_store.base_state(base),
+    )
+
+
+def test_a_write_based_on_the_previous_version_conflicts_after_sync(
+    tmp_path,
+):
+    from src.panel import sheet_write
+
+    target = tmp_path / "Ana.md"
+    target.write_text(SOURCE, encoding="utf-8")
+    accepted = SOURCE.replace("fate_points: 2", "fate_points: 5")
+    target.write_text(accepted, encoding="utf-8")
+
+    with pytest.raises(sheet_write.SheetMergeConflict) as raised:
+        write_sheet(
+            target,
+            "paratheos",
+            "sht_ana",
+            SheetPatch(base_hash=base_hash(), fate_points=1),
+            config(),
+            previous_record(SOURCE, accepted),
+            tmp_path / "vault-backups",
+        )
+
+    assert [c.field_path for c in raised.value.conflicts] == [
+        "block.fate_points"
+    ]
+
+
+def test_a_write_based_on_the_previous_version_keeps_the_vault_change(
+    tmp_path,
+):
+    target = tmp_path / "Ana.md"
+    target.write_text(SOURCE, encoding="utf-8")
+    accepted = SOURCE.replace("fate_points: 2", "fate_points: 5")
+    target.write_text(accepted, encoding="utf-8")
+
+    result = write_sheet(
+        target,
+        "paratheos",
+        "sht_ana",
+        SheetPatch(base_hash=base_hash(), refresh=9),
+        config(),
+        previous_record(SOURCE, accepted),
+        tmp_path / "vault-backups",
+    )
+
+    assert "refresh: 9" in result.text
+    assert "fate_points: 5" in result.text
+
+
+def test_a_merge_write_keeps_unknown_keys_inside_items(tmp_path):
+    source = SOURCE.replace(
+        '{label: Conceito, text: "Piloto"}',
+        '{label: Conceito, text: "Piloto", cor: azul}',
+    )
+    target = tmp_path / "Ana.md"
+    target.write_text(source, encoding="utf-8")
+    accepted = source.replace("fate_points: 2", "fate_points: 5")
+    target.write_text(accepted, encoding="utf-8")
+
+    result = write_sheet(
+        target,
+        "paratheos",
+        "sht_ana",
+        SheetPatch(base_hash=base_hash(source), refresh=9),
+        config(),
+        previous_record(source, accepted),
+        tmp_path / "vault-backups",
+    )
+
+    assert "cor: azul" in result.text
+    assert "skills:" not in result.text
+    assert "refresh: 9" in result.text
+
+
+def test_a_list_patch_keeps_unknown_item_keys():
+    source = SOURCE.replace(
+        '{label: Conceito, text: "Piloto"}',
+        '{label: Conceito, text: "Piloto", cor: azul}',
+    )
+    result = patch_sheet(
+        source,
+        "paratheos",
+        "sht_ana",
+        SheetPatch(
+            base_hash=sha256_text(source),
+            aspects=[{"label": "Conceito", "text": "Mensageira"}],
+        ),
+        config(),
+        None,
+    )
+
+    assert "cor: azul" in result.text
+    assert "Mensageira" in result.text

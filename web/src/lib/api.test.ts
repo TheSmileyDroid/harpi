@@ -70,6 +70,24 @@ describe("createApiClient", () => {
     expect(reported[0]!.status).toBe(401);
   });
 
+  it("keeps the error code of a 409 that carries extra fields", async () => {
+    const client = createApiClient({
+      fetchImpl: async () =>
+        jsonResponse(409, {
+          ...fixtures.SheetConflictDetail,
+        }),
+    });
+
+    await expect(
+      client.writeSheet("paratheos", "sht_ana", {
+        base_hash: "a".repeat(64),
+      }),
+    ).rejects.toMatchObject({
+      code: "sheet_field_conflict",
+      status: 409,
+    });
+  });
+
   it("does not report the expected unauthenticated session probe", async () => {
     const reported: ApiError[] = [];
     const client = createApiClient({
@@ -391,6 +409,51 @@ describe("createApiClient", () => {
       decision: "reject",
       note: "Falta o problema.",
     });
+  });
+
+  it("reads the conflict queue", async () => {
+    const client = createApiClient({
+      fetchImpl: async (path) => {
+        expect(path).toBe("/api/campaigns/paratheos/conflicts");
+        return jsonResponse(200, fixtures.SheetConflictList);
+      },
+    });
+
+    await expect(client.conflicts("paratheos")).resolves.toEqual(
+      fixtures.SheetConflictList,
+    );
+  });
+
+  it("resolves a conflict per field", async () => {
+    const { client, calls } = recordingClient(fixtures.SheetConflictList);
+
+    await client.resolveConflict("paratheos", "cnf_1", { decision: "both" });
+
+    expect(calls[0]!.path).toBe(
+      "/api/campaigns/paratheos/conflicts/cnf_1/resolve",
+    );
+    expect(calls[0]!.options.method).toBe("POST");
+    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
+      decision: "both",
+    });
+  });
+
+  it("restores and forgets a missing sheet", async () => {
+    const { client, calls } = recordingClient(fixtures.CharacterDetail.sheet);
+
+    await client.restoreSheet("paratheos", "sht_ana");
+
+    expect(calls[0]!.path).toBe(
+      "/api/campaigns/paratheos/sheets/sht_ana/restore",
+    );
+    expect(calls[0]!.options.body).toBe("{}");
+
+    const forgetting = recordingClient(fixtures.SheetActionResult);
+    await forgetting.client.forgetSheet("paratheos", "sht_ana");
+
+    expect(forgetting.calls[0]!.path).toBe(
+      "/api/campaigns/paratheos/sheets/sht_ana/forget",
+    );
   });
 
   it("rejects a drifted response as a contract violation", async () => {

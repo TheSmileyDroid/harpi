@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 
 const BACKEND = "http://127.0.0.1:8100";
 const FICHA = "/c/paratheos/ficha";
+const SHEET = "Harpi/Campaigns/paratheos/sheets/Ana.md";
 
 async function signIn(page: Page) {
   await page.request.post(`${BACKEND}/__test__/reset`);
@@ -116,7 +117,7 @@ test("a stale base hash keeps the draft and locks the sheet", async ({
   await page.getByTestId("sheet-aspect-text").first().fill("Rascunho local");
   await page.getByTestId("sheet-save").click();
 
-  await expect(page.getByTestId("sheet-conflict")).toBeVisible();
+  await expect(page.getByTestId("sheet-stale")).toBeVisible();
   await expect(page.getByTestId("sheet-aspect-text").first()).toHaveValue(
     "Rascunho local",
   );
@@ -154,5 +155,76 @@ test("the owner edits the sheet and reloads the new values", async ({
   );
   await expect(page.getByTestId("sheet-prose-history")).toHaveValue(
     "Nova história.",
+  );
+});
+
+test("the same field in the vault and the panel becomes a conflict", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto(`${FICHA}/chr_ana`);
+  await expect(page.getByTestId("sheet-aspect-text").first()).toHaveValue(
+    "Piloto de carga",
+  );
+  await page.request.post(`${BACKEND}/__test__/vault-replace`, {
+    data: {
+      path: SHEET,
+      old: '{label: Conceito, text: "Piloto de carga"}',
+      new: '{label: Conceito, text: "Contrabandista"}',
+    },
+  });
+
+  await page.getByTestId("sheet-aspect-text").first().fill("Mensageira");
+  await page.getByTestId("sheet-save").click();
+
+  await expect(page.getByTestId("conflict-queue")).toBeVisible();
+  await expect(page.getByTestId("conflict-field")).toHaveText(
+    "Aspecto Conceito",
+  );
+  await expect(page.getByTestId("conflict-theirs-value")).toContainText(
+    "Contrabandista",
+  );
+  await expect(page.getByTestId("conflict-ours-value")).toContainText(
+    "Mensageira",
+  );
+  await expect(page.getByTestId("sheet-readonly")).toBeVisible();
+  await expect(page.getByTestId("sheet-save")).toBeDisabled();
+
+  await page.getByTestId("conflict-both").click();
+
+  await expect(page.getByTestId("conflict-queue")).toHaveCount(0);
+  await expect(page.getByTestId("sheet-readonly")).toHaveCount(0);
+  await expect(page.getByTestId("sheet-aspect-text")).toHaveCount(6);
+  await expect(page.getByTestId("sheet-aspect-text").nth(0)).toHaveValue(
+    "Mensageira",
+  );
+  await expect(page.getByTestId("sheet-aspect-text").nth(1)).toHaveValue(
+    "Contrabandista",
+  );
+});
+
+test("a missing sheet offers restore and comes back", async ({ page }) => {
+  await signIn(page);
+  await page.goto(`${FICHA}/chr_ana`);
+  await expect(page.getByTestId("sheet-aspect-text").first()).toHaveValue(
+    "Piloto de carga",
+  );
+  await page.request.post(`${BACKEND}/__test__/vault-delete`, {
+    data: { path: SHEET },
+  });
+
+  await expect(async () => {
+    await page.reload();
+    await expect(page.getByTestId("sheet-missing")).toBeVisible({
+      timeout: 1000,
+    });
+  }).toPass({ timeout: 15000 });
+  await expect(page.getByTestId("sheet-readonly")).toBeVisible();
+
+  await page.getByTestId("sheet-restore").click();
+
+  await expect(page.getByTestId("sheet-missing")).toHaveCount(0);
+  await expect(page.getByTestId("sheet-aspect-text").first()).toHaveValue(
+    "Piloto de carga",
   );
 });

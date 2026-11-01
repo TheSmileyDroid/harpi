@@ -813,3 +813,53 @@ async def test_missing_or_unclosed_frontmatter_is_invalido(world, text):
     stored = await row(world.database, ANA)
     assert stored["state"] == "invalido"
     assert stored["last_text"] == text
+
+
+async def test_an_external_change_never_accepts_a_sheet_in_conflict(world):
+    text = sheet()
+    write(world.root, ANA, text)
+    await store_row(world.database, ANA, text)
+    await world.sync.scan()
+    await world.database.execute(
+        "INSERT INTO sheet_conflicts ("
+        "id, path, field_path, base, ours, theirs, created_at"
+        ") VALUES ('cnf_1', ?, 'block.refresh', '7', '9', '5', 1)",
+        (ANA,),
+    )
+    await world.database.execute(
+        "UPDATE sheet_files SET state = 'conflito' WHERE path = ?", (ANA,)
+    )
+    edited = sheet(refresh=11)
+
+    write(world.root, ANA, edited)
+    await world.sync.scan()
+
+    stored = await row(world.database, ANA)
+    assert stored["state"] == "conflito"
+    assert stored["hash"] == sha256_text(text)
+    assert stored["last_text"] == text
+
+
+async def test_the_conflict_clears_only_when_its_rows_are_resolved(world):
+    text = sheet()
+    write(world.root, ANA, text)
+    await store_row(world.database, ANA, text)
+    await world.sync.scan()
+    await world.database.execute(
+        "INSERT INTO sheet_conflicts ("
+        "id, path, field_path, base, ours, theirs, created_at, "
+        "resolved_at, resolved_by"
+        ") VALUES ('cnf_1', ?, 'block.refresh', '7', '9', '5', 1, 2, '100')",
+        (ANA,),
+    )
+    await world.database.execute(
+        "UPDATE sheet_files SET state = 'conflito' WHERE path = ?", (ANA,)
+    )
+    edited = sheet(refresh=11)
+
+    write(world.root, ANA, edited)
+    await world.sync.scan()
+
+    stored = await row(world.database, ANA)
+    assert stored["state"] == "ok"
+    assert stored["last_text"] == edited
