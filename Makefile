@@ -6,7 +6,7 @@ SECURITY_IMAGE ?= harpi:local
 -include .env
 export $(shell sed 's/=.*//' .env 2>/dev/null || true)
 
-.PHONY: bootstrap dev start build contract lint check check-network security soak mutants
+.PHONY: bootstrap dev start build contract lint check check-fast check-network security soak mutants
 
 bootstrap:
 	uv sync --upgrade
@@ -35,23 +35,29 @@ format:
 	uv run ruff format src/ pages/ app.py tools/ tests/
 	cd web && bun run format
 
-check:
+check: contract
 	@rm -f .check-failed; \
-	uv run ruff check src/ pages/ app.py tools/ tests/ || { touch .check-failed; true; }; \
-	uv run ruff format --check src/ pages/ app.py tools/ tests/ || { touch .check-failed; true; }; \
-	uv run ty check src/ tests/ pages/ app.py tools/ || { touch .check-failed; true; }; \
-	uv run pytest tests/ --cov=src --cov=pages --cov=app --cov-report=json --cov-report=term-missing:skip-covered --cov-fail-under=70 --tb=short -q || { touch .check-failed; true; }; \
-	uv run python tools/crap_check.py coverage.json || { touch .check-failed; true; }; \
-	bunx jscpd@3.5.10 src/ pages/ web/src/ --ignore "**/lib/contract/**" --min-tokens 50 --threshold 1 || { touch .check-failed; true; }; \
-	uv run vulture || { touch .check-failed; true; }; \
-	$(MAKE) contract || { touch .check-failed; true; }; \
-	git diff --exit-code -- web/src/lib/contract || { touch .check-failed; true; }; \
-	( cd web && bun run lint ) || { touch .check-failed; true; }; \
-	( cd web && bun run format:check ) || { touch .check-failed; true; }; \
-	( cd web && bun run typecheck ) || { touch .check-failed; true; }; \
-	( cd web && bun run test:coverage ) || { touch .check-failed; true; }; \
-	( cd web && bun run knip ) || { touch .check-failed; true; }; \
-	( cd web && bun run e2e ) || { touch .check-failed; true; }; \
+	( uv run ruff check src/ pages/ app.py tools/ tests/ && \
+	  uv run ruff format --check src/ pages/ app.py tools/ tests/ && \
+	  uv run ty check src/ tests/ pages/ app.py tools/ && \
+	  uv run pytest tests/ --cov=src --cov=pages --cov=app --cov-report=json --cov-report=term-missing:skip-covered --cov-fail-under=70 --tb=short -q -n auto && \
+	  uv run python tools/crap_check.py coverage.json && \
+	  uv run vulture ) || touch .check-failed & \
+	( bunx jscpd@3.5.10 src/ pages/ web/src/ --ignore "**/lib/contract/**" --min-tokens 50 --threshold 1 && \
+	  ( cd web && bun run lint && bun run format:check && bun run typecheck && bun run test:coverage && bun run knip ) ) || touch .check-failed & \
+	wait; \
+	git diff --exit-code -- web/src/lib/contract || touch .check-failed; \
+	if [ -f .check-failed ]; then rm -f .check-failed; exit 1; fi; \
+	( cd web && bun run e2e ) || exit 1
+
+check-fast:
+	@rm -f .check-failed; \
+	( uv run ruff check src/ pages/ app.py tools/ tests/ && \
+	  uv run ruff format --check src/ pages/ app.py tools/ tests/ && \
+	  uv run ty check src/ tests/ pages/ app.py tools/ && \
+	  uv run pytest tests/ --tb=short -q -n auto ) || touch .check-failed & \
+	( cd web && bun run lint && bun run format:check && bun run typecheck && bun run test ) || touch .check-failed & \
+	wait; \
 	if [ -f .check-failed ]; then rm -f .check-failed; exit 1; fi
 
 check-network:
