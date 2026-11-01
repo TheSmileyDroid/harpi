@@ -69,7 +69,7 @@ export type SheetStunt = z.infer<typeof SheetStunt>;
 export const SheetStunt = z.strictObject({ name: z.string(), refresh_cost: z.number().int(), text: z.string() });
 
 export type SheetDetail = z.infer<typeof SheetDetail>;
-export const SheetDetail = z.strictObject({ aspects: z.array(SheetAspect), character_id: z.string().nullable(), consequences: z.array(SheetConsequence), error: z.string().nullable(), extras: z.array(SheetExtra), fate_points: z.number().int().nullable(), hash: z.string(), history: z.string(), id: z.string(), inventory: z.array(SheetInventoryEntry), ladder: z.array(SheetLadderStep), notes: z.string(), owner: z.string().nullable(), read_only: z.boolean(), refresh: z.number().int().nullable(), rev: z.number().int(), review_note: z.string().nullable(), skills: z.array(SheetSkill), state: z.enum(["ok", "invalid"]), status: z.enum(["active", "pending", "archived"]), stress: z.array(SheetStressTrack), stunts: z.array(SheetStunt), warnings: z.array(z.string()) });
+export const SheetDetail = z.strictObject({ aspects: z.array(SheetAspect), character_id: z.string().nullable(), consequences: z.array(SheetConsequence), error: z.string().nullable(), extras: z.array(SheetExtra), fate_points: z.number().int().nullable(), hash: z.string(), history: z.string(), id: z.string(), inventory: z.array(SheetInventoryEntry), ladder: z.array(SheetLadderStep), notes: z.string(), owner: z.string().nullable(), read_only: z.boolean(), refresh: z.number().int().nullable(), rev: z.number().int(), review_note: z.string().nullable(), skills: z.array(SheetSkill), state: z.enum(["ok", "conflict", "missing", "invalid"]), status: z.enum(["active", "pending", "archived"]), stress: z.array(SheetStressTrack), stunts: z.array(SheetStunt), warnings: z.array(z.string()) });
 
 export type CharacterDetail = z.infer<typeof CharacterDetail>;
 export const CharacterDetail = z.strictObject({ card: CharacterCard, kind: z.enum(["sheet", "card"]), sheet: SheetDetail.nullable() });
@@ -143,8 +143,23 @@ export const SearchResults = z.strictObject({ results: z.array(Track) });
 export type SeekRequest = z.infer<typeof SeekRequest>;
 export const SeekRequest = z.strictObject({ position: z.number().nullable().default(null) }).partial();
 
+export type SheetActionResult = z.infer<typeof SheetActionResult>;
+export const SheetActionResult = z.strictObject({ action: z.enum(["restore", "forget"]), sheet_id: z.string() });
+
 export type SheetAspectInput = z.infer<typeof SheetAspectInput>;
 export const SheetAspectInput = z.strictObject({ label: z.string(), text: z.string().default("") });
+
+export type SheetConflictDecision = z.infer<typeof SheetConflictDecision>;
+export const SheetConflictDecision = z.strictObject({ decision: z.enum(["ours", "theirs", "both"]) });
+
+export type SheetConflictField = z.infer<typeof SheetConflictField>;
+export const SheetConflictField = z.strictObject({ allow_both: z.boolean(), base: z.string().nullable(), character_id: z.string().nullable(), field_path: z.string(), id: z.string(), ours: z.string().nullable(), sheet_id: z.string(), theirs: z.string().nullable() });
+
+export type SheetConflictDetail = z.infer<typeof SheetConflictDetail>;
+export const SheetConflictDetail = z.strictObject({ conflicts: z.array(SheetConflictField), error: ErrorDetail });
+
+export type SheetConflictList = z.infer<typeof SheetConflictList>;
+export const SheetConflictList = z.strictObject({ conflicts: z.array(SheetConflictField) });
 
 export type SheetConsequenceInput = z.infer<typeof SheetConsequenceInput>;
 export const SheetConsequenceInput = z.strictObject({ severity: z.string(), text: z.string().default("") });

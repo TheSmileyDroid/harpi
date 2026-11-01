@@ -6,7 +6,7 @@ import time
 from collections import Counter
 from collections.abc import Callable, Iterable
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 
 from loguru import logger
@@ -21,7 +21,7 @@ from watchdog.events import (
 from watchdog.observers import Observer
 from watchdog.observers.api import BaseObserver
 
-from src.panel import sheet_store, sheet_write, vault_index
+from src.panel import sheet_conflicts, sheet_store, sheet_write, vault_index
 from src.panel.sheets import decode_text, load_sheet, sha256_text
 from src.panel.vault import Vault
 from src.panel.vault_index import CAMPAIGN_ROOT, NOTE_FOLDERS, SHEETS_FOLDER
@@ -33,6 +33,7 @@ MAX_NOTE_BYTES = 1024 * 1024
 MAX_ID_LENGTH = 128
 CONFIG_NAME = "config.md"
 OK = "ok"
+CONFLICT = "conflito"
 MISSING = "ausente"
 INVALID = "invalido"
 UNKNOWN = "desconhecido"
@@ -48,7 +49,10 @@ UPSERT_ROW = (
     "hash = excluded.hash, last_text = excluded.last_text, "
     "base_json = excluded.base_json, status = excluded.status, "
     "owner_id = excluded.owner_id, state = excluded.state, "
-    "updated_at = excluded.updated_at"
+    "updated_at = excluded.updated_at "
+    "WHERE excluded.state = 'ausente' OR NOT EXISTS ("
+    "SELECT 1 FROM sheet_conflicts c "
+    "WHERE c.path = excluded.path AND c.resolved_at IS NULL)"
 )
 
 
@@ -389,10 +393,14 @@ def match_known(
     return Matched(target, OK, moved_from=target.path)
 
 
-def plan_campaign(files: list[SheetFile], rows: list[Row]) -> CampaignPlan:
+def plan_campaign(
+    files: list[SheetFile],
+    rows: list[Row],
+    conflicts: frozenset[str] = frozenset(),
+) -> CampaignPlan:
     disk = {file.path for file in files}
     matches = match_files(files, rows, disk)
-    writes = {row.path: row for row in planned_rows(matches)}
+    writes = {row.path: row for row in planned_rows(matches, conflicts)}
     duplicates = duplicate_rows(matches, rows)
     for row in duplicates:
         writes.setdefault(row.path, row)
@@ -420,8 +428,10 @@ def file_ids(files: list[SheetFile]) -> list[str]:
     return [file.harpi_id for file in files if file.harpi_id is not None]
 
 
-def planned_rows(matches: list[tuple[SheetFile, Matched]]) -> list[Row]:
-    rows = [plan_file(file, matched) for file, matched in matches]
+def planned_rows(
+    matches: list[tuple[SheetFile, Matched]], conflicts: frozenset[str]
+) -> list[Row]:
+    rows = [plan_file(file, matched, conflicts) for file, matched in matches]
     return [row for row in rows if row is not None]
 
 
@@ -460,7 +470,12 @@ def add_missing(
         writes[row.path] = missing
 
 
-def plan_file(file: SheetFile, matched: Matched) -> Row | None:
+def plan_file(
+    file: SheetFile, matched: Matched, conflicts: frozenset[str]
+) -> Row | None:
+    if matched.row is not None and matched.row.path in conflicts:
+        kept = state_only(matched.row, CONFLICT)
+        return None if kept is None else replace(kept, path=file.path)
     if matched.duplicate_of is not None:
         return (
             None if matched.row is None else state_only(matched.row, UNKNOWN)
@@ -480,7 +495,7 @@ def accepted(file: SheetFile, row: Row) -> Row | None:
         harpi_id=preferred(file.harpi_id, row.harpi_id),
         hash=file.digest,
         last_text=preferred(file.text, row.last_text),
-        base_json=preferred(file.base_json, row.base_json),
+        base_json=accepted_base(row, file),
         rev=row.rev,
         status=accepted_status(row, file),
         owner=row.owner,
@@ -501,6 +516,13 @@ def accepted_status(row: Row, file: SheetFile) -> str:
     return file.status if legal else row.status
 
 
+def accepted_base(row: Row, file: SheetFile) -> str:
+    return sheet_store.base_state(
+        file.text or "",
+        previous=sheet_store.previous_state(row.last_text),
+    )
+
+
 def preferred(value: str | None, fallback: str) -> str:
     return fallback if value is None else value
 
@@ -513,11 +535,15 @@ def state_only(row: Row, state: str) -> Row | None:
         harpi_id=row.harpi_id,
         hash=row.hash,
         last_text=row.last_text,
-        base_json=row.base_json,
         rev=row.rev,
         status=row.status,
         owner=row.owner,
         state=state,
+        base_json=(
+            sheet_store.without_pending(row.base_json)
+            if state == MISSING
+            else row.base_json
+        ),
     )
 
 
@@ -568,6 +594,17 @@ async def apply_plan(
                     now,
                 ),
             )
+        for row in plan.writes:
+            if row.state == MISSING:
+                await settle_missing(connection, row.path, now)
+
+
+async def settle_missing(connection, path: str, now: int) -> None:
+    await connection.execute(
+        "UPDATE sheet_conflicts SET resolved_at = ?, resolved_by = 'sync' "
+        "WHERE path = ? AND resolved_at IS NULL",
+        (now, path),
+    )
 
 
 async def stored_campaigns(database: Database) -> set[str]:
@@ -598,7 +635,8 @@ async def reconcile(
             logger.error(f"Vault campaign unreadable: {campaign}")
             continue
         rows = await load_rows(database, campaign)
-        plan = plan_campaign(files, rows)
+        conflicts = await sheet_conflicts.open_paths(database, campaign)
+        plan = plan_campaign(files, rows, conflicts)
         await apply_plan(database, campaign, plan, int(time.time()))
 
 

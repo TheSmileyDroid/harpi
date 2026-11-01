@@ -560,3 +560,424 @@ async def test_a_body_above_the_limit_is_a_413(client, world):
     )
 
     assert response.status_code == 413
+
+
+async def store_sheet_row(
+    world: SimpleNamespace, text: str, state: str = "ok"
+) -> None:
+    from src.panel import sheet_store
+    from src.panel.sheets import sha256_text
+
+    await world.database.execute(
+        "INSERT INTO sheet_files ("
+        "path, harpi_id, campaign, rev, hash, last_text, base_json, "
+        "status, owner_id, state, updated_at"
+        ") VALUES (?, 'sht_ana', ?, 1, ?, ?, ?, 'ativo', ?, ?, 1)",
+        (
+            SHEET,
+            SLUG,
+            sha256_text(text),
+            text,
+            sheet_store.base_state(text),
+            PLAYER,
+            state,
+        ),
+    )
+
+
+async def conflicted_sheet(client, world) -> dict[str, Any]:
+    seed(world)
+    text = sheet_text()
+    await store_sheet_row(world, text)
+    await add_member(world.database, PLAYER)
+    await sign_in(client, PLAYER)
+    sheet = await read_sheet(client)
+    (world.root / SHEET).write_text(
+        text.replace("refresh: 7", "refresh: 4"), encoding="utf-8"
+    )
+    response = await send_patch(client, base_hash=sheet["hash"], refresh=9)
+    return {"sheet": sheet, "response": response, "text": text}
+
+
+async def test_a_conflict_is_a_409_with_the_fields_and_a_read_only_sheet(
+    client, world
+):
+    state = await conflicted_sheet(client, world)
+
+    payload = await body(state["response"])
+    fresh = await read_sheet(client)
+
+    assert state["response"].status_code == 409
+    assert payload["error"]["code"] == "sheet_field_conflict"
+    assert [
+        (item["field_path"], item["base"], item["ours"], item["theirs"])
+        for item in payload["conflicts"]
+    ] == [("block.refresh", "7", "9", "4")]
+    assert fresh["state"] == "conflict"
+    assert fresh["read_only"] is True
+    assert "refresh: 4" in (world.root / SHEET).read_text(encoding="utf-8")
+    assert "refresh: 9" not in (world.root / SHEET).read_text(encoding="utf-8")
+
+
+async def test_the_conflict_queue_lists_the_campaign_or_the_own_sheets(
+    client, world
+):
+    await conflicted_sheet(client, world)
+
+    own = await body(await client.get(f"/api/campaigns/{SLUG}/conflicts"))
+    await sign_in(client, NARRATOR)
+    all_rows = await body(await client.get(f"/api/campaigns/{SLUG}/conflicts"))
+    await sign_in(client, OTHER)
+    await add_member(world.database, OTHER)
+    other = await body(await client.get(f"/api/campaigns/{SLUG}/conflicts"))
+
+    assert [item["field_path"] for item in own["conflicts"]] == [
+        "block.refresh"
+    ]
+    assert len(all_rows["conflicts"]) == 1
+    assert other["conflicts"] == []
+
+
+async def test_resolving_the_field_writes_once_and_unlocks_the_sheet(
+    client, world
+):
+    await conflicted_sheet(client, world)
+    queue = await body(await client.get(f"/api/campaigns/{SLUG}/conflicts"))
+    conflict_id = queue["conflicts"][0]["id"]
+
+    response = await client.post(
+        f"/api/campaigns/{SLUG}/conflicts/{conflict_id}/resolve",
+        json={"decision": "ours"},
+        headers=HEADERS,
+    )
+    fresh = await read_sheet(client)
+    text = (world.root / SHEET).read_text(encoding="utf-8")
+
+    assert response.status_code == 200
+    assert "refresh: 9" in text
+    assert "house_rule: vento forte" in text
+    assert fresh["state"] == "ok"
+    assert fresh["read_only"] is False
+    assert fresh["rev"] == 2
+    backups = list(
+        (world.root.parent / "vault-backups/paratheos/sht_ana").glob("*.md")
+    )
+    assert len(backups) == 1
+    assert "refresh: 4" in backups[0].read_text(encoding="utf-8")
+    assert (await body(await client.get(f"/api/campaigns/{SLUG}/conflicts")))[
+        "conflicts"
+    ] == []
+
+
+async def test_a_clean_field_is_kept_while_the_conflict_waits(client, world):
+    seed(world)
+    text = sheet_text()
+    await store_sheet_row(world, text)
+    await add_member(world.database, PLAYER)
+    await sign_in(client, PLAYER)
+    sheet = await read_sheet(client)
+    (world.root / SHEET).write_text(
+        text.replace("refresh: 7", "refresh: 4"), encoding="utf-8"
+    )
+
+    queued = await send_patch(
+        client, base_hash=sheet["hash"], refresh=9, fate_points=5
+    )
+    queue = await body(await client.get(f"/api/campaigns/{SLUG}/conflicts"))
+    decision = await client.post(
+        f"/api/campaigns/{SLUG}/conflicts/{queue['conflicts'][0]['id']}/resolve",
+        json={"decision": "theirs"},
+        headers=HEADERS,
+    )
+    fresh = await read_sheet(client)
+
+    assert queued.status_code == 409
+    assert decision.status_code == 200
+    assert fresh["state"] == "ok"
+    assert fresh["fate_points"] == 5
+    assert fresh["refresh"] == 4
+
+
+async def test_keep_both_duplicates_an_aspect_label(client, world):
+    seed(world)
+    text = sheet_text()
+    await store_sheet_row(world, text)
+    await add_member(world.database, PLAYER)
+    await sign_in(client, PLAYER)
+    sheet = await read_sheet(client)
+    (world.root / SHEET).write_text(
+        text.replace(
+            '{label: Conceito, text: "Piloto de carga"}',
+            '{label: Conceito, text: "Contrabandista"}',
+        ),
+        encoding="utf-8",
+    )
+    queued = await send_patch(
+        client,
+        base_hash=sheet["hash"],
+        aspects=[
+            {"label": "Conceito", "text": "Mensageira"},
+            {"label": "Problema", "text": "Sem memória"},
+        ],
+    )
+    queue = await body(await client.get(f"/api/campaigns/{SLUG}/conflicts"))
+
+    response = await client.post(
+        f"/api/campaigns/{SLUG}/conflicts/{queue['conflicts'][0]['id']}/resolve",
+        json={"decision": "both"},
+        headers=HEADERS,
+    )
+    fresh = await read_sheet(client)
+
+    assert queued.status_code == 409
+    assert response.status_code == 200
+    assert fresh["aspects"][:2] == [
+        {"label": "Conceito", "text": "Mensageira"},
+        {"label": "Conceito", "text": "Contrabandista"},
+    ]
+
+
+async def test_another_player_cannot_resolve_the_conflict(client, world):
+    await conflicted_sheet(client, world)
+    queue = await body(await client.get(f"/api/campaigns/{SLUG}/conflicts"))
+    await add_member(world.database, OTHER)
+    await sign_in(client, OTHER)
+
+    response = await client.post(
+        f"/api/campaigns/{SLUG}/conflicts/{queue['conflicts'][0]['id']}/resolve",
+        json={"decision": "ours"},
+        headers=HEADERS,
+    )
+
+    assert response.status_code == 403
+
+
+async def test_keep_both_on_a_prose_conflict_is_a_422(client, world):
+    await conflicted_sheet(client, world)
+    queue = await body(await client.get(f"/api/campaigns/{SLUG}/conflicts"))
+
+    response = await client.post(
+        f"/api/campaigns/{SLUG}/conflicts/{queue['conflicts'][0]['id']}/resolve",
+        json={"decision": "both"},
+        headers=HEADERS,
+    )
+
+    assert response.status_code == 422
+    assert (await body(response))["error"]["code"] == "invalid_decision"
+
+
+async def test_a_sheet_in_conflict_refuses_another_write(client, world):
+    state = await conflicted_sheet(client, world)
+    fresh = await read_sheet(client)
+
+    response = await send_patch(client, base_hash=fresh["hash"], fate_points=1)
+
+    assert state["response"].status_code == 409
+    assert response.status_code == 409
+    assert (await body(response))["error"]["code"] == "sheet_conflict"
+
+
+async def test_an_unknown_conflict_is_a_404(client, world):
+    seed(world)
+    await sign_in(client, NARRATOR)
+
+    response = await client.post(
+        f"/api/campaigns/{SLUG}/conflicts/cnf_missing/resolve",
+        json={"decision": "ours"},
+        headers=HEADERS,
+    )
+
+    assert response.status_code == 404
+
+
+async def test_a_missing_sheet_is_restored_with_a_new_revision(client, world):
+    seed(world)
+    text = sheet_text()
+    await store_sheet_row(world, text, state="ausente")
+    (world.root / SHEET).unlink()
+    vault_index.configure(VaultIndex(world.root))
+    await add_member(world.database, PLAYER)
+    await sign_in(client, PLAYER)
+
+    response = await client.post(
+        f"/api/campaigns/{SLUG}/sheets/sht_ana/restore",
+        json={},
+        headers=HEADERS,
+    )
+    payload = await body(response)
+
+    assert response.status_code == 200
+    assert payload["state"] == "ok"
+    assert payload["rev"] == 2
+    assert (world.root / SHEET).read_text(encoding="utf-8").count(
+        "refresh: 7"
+    ) == 1
+    assert not (world.root.parent / "vault-backups").exists()
+
+
+async def test_a_missing_sheet_can_be_forgotten(client, world):
+    seed(world)
+    await store_sheet_row(world, sheet_text(), state="ausente")
+    (world.root / SHEET).unlink()
+    vault_index.configure(VaultIndex(world.root))
+    await add_member(world.database, PLAYER)
+    await sign_in(client, PLAYER)
+
+    response = await client.post(
+        f"/api/campaigns/{SLUG}/sheets/sht_ana/forget",
+        json={},
+        headers=HEADERS,
+    )
+    row = await world.database.fetchone(
+        "SELECT state FROM sheet_files WHERE path = ?", (SHEET,)
+    )
+
+    assert response.status_code == 200
+    assert (await body(response))["action"] == "forget"
+    assert row is None
+    assert not (world.root / SHEET).exists()
+
+
+async def test_only_the_owner_or_the_narrator_restores_a_missing_sheet(
+    client, world
+):
+    seed(world)
+    await store_sheet_row(world, sheet_text(), state="ausente")
+    (world.root / SHEET).unlink()
+    vault_index.configure(VaultIndex(world.root))
+    await add_member(world.database, OTHER)
+    await sign_in(client, OTHER)
+
+    response = await client.post(
+        f"/api/campaigns/{SLUG}/sheets/sht_ana/restore",
+        json={},
+        headers=HEADERS,
+    )
+
+    assert response.status_code == 403
+
+
+async def test_a_sync_accepted_change_still_conflicts_with_the_stale_base(
+    client, world
+):
+    from src.panel import vault_sync
+    from src.panel.sheets import sha256_text
+
+    seed(world)
+    text = sheet_text()
+    theirs = text.replace(
+        '{label: Conceito, text: "Piloto de carga"}',
+        '{label: Conceito, text: "Contrabandista"}',
+    )
+    await store_sheet_row(world, text)
+    (world.root / SHEET).write_text(theirs, encoding="utf-8")
+    await vault_sync.reconcile(world.database, world.root, {SLUG})
+    await add_member(world.database, PLAYER)
+    await sign_in(client, PLAYER)
+
+    response = await send_patch(
+        client,
+        base_hash=sha256_text(text),
+        aspects=[
+            {"label": "Conceito", "text": "Mensageira"},
+            {"label": "Problema", "text": "Sem memória"},
+        ],
+    )
+    payload = await body(response)
+
+    assert response.status_code == 409
+    assert payload["conflicts"][0]["field_path"] == "block.aspects[Conceito]"
+
+
+async def test_a_sync_plan_from_before_the_conflict_never_clears_it(
+    client, world
+):
+    import asyncio
+
+    from src.panel import vault_sync
+
+    seed(world)
+    text = sheet_text()
+    await store_sheet_row(world, text)
+    await add_member(world.database, PLAYER)
+    await sign_in(client, PLAYER)
+    sheet = await read_sheet(client)
+    (world.root / SHEET).write_text(
+        text.replace("refresh: 7", "refresh: 4"), encoding="utf-8"
+    )
+    files = await asyncio.to_thread(vault_sync.read_sheets, world.root, SLUG)
+    assert files is not None
+    rows = await vault_sync.load_rows(world.database, SLUG)
+    stale_plan = vault_sync.plan_campaign(files, rows, frozenset())
+
+    queued = await send_patch(client, base_hash=sheet["hash"], refresh=9)
+    await vault_sync.apply_plan(world.database, SLUG, stale_plan, 999)
+
+    stored = await world.database.fetchone(
+        "SELECT state FROM sheet_files WHERE path = ?", (SHEET,)
+    )
+    queue = await body(await client.get(f"/api/campaigns/{SLUG}/conflicts"))
+    resolved = await client.post(
+        f"/api/campaigns/{SLUG}/conflicts/{queue['conflicts'][0]['id']}/resolve",
+        json={"decision": "ours"},
+        headers=HEADERS,
+    )
+    fresh = await read_sheet(client)
+
+    assert queued.status_code == 409
+    assert stored["state"] == "conflito"
+    assert resolved.status_code == 200
+    assert fresh["state"] == "ok"
+    assert "refresh: 9" in (world.root / SHEET).read_text(encoding="utf-8")
+
+
+async def test_a_failed_resolution_write_keeps_the_conflict(
+    client, world, monkeypatch: pytest.MonkeyPatch
+):
+    from pages import campaigns as campaigns_page
+    from src.panel import sheet_write
+
+    await conflicted_sheet(client, world)
+    queue = await body(await client.get(f"/api/campaigns/{SLUG}/conflicts"))
+    conflict_id = queue["conflicts"][0]["id"]
+    original = campaigns_page.sheet_write.write_sheet
+
+    def refuse(*args: Any, **kwargs: Any) -> None:
+        raise sheet_write.SheetConflict("disk moved")
+
+    monkeypatch.setattr(campaigns_page.sheet_write, "write_sheet", refuse)
+    failed = await client.post(
+        f"/api/campaigns/{SLUG}/conflicts/{conflict_id}/resolve",
+        json={"decision": "ours"},
+        headers=HEADERS,
+    )
+    again = await body(await client.get(f"/api/campaigns/{SLUG}/conflicts"))
+
+    monkeypatch.setattr(campaigns_page.sheet_write, "write_sheet", original)
+    retried = await client.post(
+        f"/api/campaigns/{SLUG}/conflicts/{conflict_id}/resolve",
+        json={"decision": "ours"},
+        headers=HEADERS,
+    )
+
+    assert failed.status_code == 409
+    assert [item["id"] for item in again["conflicts"]] == [conflict_id]
+    assert retried.status_code == 200
+
+
+async def test_restoring_a_sheet_that_came_back_is_refused(client, world):
+    seed(world)
+    await store_sheet_row(world, sheet_text(), state="ausente")
+    await add_member(world.database, PLAYER)
+    await sign_in(client, PLAYER)
+    before = (world.root / SHEET).read_bytes()
+
+    response = await client.post(
+        f"/api/campaigns/{SLUG}/sheets/sht_ana/restore",
+        json={},
+        headers=HEADERS,
+    )
+
+    assert response.status_code == 409
+    assert (await body(response))["error"]["code"] == "sheet_conflict"
+    assert (world.root / SHEET).read_bytes() == before

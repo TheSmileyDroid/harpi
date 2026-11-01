@@ -10,6 +10,7 @@
     creationNote,
     decisionNote,
   } from "$lib/cast";
+  import { conflictLabel } from "$lib/conflicts";
   import { formatCount } from "$lib/format";
   import { phaseForError } from "$lib/phase";
   import type { LoadPhase } from "$lib/phase";
@@ -17,6 +18,7 @@
     ApprovalItem,
     CampaignDetail,
     CharacterCard,
+    SheetConflictField,
   } from "$lib/contract/panel.gen";
 
   let phase = $state<LoadPhase>("loading");
@@ -24,6 +26,7 @@
   let cards = $state<CharacterCard[]>([]);
   let own = $state<string | null>(null);
   let queue = $state<ApprovalItem[]>([]);
+  let conflicts = $state<SheetConflictField[]>([]);
   let draft = $state({ name: "", concept: "", summary: "" });
   let withSheet = $state(false);
   let notes = $state<Record<string, string>>({});
@@ -49,11 +52,16 @@
         detail.role === "narrator"
           ? (await api.approvals(campaign)).approvals
           : [];
+      conflicts =
+        detail.role === "narrator"
+          ? (await api.conflicts(campaign)).conflicts
+          : [];
       phase = "ready";
     } catch (error) {
       role = null;
       cards = [];
       queue = [];
+      conflicts = [];
       phase = phaseForError(error);
     }
   }
@@ -215,6 +223,48 @@
                   >
                     Recusar
                   </button>
+                </div>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+    {/if}
+
+    {#if role === "narrator"}
+      <section
+        class="queue"
+        aria-labelledby="conflict-summary-label"
+        data-testid="conflict-summary"
+      >
+        <h2 class="panel-label" id="conflict-summary-label">
+          Fila de conflitos
+        </h2>
+        {#if conflicts.length === 0}
+          <p class="system-note" data-testid="conflict-summary-empty">
+            Nenhum campo em conflito.
+          </p>
+        {:else}
+          <ul class="queue__list">
+            {#each conflicts as conflict (conflict.id)}
+              <li class="queue__item" data-testid="conflict-summary-item">
+                <div class="queue__head">
+                  <h3 class="queue__name">
+                    {conflictLabel(conflict.field_path)}
+                  </h3>
+                  <span class="queue__owner">{conflict.sheet_id}</span>
+                  {#if conflict.character_id}
+                    <a
+                      class="queue__open"
+                      href={resolve("/c/[campaign]/ficha/[[character]]", {
+                        campaign: slug,
+                        character: conflict.character_id,
+                      })}
+                      data-testid="conflict-summary-open"
+                    >
+                      Abrir ficha
+                    </a>
+                  {/if}
                 </div>
               </li>
             {/each}

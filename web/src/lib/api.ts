@@ -17,12 +17,26 @@ import {
   SearchRequest,
   SearchResults,
   SeekRequest,
+  SheetActionResult,
+  SheetConflictDecision,
+  SheetConflictList,
   SheetDetail,
   SheetPatch,
   StatusSnapshot,
   UrlRequest,
   VolumeRequest,
 } from "./contract/panel.gen";
+
+function errorDetail(payload: unknown): { code: string; message: string } {
+  const envelope = ErrorEnvelope.safeParse(payload);
+  if (envelope.success) return envelope.data.error;
+  const error = (payload as { error?: { code?: unknown; message?: unknown } })
+    ?.error;
+  if (typeof error?.code === "string" && typeof error.message === "string") {
+    return { code: error.code, message: error.message };
+  }
+  return { code: "error", message: "Request failed" };
+}
 
 export class ApiError extends Error {
   code: string;
@@ -126,10 +140,7 @@ export function createApiClient({
     }
 
     if (!response.ok) {
-      const envelope = ErrorEnvelope.safeParse(payload);
-      const detail = envelope.success
-        ? envelope.data.error
-        : { code: "error", message: "Request failed" };
+      const detail = errorDetail(payload);
       const error = new ApiError({
         code: detail.code,
         message: detail.message,
@@ -225,6 +236,42 @@ export function createApiClient({
           body,
           silent: true,
         },
+      );
+    },
+    conflicts(slug: string) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/conflicts`,
+        SheetConflictList,
+      );
+    },
+    resolveConflict(
+      slug: string,
+      conflictId: string,
+      body: z.input<typeof SheetConflictDecision>,
+    ) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/conflicts/${encodeURIComponent(conflictId)}/resolve`,
+        SheetConflictList,
+        {
+          method: "POST",
+          requestSchema: SheetConflictDecision,
+          body,
+          silent: true,
+        },
+      );
+    },
+    restoreSheet(slug: string, sheetId: string) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/sheets/${encodeURIComponent(sheetId)}/restore`,
+        SheetDetail,
+        { method: "POST", json: true, silent: true },
+      );
+    },
+    forgetSheet(slug: string, sheetId: string) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/sheets/${encodeURIComponent(sheetId)}/forget`,
+        SheetActionResult,
+        { method: "POST", json: true, silent: true },
       );
     },
     campaignCharacter(slug: string, characterId: string) {

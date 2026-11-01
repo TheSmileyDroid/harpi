@@ -237,6 +237,20 @@ def dump_block(document: CommentedMap) -> str:
     return stream.getvalue()
 
 
+def load_plain_yaml(text: str) -> Any:
+    yaml = YAML(typ="safe")
+    yaml.width = 4096
+    return yaml.load(text)
+
+
+def dump_plain_yaml(value: Any) -> str:
+    stream = StringIO()
+    yaml = YAML(typ="safe")
+    yaml.width = 4096
+    yaml.dump(value, stream)
+    return stream.getvalue().strip()
+
+
 def yaml_scalar(value: str) -> str:
     stream = StringIO()
     _yaml().dump(value, stream)

@@ -541,3 +541,89 @@ async def test_an_unknown_character_is_a_404(client, world):
 
     assert response.status_code == 404
     assert (await body(response))["error"]["code"] == "not_found"
+
+
+async def read_sheet(client) -> dict[str, Any]:
+    payload = await body(await client.get(f"{ROUTE}/chr_ana"))
+    return payload["sheet"]
+
+
+async def store_state(
+    world: SimpleNamespace, relative: str, text: str, state: str
+) -> None:
+    from src.panel import notes, sheet_store
+    from src.panel.sheets import sha256_text
+
+    fields, _ = notes.split_frontmatter(text)
+    await world.database.execute(
+        "INSERT INTO sheet_files ("
+        "path, harpi_id, campaign, rev, hash, last_text, base_json, "
+        "status, owner_id, state, updated_at"
+        ") VALUES (?, ?, ?, 1, ?, ?, ?, 'ativo', ?, ?, 1)",
+        (
+            relative,
+            notes.field_front(fields, "harpi-id"),
+            SLUG,
+            sha256_text(text),
+            text,
+            sheet_store.base_state(text),
+            notes.field_front(fields, "harpi-owner"),
+            state,
+        ),
+    )
+
+
+async def test_a_sheet_in_conflict_reads_as_read_only_for_its_owner(
+    client, world
+):
+    seed(world)
+    sheet_path = f"{CAMPAIGN}/sheets/Ana.md"
+    await store_state(
+        world, sheet_path, (world.root / sheet_path).read_text(), "conflito"
+    )
+    await add_member(world.database, PLAYER)
+    await sign_in(client, PLAYER)
+
+    sheet = await read_sheet(client)
+
+    assert sheet["state"] == "conflict"
+    assert sheet["read_only"] is True
+    assert sheet["refresh"] == 7
+
+
+async def test_a_missing_sheet_keeps_reading_its_snapshot(client, world):
+    seed(world)
+    sheet_path = f"{CAMPAIGN}/sheets/Ana.md"
+    text = (world.root / sheet_path).read_text(encoding="utf-8")
+    await store_state(world, sheet_path, text, "ausente")
+    (world.root / sheet_path).unlink()
+    vault_index.configure(VaultIndex(world.root))
+    await add_member(world.database, PLAYER)
+    await sign_in(client, PLAYER)
+
+    sheet = await read_sheet(client)
+
+    assert sheet["id"] == "sht_ana"
+    assert sheet["state"] == "missing"
+    assert sheet["read_only"] is True
+    assert sheet["aspects"][0] == {
+        "label": "Conceito",
+        "text": "Piloto de carga",
+    }
+
+
+async def test_a_missing_sheet_is_hidden_from_another_player(client, world):
+    seed(world)
+    sheet_path = f"{CAMPAIGN}/sheets/Ana.md"
+    text = (world.root / sheet_path).read_text(encoding="utf-8")
+    await store_state(world, sheet_path, text, "ausente")
+    (world.root / sheet_path).unlink()
+    vault_index.configure(VaultIndex(world.root))
+    await add_member(world.database, OTHER)
+    await sign_in(client, OTHER)
+
+    response = await client.get(f"{ROUTE}/chr_ana")
+
+    assert response.status_code == 200
+    payload = await body(response)
+    assert payload["kind"] == "card"

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
 from urllib.parse import quote
 
-from src.panel import vault_index
+from src.panel import notes, vault_index
 from src.panel.notes import CharacterNote, SheetNote
 from src.panel.schemas import (
     CampaignRole,
@@ -17,6 +17,7 @@ from src.panel.schemas import (
     SheetExtra,
     SheetInventoryEntry,
     SheetLadderStep,
+    SheetReadState,
     SheetSkill,
     SheetStatus,
     SheetStressBox,
@@ -38,6 +39,12 @@ from src.storage.database import Database
 ACTIVE = "ativo"
 PENDING = "pendente"
 ARCHIVED = "arquivado"
+READ_STATES: dict[str, SheetReadState] = {
+    "ok": "ok",
+    "conflito": "conflict",
+    "ausente": "missing",
+    "invalido": "invalid",
+}
 CastStatus = Literal["active", "pending"]
 
 
@@ -151,8 +158,8 @@ class CampaignCast:
         cards = [self._card(slug, member) for member in shown]
         return sorted(cards, key=lambda card: (card.name.casefold(), card.id))
 
-    def own_character_id(self, slug: str, user_id: str) -> str | None:
-        for member in members(self._index.campaign(slug)):
+    async def own_character_id(self, slug: str, user_id: str) -> str | None:
+        for member in await self._entries(slug):
             if member.owner != user_id or member.archived:
                 continue
             if member.status in ("pending", "active"):
@@ -170,7 +177,7 @@ class CampaignCast:
     async def character(
         self, slug: str, character_id: str, user_id: str, role: CampaignRole
     ) -> CharacterDetail | None:
-        member = self._entry(slug, character_id)
+        member = await self._entry(slug, character_id)
         if member is None or not await self._may_open(
             slug, member, user_id, role
         ):
@@ -178,12 +185,13 @@ class CampaignCast:
         card = self._card(slug, member)
         if not _full_access(member, user_id, role) or member.sheet is None:
             return CharacterDetail(kind="card", card=card, sheet=None)
-        notes = self._index.campaign(slug)
-        config = notes.config or default_config()
+        campaign = self._index.campaign(slug)
+        config = campaign.config or default_config()
+        states = await self._states(slug)
         return CharacterDetail(
             kind="sheet",
             card=card,
-            sheet=self._sheet_detail(member, config),
+            sheet=self._sheet_detail(member, config, states),
         )
 
     async def _may_open(
@@ -197,23 +205,29 @@ class CampaignCast:
             return True
         return shown_to(member, user_id, role, await self._revealed(slug))
 
-    def _entry(self, slug: str, character_id: str) -> CastMember | None:
+    async def _entry(self, slug: str, character_id: str) -> CastMember | None:
         return next(
             (
                 member
-                for member in members(self._index.campaign(slug))
+                for member in await self._entries(slug)
                 if member.id == character_id
             ),
             None,
         )
 
     def _sheet_detail(
-        self, member: CastMember, config: CampaignConfig
+        self,
+        member: CastMember,
+        config: CampaignConfig,
+        states: dict[str, SheetReadState],
     ) -> SheetDetail:
         note = member.sheet
         if note is None:
             raise ValueError("a sheet detail needs a sheet note")
-        return sheet_detail(note, config, archived=member.archived)
+        state = states.get(note.path, "ok")
+        return sheet_detail(
+            note, config, archived=member.archived, state=state
+        )
 
     def portrait(self, member: CastMember) -> Path | None:
         return self._index.portrait_path(member.portrait_ref)
@@ -224,7 +238,7 @@ class CampaignCast:
         revealed = await self._revealed(slug)
         return [
             member
-            for member in members(self._index.campaign(slug))
+            for member in await self._entries(slug)
             if shown_to(member, user_id, role, revealed)
         ]
 
@@ -242,6 +256,36 @@ class CampaignCast:
             portrait=portrait,
         )
 
+    async def _entries(self, slug: str) -> list[CastMember]:
+        missing = await self._missing_sheets(slug)
+        return [
+            attach_snapshot(member, missing)
+            for member in members(self._index.campaign(slug))
+        ]
+
+    async def _states(self, slug: str) -> dict[str, SheetReadState]:
+        rows = await self._database.fetchall(
+            "SELECT path, state FROM sheet_files WHERE campaign = ?", (slug,)
+        )
+        return {
+            row["path"]: READ_STATES.get(row["state"], "ok") for row in rows
+        }
+
+    async def _missing_sheets(self, slug: str) -> dict[str, SheetNote]:
+        rows = await self._database.fetchall(
+            "SELECT path, last_text, state FROM sheet_files "
+            "WHERE campaign = ? AND state IN ('ausente', 'conflito')",
+            (slug,),
+        )
+        found: dict[str, SheetNote] = {}
+        for row in rows:
+            source = notes.parse_sheet(row["path"], row["last_text"])
+            if source.character_id is not None:
+                found[source.character_id] = replace(
+                    source.note, character=source.character_id
+                )
+        return found
+
     async def _revealed(self, slug: str) -> frozenset[str]:
         rows = await self._database.fetchall(
             "SELECT character_id FROM character_visibility "
@@ -249,6 +293,23 @@ class CampaignCast:
             (slug,),
         )
         return frozenset(row["character_id"] for row in rows)
+
+
+def attach_snapshot(
+    member: CastMember, missing: dict[str, SheetNote]
+) -> CastMember:
+    if member.sheet is not None or member.id not in missing:
+        return member
+    sheet = missing[member.id]
+    state = _current([sheet])
+    return replace(
+        member,
+        owner=sheet.owner,
+        status=state.status,
+        is_pc=sheet.owner is not None,
+        archived=state.archived,
+        sheet=sheet,
+    )
 
 
 def _full_access(member: CastMember, user_id: str, role: CampaignRole) -> bool:
@@ -266,6 +327,7 @@ def sheet_detail(
     config: CampaignConfig,
     warnings: tuple[str, ...] = (),
     archived: bool | None = None,
+    state: SheetReadState = "ok",
 ) -> SheetDetail:
     is_archived = note.status == ARCHIVED if archived is None else archived
     status = _note_status(note, is_archived)
@@ -278,8 +340,8 @@ def sheet_detail(
         character_id=note.character,
         owner=note.owner,
         status=status,
-        state="ok",
-        read_only=status == "archived",
+        state=state,
+        read_only=status == "archived" or state != "ok",
         error=None,
         hash=note.hash,
         rev=note.rev,

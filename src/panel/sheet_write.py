@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from src.panel import notes
+from src.panel import notes, sheet_merge
 from src.panel.schemas import SheetPatch
 from src.panel.sheets import (
     CampaignConfig,
@@ -21,7 +21,12 @@ from src.panel.sheets import (
     sha256_text,
     yaml_scalar,
 )
-from src.panel.vault_write import atomic_write, backup_text, write_lock
+from src.panel.vault_write import (
+    atomic_write,
+    backup_text,
+    create_exclusive,
+    write_lock,
+)
 
 FILE_STATUS = {
     "active": "ativo",
@@ -56,6 +61,7 @@ TARGET_KEYS = (
     "harpi-owner-name",
     "harpi-review-note",
 )
+MAX_WRITE_ATTEMPTS = 3
 ID_WARNING = "harpi-id editado à mão foi corrigido."
 CAMPAIGN_WARNING = "harpi-campanha editado à mão foi corrigido."
 OWNER_WARNING = "harpi-owner editado à mão foi corrigido."
@@ -83,6 +89,19 @@ class SheetRejected(SheetWriteError):
     pass
 
 
+class SheetMergeConflict(SheetWriteError):
+    def __init__(
+        self,
+        conflicts: tuple[sheet_merge.MergeConflict, ...],
+        patch: SheetPatch,
+        base_json: str,
+    ) -> None:
+        super().__init__("o mesmo campo mudou no painel e no vault")
+        self.conflicts = conflicts
+        self.patch = patch
+        self.base_json = base_json
+
+
 @dataclass(frozen=True, slots=True)
 class SheetRecord:
     id: str
@@ -90,6 +109,10 @@ class SheetRecord:
     status: str
     rev: int
     owner_name: str | None = None
+    base_json: str | None = None
+    state: str | None = None
+    previous_hash: str | None = None
+    previous_json: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,19 +161,72 @@ def _write_sheet(
     record: SheetRecord | None,
     backup_dir: Path,
 ) -> SheetWriteResult:
-    text = read_text(path)
-    if sha256_text(text) != patch.base_hash.strip():
+    base_json = merge_base(patch, record)
+    for _ in range(MAX_WRITE_ATTEMPTS):
+        text = read_text(path)
+        result = _attempt_write(
+            text, slug, sheet_id, patch, config, record, base_json
+        )
+        if read_text(path) == text:
+            backup_text(
+                backup_dir
+                / safe_component(slug)
+                / safe_component(result.backup_id),
+                text,
+                result.previous_rev,
+            )
+            atomic_write(path, result.text)
+            return result
+        if base_json is None:
+            raise SheetConflict("a ficha mudou no disco")
+    raise SheetConflict("a ficha mudou no disco")
+
+
+def merge_base(patch: SheetPatch, record: SheetRecord | None) -> str | None:
+    if record is None:
+        return None
+    if (
+        record.previous_json
+        and record.previous_hash == patch.base_hash.strip()
+    ):
+        return record.previous_json
+    return record.base_json
+
+
+def _attempt_write(
+    text: str,
+    slug: str,
+    sheet_id: str,
+    patch: SheetPatch,
+    config: CampaignConfig,
+    record: SheetRecord | None,
+    base_json: str | None,
+) -> SheetWriteResult:
+    if sha256_text(text) == patch.base_hash.strip():
+        return patch_sheet(text, slug, sheet_id, patch, config, record)
+    if base_json is None:
         raise SheetConflict("a ficha mudou no disco")
-    result = patch_sheet(text, slug, sheet_id, patch, config, record)
-    if read_text(path) != text:
-        raise SheetConflict("a ficha mudou no disco")
-    backup_text(
-        backup_dir / safe_component(slug) / safe_component(result.backup_id),
-        text,
-        result.previous_rev,
-    )
-    atomic_write(path, result.text)
-    return result
+    return merged_write(text, base_json, patch, slug, sheet_id, config, record)
+
+
+def merged_write(
+    text: str,
+    base_json: str,
+    patch: SheetPatch,
+    slug: str,
+    sheet_id: str,
+    config: CampaignConfig,
+    record: SheetRecord | None,
+) -> SheetWriteResult:
+    base = sheet_merge.state_from_base(base_json)
+    ours = sheet_merge.apply_patch(base, patch)
+    theirs = sheet_merge.state_from_text(text)
+    merged = sheet_merge.merge(base, ours, theirs)
+    if merged.remaining:
+        raise SheetMergeConflict(merged.remaining, patch, base_json)
+    changes = sheet_merge.patch_from_state(theirs, merged.state)
+    combined = sheet_merge.consolidated_patch(text, changes)
+    return patch_sheet(text, slug, sheet_id, combined, config, record)
 
 
 def safe_component(value: str) -> str:
@@ -163,6 +239,26 @@ def read_text(path: Path) -> str:
         return decode_text(path.read_bytes())
     except UnicodeDecodeError as failure:
         raise SheetInvalid("a ficha não está em UTF-8") from failure
+
+
+def restore_missing(
+    path: Path,
+    slug: str,
+    sheet_id: str,
+    record: SheetRecord,
+    text: str,
+    config: CampaignConfig,
+) -> SheetWriteResult:
+    with write_lock():
+        if path.exists():
+            raise SheetConflict("a ficha voltou ao disco")
+        patch = SheetPatch(base_hash=sha256_text(text))
+        result = patch_sheet(text, slug, sheet_id, patch, config, record)
+        try:
+            create_exclusive(path, result.text)
+        except FileExistsError as failure:
+            raise SheetConflict("a ficha voltou ao disco") from failure
+        return result
 
 
 def restore_sheet(path: Path, text: str) -> None:
@@ -344,7 +440,21 @@ def apply_block(document: Any, patch: SheetPatch) -> None:
     for key in LIST_FIELDS:
         value = getattr(patch, key)
         if value is not None:
-            document[key] = [item.model_dump() for item in value]
+            document[key] = overlay_items(
+                key,
+                document.get(key),
+                [item.model_dump() for item in value],
+            )
+
+
+def overlay_items(
+    field: str, existing: Any, incoming: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    disk = sheet_merge.keyed_raw_items(field, existing or ())
+    return [
+        {**dict(disk.get(key, {})), **item}
+        for key, item in sheet_merge.keyed_items(field, incoming).items()
+    ]
 
 
 def validate_block(document: Any, config: CampaignConfig) -> None:

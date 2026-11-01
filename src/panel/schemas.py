@@ -201,7 +201,7 @@ class CharacterList(_Response):
 
 
 SheetStatus = Literal["active", "pending", "archived"]
-SheetReadState = Literal["ok", "invalid"]
+SheetReadState = Literal["ok", "conflict", "missing", "invalid"]
 
 
 class SheetLadderStep(_Response):
@@ -389,6 +389,35 @@ class ErrorEnvelope(_Response):
 
 class ReloadEvent(_Response):
     scope: str
+
+
+class SheetConflictField(_Response):
+    id: str
+    sheet_id: str
+    character_id: str | None
+    field_path: str
+    base: str | None
+    ours: str | None
+    theirs: str | None
+    allow_both: bool
+
+
+class SheetConflictList(_Response):
+    conflicts: list[SheetConflictField]
+
+
+class SheetConflictDetail(_Response):
+    error: ErrorDetail
+    conflicts: list[SheetConflictField]
+
+
+class SheetConflictDecision(BaseModel):
+    decision: Literal["ours", "theirs", "both"]
+
+
+class SheetActionResult(_Response):
+    action: Literal["restore", "forget"]
+    sheet_id: str
 
 
 class SseEnvelope(

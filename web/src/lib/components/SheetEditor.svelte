@@ -17,11 +17,13 @@
     sheet,
     onupdate,
     onreload,
+    onconflict = () => {},
   }: {
     slug: string;
     sheet: SheetDetail;
     onupdate: (fresh: SheetDetail) => void;
     onreload: () => void;
+    onconflict?: () => void;
   } = $props();
 
   const api = createApiClient();
@@ -36,14 +38,16 @@
   });
   let saving = $state(false);
   let conflict = $state(false);
+  let stale = $state(false);
   let failure = $state("");
   let notice = $state("");
 
-  const locked = $derived(sheetLocked(sheet, conflict));
+  const locked = $derived(sheetLocked(sheet, conflict || stale));
 
   $effect.pre(() => {
     draft = sheetDraft(sheet);
     conflict = false;
+    stale = false;
   });
 
   async function save() {
@@ -59,8 +63,11 @@
       onupdate(fresh);
       notice = "Ficha salva.";
     } catch (error) {
-      if (error instanceof ApiError && error.status === 409) {
+      if (error instanceof ApiError && error.code === "sheet_field_conflict") {
         conflict = true;
+        onconflict();
+      } else if (error instanceof ApiError && error.code === "sheet_conflict") {
+        stale = true;
       } else if (error instanceof ApiError) {
         failure = error.message;
       } else {
@@ -73,6 +80,7 @@
 
   function reload() {
     conflict = false;
+    stale = false;
     failure = "";
     notice = "";
     onreload();
@@ -105,6 +113,15 @@
 
 {#if conflict}
   <p class="panel-error" role="alert" data-testid="sheet-conflict">
+    <span class="stamp is-hazard">Conflito</span>
+    <span>
+      O mesmo campo mudou no painel e no vault. O texto digitado continua aqui;
+      decida cada campo em Conflitos antes de salvar outra vez.
+    </span>
+  </p>
+{/if}
+{#if stale}
+  <p class="panel-error" role="alert" data-testid="sheet-stale">
     <span class="stamp is-hazard">Conflito</span>
     <span>
       A ficha mudou no disco. O texto digitado continua aqui; recarregue antes

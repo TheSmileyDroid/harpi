@@ -212,6 +212,42 @@
       }
     ]
   },
+  "SheetActionResult": {
+    "action": "restore",
+    "sheet_id": "sht_ana"
+  },
+  "SheetConflictDetail": {
+    "conflicts": [
+      {
+        "allow_both": false,
+        "base": "7",
+        "character_id": "chr_ana",
+        "field_path": "block.refresh",
+        "id": "cnf_1",
+        "ours": "9",
+        "sheet_id": "sht_ana",
+        "theirs": "4"
+      }
+    ],
+    "error": {
+      "code": "sheet_field_conflict",
+      "message": "The same field changed in the panel and in the vault"
+    }
+  },
+  "SheetConflictList": {
+    "conflicts": [
+      {
+        "allow_both": false,
+        "base": "7",
+        "character_id": "chr_ana",
+        "field_path": "block.refresh",
+        "id": "cnf_1",
+        "ours": "9",
+        "sheet_id": "sht_ana",
+        "theirs": "4"
+      }
+    ]
+  },
   "StatusSnapshot": {
     "bot": {
       "online": true

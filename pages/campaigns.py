@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TypeVar
@@ -22,6 +23,7 @@ from src.panel import (
     enrollment,
     notes,
     rate_limit,
+    sheet_conflicts,
     sheet_store,
     sheet_write,
     state,
@@ -41,7 +43,13 @@ from src.panel.schemas import (
     CharacterCreate,
     CharacterDetail,
     CharacterList,
+    ErrorDetail,
     ErrorEnvelope,
+    SheetActionResult,
+    SheetConflictDecision,
+    SheetConflictDetail,
+    SheetConflictField,
+    SheetConflictList,
     SheetDetail,
     SheetPatch,
 )
@@ -180,7 +188,7 @@ async def read_characters(slug: str) -> Response | CharacterList:
         return _vault_not_ready()
     return CharacterList(
         characters=await cast.roster(slug, user_id, role),
-        own_character_id=cast.own_character_id(slug, user_id),
+        own_character_id=await cast.own_character_id(slug, user_id),
     )
 
 
@@ -202,6 +210,24 @@ async def read_character(
     if detail is None:
         return _hidden()
     return detail
+
+
+@dataclass(frozen=True, slots=True)
+class WriteContext:
+    slug: str
+    note: SheetNote
+    database: Database
+    record: sheet_write.SheetRecord | None
+    index: vault_index.VaultIndex
+    patch: SheetPatch
+
+
+@dataclass(frozen=True, slots=True)
+class RestoreContext:
+    database: Database
+    index: vault_index.VaultIndex
+    root: Path
+    stored: sheet_store.StoredSheet
 
 
 @dataclass(frozen=True, slots=True)
@@ -488,13 +514,20 @@ async def _reload_vault() -> None:
 @document_response(ErrorEnvelope, 400)
 @document_response(ErrorEnvelope, 403)
 @document_response(ErrorEnvelope, 404)
-@document_response(ErrorEnvelope, 409)
+@document_response(SheetConflictDetail, 409)
 @document_response(ErrorEnvelope, 413)
 @document_response(ErrorEnvelope, 422)
 @document_response(ErrorEnvelope, 429)
 @document_response(ErrorEnvelope, 503)
 @validate_response(SheetDetail, 200)
 async def write_sheet(slug: str, sheet_id: str) -> Response | SheetDetail:
+    context = await _write_context(slug, sheet_id)
+    if isinstance(context, Response):
+        return context
+    return await _write_and_answer(context)
+
+
+async def _write_context(slug: str, sheet_id: str) -> WriteContext | Response:
     scope = await _character_scope(slug)
     if isinstance(scope, Response):
         return scope
@@ -507,21 +540,45 @@ async def write_sheet(slug: str, sheet_id: str) -> Response | SheetDetail:
     if isinstance(target, Response):
         return target
     note, database, record = target
-    result = await _run_write(
-        database, index, slug, sheet_id, note, patch, record
-    )
+    return WriteContext(slug, note, database, record, index, patch)
+
+
+async def _write_and_answer(
+    context: WriteContext,
+) -> Response | SheetDetail:
+    try:
+        result = await _run_write(
+            context.database,
+            context.index,
+            context.slug,
+            context.note.id,
+            context.note,
+            context.patch,
+            context.record,
+        )
+    except sheet_write.SheetMergeConflict as failure:
+        rows = await sheet_conflicts.record(
+            context.database,
+            context.note.path,
+            failure.patch,
+            failure.conflicts,
+            failure.base_json,
+        )
+        return _conflict_detail(rows)
     if isinstance(result, Response):
         return result
-    persisted = await _commit_write(database, index, slug, note, result)
+    persisted = await _commit_write(
+        context.database, context.index, context.slug, context.note, result
+    )
     if isinstance(persisted, Response):
         return persisted
     fresh = (
-        index.refresh_sheet(note.path)
-        or notes.parse_sheet(note.path, result.text).note
+        context.index.refresh_sheet(context.note.path)
+        or notes.parse_sheet(context.note.path, result.text).note
     )
     return sheet_detail(
-        replace(fresh, character=note.character),
-        index.campaign(slug).config or default_config(),
+        replace(fresh, character=context.note.character),
+        context.index.campaign(context.slug).config or default_config(),
         result.warnings,
     )
 
@@ -608,19 +665,22 @@ async def _write_target(
     if database is None:
         return _not_found()
     record = await sheet_store.sheet_record(database, note.path)
-    refusal = _owner_refusal(note, record, user_id, role, patch)
+    refusal = _write_refusal(note, record, user_id, role, patch)
     if refusal is not None:
         return refusal
     return note, database, record
 
 
-def _owner_refusal(
+def _write_refusal(
     note: SheetNote,
     record: sheet_write.SheetRecord | None,
     user_id: str,
     role: CampaignRole,
     patch: SheetPatch,
 ) -> Response | None:
+    locked = _state_refusal(record)
+    if locked is not None:
+        return locked
     owner = (
         record.owner
         if record is not None and record.owner is not None
@@ -634,6 +694,18 @@ def _owner_refusal(
         return error_response(
             "forbidden", "Only the narrator can unarchive a sheet", 403
         )
+    return None
+
+
+def _state_refusal(record: sheet_write.SheetRecord | None) -> Response | None:
+    if record is None:
+        return None
+    if record.state == "conflito":
+        return error_response(
+            "sheet_conflict", "Resolve the sheet conflicts first", 409
+        )
+    if record.state == "ausente":
+        return error_response("sheet_missing", "The sheet is missing", 409)
     return None
 
 
@@ -684,6 +756,8 @@ async def _run_write(
             record,
             sheet_store.backup_root(database),
         )
+    except sheet_write.SheetMergeConflict:
+        raise
     except sheet_write.SheetWriteError as failure:
         return _write_failure(failure)
 
@@ -714,6 +788,301 @@ def _find_sheet(
 def _is_sheet_note(note: SheetNote) -> bool:
     placed = locate_note(note.path)
     return placed is not None and placed[1] == "sheets"
+
+
+@bp.get("/api/campaigns/<slug>/conflicts")
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 503)
+@validate_response(SheetConflictList, 200)
+async def read_conflicts(slug: str) -> Response | SheetConflictList:
+    scope = await _character_scope(slug)
+    if isinstance(scope, Response):
+        return scope
+    user_id, role = scope
+    database = get_database()
+    if database is None:
+        return _not_found()
+    owner = None if role == "narrator" else user_id
+    return _conflict_list(await sheet_conflicts.queue(database, slug, owner))
+
+
+@bp.post("/api/campaigns/<slug>/conflicts/<conflict_id>/resolve")
+@document_request(SheetConflictDecision)
+@document_response(ErrorEnvelope, 403)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 409)
+@document_response(ErrorEnvelope, 422)
+@document_response(ErrorEnvelope, 429)
+@document_response(ErrorEnvelope, 503)
+@validate_response(SheetConflictList, 200)
+async def resolve_conflict(
+    slug: str, conflict_id: str
+) -> Response | SheetConflictList:
+    scope = await _character_scope(slug)
+    if isinstance(scope, Response):
+        return scope
+    user_id, role = scope
+    refusal = rate_limit_response(SHEET_WRITE_BUCKETS)
+    if refusal is not None:
+        return refusal
+    payload = await _json_model(SheetConflictDecision, "Invalid decision")
+    if isinstance(payload, Response):
+        return payload
+    target = _database_index()
+    if isinstance(target, Response):
+        return target
+    database, index = target
+    if index.root is None:
+        return _vault_not_ready()
+    refusal = await _conflict_refusal(
+        database, slug, conflict_id, user_id, role
+    )
+    if refusal is not None:
+        return refusal
+    return await _apply_resolution(
+        database, index, slug, conflict_id, payload, user_id
+    )
+
+
+async def _conflict_refusal(
+    database: Database,
+    slug: str,
+    conflict_id: str,
+    user_id: str,
+    role: CampaignRole,
+) -> Response | None:
+    try:
+        owner = await sheet_conflicts.owner_of(database, slug, conflict_id)
+    except sheet_conflicts.ConflictNotFound:
+        return _hidden()
+    if role != "narrator" and owner != user_id:
+        return _forbidden()
+    return None
+
+
+async def _apply_resolution(
+    database: Database,
+    index: vault_index.VaultIndex,
+    slug: str,
+    conflict_id: str,
+    payload: SheetConflictDecision,
+    user_id: str,
+) -> Response | SheetConflictList:
+    if index.root is None:
+        return _vault_not_ready()
+    resolution = await _decide(
+        database, index.root, slug, conflict_id, payload, user_id
+    )
+    if isinstance(resolution, Response):
+        return resolution
+    if resolution.write is None:
+        return _conflict_list(resolution.conflicts)
+    note = _find_sheet(index, slug, resolution.write.sheet_id)
+    if note is None:
+        return _hidden()
+    result = await _run_resolution(
+        database, index, slug, note, resolution.write
+    )
+    if isinstance(result, Response):
+        await sheet_conflicts.undo_decision(
+            database, note.path, resolution.field_path
+        )
+        return result
+    persisted = await _commit_write(database, index, slug, note, result)
+    if isinstance(persisted, Response):
+        await sheet_conflicts.undo_decision(
+            database, note.path, resolution.field_path
+        )
+        return persisted
+    await sheet_conflicts.settle(database, note.path, user_id)
+    await _reload_vault()
+    return SheetConflictList(conflicts=[])
+
+
+async def _decide(
+    database: Database,
+    root: Path,
+    slug: str,
+    conflict_id: str,
+    payload: SheetConflictDecision,
+    user_id: str,
+) -> Response | sheet_conflicts.Resolution:
+    try:
+        return await sheet_conflicts.decide(
+            database,
+            root,
+            campaign=slug,
+            conflict_id=conflict_id,
+            decision=payload.decision,
+            actor=user_id,
+        )
+    except sheet_conflicts.ConflictNotFound:
+        return _hidden()
+    except sheet_conflicts.InvalidDecision as failure:
+        return error_response("invalid_decision", str(failure), 422)
+    except sheet_conflicts.ConflictNotPending:
+        return error_response(
+            "conflict_not_pending", "This conflict was already decided", 409
+        )
+    except sheet_write.SheetInvalid as failure:
+        return _write_failure(failure)
+
+
+async def _run_resolution(
+    database: Database,
+    index: vault_index.VaultIndex,
+    slug: str,
+    note: SheetNote,
+    pending: sheet_conflicts.PendingWrite,
+) -> Response | sheet_write.SheetWriteResult:
+    root = index.root
+    if root is None:
+        return _vault_not_ready()
+    try:
+        return await asyncio.to_thread(
+            sheet_write.write_sheet,
+            root / note.path,
+            slug,
+            note.id,
+            pending.patch,
+            index.campaign(slug).config or default_config(),
+            pending.record,
+            sheet_store.backup_root(database),
+        )
+    except sheet_write.SheetWriteError as failure:
+        return _write_failure(failure)
+
+
+def _conflict_list(
+    rows: Iterable[sheet_conflicts.ConflictRecord],
+) -> SheetConflictList:
+    return SheetConflictList(
+        conflicts=[
+            SheetConflictField(
+                id=row.id,
+                sheet_id=row.sheet_id,
+                character_id=row.character_id,
+                field_path=row.field_path,
+                base=row.base,
+                ours=row.ours,
+                theirs=row.theirs,
+                allow_both=row.allow_both,
+            )
+            for row in rows
+        ]
+    )
+
+
+def _conflict_detail(
+    rows: list[sheet_conflicts.ConflictRecord],
+) -> Response:
+    payload = SheetConflictDetail(
+        error=ErrorDetail(
+            code="sheet_field_conflict",
+            message="The same field changed in the panel and in the vault",
+        ),
+        conflicts=_conflict_list(rows).conflicts,
+    )
+    return Response(
+        payload.model_dump_json(), status=409, mimetype="application/json"
+    )
+
+
+def _recovery_refusal(
+    stored: sheet_store.StoredSheet,
+    user_id: str,
+    role: CampaignRole,
+) -> Response | None:
+    if stored.state != "ausente":
+        return error_response("sheet_present", "The sheet is not missing", 409)
+    if role != "narrator" and stored.owner_id != user_id:
+        return _forbidden()
+    return None
+
+
+@bp.post("/api/campaigns/<slug>/sheets/<sheet_id>/restore")
+@document_response(ErrorEnvelope, 403)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 409)
+@document_response(ErrorEnvelope, 429)
+@document_response(ErrorEnvelope, 503)
+@validate_response(SheetDetail, 200)
+async def restore_sheet(slug: str, sheet_id: str) -> Response | SheetDetail:
+    context = await _restore_context(slug, sheet_id)
+    if isinstance(context, Response):
+        return context
+    return await _restore(context)
+
+
+async def _restore_context(
+    slug: str, sheet_id: str
+) -> RestoreContext | Response:
+    scope = await _character_scope(slug)
+    if isinstance(scope, Response):
+        return scope
+    user_id, role = scope
+    refusal = rate_limit_response(SHEET_WRITE_BUCKETS)
+    if refusal is not None:
+        return refusal
+    target = _database_index()
+    if isinstance(target, Response):
+        return target
+    database, index = target
+    stored = await sheet_store.stored_sheet(database, slug, sheet_id)
+    if stored is None or index.root is None:
+        return _hidden()
+    blocked = _recovery_refusal(stored, user_id, role)
+    if blocked is not None:
+        return blocked
+    return RestoreContext(database, index, index.root, stored)
+
+
+async def _restore(context: RestoreContext) -> Response | SheetDetail:
+    slug = context.stored.campaign
+    try:
+        result = await asyncio.to_thread(
+            sheet_write.restore_missing,
+            context.root / context.stored.path,
+            slug,
+            context.stored.harpi_id,
+            context.stored.record(),
+            context.stored.last_text,
+            context.index.campaign(slug).config or default_config(),
+        )
+        await sheet_store.store_sheet(
+            context.database, slug, context.stored.path, result
+        )
+    except sheet_write.SheetWriteError as failure:
+        return _write_failure(failure)
+    except Exception as failure:
+        return _storage_failure(failure)
+    await _reload_vault()
+    return _sheet_response(slug, context.stored.harpi_id)
+
+
+@bp.post("/api/campaigns/<slug>/sheets/<sheet_id>/forget")
+@document_response(ErrorEnvelope, 403)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 409)
+@validate_response(SheetActionResult, 200)
+async def forget_sheet(
+    slug: str, sheet_id: str
+) -> Response | SheetActionResult:
+    scope = await _character_scope(slug)
+    if isinstance(scope, Response):
+        return scope
+    user_id, role = scope
+    database = get_database()
+    if database is None:
+        return _not_found()
+    stored = await sheet_store.stored_sheet(database, slug, sheet_id)
+    if stored is None:
+        return _hidden()
+    refusal = _recovery_refusal(stored, user_id, role)
+    if refusal is not None:
+        return refusal
+    await sheet_store.forget_sheet(database, stored.path)
+    return SheetActionResult(action="forget", sheet_id=sheet_id)
 
 
 @bp.get("/api/campaigns/<slug>/characters/<character_id>/portrait")

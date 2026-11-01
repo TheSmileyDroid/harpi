@@ -31,7 +31,7 @@ from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel import login as panel_login
 from src.panel import rate_limit
 from src.panel import state as panel_state
-from src.panel import vault, vault_index
+from src.panel import vault, vault_index, vault_sync
 from src.storage import get_database
 from src.storage.registry import Actor
 from tests.fakes import (
@@ -385,6 +385,35 @@ async def select_guild(response):
     return response
 
 
+async def _reconcile_campaign() -> None:
+    database = get_database()
+    if database is not None:
+        await vault_sync.reconcile(
+            database, VAULT_ROOT, {"paratheos"}
+        )
+
+
+@quart_app.post("/__test__/vault-replace")
+async def replace_in_vault():
+    payload = await request.get_json()
+    path = VAULT_ROOT / payload["path"]
+    text = path.read_text(encoding="utf-8")
+    replaced = text.replace(payload["old"], payload["new"])
+    path.write_text(replaced, encoding="utf-8")
+    await _reconcile_campaign()
+    await vault_index.refresh_once(vault.configured())
+    return {"ok": True, "changed": replaced != text}
+
+
+@quart_app.post("/__test__/vault-delete")
+async def delete_from_vault():
+    payload = await request.get_json()
+    (VAULT_ROOT / payload["path"]).unlink(missing_ok=True)
+    await _reconcile_campaign()
+    await vault_index.refresh_once(vault.configured())
+    return {"ok": True}
+
+
 @quart_app.get("/__test__/ping")
 async def ping():
     return {"ok": True}
@@ -480,6 +509,7 @@ async def _reset_campaign_state() -> None:
     VAULT_ROOT.mkdir(parents=True, exist_ok=True)
     seed_vault()
     await vault_index.refresh_once(vault.configured())
+    await _reconcile_campaign()
     api_page.SEARCH_BUCKETS = rate_limit.UserTokenBuckets(
         rate_limit.SEARCHES_PER_MINUTE
     )

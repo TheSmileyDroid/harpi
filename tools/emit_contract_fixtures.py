@@ -42,7 +42,11 @@ def build_fixtures() -> dict[str, object]:
         Presence,
         ReloadEvent,
         SearchResults,
+        SheetActionResult,
         SheetAspect,
+        SheetConflictDetail,
+        SheetConflictField,
+        SheetConflictList,
         SheetConsequence,
         SheetDetail,
         SheetExtra,
@@ -70,6 +74,16 @@ def build_fixtures() -> dict[str, object]:
         url="https://example.com/layer",
         volume=0.25,
         thumbnail="https://example.com/layer.jpg",
+    )
+    conflict_field = SheetConflictField(
+        id="cnf_1",
+        sheet_id="sht_ana",
+        character_id="chr_ana",
+        field_path="block.refresh",
+        base="7",
+        ours="9",
+        theirs="4",
+        allow_both=False,
     )
     fixtures: dict[str, BaseModel] = {
         "ApprovalList": ApprovalList(
@@ -198,6 +212,17 @@ def build_fixtures() -> dict[str, object]:
         ),
         "ErrorEnvelope": ErrorEnvelope(
             error=ErrorDetail(code="not_found", message="Not found"),
+        ),
+        "SheetConflictList": SheetConflictList(conflicts=[conflict_field]),
+        "SheetConflictDetail": SheetConflictDetail(
+            error=ErrorDetail(
+                code="sheet_field_conflict",
+                message="The same field changed in the panel and in the vault",
+            ),
+            conflicts=[conflict_field],
+        ),
+        "SheetActionResult": SheetActionResult(
+            action="restore", sheet_id="sht_ana"
         ),
         "GuildList": GuildList(guilds=[Guild(id="1", name="Alpha")]),
         "ReloadEvent": ReloadEvent(scope="shell"),

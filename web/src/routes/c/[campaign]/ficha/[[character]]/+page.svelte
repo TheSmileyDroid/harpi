@@ -3,11 +3,18 @@
   import { page } from "$app/state";
   import { createApiClient } from "$lib/api";
   import { castInitials, castStateNote, submitNote } from "$lib/cast";
+  import ConflictQueue from "$lib/components/ConflictQueue.svelte";
   import SheetEditor from "$lib/components/SheetEditor.svelte";
+  import {
+    conflictNote,
+    conflictsForSheet,
+    type SheetDecision,
+  } from "$lib/conflicts";
   import type {
     CampaignDetail,
     CharacterCard,
     CharacterDetail,
+    SheetConflictField,
     SheetDetail,
   } from "$lib/contract/panel.gen";
   import { phaseForError } from "$lib/phase";
@@ -21,10 +28,25 @@
   let resubmitting = $state(false);
   let resubmitFailure = $state("");
   let resubmitNotice = $state("");
+  let conflicts = $state<SheetConflictField[]>([]);
+  let deciding = $state<string | null>(null);
+  let recoveryBusy = $state(false);
+  let recoveryFailure = $state("");
+  let recoveryNotice = $state("");
 
   const api = createApiClient();
   const slug = $derived(page.params.campaign ?? "");
   const selected = $derived(page.params.character ?? "");
+  const sheetConflicts = $derived(
+    conflictsForSheet(
+      conflicts,
+      detail?.kind === "sheet" ? detail.sheet?.id : undefined,
+    ),
+  );
+  const sheetReadOnly = $derived(
+    (detail?.kind === "sheet" ? detail.sheet?.read_only : false) === true ||
+      sheetConflicts.length > 0,
+  );
 
   async function load(campaign: string, character: string) {
     phase = "loading";
@@ -36,6 +58,7 @@
       } else {
         cards = (await api.campaignCharacters(campaign)).characters;
       }
+      await refreshConflicts(campaign);
       phase = "ready";
     } catch (error) {
       role = null;
@@ -47,6 +70,62 @@
   $effect(() => {
     void load(slug, selected);
   });
+
+  async function refreshConflicts(campaign: string) {
+    try {
+      conflicts = (await api.conflicts(campaign)).conflicts;
+    } catch {
+      conflicts = [];
+    }
+  }
+
+  async function decide(conflict: SheetConflictField, decision: SheetDecision) {
+    if (deciding !== null) return;
+    deciding = conflict.id;
+    recoveryFailure = "";
+    recoveryNotice = "";
+    try {
+      await api.resolveConflict(slug, conflict.id, { decision });
+      await load(slug, selected);
+      recoveryNotice = "Conflito resolvido.";
+    } catch (error) {
+      recoveryFailure = conflictNote(error);
+    } finally {
+      deciding = null;
+    }
+  }
+
+  async function restore() {
+    if (detail?.kind !== "sheet" || !detail.sheet || recoveryBusy) return;
+    recoveryBusy = true;
+    recoveryFailure = "";
+    recoveryNotice = "";
+    try {
+      await api.restoreSheet(slug, detail.sheet.id);
+      await load(slug, selected);
+      recoveryNotice = "Ficha restaurada no vault.";
+    } catch (error) {
+      recoveryFailure = conflictNote(error);
+    } finally {
+      recoveryBusy = false;
+    }
+  }
+
+  async function forget() {
+    if (detail?.kind !== "sheet" || !detail.sheet || recoveryBusy) return;
+    recoveryBusy = true;
+    recoveryFailure = "";
+    recoveryNotice = "";
+    try {
+      await api.forgetSheet(slug, detail.sheet.id);
+      await load(slug, selected);
+      recoveryNotice = "Ficha esquecida.";
+    } catch (error) {
+      recoveryFailure = conflictNote(error);
+    } finally {
+      recoveryBusy = false;
+    }
+  }
 
   function updateSheet(fresh: SheetDetail) {
     if (detail?.kind === "sheet") {
@@ -174,10 +253,61 @@
         {resubmitNotice}
       </p>
     {/if}
-    {#if sheet.read_only}
+    {#if sheetReadOnly}
       <p class="placard sheet__banner" data-testid="sheet-readonly">
-        Somente leitura.
+        {sheet.state === "missing"
+          ? "Somente leitura: o arquivo sumiu do vault."
+          : sheetConflicts.length || sheet.state === "conflict"
+            ? "Somente leitura até a decisão dos conflitos."
+            : "Somente leitura."}
       </p>
+    {/if}
+    {#if sheet.state === "missing"}
+      <p class="system-note" data-testid="sheet-missing">
+        O arquivo não está no vault. Restaurar regrava a última versão aceita
+        com revisão nova; esquecer para de acompanhar esta ficha.
+      </p>
+      <div class="sheet__recovery">
+        <button
+          class="hud-btn hud-btn--primary"
+          type="button"
+          data-testid="sheet-restore"
+          disabled={recoveryBusy}
+          onclick={restore}
+        >
+          Restaurar
+        </button>
+        <button
+          class="hud-btn hud-btn-danger"
+          type="button"
+          data-testid="sheet-forget"
+          disabled={recoveryBusy}
+          onclick={forget}
+        >
+          Esquecer
+        </button>
+        {#if recoveryBusy}
+          <span class="system-note">Gravando…</span>
+        {/if}
+      </div>
+    {/if}
+    {#if recoveryFailure}
+      <p class="panel-error" role="alert" data-testid="sheet-recovery-error">
+        <span class="stamp is-hazard">Hazard</span>
+        <span>{recoveryFailure}</span>
+      </p>
+    {/if}
+    {#if recoveryNotice}
+      <p class="placard sheet__banner" data-testid="sheet-recovery-notice">
+        {recoveryNotice}
+      </p>
+    {/if}
+    {#if sheetConflicts.length}
+      <ConflictQueue
+        conflicts={sheetConflicts}
+        busy={deciding}
+        onresolve={decide}
+      />
     {/if}
     {#if sheet.error}
       <p class="panel-error" role="alert" data-testid="sheet-error">
@@ -186,7 +316,13 @@
       </p>
     {/if}
 
-    <SheetEditor {slug} {sheet} onupdate={updateSheet} onreload={reloadSheet} />
+    <SheetEditor
+      {slug}
+      {sheet}
+      onupdate={updateSheet}
+      onreload={reloadSheet}
+      onconflict={() => void refreshConflicts(slug)}
+    />
   {/if}
 </section>
 
@@ -282,6 +418,18 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--amber);
+  }
+
+  .sheet__recovery {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-block-start: 0.5rem;
+  }
+
+  .sheet__recovery .system-note {
+    margin: 0;
   }
 
   .sheet__resubmit {
