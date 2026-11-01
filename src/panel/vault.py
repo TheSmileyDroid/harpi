@@ -12,15 +12,12 @@ class Vault:
 
     @property
     def available(self) -> bool:
-        return self.root is not None
+        return self.root is not None and self.root.is_dir()
 
 
 def from_settings(settings: Settings) -> Vault:
     configured = settings.vault_path
-    if not configured:
-        return Vault()
-    root = Path(configured)
-    return Vault(root=root) if root.is_dir() else Vault()
+    return Vault(root=Path(configured) if configured else None)
 
 
 _configured = Vault()
