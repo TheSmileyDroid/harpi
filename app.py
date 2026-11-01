@@ -43,11 +43,13 @@ from src.panel import (
     state,
     vault,
     vault_index,
+    vault_sync,
 )
 from src.security_log import alert_for_status, event_for_request, record_event
 from src.storage import (
     clear_database,
     clear_registry,
+    get_database,
     get_registry,
     init_database,
     init_registry,
@@ -321,17 +323,17 @@ _database: Database | None = None
 _retention_task: asyncio.Task[None] | None = None
 _backup_task: asyncio.Task[None] | None = None
 _disk_task: asyncio.Task[None] | None = None
-_vault_task: asyncio.Task[None] | None = None
+_sync_task: asyncio.Task[None] | None = None
 
 
 @app.before_serving
 async def startup():
-    global _database, _retention_task, _backup_task, _disk_task, _vault_task
+    global _database, _retention_task, _backup_task, _disk_task
+    global _sync_task
     settings = Settings.from_env()
     alerts.configure_alerts(settings.alert_webhook)
     vault.configure(vault.from_settings(settings))
     await vault_index.refresh_once(vault.configured())
-    _vault_task = vault_index.start_scan(vault.configured())
     campaign = paratheos(settings.narrator_id, settings.campaign_guild_id)
     if campaign is None:
         logger.warning(
@@ -349,6 +351,7 @@ async def startup():
         except Exception as e:
             _database = None
             logger.opt(exception=True).error(f"Panel storage unavailable: {e}")
+    _sync_task = vault_sync.start_sync(vault.configured(), get_database())
     _retention_task = retention.start_daily_purge(settings)
     _backup_task = backup.start_daily_backup(settings)
     _disk_task = disk_pressure.start_disk_watch(settings)
@@ -361,7 +364,7 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    global _database, _retention_task, _backup_task, _disk_task, _vault_task
+    global _database, _retention_task, _backup_task, _disk_task, _sync_task
     task = _retention_task
     _retention_task = None
     if task is not None:
@@ -374,10 +377,10 @@ async def shutdown():
     _disk_task = None
     if disk_task is not None:
         await disk_pressure.stop_disk_watch(disk_task)
-    vault_task = _vault_task
-    _vault_task = None
-    if vault_task is not None:
-        await vault_index.stop_scan(vault_task)
+    sync_task = _sync_task
+    _sync_task = None
+    if sync_task is not None:
+        await vault_sync.stop_sync(sync_task)
     await alerts.stop_alerts()
     vault.configure(vault.Vault())
     vault_index.configure(vault_index.VaultIndex())

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-from contextlib import suppress
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 
@@ -13,7 +12,6 @@ from src.panel.notes import CharacterNote, SheetNote, SheetSource
 from src.panel.sheets import CampaignConfig, decode_text, parse_config
 from src.panel.vault import Vault
 
-SCAN_INTERVAL_SECONDS = 60
 MAX_PORTRAIT_BYTES = 16 * 1024 * 1024
 CAMPAIGN_ROOT = ("Harpi", "Campaigns")
 CHARACTERS_FOLDER = "characters"
@@ -386,21 +384,3 @@ async def refresh_once(vault: Vault) -> None:
         logger.opt(exception=True).error(f"Vault scan failed: {e}")
         return
     configure(index)
-
-
-async def run_periodically(vault: Vault) -> None:
-    while True:
-        await asyncio.sleep(SCAN_INTERVAL_SECONDS)
-        await refresh_once(vault)
-
-
-def start_scan(vault: Vault) -> asyncio.Task[None]:
-    return asyncio.create_task(
-        run_periodically(vault), name="harpi-vault-scan"
-    )
-
-
-async def stop_scan(task: asyncio.Task[None]) -> None:
-    task.cancel()
-    with suppress(asyncio.CancelledError):
-        await task
