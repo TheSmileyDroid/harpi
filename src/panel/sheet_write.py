@@ -54,6 +54,7 @@ TARGET_KEYS = (
     "harpi-rev",
     "harpi-owner",
     "harpi-owner-name",
+    "harpi-review-note",
 )
 ID_WARNING = "harpi-id editado à mão foi corrigido."
 CAMPAIGN_WARNING = "harpi-campanha editado à mão foi corrigido."
@@ -376,9 +377,13 @@ def newline_of(lines: list[str]) -> str:
     return "\n"
 
 
-def patch_frontmatter(head: list[str], target: dict[str, str]) -> list[str]:
+def patch_frontmatter(
+    head: list[str],
+    target: dict[str, str],
+    drops: frozenset[str] = frozenset(),
+) -> list[str]:
     newline = newline_of(head)
-    entries, present = replace_entries(head[1:-1], target, newline)
+    entries, present = replace_entries(head[1:-1], target, newline, drops)
     missing = [
         key for key in TARGET_KEYS if key in target and key not in present
     ]
@@ -389,13 +394,19 @@ def patch_frontmatter(head: list[str], target: dict[str, str]) -> list[str]:
 
 
 def replace_entries(
-    lines: list[str], target: dict[str, str], newline: str
+    lines: list[str],
+    target: dict[str, str],
+    newline: str,
+    drops: frozenset[str] = frozenset(),
 ) -> tuple[list[str], set[str]]:
     entries: list[str] = []
     present: set[str] = set()
     index = 0
     while index < len(lines):
         match = KEY_LINE.match(lines[index].rstrip("\r\n"))
+        if match is not None and match.group("key") in drops:
+            index = entry_end(lines, index)
+            continue
         if match is None or match.group("key") not in target:
             entries.append(lines[index])
             index += 1

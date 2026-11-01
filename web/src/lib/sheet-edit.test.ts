@@ -22,6 +22,7 @@ const SHEET: SheetDetail = {
   rev: 3,
   history: "Uma piloto.",
   notes: "Fim.",
+  review_note: null,
   warnings: [],
   refresh: 7,
   fate_points: 3,

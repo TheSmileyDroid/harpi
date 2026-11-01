@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import os
+import shutil
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -21,12 +22,17 @@ if str(ROOT) not in sys.path:
 from quart import request, session
 
 import app as app_module
+from pages import api as api_page
+from pages import campaigns as campaigns_page
 from src import bot_state
 from src.harpi_lib.audio.session import LayerInfo, LoopMode, SessionStatus
 from src.harpi_lib.music import source_policy
 from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel import login as panel_login
+from src.panel import rate_limit
 from src.panel import state as panel_state
+from src.panel import vault, vault_index
+from src.storage import get_database
 from src.storage.registry import Actor
 from tests.fakes import (
     GUILD_A,
@@ -386,15 +392,48 @@ async def ping():
 
 @quart_app.post("/__test__/login")
 async def login():
-    await panel_state.sign_in(HARNESS_ACTOR)
-    await panel_state.record_user_guilds(HARNESS_ACTOR, BASE_GUILDS)
-    epoch = await panel_state.login_epoch(HARNESS_ACTOR.id)
+    payload = await request.get_json(silent=True) or {}
+    user_id = str(payload.get("user_id", HARNESS_ACTOR.id))
+    username = str(payload.get("username", HARNESS_ACTOR.username))
+    actor = Actor(id=user_id, username=username)
+    await panel_state.sign_in(actor)
+    await panel_state.record_user_guilds(actor, BASE_GUILDS)
+    epoch = await panel_state.login_epoch(actor.id)
     session.permanent = True
     session["authenticated"] = True
-    session["user_id"] = HARNESS_ACTOR.id
-    session["username"] = HARNESS_ACTOR.username
+    session["user_id"] = actor.id
+    session["username"] = actor.username
     session[panel_login.ISSUED_AT_KEY] = panel_login.now()
     session[panel_login.LOGIN_EPOCH_KEY] = 0 if epoch is None else epoch
+    return {"ok": True}
+
+
+@quart_app.post("/__test__/enroll")
+async def enroll():
+    payload = await request.get_json()
+    database = get_database()
+    if database is None:
+        return {"ok": False}, 503
+    user_id = str(payload["user_id"])
+    name = str(payload["name"])
+    campaign = "Harpi/Campaigns/paratheos"
+    sheet_path = f"{campaign}/sheets/{name}.md"
+    for relative in (f"{campaign}/characters/{name}.md", sheet_path):
+        (VAULT_ROOT / relative).unlink(missing_ok=True)
+    await database.execute(
+        "DELETE FROM approvals WHERE sheet_path = ?", (sheet_path,)
+    )
+    await database.execute(
+        "DELETE FROM sheet_files WHERE path = ?", (sheet_path,)
+    )
+    if payload.get("member"):
+        await database.execute(
+            "INSERT OR IGNORE INTO members ("
+            "campaign_slug, user_id, display_name, joined_at"
+            ") VALUES ('paratheos', ?, ?, 1700000000)",
+            (user_id, str(payload.get("display_name", "Jogador"))),
+        )
+    await vault_index.refresh_once(vault.configured())
     return {"ok": True}
 
 
@@ -414,6 +453,7 @@ async def set_bot():
 
 @quart_app.post("/__test__/reset")
 async def reset():
+    await _reset_campaign_state()
     bot.online = True
     session_obj._status = status_for("Now Track")
     session_obj.calls.clear()
@@ -422,6 +462,36 @@ async def reset():
     panel_state.run_on_bot_loop = _run_inline
     await panel_state.record_user_guilds(HARNESS_ACTOR, BASE_GUILDS)
     return {"ok": True}
+
+
+async def _reset_campaign_state() -> None:
+    database = get_database()
+    if database is not None:
+        for table in (
+            "approvals",
+            "sheet_conflicts",
+            "character_visibility",
+            "sheet_files",
+            "members",
+        ):
+            await database.execute(f"DELETE FROM {table}")
+        shutil.rmtree(database.path.parent / "vault-backups", ignore_errors=True)
+    shutil.rmtree(VAULT_ROOT, ignore_errors=True)
+    VAULT_ROOT.mkdir(parents=True, exist_ok=True)
+    seed_vault()
+    await vault_index.refresh_once(vault.configured())
+    api_page.SEARCH_BUCKETS = rate_limit.UserTokenBuckets(
+        rate_limit.SEARCHES_PER_MINUTE
+    )
+    api_page.QUEUE_BUCKETS = rate_limit.UserTokenBuckets(
+        rate_limit.QUEUE_ACTIONS_PER_MINUTE
+    )
+    campaigns_page.SHEET_WRITE_BUCKETS = rate_limit.UserTokenBuckets(
+        rate_limit.SHEET_WRITES_PER_MINUTE
+    )
+    campaigns_page.APPROVAL_BUCKETS = rate_limit.UserTokenBuckets(
+        rate_limit.APPROVALS_PER_MINUTE
+    )
 
 
 @quart_app.post("/__test__/loop")

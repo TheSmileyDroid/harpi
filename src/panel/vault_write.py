@@ -20,6 +20,20 @@ def atomic_write(path: Path, text: str) -> None:
         _replace(path, text.encode("utf-8"))
 
 
+def create_exclusive(path: Path, text: str) -> None:
+    with _WRITE_LOCK:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        try:
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(text.encode("utf-8"))
+                handle.flush()
+                os.fsync(handle.fileno())
+        except BaseException:
+            path.unlink(missing_ok=True)
+            raise
+        fsync_directory(path.parent)
+
+
 def _replace(path: Path, data: bytes) -> None:
     temp = path.with_name(f".harpi-tmp-{os.getpid()}")
     try:

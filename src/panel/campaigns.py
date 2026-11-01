@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection
+from dataclasses import dataclass
 from typing import Any
 
 from aiosqlite import Row
@@ -38,6 +39,12 @@ def _role(row: Row, user_id: str) -> CampaignRole | None:
     if not row["is_member"]:
         return None
     return "player" if row["is_player"] else "pending"
+
+
+@dataclass(frozen=True, slots=True)
+class CampaignScope:
+    slug: str
+    narrator_id: str
 
 
 def _summary(row: Row, role: CampaignRole) -> CampaignSummary:
@@ -78,6 +85,25 @@ class CampaignAccess:
         if summary is None:
             return None
         return CampaignDetail(**summary.model_dump(), open_table=None)
+
+    async def scope(
+        self, slug: str, user_id: str, guilds: Collection[str]
+    ) -> CampaignScope | None:
+        if not guilds:
+            return None
+        row = await self._detail_row(slug, user_id, guilds)
+        if row is None:
+            return None
+        return CampaignScope(
+            slug=row["slug"],
+            narrator_id=row["narrator_id"],
+        )
+
+    async def _detail_row(
+        self, slug: str, user_id: str, guilds: Collection[str]
+    ) -> Row | None:
+        rows = await self._rows(_DETAIL_SQL, user_id, guilds, slug)
+        return rows[0] if rows else None
 
     async def _rows(
         self,

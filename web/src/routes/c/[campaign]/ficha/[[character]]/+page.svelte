@@ -2,9 +2,10 @@
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { createApiClient } from "$lib/api";
-  import { castInitials, castStateNote } from "$lib/cast";
+  import { castInitials, castStateNote, submitNote } from "$lib/cast";
   import SheetEditor from "$lib/components/SheetEditor.svelte";
   import type {
+    CampaignDetail,
     CharacterCard,
     CharacterDetail,
     SheetDetail,
@@ -14,8 +15,12 @@
   import { sheetStateNote, statusLabel } from "$lib/sheet";
 
   let phase = $state<LoadPhase>("loading");
+  let role = $state<CampaignDetail["role"] | null>(null);
   let detail = $state<CharacterDetail | null>(null);
   let cards = $state<CharacterCard[]>([]);
+  let resubmitting = $state(false);
+  let resubmitFailure = $state("");
+  let resubmitNotice = $state("");
 
   const api = createApiClient();
   const slug = $derived(page.params.campaign ?? "");
@@ -25,6 +30,7 @@
     phase = "loading";
     detail = null;
     try {
+      role = (await api.campaign(campaign)).role;
       if (character) {
         detail = await api.campaignCharacter(campaign, character);
       } else {
@@ -32,6 +38,7 @@
       }
       phase = "ready";
     } catch (error) {
+      role = null;
       cards = [];
       phase = phaseForError(error);
     }
@@ -49,6 +56,21 @@
 
   function reloadSheet() {
     void load(slug, selected);
+  }
+
+  async function resubmit() {
+    if (detail?.kind !== "sheet" || !detail.sheet || resubmitting) return;
+    resubmitting = true;
+    resubmitFailure = "";
+    resubmitNotice = "";
+    try {
+      updateSheet(await api.submitSheet(slug, detail.sheet.id));
+      resubmitNotice = "Ficha reenviada para aprovação.";
+    } catch (error) {
+      resubmitFailure = submitNote(error);
+    } finally {
+      resubmitting = false;
+    }
   }
 </script>
 
@@ -95,6 +117,7 @@
                 campaign: slug,
                 character: card.id,
               })}
+              data-testid="sheet-pick"
             >
               <span class="sheet__pick-name">{card.name}</span>
               {#if card.concept}
@@ -117,6 +140,38 @@
     {#if sheet.status === "pending"}
       <p class="placard sheet__banner" data-testid="sheet-pending">
         Ficha pendente de aprovação.
+      </p>
+    {/if}
+    {#if sheet.review_note}
+      <p class="placard sheet__banner" data-testid="sheet-review">
+        Devolvida: {sheet.review_note}
+      </p>
+      {#if role !== "narrator"}
+        <div class="sheet__resubmit">
+          <button
+            class="hud-btn"
+            type="button"
+            data-testid="sheet-resubmit"
+            disabled={resubmitting}
+            onclick={resubmit}
+          >
+            Reenviar para aprovação
+          </button>
+          {#if resubmitting}
+            <span class="system-note">Enviando…</span>
+          {/if}
+        </div>
+      {/if}
+    {/if}
+    {#if resubmitFailure}
+      <p class="panel-error" role="alert" data-testid="sheet-resubmit-error">
+        <span class="stamp is-hazard">Hazard</span>
+        <span>{resubmitFailure}</span>
+      </p>
+    {/if}
+    {#if resubmitNotice}
+      <p class="placard sheet__banner" data-testid="sheet-resubmit-notice">
+        {resubmitNotice}
       </p>
     {/if}
     {#if sheet.read_only}
@@ -227,6 +282,18 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--amber);
+  }
+
+  .sheet__resubmit {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-block-start: 0.5rem;
+  }
+
+  .sheet__resubmit .system-note {
+    margin: 0;
   }
 
   .sheet__picker {

@@ -197,6 +197,7 @@ class CharacterCard(_Response):
 
 class CharacterList(_Response):
     characters: list[CharacterCard]
+    own_character_id: str | None = None
 
 
 SheetStatus = Literal["active", "pending", "archived"]
@@ -266,6 +267,7 @@ class SheetDetail(_Response):
     rev: int
     history: str
     notes: str
+    review_note: str | None
     warnings: list[str]
     refresh: int | None
     fate_points: int | None
@@ -343,6 +345,33 @@ class CharacterDetail(_Response):
     kind: Literal["sheet", "card"]
     card: CharacterCard
     sheet: SheetDetail | None
+
+
+class CharacterCreate(BaseModel):
+    name: str
+    concept: TextInput = None
+    summary: TextInput = None
+    sheet: bool | None = None
+
+
+class ApprovalItem(_Response):
+    id: str
+    sheet_id: str | None
+    character_id: str | None
+    character_name: str
+    owner: SnowflakeInput
+    owner_name: str | None
+    note: str
+    requested_at: int
+
+
+class ApprovalList(_Response):
+    approvals: list[ApprovalItem]
+
+
+class ApprovalDecision(BaseModel):
+    decision: Literal["approve", "reject"]
+    note: str = ""
 
 
 class SearchResults(_Response):

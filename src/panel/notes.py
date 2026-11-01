@@ -48,6 +48,7 @@ class SheetNote:
     rev: int
     history: str
     notes: str
+    review_note: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -208,6 +209,7 @@ def parse_sheet(path: str, text: str) -> SheetSource:
         rev=revision(fields),
         history=history,
         notes=notes_body,
+        review_note=field_front(fields, "harpi-review-note"),
     )
     return SheetSource(
         note=note,

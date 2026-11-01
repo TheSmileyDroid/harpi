@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator, Sequence
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +49,23 @@ class Database:
         connection = self._require()
         await connection.execute(sql, params)
         await connection.commit()
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[aiosqlite.Connection]:
+        connection = await aiosqlite.connect(self._path)
+        connection.row_factory = aiosqlite.Row
+        try:
+            await connection.execute("PRAGMA foreign_keys=ON")
+            await connection.execute("PRAGMA busy_timeout=5000")
+            await connection.execute("BEGIN IMMEDIATE")
+            try:
+                yield connection
+            except BaseException:
+                await connection.rollback()
+                raise
+            await connection.commit()
+        finally:
+            await connection.close()
 
     async def execute_rowcount(
         self, sql: str, params: Sequence[Any] = ()

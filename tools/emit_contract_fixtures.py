@@ -16,6 +16,8 @@ FIXTURES_PATH = CONTRACT_DIR / "fixtures" / "fixtures.json"
 
 def build_fixtures() -> dict[str, object]:
     from src.panel.schemas import (
+        ApprovalItem,
+        ApprovalList,
         Authenticated,
         BotStatus,
         CampaignDetail,
@@ -70,6 +72,20 @@ def build_fixtures() -> dict[str, object]:
         thumbnail="https://example.com/layer.jpg",
     )
     fixtures: dict[str, BaseModel] = {
+        "ApprovalList": ApprovalList(
+            approvals=[
+                ApprovalItem(
+                    id="apr_1",
+                    sheet_id="sht_ana",
+                    character_id="chr_ana",
+                    character_name="Ana",
+                    owner="555",
+                    owner_name="Harpi",
+                    note="",
+                    requested_at=1700000000,
+                )
+            ]
+        ),
         "Authenticated": Authenticated(authenticated=True),
         "CampaignDetail": CampaignDetail(
             slug="paratheos",
@@ -99,7 +115,8 @@ def build_fixtures() -> dict[str, object]:
                         "/api/campaigns/paratheos/characters/chr_ana/portrait"
                     ),
                 )
-            ]
+            ],
+            own_character_id="chr_ana",
         ),
         "CharacterDetail": CharacterDetail(
             kind="sheet",
@@ -124,6 +141,7 @@ def build_fixtures() -> dict[str, object]:
                 rev=2,
                 history="Uma piloto.",
                 notes="",
+                review_note=None,
                 warnings=[],
                 refresh=7,
                 fate_points=3,
