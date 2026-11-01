@@ -4,7 +4,7 @@ Discord bot (music, dice, TTS) with a Svelte panel served as static assets by Qu
 
 ## Verify
 
-`make format` then `make check`. Exit 0 means done.
+`make format` then `make check`. Exit 0 means done. While iterating, `make check-fast` runs the same gates without coverage, CRAP, copy-paste, vulture, knip and Playwright; finish on `make check`.
 
 ## Read further when it applies
 

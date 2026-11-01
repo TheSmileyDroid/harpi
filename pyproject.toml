@@ -46,6 +46,7 @@ dev = [
     # 3.6+ asserts no trampoline hit module may start with `src.`, which
     # this repo's import layout (`from src.x import y`) violates on every
     # mutated call, so stats collection always crashes.
+    "pytest-xdist>=3.8.0",
 ]
 
 [tool.pytest.ini_options]

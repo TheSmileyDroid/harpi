@@ -4,6 +4,8 @@
 
 `make format` then `make check`: ruff, ty, pytest with coverage, the CRAP gate, copy-paste detection, vulture, the contract gate (regenerate the panel artifacts and fail on a diff), plus the frontend gates (ESLint, Prettier, svelte-check, Vitest with coverage, knip) and Playwright. One command, exit 0 means done. Real-network tests are not in it — they live behind the deep gate below.
 
+The Python and frontend lanes run in parallel and pytest splits across workers; Playwright runs last, alone, because its timing-sensitive specs flake under load. `make check-fast` runs the same gates without coverage, CRAP, copy-paste detection, vulture, knip and Playwright — about a quarter of the time, for the inner loop. It is not a merge gate.
+
 ## The contract gate
 
 The panel's wire contract is generated from the Pydantic models in `src/panel/schemas.py`. `make contract` exports `web/src/lib/contract/openapi.json`, generates `panel.gen.ts` (TypeScript types plus zod schemas), and emits `fixtures/fixtures.json`. The artifacts are committed. `make check` runs `make contract` and then `git diff --exit-code -- web/src/lib/contract`, so a model change that was not regenerated fails the gate. The generated directory is excluded from the style gates and stays in the type-check include.
