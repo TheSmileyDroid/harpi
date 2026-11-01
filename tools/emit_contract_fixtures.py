@@ -18,6 +18,7 @@ def build_fixtures() -> dict[str, object]:
     from src.panel.schemas import (
         ApprovalItem,
         ApprovalList,
+        AssetDetail,
         Authenticated,
         BotStatus,
         CampaignDetail,
@@ -101,6 +102,15 @@ def build_fixtures() -> dict[str, object]:
             ]
         ),
         "Authenticated": Authenticated(authenticated=True),
+        "AssetDetail": AssetDetail(
+            name=f"{'a' * 64}.png",
+            path=f"Harpi/Campaigns/paratheos/assets/{'a' * 64}.png",
+            url=f"/api/campaigns/paratheos/assets/{'a' * 64}.png",
+            hash="a" * 64,
+            size=48213,
+            content_type="image/png",
+            new_file=True,
+        ),
         "CampaignDetail": CampaignDetail(
             slug="paratheos",
             name="Paratheos",

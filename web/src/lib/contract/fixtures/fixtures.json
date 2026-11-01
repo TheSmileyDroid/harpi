@@ -13,6 +13,15 @@
       }
     ]
   },
+  "AssetDetail": {
+    "content_type": "image/png",
+    "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+    "new_file": true,
+    "path": "Harpi/Campaigns/paratheos/assets/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+    "size": 48213,
+    "url": "/api/campaigns/paratheos/assets/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png"
+  },
   "Authenticated": {
     "authenticated": true
   },

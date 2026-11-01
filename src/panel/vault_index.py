@@ -12,18 +12,19 @@ from src.panel.notes import CharacterNote, SheetNote, SheetSource
 from src.panel.sheets import CampaignConfig, decode_text, parse_config
 from src.panel.vault import Vault
 
-MAX_PORTRAIT_BYTES = 16 * 1024 * 1024
+MAX_IMAGE_BYTES = 16 * 1024 * 1024
 CAMPAIGN_ROOT = ("Harpi", "Campaigns")
 CHARACTERS_FOLDER = "characters"
 SHEETS_FOLDER = "sheets"
+ASSETS_FOLDER = "assets"
 NOTE_FOLDERS = (CHARACTERS_FOLDER, SHEETS_FOLDER)
-PORTRAIT_TYPES = {
+IMAGE_TYPES = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".webp": "image/webp",
 }
-PORTRAIT_SUFFIXES = frozenset(PORTRAIT_TYPES)
+IMAGE_SUFFIXES = frozenset(IMAGE_TYPES)
 HIDDEN_PREFIXES = (".", "~")
 
 
@@ -58,24 +59,46 @@ def shortest_key(path: str) -> tuple[int, int, str]:
     return path.count("/"), len(path), path
 
 
-def locate_note(path: str) -> tuple[str, str] | None:
+def _campaign_parts(path: str, tail: int) -> tuple[str, ...] | None:
     parts = PurePosixPath(path).parts
     depth = len(CAMPAIGN_ROOT)
-    if len(parts) != depth + 3 or tuple(parts[:depth]) != CAMPAIGN_ROOT:
+    if len(parts) != depth + tail or tuple(parts[:depth]) != CAMPAIGN_ROOT:
         return None
-    slug, folder, name = parts[depth:]
+    return parts[depth:]
+
+
+def locate_note(path: str) -> tuple[str, str] | None:
+    rest = _campaign_parts(path, 3)
+    if rest is None:
+        return None
+    slug, folder, name = rest
     if folder not in NOTE_FOLDERS or not name.endswith(".md"):
         return None
     return slug, folder
 
 
 def locate_config(path: str) -> str | None:
+    rest = _campaign_parts(path, 2)
+    if rest is None:
+        return None
+    slug, name = rest
+    return slug if name == "config.md" else None
+
+
+def campaign_owner(path: str) -> str | None:
     parts = PurePosixPath(path).parts
     depth = len(CAMPAIGN_ROOT)
-    if len(parts) != depth + 2 or tuple(parts[:depth]) != CAMPAIGN_ROOT:
+    if len(parts) < depth + 2 or tuple(parts[:depth]) != CAMPAIGN_ROOT:
         return None
-    slug, name = parts[depth:]
-    return slug if name == "config.md" else None
+    return parts[depth]
+
+
+def locate_asset(path: str) -> tuple[str, str] | None:
+    rest = _campaign_parts(path, 3)
+    if rest is None:
+        return None
+    slug, folder, name = rest
+    return (slug, name) if folder == ASSETS_FOLDER else None
 
 
 def clean_relative(reference: str | None) -> str | None:
@@ -141,6 +164,24 @@ class VaultIndex:
             else self._shortest(relative)
         )
         return None if candidate is None else self._inside_root(candidate)
+
+    def is_upload(self, path: Path) -> bool:
+        if self.root is None:
+            return False
+        try:
+            relative = path.relative_to(self._resolved_root).as_posix()
+        except ValueError:
+            return True
+        return locate_asset(relative) is not None
+
+    def campaign_of(self, path: Path) -> str | None:
+        if self.root is None:
+            return None
+        try:
+            relative = path.relative_to(self._resolved_root).as_posix()
+        except ValueError:
+            return None
+        return campaign_owner(relative)
 
     def _collect(self) -> None:
         names: dict[str, list[str]] = {}
@@ -349,16 +390,16 @@ class VaultIndex:
             return None
 
     def _inside_root(self, candidate: Path) -> Path | None:
-        if candidate.suffix.casefold() not in PORTRAIT_SUFFIXES:
+        if candidate.suffix.casefold() not in IMAGE_SUFFIXES:
             return None
         try:
             resolved = candidate.resolve()
             if not resolved.is_file():
                 return None
             resolved.relative_to(self._resolved_root)
-            if resolved.suffix.casefold() not in PORTRAIT_SUFFIXES:
+            if resolved.suffix.casefold() not in IMAGE_SUFFIXES:
                 return None
-            if resolved.stat().st_size > MAX_PORTRAIT_BYTES:
+            if resolved.stat().st_size > MAX_IMAGE_BYTES:
                 return None
         except (OSError, ValueError):
             return None

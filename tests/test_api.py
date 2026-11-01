@@ -1217,7 +1217,7 @@ async def test_a_body_above_the_limit_answers_413(client):
 
     response = await client.post(
         "/api/search",
-        data=b"x" * (MAX_REQUEST_BODY_BYTES * 16),
+        data=b"x" * (MAX_REQUEST_BODY_BYTES + 1),
         headers={"Content-Type": "application/json"},
     )
 

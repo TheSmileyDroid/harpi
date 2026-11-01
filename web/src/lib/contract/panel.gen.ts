@@ -11,6 +11,12 @@ export const ApprovalItem = z.strictObject({ character_id: z.string().nullable()
 export type ApprovalList = z.infer<typeof ApprovalList>;
 export const ApprovalList = z.strictObject({ approvals: z.array(ApprovalItem) });
 
+export type AssetDetail = z.infer<typeof AssetDetail>;
+export const AssetDetail = z.strictObject({ content_type: z.string(), hash: z.string(), name: z.string(), new_file: z.boolean(), path: z.string(), size: z.number().int(), url: z.string() });
+
+export type AssetUpload = z.infer<typeof AssetUpload>;
+export const AssetUpload = z.strictObject({ file: z.custom<Blob>((v) => typeof Blob !== "undefined" && v instanceof Blob) });
+
 export type Authenticated = z.infer<typeof Authenticated>;
 export const Authenticated = z.strictObject({ authenticated: z.boolean() });
 
