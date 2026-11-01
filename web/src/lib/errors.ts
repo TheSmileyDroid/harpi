@@ -1,9 +1,22 @@
 import { get, writable } from "svelte/store";
+import { ApiError } from "./api";
 
 export interface ErrorEntry {
   id: number;
   code: string;
   message: string;
+}
+
+export function codeNote(
+  error: unknown,
+  messages: Record<string, string>,
+  fallback: string,
+): string {
+  if (error instanceof ApiError) {
+    const message = messages[error.code];
+    if (message) return message;
+  }
+  return fallback;
 }
 
 let nextId = 0;

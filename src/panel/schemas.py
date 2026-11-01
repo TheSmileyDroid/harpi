@@ -46,10 +46,21 @@ def _finite_number(value: Any) -> float | None:
     return number if math.isfinite(number) else None
 
 
+def _clean_scene_name(value: Any) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("a scene needs a name")
+    return value.strip()
+
+
 Snowflake = Annotated[str, BeforeValidator(_as_snowflake)]
 SnowflakeInput = Annotated[str | None, BeforeValidator(_optional_snowflake)]
 TextInput = Annotated[str | None, BeforeValidator(_clean_text)]
 NumberInput = Annotated[float | None, BeforeValidator(_finite_number)]
+SceneName = Annotated[
+    str,
+    BeforeValidator(_clean_scene_name),
+    Field(min_length=1, max_length=120),
+]
 
 
 class _Response(BaseModel):
@@ -212,6 +223,88 @@ class AssetDetail(_Response):
 
 class AssetUpload(BaseModel):
     file: bytes
+
+
+SceneSource = Literal["image", "sketch"]
+
+
+class SceneGrid(_Response):
+    cell_px: int = Field(ge=1, le=1024)
+    offset_x: int
+    offset_y: int
+    visible: bool
+
+
+class SceneRect(_Response):
+    x: int = Field(ge=0)
+    y: int = Field(ge=0)
+    w: int = Field(ge=1)
+    h: int = Field(ge=1)
+
+
+class SceneZone(_Response):
+    id: str = ""
+    label: str
+    revealed: bool = False
+    rects: list[SceneRect] = Field(min_length=1)
+
+
+class SceneImage(_Response):
+    path: str
+    width: int = Field(ge=1)
+    height: int = Field(ge=1)
+
+
+class SceneBlueprint(_Response):
+    slug: str
+    name: SceneName
+    source: SceneSource
+    image: SceneImage
+    grid: SceneGrid
+    fog_outside: bool
+    zones: list[SceneZone] = Field(min_length=1)
+
+
+class SceneSummary(_Response):
+    slug: str
+    name: str
+    source: SceneSource
+    thumbnail: str | None
+    width: int
+    height: int
+    grid: SceneGrid
+    zones: list[SceneZone]
+    zone_count: int
+    saved: bool
+    in_use: bool
+
+
+class SceneList(_Response):
+    scenes: list[SceneSummary]
+
+
+class SceneDetail(SceneBlueprint):
+    hash: str
+    saved: bool
+
+
+class SceneCreate(BaseModel):
+    name: SceneName
+    source: SceneSource
+    image: TextInput = None
+    image_width: int | None = Field(default=None, ge=1, le=20_000)
+    image_height: int | None = Field(default=None, ge=1, le=20_000)
+    grid: SceneGrid | None = None
+    fog_outside: bool = False
+    zones: list[SceneZone] = Field(min_length=1)
+
+
+class SceneSave(BaseModel):
+    base_hash: str
+    name: SceneName
+    grid: SceneGrid
+    fog_outside: bool
+    zones: list[SceneZone] = Field(min_length=1)
 
 
 SheetStatus = Literal["active", "pending", "archived"]

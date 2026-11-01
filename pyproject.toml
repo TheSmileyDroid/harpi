@@ -159,6 +159,20 @@ ignore_names = [
     "preserve_quotes",
     # ApprovalList.approvals: the queue payload the client reads.
     "approvals",
+    # Scene wire models: the blueprint grid, rectangle and gallery summary
+    # fields are read by the client through the generated contract, not by
+    # Python attribute access here.
+    "cell_px",
+    "offset_x",
+    "offset_y",
+    "visible",
+    "x",
+    "y",
+    "w",
+    "h",
+    "rects",
+    "zone_count",
+    "in_use",
     # YtMusicData.uploader: property consumed through panel serialization.
     "uploader",
     # ASGI entry point (imported by uvicorn via the "app:asgi_app" string in

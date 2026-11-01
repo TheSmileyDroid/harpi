@@ -237,6 +237,20 @@ async def test_a_json_mutation_from_the_same_origin_passes():
     assert response is None
 
 
+async def test_a_put_mutation_needs_the_same_proof():
+    allowed = await guard(
+        "PUT",
+        {
+            "Content-Type": "application/json",
+            "Sec-Fetch-Site": "same-origin",
+        },
+    )
+    refused = await guard("PUT", {"Sec-Fetch-Site": "same-origin"})
+
+    assert allowed is None
+    assert status(refused) == 403
+
+
 async def test_a_mutation_without_a_content_type_is_forbidden():
     response = await guard("POST", {"Sec-Fetch-Site": "same-origin"})
 

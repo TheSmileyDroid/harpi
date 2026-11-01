@@ -25,6 +25,7 @@ from src.panel import (
     enrollment,
     notes,
     rate_limit,
+    scenes,
     sheet_conflicts,
     sheet_store,
     sheet_write,
@@ -49,6 +50,10 @@ from src.panel.schemas import (
     CharacterList,
     ErrorDetail,
     ErrorEnvelope,
+    SceneCreate,
+    SceneDetail,
+    SceneList,
+    SceneSave,
     SheetActionResult,
     SheetConflictDecision,
     SheetConflictDetail,
@@ -85,6 +90,9 @@ ASSET_READ_BUCKETS = rate_limit.UserTokenBuckets(
 )
 ASSET_UPLOAD_BUCKETS = rate_limit.UserTokenBuckets(
     rate_limit.ASSET_UPLOADS_PER_MINUTE
+)
+SCENE_WRITE_BUCKETS = rate_limit.UserTokenBuckets(
+    rate_limit.SCENE_WRITES_PER_MINUTE
 )
 
 
@@ -1286,3 +1294,280 @@ async def image_response(path: Path) -> Response:
     )
     response.headers.update(headers)
     return response
+
+
+@dataclass(frozen=True, slots=True)
+class SceneContext:
+    database: Database
+    index: vault_index.VaultIndex
+    root: Path
+    user_id: str
+
+
+async def _scene_scope(slug: str) -> SceneContext | Response:
+    user_id = await _narrator(slug)
+    if isinstance(user_id, Response):
+        return user_id
+    database = get_database()
+    index = configured()
+    root = index.root
+    if database is None:
+        return _not_found()
+    if root is None or not index.available:
+        return _vault_not_ready()
+    return SceneContext(database, index, root, user_id)
+
+
+def _scene_exists() -> Response:
+    return error_response(
+        "scene_exists", "A scene with this name already exists", 409
+    )
+
+
+def _scene_unreadable() -> Response:
+    return error_response(
+        "scene_unreadable", "The scene file cannot be read", 409
+    )
+
+
+@bp.get("/api/campaigns/<slug>/scenes")
+@document_response(ErrorEnvelope, 403)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 503)
+@validate_response(SceneList, 200)
+async def read_scenes(slug: str) -> Response | SceneList:
+    context = await _scene_scope(slug)
+    if isinstance(context, Response):
+        return context
+    records = await scenes.scene_rows(context.database, slug)
+    return SceneList(
+        scenes=[scenes.summary(record, context.root) for record in records]
+    )
+
+
+@bp.get("/api/campaigns/<slug>/scenes/<scene>")
+@document_response(ErrorEnvelope, 403)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 409)
+@document_response(ErrorEnvelope, 503)
+@validate_response(SceneDetail, 200)
+async def read_scene(slug: str, scene: str) -> Response | SceneDetail:
+    context = await _scene_scope(slug)
+    if isinstance(context, Response):
+        return context
+    return await _stored_scene(context.database, context.root, slug, scene)
+
+
+async def _stored_scene(
+    database: Database,
+    root: Path,
+    slug: str,
+    scene: str,
+) -> SceneDetail | Response:
+    if not scenes.valid_scene_slug(scene):
+        return _hidden()
+    record = await scenes.scene_record(database, slug, scene)
+    if record is None:
+        return _hidden()
+    detail = scenes.detail(record, root)
+    return _scene_unreadable() if detail is None else detail
+
+
+@bp.get("/api/campaigns/<slug>/scenes/<scene>/image")
+@document_response(ErrorEnvelope, 403)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 503)
+async def read_scene_image(slug: str, scene: str) -> Response:
+    context = await _scene_scope(slug)
+    if isinstance(context, Response):
+        return context
+    if not scenes.valid_scene_slug(scene):
+        return _hidden()
+    record = await scenes.scene_record(context.database, slug, scene)
+    if record is None or record.source == "sketch":
+        return _hidden()
+    path = context.index.portrait_path(record.image_path)
+    if path is None:
+        return _hidden()
+    return await image_response(path)
+
+
+@bp.post("/api/campaigns/<slug>/scenes")
+@document_request(SceneCreate)
+@document_response(ErrorEnvelope, 403)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 409)
+@document_response(ErrorEnvelope, 422)
+@document_response(ErrorEnvelope, 429)
+@document_response(ErrorEnvelope, 503)
+@validate_response(SceneDetail, 200)
+async def create_scene(slug: str) -> Response | SceneDetail:
+    context = await _scene_scope(slug)
+    if isinstance(context, Response):
+        return context
+    refusal = rate_limit_response(SCENE_WRITE_BUCKETS)
+    if refusal is not None:
+        return refusal
+    payload = await _json_model(SceneCreate, "Invalid scene payload")
+    if isinstance(payload, Response):
+        return payload
+    blueprint = _blueprint_for(context.index, slug, payload)
+    if isinstance(blueprint, Response):
+        return blueprint
+    if (
+        await scenes.scene_record(context.database, slug, blueprint.slug)
+        is not None
+    ):
+        return _scene_exists()
+    return await _create_scene(context, slug, blueprint)
+
+
+def _blueprint_for(
+    index: vault_index.VaultIndex, slug: str, payload: SceneCreate
+) -> scenes.SceneBlueprint | Response:
+    try:
+        return scenes.build_blueprint(index, slug, payload)
+    except (
+        scenes.InvalidSceneName,
+        scenes.InvalidSceneImage,
+        scenes.InvalidSceneZones,
+    ) as failure:
+        return error_response("invalid_payload", str(failure), 422)
+
+
+async def _create_scene(
+    context: SceneContext,
+    slug: str,
+    blueprint: scenes.SceneBlueprint,
+) -> Response | SceneDetail:
+    text = scenes.canonical_text(blueprint)
+    try:
+        await asyncio.to_thread(
+            scenes.write_new, context.root, slug, blueprint.slug, text
+        )
+    except scenes.SceneExists:
+        return await _adopt_scene(context, slug, blueprint.slug)
+    except OSError as failure:
+        return _vault_write_failure(failure)
+    digest = scenes.blueprint_hash(blueprint)
+    try:
+        await scenes.store_new(context.database, slug, blueprint, digest)
+    except Exception as failure:
+        return _storage_failure(failure)
+    return _scene_detail(blueprint, digest)
+
+
+async def _adopt_scene(
+    context: SceneContext, campaign: str, scene: str
+) -> Response | SceneDetail:
+    try:
+        blueprint = await asyncio.to_thread(
+            scenes.adopt_existing, context.root, campaign, scene
+        )
+    except scenes.SceneMissing:
+        return _scene_exists()
+    if (
+        await scenes.scene_record(context.database, campaign, blueprint.slug)
+        is not None
+    ):
+        return _scene_exists()
+    digest = scenes.blueprint_hash(blueprint)
+    try:
+        await scenes.store_new(context.database, campaign, blueprint, digest)
+    except Exception as failure:
+        return _storage_failure(failure)
+    return _scene_detail(blueprint, digest)
+
+
+def _scene_detail(
+    blueprint: scenes.SceneBlueprint, digest: str
+) -> SceneDetail:
+    return scenes.as_detail(blueprint, digest, saved=True)
+
+
+@bp.put("/api/campaigns/<slug>/scenes/<scene>")
+@document_request(SceneSave)
+@document_response(ErrorEnvelope, 403)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 409)
+@document_response(ErrorEnvelope, 422)
+@document_response(ErrorEnvelope, 429)
+@document_response(ErrorEnvelope, 503)
+@validate_response(SceneDetail, 200)
+async def save_scene(slug: str, scene: str) -> Response | SceneDetail:
+    context = await _scene_scope(slug)
+    if isinstance(context, Response):
+        return context
+    return await _save_scene(context, slug, scene)
+
+
+async def _save_scene(
+    context: SceneContext, slug: str, scene: str
+) -> Response | SceneDetail:
+    refusal = rate_limit_response(SCENE_WRITE_BUCKETS)
+    if refusal is not None:
+        return refusal
+    if not scenes.valid_scene_slug(scene):
+        return _hidden()
+    payload = await _json_model(SceneSave, "Invalid scene payload")
+    if isinstance(payload, Response):
+        return payload
+    record = await scenes.scene_record(context.database, slug, scene)
+    if record is None:
+        return _hidden()
+    saved = await _saved_scene(context.root, slug, scene, payload)
+    if isinstance(saved, Response):
+        return saved
+    return await _persist_scene(context, slug, scene, saved)
+
+
+async def _persist_scene(
+    context: SceneContext,
+    slug: str,
+    scene: str,
+    saved: tuple[scenes.SceneBlueprint, str, str],
+) -> Response | SceneDetail:
+    blueprint, digest, previous = saved
+    try:
+        await scenes.store_save(context.database, slug, blueprint, digest)
+    except Exception as failure:
+        restored = await _restore_scene(context.root, slug, scene, previous)
+        if not restored:
+            return error_response(
+                "scene_restore_failed",
+                "The save failed and the previous scene could not be restored",
+                503,
+            )
+        return _storage_failure(failure)
+    return _scene_detail(blueprint, digest)
+
+
+async def _restore_scene(root: Path, slug: str, scene: str, text: str) -> bool:
+    try:
+        await asyncio.to_thread(scenes.restore_file, root, slug, scene, text)
+    except OSError as failure:
+        logger.opt(exception=failure).error(f"Scene restore failed: {failure}")
+        return False
+    return True
+
+
+async def _saved_scene(
+    root: Path,
+    slug: str,
+    scene: str,
+    payload: SceneSave,
+) -> tuple[scenes.SceneBlueprint, str, str] | Response:
+    try:
+        return await asyncio.to_thread(
+            scenes.save_existing, root, slug, scene, payload
+        )
+    except scenes.SceneMissing:
+        return _scene_unreadable()
+    except scenes.SceneConflict:
+        return error_response(
+            "scene_conflict", "The scene changed on disk", 409
+        )
+    except scenes.InvalidSceneZones as failure:
+        return error_response("invalid_payload", str(failure), 422)
+    except OSError as failure:
+        return _vault_write_failure(failure)

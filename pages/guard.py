@@ -10,7 +10,12 @@ from src.panel import vault
 
 JSON_MIMETYPE = "application/json"
 MULTIPART_MIMETYPE = "multipart/form-data"
-MUTATING_METHODS: frozenset[str] = frozenset({"POST", "PATCH", "DELETE"})
+MUTATING_METHODS: frozenset[str] = frozenset({
+    "POST",
+    "PATCH",
+    "PUT",
+    "DELETE",
+})
 
 
 def _forbidden() -> Response:

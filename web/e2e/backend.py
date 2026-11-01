@@ -8,6 +8,7 @@ status serialization all run as they do in production.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import os
 import shutil
@@ -32,6 +33,8 @@ from src.panel import login as panel_login
 from src.panel import rate_limit
 from src.panel import state as panel_state
 from src.panel import vault, vault_index, vault_sync
+from src.panel.schemas import SceneCreate
+from src.panel import scenes as panel_scenes
 from src.storage import get_database
 from src.storage.registry import Actor
 from tests.fakes import (
@@ -466,6 +469,33 @@ async def enroll():
     return {"ok": True}
 
 
+@quart_app.post("/__test__/scene")
+async def seed_scene():
+    payload = await request.get_json()
+    database = get_database()
+    index = vault_index.configured()
+    if database is None or index.root is None:
+        return {"ok": False}, 503
+    blueprint = panel_scenes.build_blueprint(
+        index, "paratheos", SceneCreate.model_validate(payload)
+    )
+    text = panel_scenes.canonical_text(blueprint)
+    await asyncio.to_thread(
+        panel_scenes.write_new,
+        index.root,
+        "paratheos",
+        blueprint.slug,
+        text,
+    )
+    await panel_scenes.store_new(
+        database,
+        "paratheos",
+        blueprint,
+        panel_scenes.blueprint_hash(blueprint),
+    )
+    return {"ok": True}
+
+
 @quart_app.post("/__test__/track")
 async def set_track():
     payload = await request.get_json()
@@ -501,6 +531,7 @@ async def _reset_campaign_state() -> None:
             "sheet_conflicts",
             "character_visibility",
             "sheet_files",
+            "scenes",
             "members",
         ):
             await database.execute(f"DELETE FROM {table}")

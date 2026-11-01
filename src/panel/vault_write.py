@@ -3,12 +3,17 @@ from __future__ import annotations
 import os
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 BACKUP_KEEP = 20
 BACKUP_SUFFIX = ".md"
 
 _WRITE_LOCK = threading.RLock()
+
+
+class WriteConflict(Exception):
+    pass
 
 
 def write_lock() -> threading.RLock:
@@ -25,6 +30,13 @@ def atomic_write_bytes(path: Path, data: bytes) -> None:
         _replace(path, data)
 
 
+def atomic_write_guarded(
+    path: Path, text: str, guard: Callable[[], bool]
+) -> None:
+    with _WRITE_LOCK:
+        _replace(path, text.encode("utf-8"), guard)
+
+
 def create_exclusive(path: Path, text: str) -> None:
     with _WRITE_LOCK:
         descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
@@ -39,7 +51,9 @@ def create_exclusive(path: Path, text: str) -> None:
         fsync_directory(path.parent)
 
 
-def _replace(path: Path, data: bytes) -> None:
+def _replace(
+    path: Path, data: bytes, guard: Callable[[], bool] | None = None
+) -> None:
     temp = path.with_name(f".harpi-tmp-{os.getpid()}")
     try:
         with temp.open("wb") as handle:
@@ -47,6 +61,8 @@ def _replace(path: Path, data: bytes) -> None:
             handle.flush()
             os.fsync(handle.fileno())
         temp.chmod(_mode(path))
+        if guard is not None and not guard():
+            raise WriteConflict(f"{path} changed before the replace")
         temp.replace(path)
         fsync_directory(path.parent)
     except BaseException:
