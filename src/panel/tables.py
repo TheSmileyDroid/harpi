@@ -455,9 +455,7 @@ async def _public_tokens(
     zones = scenes.stored_zones(record.zones_json)
     fog_outside = await scene_fog_outside(database, record.id)
     tokens = await token_rows(database, table.id, record.id)
-    return [
-        token for token in tokens if _token_public(token, zones, fog_outside)
-    ], record
+    return visible_tokens(tokens, zones, fog_outside), record
 
 
 async def _pending_target(
@@ -948,9 +946,7 @@ async def summary(
     record = await _scene_for(database, table)
     zones, tokens, fog_outside = await _table_view(database, table, record)
     narrator = role == "narrator"
-    public = [
-        token for token in tokens if _token_public(token, zones, fog_outside)
-    ]
+    public = visible_tokens(tokens, zones, fog_outside)
     public_ids = {token.id for token in public}
     return TableSummary(
         id=table.id,
@@ -1041,6 +1037,74 @@ async def _table_view(
         else await scene_fog_outside(database, record.id)
     )
     return zones, tokens, fog_outside
+
+
+def visible_tokens(
+    tokens: list[TokenRow], zones: list[SceneZone], fog_outside: bool
+) -> list[TokenRow]:
+    return [
+        token for token in tokens if _token_public(token, zones, fog_outside)
+    ]
+
+
+@dataclass(frozen=True, slots=True)
+class StreamState:
+    table: TableRow
+    record: scenes.SceneRecord | None
+    zones: list[SceneZone]
+    fog_outside: bool
+    tokens: list[TokenRow]
+    public: list[TokenRow]
+    turn: TurnRow | None
+    participants: list[TableParticipant]
+
+
+async def stream_state(database: Database, table: TableRow) -> StreamState:
+    record = await _scene_for(database, table)
+    zones, tokens, fog_outside = await _table_view(database, table, record)
+    public = visible_tokens(tokens, zones, fog_outside)
+    return StreamState(
+        table=table,
+        record=record,
+        zones=zones,
+        fog_outside=fog_outside,
+        tokens=tokens,
+        public=public,
+        turn=await _open_turn_row(database, table.id),
+        participants=await _summary_participants(
+            database, table, record, public
+        ),
+    )
+
+
+async def open_table_ids(database: Database, campaign: str) -> list[str]:
+    rows = await database.fetchall(
+        "SELECT id FROM tables WHERE campaign_slug = ? AND status = 'open' "
+        "ORDER BY opened_at, id",
+        (campaign,),
+    )
+    return [str(row["id"]) for row in rows]
+
+
+def scene_view(
+    table: TableRow,
+    record: scenes.SceneRecord | None,
+    zones: list[SceneZone],
+    fog_outside: bool,
+    narrator: bool,
+    root: Path | None,
+) -> TableScene | None:
+    return _summary_scene(table, record, zones, fog_outside, narrator, root)
+
+
+def stream_turn(
+    turn: TurnRow | None, narrator: bool, public_ids: set[str]
+) -> TableTurn | None:
+    return _table_turn(turn, narrator, public_ids)
+
+
+def wire_token(token: TokenRow) -> TableToken:
+    return _table_token(token)
 
 
 def _summary_scene(

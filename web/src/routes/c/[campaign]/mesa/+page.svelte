@@ -1,13 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { get } from "svelte/store";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { ApiError, createApiClient } from "$lib/api";
   import { isEditableTarget } from "$lib/keys";
+  import { shellLinkLabel } from "$lib/shell";
   import SheetEditor from "$lib/components/SheetEditor.svelte";
   import TableMap from "$lib/components/TableMap.svelte";
   import { phaseForError } from "$lib/phase";
   import type { LoadPhase } from "$lib/phase";
+  import { createTableLiveStore, startTableStream } from "$lib/table-stream";
+  import type { TableStreamOptions } from "$lib/table-stream";
   import {
     canEndTurn,
     canPassTurn,
@@ -37,8 +41,11 @@
   const queryTable = $derived(page.url.searchParams.get("table") ?? "");
 
   let phase = $state<LoadPhase>("loading");
-  let table = $state<TableSummary | null>(null);
+  const live = createTableLiveStore();
+  const table = $derived($live.summary);
   let campaignRole = $state<TableSummary["role"] | null>(null);
+  let stream: { stop(): void } | null = null;
+  let streamingId: string | null = null;
   let cards = $state<SceneSummary[]>([]);
   let busy = $state("");
   let failure = $state("");
@@ -94,16 +101,40 @@
       !participants.some((item) => item.token_id === turn.token_id),
   );
 
+  function syncStream() {
+    const current = get(live).summary;
+    const id = current?.status === "open" ? current.id : null;
+    if (id === streamingId) return;
+    stream?.stop();
+    stream = null;
+    streamingId = id;
+    if (id === null) return;
+    const options: TableStreamOptions = {
+      tableId: id,
+      store: live,
+      onClosed: () => {
+        stream = null;
+        streamingId = null;
+      },
+      onError: (error) => {
+        failure = error instanceof ApiError ? error.message : String(error);
+      },
+    };
+    stream = startTableStream(options);
+  }
+
   async function load(campaign: string, directTable: string) {
     phase = "loading";
-    table = null;
+    live.setSummary(null);
     cards = [];
     try {
       if (directTable) {
-        table = await api.tableSummary(directTable);
-        campaignRole = table.role;
-        sceneDraft = table.scene?.slug ?? "";
+        const summary = await api.tableSummary(directTable);
+        live.setSummary(summary);
+        campaignRole = summary.role;
+        sceneDraft = summary.scene?.slug ?? "";
         phase = "ready";
+        syncStream();
         return;
       }
       const detail = await api.campaign(campaign);
@@ -113,10 +144,11 @@
       const first = cards[0];
       if (first) openDraft.scene = first.slug;
       if (detail.open_table) {
-        table = await api.tableSummary(detail.open_table.id);
+        live.setSummary(await api.tableSummary(detail.open_table.id));
       }
-      sceneDraft = table?.scene?.slug ?? "";
+      sceneDraft = get(live).summary?.scene?.slug ?? "";
       phase = "ready";
+      syncStream();
     } catch (error) {
       phase = phaseForError(error);
     }
@@ -124,6 +156,19 @@
 
   onMount(() => {
     void load(slug, queryTable);
+    return () => stream?.stop();
+  });
+
+  let lastSheetRev = 0;
+
+  $effect(() => {
+    const changes = $live.sheetChanges;
+    const latest = changes.at(-1);
+    const sheet = character?.sheet;
+    if (!latest || !sheet || sheet.id !== latest.sheet_id) return;
+    if (latest.rev <= lastSheetRev) return;
+    lastSheetRev = latest.rev;
+    reloadSheet();
   });
 
   $effect(() => {
@@ -142,6 +187,12 @@
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+  function adoptSummary(summary: TableSummary): TableSummary {
+    live.setSummary(summary);
+    syncStream();
+    return summary;
+  }
 
   async function act(name: string, work: () => Promise<void>) {
     if (busy) return;
@@ -166,13 +217,15 @@
     }
     await act("open", async () => {
       try {
-        table = await api.openTable({
-          campaign: slug,
-          channel_id: openDraft.channel.trim(),
-          scene: openDraft.scene,
-          name: openDraft.name.trim() || null,
-        });
-        sceneDraft = table.scene?.slug ?? "";
+        const opened = adoptSummary(
+          await api.openTable({
+            campaign: slug,
+            channel_id: openDraft.channel.trim(),
+            scene: openDraft.scene,
+            name: openDraft.name.trim() || null,
+          }),
+        );
+        sceneDraft = opened.scene?.slug ?? "";
         selectedId = null;
         notice = "Mesa aberta.";
       } catch (error) {
@@ -203,7 +256,7 @@
     if (!table) return;
     await act("close", async () => {
       try {
-        table = await api.closeTable(table!.id);
+        adoptSummary(await api.closeTable(table!.id));
         warning = "";
         selectedId = null;
         notice = "Mesa fechada. Snapshot gravado.";
@@ -217,9 +270,9 @@
     if (!table) return;
     await act("reopen", async () => {
       try {
-        table = await api.reopenTable(table!.id);
-        warning = table.warning ?? "";
-        sceneDraft = table.scene?.slug ?? "";
+        const reopened = adoptSummary(await api.reopenTable(table!.id));
+        warning = reopened.warning ?? "";
+        sceneDraft = reopened.scene?.slug ?? "";
         notice = "Mesa reaberta.";
       } catch (error) {
         failure = tableActionNote(error);
@@ -231,9 +284,11 @@
     if (!table || !sceneSlug) return;
     await act("scene", async () => {
       try {
-        table = await api.changeTableScene(table!.id, {
-          scene: sceneSlug,
-        });
+        adoptSummary(
+          await api.changeTableScene(table!.id, {
+            scene: sceneSlug,
+          }),
+        );
         selectedId = null;
         notice = "Cena trocada.";
       } catch (error) {
@@ -246,8 +301,8 @@
     if (!table) return;
     await act("reload", async () => {
       try {
-        table = await api.reloadTableScene(table!.id);
-        warning = table.warning ?? "";
+        const reloaded = adoptSummary(await api.reloadTableScene(table!.id));
+        warning = reloaded.warning ?? "";
         notice = "Cena recarregada do disco.";
       } catch (error) {
         failure = tableActionNote(error);
@@ -259,9 +314,11 @@
     if (!table || !narrator) return;
     await act(`zone-${zone.id}`, async () => {
       try {
-        table = zone.revealed
-          ? await api.hideZone(table!.id, zone.id)
-          : await api.revealZone(table!.id, zone.id);
+        adoptSummary(
+          zone.revealed
+            ? await api.hideZone(table!.id, zone.id)
+            : await api.revealZone(table!.id, zone.id),
+        );
         notice = zone.revealed ? "Área coberta." : "Área revelada.";
       } catch (error) {
         failure = tableZoneNote(error);
@@ -273,7 +330,7 @@
     if (!table || !narrator) return;
     await act("move", async () => {
       try {
-        table = await api.patchTableToken(table!.id, token.id, { x, y });
+        adoptSummary(await api.patchTableToken(table!.id, token.id, { x, y }));
       } catch (error) {
         failure = tableTokenNote(error);
       }
@@ -296,21 +353,23 @@
     }
     await act("token", async () => {
       try {
-        table = await api.createTableToken(table!.id, {
-          label: tokenDraft.label.trim(),
-          x,
-          y,
-          w,
-          h,
-          ...(tokenDraft.owner.trim()
-            ? { owner_id: tokenDraft.owner.trim() }
-            : {}),
-          ...(tokenDraft.character.trim()
-            ? { character_id: tokenDraft.character.trim() }
-            : {}),
-          color: tokenDraft.color,
-          visible: tokenDraft.visible,
-        });
+        adoptSummary(
+          await api.createTableToken(table!.id, {
+            label: tokenDraft.label.trim(),
+            x,
+            y,
+            w,
+            h,
+            ...(tokenDraft.owner.trim()
+              ? { owner_id: tokenDraft.owner.trim() }
+              : {}),
+            ...(tokenDraft.character.trim()
+              ? { character_id: tokenDraft.character.trim() }
+              : {}),
+            color: tokenDraft.color,
+            visible: tokenDraft.visible,
+          }),
+        );
         tokenDraft = {
           label: "",
           x: "0",
@@ -333,9 +392,11 @@
     if (!table || !narrator) return;
     await act("visibility", async () => {
       try {
-        table = await api.patchTableToken(table!.id, token.id, {
-          visible: !token.visible,
-        });
+        adoptSummary(
+          await api.patchTableToken(table!.id, token.id, {
+            visible: !token.visible,
+          }),
+        );
       } catch (error) {
         failure = tableTokenNote(error);
       }
@@ -346,7 +407,7 @@
     if (!table || !narrator) return;
     await act("remove", async () => {
       try {
-        table = await api.deleteTableToken(table!.id, token.id);
+        adoptSummary(await api.deleteTableToken(table!.id, token.id));
         if (selectedId === token.id) {
           selectedId = null;
           closeDrawer();
@@ -362,9 +423,11 @@
     if (!table || !narrator) return;
     await act("spectators", async () => {
       try {
-        table = await api.setTableSpectators(table!.id, {
-          enabled: !table!.spectators,
-        });
+        adoptSummary(
+          await api.setTableSpectators(table!.id, {
+            enabled: !table!.spectators,
+          }),
+        );
       } catch (error) {
         failure = tableActionNote(error);
       }
@@ -375,11 +438,13 @@
     if (!table) return;
     await act(`turn-${action}`, async () => {
       try {
-        table = await api.tableTurn(table!.id, {
-          action,
-          token_id: tokenId ?? null,
-          expected_turn_id: turn?.id ?? null,
-        });
+        adoptSummary(
+          await api.tableTurn(table!.id, {
+            action,
+            token_id: tokenId ?? null,
+            expected_turn_id: turn?.id ?? null,
+          }),
+        );
         notice =
           action === "open"
             ? "Turno aberto."
@@ -491,6 +556,11 @@
         <span>{warning}</span>
       </p>
     {/if}
+    {#if $live.closedReason}
+      <p class="placard table__notice" data-testid="table-closed-event">
+        {$live.closedReason}
+      </p>
+    {/if}
     {#if sceneChanged}
       <p class="placard table__notice" data-testid="table-scene-changed">
         A cena mudou no disco. O narrador precisa recarregar a cena.
@@ -542,7 +612,28 @@
         {/if}
       </div>
 
-      <aside class="table__column" aria-label="Condução da mesa">
+      <aside class="table__column" aria-label="Mesa">
+        <section class="table__panel" data-testid="table-viewers">
+          <h2 class="panel-label">Na mesa</h2>
+          <p class="system-note" data-testid="table-link">
+            Link: {shellLinkLabel($live.link)}
+          </p>
+          {#if $live.viewers.length === 0}
+            <p class="system-note">Ninguém na mesa.</p>
+          {:else}
+            <ul class="turn__list">
+              {#each $live.viewers as viewer, index (index)}
+                <li class="turn__row" data-testid="table-viewer">
+                  <span class="turn__label">{viewer.name}</span>
+                  <span class="turn__state">
+                    {tableRoleLabel(viewer.role)}
+                  </span>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </section>
+
         {#if table.status === "open"}
           <section class="table__panel" data-testid="table-turn">
             <h2 class="panel-label">Turno</h2>

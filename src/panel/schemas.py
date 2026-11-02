@@ -639,6 +639,68 @@ class TableTurnRequest(BaseModel):
     expected_turn_id: TextInput = None
 
 
+class TablePresenceEntry(_Response):
+    name: str
+    role: TableRole
+
+
+class TableStreamViewers(_Response):
+    viewers: list[TablePresenceEntry]
+
+
+class TableDragMarker(_Response):
+    token_id: str
+    actor: str
+    active: bool
+
+
+class TableStreamSnapshot(_Response):
+    stream_rev: int
+    table_id: str
+    state: TableSummary
+    viewers: list[TablePresenceEntry]
+    drags: list[TableDragMarker]
+
+
+class TableStreamDelta(_Response):
+    from_stream_rev: int
+    stream_rev: int
+    scene_id: str | None
+    tokens: list[TableToken]
+    removed: list[str]
+    turn: TableTurn | None
+    round: int
+    status: TableStatus
+    spectators: bool
+    participants: list[TableParticipant]
+    scene: TableScene | None = None
+
+
+class TableSheetChanged(_Response):
+    sheet_id: str
+    character_id: str | None
+    rev: int
+    state: SheetReadState
+
+
+class TableClosedEvent(_Response):
+    reason: str
+
+
+class TableSseEnvelope(
+    RootModel[
+        TableStreamSnapshot
+        | TableStreamDelta
+        | TableStreamViewers
+        | TableDragMarker
+        | TableSheetChanged
+        | Heartbeat
+        | TableClosedEvent
+    ]
+):
+    __sse__ = True
+
+
 class ReloadEvent(_Response):
     scope: str
 
@@ -728,4 +790,14 @@ SSE_EVENTS: dict[str, type[BaseModel]] = {
     "position": Position,
     "heartbeat": Heartbeat,
     "directory": Directory,
+}
+
+TABLE_SSE_EVENTS: dict[str, type[BaseModel]] = {
+    "table.snapshot": TableStreamSnapshot,
+    "table.delta": TableStreamDelta,
+    "table.viewers": TableStreamViewers,
+    "table.drag": TableDragMarker,
+    "sheet.changed": TableSheetChanged,
+    "heartbeat": Heartbeat,
+    "table.closed": TableClosedEvent,
 }
