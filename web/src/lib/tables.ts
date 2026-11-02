@@ -4,9 +4,11 @@ import type {
   SceneGrid,
   SceneRect,
   SceneZone,
+  TableParticipant,
   TableScene,
   TableSummary,
   TableToken,
+  TableTurn,
 } from "./contract/panel.gen";
 
 type TableRole = TableSummary["role"];
@@ -85,6 +87,67 @@ export function tableZoneNote(error: unknown): string {
     },
     "Não foi possível mudar a névoa.",
   );
+}
+
+export function tableTurnNote(error: unknown): string {
+  return codeNote(
+    error,
+    {
+      turn_taken: "Esse participante já agiu nesta rodada.",
+      turn_not_participant: "Esse token não está visível na cena.",
+      turn_open: "Já existe um turno aberto.",
+      turn_missing: "A mesa não tem turno aberto.",
+      turn_not_yours: "Só o jogador do turno passa ou encerra.",
+      forbidden: "Seu papel não conduz o turno.",
+      table_closed: "A mesa está fechada.",
+      not_found: "Token ou mesa não encontrado.",
+      invalid_payload: "Escolha um participante pendente.",
+    },
+    "Não foi possível mudar o turno.",
+  );
+}
+
+function pendingParticipants(
+  participants: TableParticipant[],
+  turn: TableTurn | null,
+): TableParticipant[] {
+  return participants.filter(
+    (item) => !item.acted && item.token_id !== turn?.token_id,
+  );
+}
+
+export function nextPendingId(
+  participants: TableParticipant[],
+  turn: TableTurn | null,
+): string | null {
+  return pendingParticipants(participants, turn)[0]?.token_id ?? null;
+}
+
+export function ownsTurn(
+  turn: TableTurn | null,
+  viewerId: string | null,
+): boolean {
+  return turn !== null && turn.owner_id !== null && turn.owner_id === viewerId;
+}
+
+export function canPassTurn(
+  role: TableSummary["role"],
+  participants: TableParticipant[],
+  turn: TableTurn | null,
+  viewerId: string | null,
+): boolean {
+  if (!turn || pendingParticipants(participants, turn).length === 0) {
+    return false;
+  }
+  return role === "narrator" || ownsTurn(turn, viewerId);
+}
+
+export function canEndTurn(
+  role: TableSummary["role"],
+  turn: TableTurn | null,
+  viewerId: string | null,
+): boolean {
+  return turn !== null && (role === "narrator" || ownsTurn(turn, viewerId));
 }
 
 function tokenCenter(token: TableToken): { x: number; y: number } {

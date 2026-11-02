@@ -3,6 +3,7 @@
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { ApiError, createApiClient } from "$lib/api";
+  import { isEditableTarget } from "$lib/keys";
   import { phaseForError } from "$lib/phase";
   import type { LoadPhase } from "$lib/phase";
   import {
@@ -277,17 +278,6 @@
     labelInput?.select();
   }
 
-  function isTyping(target: EventTarget | null): boolean {
-    const element = target as HTMLElement | null;
-    if (!element) return false;
-    return (
-      element.tagName === "INPUT" ||
-      element.tagName === "TEXTAREA" ||
-      element.tagName === "SELECT" ||
-      element.isContentEditable
-    );
-  }
-
   function deleteSelected() {
     if (!selected) return;
     commit(
@@ -299,7 +289,7 @@
 
   function keyDown(event: KeyboardEvent) {
     if (phase !== "ready" || role !== "narrator") return;
-    if (isTyping(event.target)) return;
+    if (isEditableTarget(event.target)) return;
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
       event.preventDefault();
       undo();

@@ -203,11 +203,11 @@ A token a player can see: `visible: true`, and either its center falls in a reve
 _Avoid_: visible token (that is one field), revealed token
 
 **Turn**:
-The span in which one token acts during the current round. At most one is open per Table.
+The span in which one token acts during the current round. At most one is open per Table. A turn whose token stops being public ends with it.
 _Avoid_: initiative, order, activation
 
 **Round**:
-One pass over the public tokens of the current scene. It closes when the last token that has not acted ends a turn, and the narrator opens the next.
+One pass over the public tokens of the current scene. It closes when the last pending token ends a turn, or stops being a participant, and the narrator opens the next.
 _Avoid_: cycle, initiative round, pending (that is a member role)
 
 **Table stream**:

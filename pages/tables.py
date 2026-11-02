@@ -35,6 +35,7 @@ from src.panel.schemas import (
     TableSummary,
     TableTokenCreate,
     TableTokenPatch,
+    TableTurnRequest,
     TableRole,
 )
 from src.storage import get_database
@@ -44,6 +45,49 @@ BODY_BYTES = 64 * 1024
 ALLOWED_GUILDS = "table_allowed_guilds"
 
 bp = Blueprint("tables", __name__)
+
+TURN_REFUSALS: tuple[tuple[type[tables.TableError], str, str, int], ...] = (
+    (
+        tables.TurnNotParticipant,
+        "turn_not_participant",
+        "That token is not a public participant",
+        422,
+    ),
+    (
+        tables.TurnStale,
+        "turn_stale",
+        "The turn changed; reload the table",
+        409,
+    ),
+    (
+        tables.TurnTaken,
+        "turn_taken",
+        "That participant already acted in this round",
+        422,
+    ),
+    (
+        tables.TurnAlreadyOpen,
+        "turn_open",
+        "The table already has an open turn",
+        422,
+    ),
+    (
+        tables.TurnMissing,
+        "turn_missing",
+        "The table has no open turn",
+        422,
+    ),
+    (
+        tables.TurnNotYours,
+        "turn_not_yours",
+        "Only the player of the turn can pass or end it",
+        403,
+    ),
+    (tables.TokenNotFound, "not_found", "Not found", 404),
+    (tables.SceneNotFound, "not_found", "Not found", 404),
+    (tables.TableNotFound, "not_found", "Not found", 404),
+    (tables.TableClosed, "table_closed", "The table is closed", 409),
+)
 
 
 @bp.before_request
@@ -460,6 +504,90 @@ async def _set_zone(
     except tables.SceneNotFound:
         return _not_found()
     return await _fresh(database, table_id, access)
+
+
+@bp.post("/api/tables/<table_id>/turns")
+@document_request(TableTurnRequest)
+@document_response(ErrorEnvelope, 403)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 409)
+@document_response(ErrorEnvelope, 422)
+@validate_response(TableSummary, 200)
+async def turn(table_id: str) -> Response | TableSummary:
+    access = await _table_access(table_id)
+    if isinstance(access, Response):
+        return access
+    if access.table.status != "open":
+        return _closed()
+    payload = await _body(TableTurnRequest)
+    if isinstance(payload, Response):
+        return payload
+    refusal = _turn_allowed(access, payload)
+    if refusal is not None:
+        return refusal
+    database = get_database()
+    if database is None:
+        return _not_found()
+    return await _turn_result(database, access, payload, table_id)
+
+
+async def _turn_result(
+    database, access: TableAccess, payload: TableTurnRequest, table_id: str
+) -> Response | TableSummary:
+    try:
+        await _turn_action(database, access, payload)
+    except tables.TableError as failure:
+        return _turn_refusal(failure)
+    return await _fresh(database, table_id, access)
+
+
+def _turn_refusal(failure: tables.TableError) -> Response:
+    for kind, code, message, status in TURN_REFUSALS:
+        if isinstance(failure, kind):
+            return error_response(code, message, status)
+    raise failure
+
+
+def _turn_allowed(
+    access: TableAccess, payload: TableTurnRequest
+) -> Response | None:
+    if payload.action in {"open", "pass"} and not payload.token_id:
+        return _invalid("A turn action needs a token")
+    if payload.action == "open":
+        return None if access.role == "narrator" else _forbidden()
+    if access.role not in {"narrator", "player"}:
+        return _forbidden()
+    return None
+
+
+async def _turn_action(
+    database, access: TableAccess, payload: TableTurnRequest
+) -> None:
+    narrator = access.role == "narrator"
+    if payload.action == "open":
+        await tables.open_turn(
+            database,
+            access.table,
+            token_id=payload.token_id or "",
+            actor_id=access.user_id,
+        )
+    elif payload.action == "pass":
+        await tables.pass_turn(
+            database,
+            access.table,
+            token_id=payload.token_id or "",
+            actor_id=access.user_id,
+            narrator=narrator,
+            expected_turn_id=payload.expected_turn_id,
+        )
+    else:
+        await tables.end_turn(
+            database,
+            access.table,
+            actor_id=access.user_id,
+            narrator=narrator,
+            expected_turn_id=payload.expected_turn_id,
+        )
 
 
 @bp.post("/api/tables/<table_id>/tokens")

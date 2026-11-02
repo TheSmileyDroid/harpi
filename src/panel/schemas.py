@@ -551,6 +551,24 @@ class TableToken(_Response):
     rev: int
 
 
+class TableTurn(_Response):
+    id: str
+    round: int
+    token_id: str | None
+    character_id: str | None
+    label: str
+    owner_id: SnowflakeInput
+    started_at: int
+
+
+class TableParticipant(_Response):
+    token_id: str
+    character_id: str | None
+    label: str
+    owner_id: SnowflakeInput
+    acted: bool
+
+
 class TableSummary(_Response):
     id: str
     campaign: str
@@ -563,6 +581,8 @@ class TableSummary(_Response):
     spectators: bool
     scene: TableScene | None
     tokens: list[TableToken]
+    turn: TableTurn | None = None
+    participants: list[TableParticipant] = []
     warning: str | None = None
 
 
@@ -608,6 +628,15 @@ class TableTokenPatch(BaseModel):
 
 class TableSpectators(BaseModel):
     enabled: bool
+
+
+TurnAction = Literal["open", "pass", "end"]
+
+
+class TableTurnRequest(BaseModel):
+    action: TurnAction
+    token_id: TextInput = None
+    expected_turn_id: TextInput = None
 
 
 class ReloadEvent(_Response):

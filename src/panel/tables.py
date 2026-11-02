@@ -16,6 +16,7 @@ from src.panel import scenes
 from src.panel.schemas import (
     SceneRect,
     SceneZone,
+    TableParticipant,
     TableRole,
     TableScene,
     TableStatus,
@@ -23,6 +24,7 @@ from src.panel.schemas import (
     TableToken,
     TableTokenCreate,
     TableTokenPatch,
+    TableTurn,
 )
 from src.panel.vault_index import CAMPAIGN_ROOT
 from src.panel.vault_write import atomic_write
@@ -70,6 +72,30 @@ class SceneUnreadable(TableError):
     pass
 
 
+class TurnNotParticipant(TableError):
+    pass
+
+
+class TurnStale(TableError):
+    pass
+
+
+class TurnTaken(TableError):
+    pass
+
+
+class TurnAlreadyOpen(TableError):
+    pass
+
+
+class TurnMissing(TableError):
+    pass
+
+
+class TurnNotYours(TableError):
+    pass
+
+
 class TableAlreadyOpen(TableError):
     def __init__(self, table: TableRow) -> None:
         super().__init__(f"table {table.id} is already open")
@@ -107,6 +133,17 @@ class TokenRow:
     color: str
     visible: bool
     rev: int
+
+
+@dataclass(frozen=True, slots=True)
+class TurnRow:
+    id: str
+    round: int
+    token_id: str | None
+    character_id: str | None
+    label: str
+    owner_id: str | None
+    started_at: int
 
 
 class SnapshotTable(BaseModel):
@@ -376,6 +413,224 @@ async def _require_scene(
     return record
 
 
+def _turn(row: Row) -> TurnRow:
+    return TurnRow(
+        id=row["id"],
+        round=row["round"],
+        token_id=row["token_id"],
+        character_id=row["character_id"],
+        label=row["label"],
+        owner_id=row["token_owner_id"],
+        started_at=row["started_at"],
+    )
+
+
+async def _open_turn_row(database: Database, table_id: str) -> TurnRow | None:
+    row = await database.fetchone(
+        "SELECT turns.*, tokens.owner_id AS token_owner_id FROM turns "
+        "LEFT JOIN tokens ON tokens.id = turns.token_id "
+        "WHERE turns.table_id = ? AND turns.ended_at IS NULL",
+        (table_id,),
+    )
+    return None if row is None else _turn(row)
+
+
+async def _acted_token_ids(
+    database: Database, table_id: str, scene_id: str, round_number: int
+) -> set[str]:
+    rows = await database.fetchall(
+        "SELECT token_id FROM turns WHERE table_id = ? AND scene_id = ? "
+        "AND round = ? AND token_id IS NOT NULL",
+        (table_id, scene_id, round_number),
+    )
+    return {str(row["token_id"]) for row in rows}
+
+
+async def _public_tokens(
+    database: Database, table: TableRow
+) -> tuple[list[TokenRow], scenes.SceneRecord | None]:
+    record = await _scene_for(database, table)
+    if record is None:
+        return [], None
+    zones = scenes.stored_zones(record.zones_json)
+    fog_outside = await scene_fog_outside(database, record.id)
+    tokens = await token_rows(database, table.id, record.id)
+    return [
+        token for token in tokens if _token_public(token, zones, fog_outside)
+    ], record
+
+
+async def _pending_target(
+    database: Database, table: TableRow, token_id: str
+) -> TokenRow:
+    current = await token_row(database, table.id, token_id)
+    record = await _require_scene(database, table)
+    if current is None or current.scene_id != record.id:
+        raise TokenNotFound(token_id)
+    public, _ = await _public_tokens(database, table)
+    target = next((token for token in public if token.id == token_id), None)
+    if target is None:
+        raise TurnNotParticipant(token_id)
+    acted = await _acted_token_ids(database, table.id, record.id, table.round)
+    if target.id in acted:
+        raise TurnTaken(token_id)
+    return target
+
+
+async def _insert_turn(
+    database: Database, table: TableRow, token: TokenRow, actor_id: str
+) -> None:
+    now = int(time.time())
+    await database.execute(
+        "INSERT INTO turns ("
+        "id, table_id, scene_id, round, token_id, character_id, label, "
+        "started_at, started_by"
+        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            f"trn_{secrets.token_hex(12)}",
+            table.id,
+            token.scene_id,
+            table.round,
+            token.id,
+            token.character_id,
+            token.label,
+            now,
+            actor_id,
+        ),
+    )
+    await _touch_table(database, table.id)
+
+
+async def _end_turn_row(
+    database: Database, table_id: str, turn_id: str, actor_id: str
+) -> None:
+    await database.execute(
+        "UPDATE turns SET ended_at = ?, ended_by = ? "
+        "WHERE table_id = ? AND id = ? AND ended_at IS NULL",
+        (int(time.time()), actor_id, table_id, turn_id),
+    )
+    await _touch_table(database, table_id)
+
+
+async def _touch_table(database: Database, table_id: str) -> None:
+    await database.execute(
+        "UPDATE tables SET rev = rev + 1, updated_at = ? WHERE id = ?",
+        (int(time.time()), table_id),
+    )
+
+
+async def _require_current_turn(
+    database: Database, table: TableRow
+) -> TurnRow:
+    current = await _open_turn_row(database, table.id)
+    if current is None:
+        raise TurnMissing(table.id)
+    return current
+
+
+def _require_own_turn(current: TurnRow, actor_id: str) -> None:
+    if current.owner_id is None or current.owner_id != actor_id:
+        raise TurnNotYours(current.id)
+
+
+def _require_expected(current: TurnRow, expected_turn_id: str | None) -> None:
+    if expected_turn_id is not None and expected_turn_id != current.id:
+        raise TurnStale(current.id)
+
+
+async def _reconcile_table(
+    database: Database, table_id: str, actor_id: str
+) -> None:
+    table = await table_row(database, table_id)
+    if table is None or table.status != "open":
+        return
+    public, record = await _public_tokens(database, table)
+    if record is None:
+        return
+    current = await _open_turn_row(database, table_id)
+    public_ids = {token.id for token in public}
+    if current is not None and current.token_id not in public_ids:
+        await _end_turn_row(database, table_id, current.id, actor_id)
+    await _settle_round(database, table_id)
+
+
+async def _settle_round(database: Database, table_id: str) -> None:
+    table = await table_row(database, table_id)
+    if table is None:
+        return
+    public, record = await _public_tokens(database, table)
+    if record is None or not public:
+        return
+    if await _open_turn_row(database, table_id) is not None:
+        return
+    acted = await _acted_token_ids(database, table_id, record.id, table.round)
+    if any(token.id not in acted for token in public):
+        return
+    await database.execute(
+        "UPDATE tables SET round = round + 1, rev = rev + 1, updated_at = ? "
+        "WHERE id = ? AND status = 'open'",
+        (int(time.time()), table_id),
+    )
+
+
+async def open_turn(
+    database: Database, table: TableRow, *, token_id: str, actor_id: str
+) -> None:
+    async with _lock(table.id):
+        fresh = await _require_fresh_table(database, table.id)
+        if await _open_turn_row(database, fresh.id) is not None:
+            raise TurnAlreadyOpen(fresh.id)
+        target = await _pending_target(database, fresh, token_id)
+        await _insert_turn(database, fresh, target, actor_id)
+
+
+async def pass_turn(
+    database: Database,
+    table: TableRow,
+    *,
+    token_id: str,
+    actor_id: str,
+    narrator: bool,
+    expected_turn_id: str | None = None,
+) -> None:
+    async with _lock(table.id):
+        fresh = await _require_fresh_table(database, table.id)
+        current = await _require_current_turn(database, fresh)
+        _require_expected(current, expected_turn_id)
+        if not narrator:
+            _require_own_turn(current, actor_id)
+        target = await _pending_target(database, fresh, token_id)
+        await _end_turn_row(database, fresh.id, current.id, actor_id)
+        await _insert_turn(database, fresh, target, actor_id)
+
+
+async def end_turn(
+    database: Database,
+    table: TableRow,
+    *,
+    actor_id: str,
+    narrator: bool,
+    expected_turn_id: str | None = None,
+) -> None:
+    async with _lock(table.id):
+        fresh = await _require_fresh_table(database, table.id)
+        current = await _require_current_turn(database, fresh)
+        _require_expected(current, expected_turn_id)
+        if not narrator:
+            _require_own_turn(current, actor_id)
+        await _end_turn_row(database, fresh.id, current.id, actor_id)
+        await _settle_round(database, fresh.id)
+
+
+async def _require_fresh_table(database: Database, table_id: str) -> TableRow:
+    fresh = await table_row(database, table_id)
+    if fresh is None:
+        raise TableNotFound(table_id)
+    if fresh.status != "open":
+        raise TableClosed(table_id)
+    return fresh
+
+
 def _zone_text(zones: list[SceneZone]) -> str:
     return json.dumps(
         [zone.model_dump(mode="json") for zone in zones],
@@ -402,19 +657,21 @@ async def set_zone(
     revealed: bool,
     actor_id: str,
 ) -> None:
-    record = await _require_scene(database, table)
-    zones = scenes.stored_zones(record.zones_json)
-    if not any(zone.id == zone_id for zone in zones):
-        raise ZoneNotFound(zone_id)
-    updated = [
-        zone.model_copy(update={"revealed": revealed})
-        if zone.id == zone_id
-        else zone
-        for zone in zones
-    ]
-    await _store_zones(database, record, updated)
-    if revealed:
-        await _reveal_characters(database, table, updated, actor_id)
+    async with _lock(table.id):
+        record = await _require_scene(database, table)
+        zones = scenes.stored_zones(record.zones_json)
+        if not any(zone.id == zone_id for zone in zones):
+            raise ZoneNotFound(zone_id)
+        updated = [
+            zone.model_copy(update={"revealed": revealed})
+            if zone.id == zone_id
+            else zone
+            for zone in zones
+        ]
+        await _store_zones(database, record, updated)
+        if revealed:
+            await _reveal_characters(database, table, updated, actor_id)
+        await _reconcile_table(database, table.id, actor_id)
 
 
 async def _reveal_characters(
@@ -483,37 +740,38 @@ async def scene_fog_outside(database: Database, scene_id: str) -> bool:
 async def create_token(
     database: Database, table: TableRow, payload: TableTokenCreate
 ) -> TokenRow:
-    record = await _require_scene(database, table)
-    _check_bounds(record, payload.x, payload.y, payload.w, payload.h)
-    now = int(time.time())
-    token_id = f"tok_{secrets.token_hex(12)}"
-    await database.execute(
-        "INSERT INTO tokens ("
-        "id, table_id, scene_id, character_id, label, owner_id, x, y, w, h, "
-        "color, visible, rev, created_at, updated_at"
-        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)",
-        (
-            token_id,
-            table.id,
-            record.id,
-            payload.character_id,
-            payload.label,
-            payload.owner_id,
-            payload.x,
-            payload.y,
-            payload.w,
-            payload.h,
-            payload.color,
-            int(payload.visible),
-            now,
-            now,
-        ),
-    )
-    row = await token_row(database, table.id, token_id)
-    if row is None:
-        raise TokenNotFound(token_id)
-    await _reveal_character(database, table, row)
-    return row
+    async with _lock(table.id):
+        record = await _require_scene(database, table)
+        _check_bounds(record, payload.x, payload.y, payload.w, payload.h)
+        now = int(time.time())
+        token_id = f"tok_{secrets.token_hex(12)}"
+        await database.execute(
+            "INSERT INTO tokens ("
+            "id, table_id, scene_id, character_id, label, owner_id, x, y, w, "
+            "h, color, visible, rev, created_at, updated_at"
+            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)",
+            (
+                token_id,
+                table.id,
+                record.id,
+                payload.character_id,
+                payload.label,
+                payload.owner_id,
+                payload.x,
+                payload.y,
+                payload.w,
+                payload.h,
+                payload.color,
+                int(payload.visible),
+                now,
+                now,
+            ),
+        )
+        row = await token_row(database, table.id, token_id)
+        if row is None:
+            raise TokenNotFound(token_id)
+        await _reveal_character(database, table, row)
+        return row
 
 
 def _check_bounds(
@@ -526,38 +784,42 @@ def _check_bounds(
 async def update_token(
     database: Database, table: TableRow, token_id: str, patch: TableTokenPatch
 ) -> TokenRow:
-    current = await token_row(database, table.id, token_id)
-    if current is None:
-        raise TokenNotFound(token_id)
-    record = await _require_scene(database, table)
-    if current.scene_id != record.id:
-        raise TokenNotFound(token_id)
-    values = _merged_token(current, patch)
-    _check_bounds(record, values["x"], values["y"], values["w"], values["h"])
-    await database.execute(
-        "UPDATE tokens SET character_id = ?, label = ?, owner_id = ?, x = ?, "
-        "y = ?, w = ?, h = ?, color = ?, visible = ?, rev = rev + 1, "
-        "updated_at = ? WHERE table_id = ? AND id = ?",
-        (
-            values["character_id"],
-            values["label"],
-            values["owner_id"],
-            values["x"],
-            values["y"],
-            values["w"],
-            values["h"],
-            values["color"],
-            int(values["visible"]),
-            int(time.time()),
-            table.id,
-            token_id,
-        ),
-    )
-    row = await token_row(database, table.id, token_id)
-    if row is None:
-        raise TokenNotFound(token_id)
-    await _reveal_character(database, table, row)
-    return row
+    async with _lock(table.id):
+        current = await token_row(database, table.id, token_id)
+        if current is None:
+            raise TokenNotFound(token_id)
+        record = await _require_scene(database, table)
+        if current.scene_id != record.id:
+            raise TokenNotFound(token_id)
+        values = _merged_token(current, patch)
+        _check_bounds(
+            record, values["x"], values["y"], values["w"], values["h"]
+        )
+        await database.execute(
+            "UPDATE tokens SET character_id = ?, label = ?, owner_id = ?, "
+            "x = ?, y = ?, w = ?, h = ?, color = ?, visible = ?, rev = "
+            "rev + 1, updated_at = ? WHERE table_id = ? AND id = ?",
+            (
+                values["character_id"],
+                values["label"],
+                values["owner_id"],
+                values["x"],
+                values["y"],
+                values["w"],
+                values["h"],
+                values["color"],
+                int(values["visible"]),
+                int(time.time()),
+                table.id,
+                token_id,
+            ),
+        )
+        row = await token_row(database, table.id, token_id)
+        if row is None:
+            raise TokenNotFound(token_id)
+        await _reveal_character(database, table, row)
+        await _reconcile_table(database, table.id, "system")
+        return row
 
 
 def _merged_token(current: TokenRow, patch: TableTokenPatch) -> dict[str, Any]:
@@ -583,13 +845,18 @@ def _merged_token(current: TokenRow, patch: TableTokenPatch) -> dict[str, Any]:
 async def delete_token(
     database: Database, table: TableRow, token_id: str
 ) -> None:
-    current = await token_row(database, table.id, token_id)
-    if current is None or current.scene_id != table.current_scene_id:
-        raise TokenNotFound(token_id)
-    await database.execute(
-        "DELETE FROM tokens WHERE table_id = ? AND id = ?",
-        (table.id, token_id),
-    )
+    async with _lock(table.id):
+        current = await token_row(database, table.id, token_id)
+        if current is None or current.scene_id != table.current_scene_id:
+            raise TokenNotFound(token_id)
+        open_turn = await _open_turn_row(database, table.id)
+        if open_turn is not None and open_turn.token_id == token_id:
+            await _end_turn_row(database, table.id, open_turn.id, "system")
+        await database.execute(
+            "DELETE FROM tokens WHERE table_id = ? AND id = ?",
+            (table.id, token_id),
+        )
+        await _settle_round(database, table.id)
 
 
 async def set_spectators(
@@ -613,56 +880,60 @@ async def end_turns(database: Database, table_id: str, actor: str) -> None:
 async def change_scene(
     database: Database, table: TableRow, scene: str
 ) -> None:
-    record = await scenes.scene_record(database, table.campaign, scene)
-    if record is None:
-        raise SceneNotFound(scene)
-    await database.execute(
-        "UPDATE tables SET current_scene_id = ?, rev = rev + 1, "
-        "updated_at = ? WHERE id = ?",
-        (record.id, int(time.time()), table.id),
-    )
-    await end_turns(database, table.id, "system")
+    async with _lock(table.id):
+        record = await scenes.scene_record(database, table.campaign, scene)
+        if record is None:
+            raise SceneNotFound(scene)
+        await end_turns(database, table.id, "system")
+        await _settle_round(database, table.id)
+        await database.execute(
+            "UPDATE tables SET current_scene_id = ?, rev = rev + 1, "
+            "updated_at = ? WHERE id = ?",
+            (record.id, int(time.time()), table.id),
+        )
 
 
 async def reload_scene(
     database: Database, root: Path, table: TableRow
 ) -> None:
-    record = await _require_scene(database, table)
-    blueprint = scenes.load_blueprint(root / record.blueprint_path)
-    if blueprint is None:
-        raise SceneUnreadable(record.blueprint_path)
-    revealed = {
-        zone.id: zone.revealed
-        for zone in scenes.stored_zones(record.zones_json)
-    }
-    zones = [
-        zone.model_copy(update={"revealed": revealed.get(zone.id, False)})
-        for zone in blueprint.zones
-    ]
-    await database.execute(
-        "UPDATE scenes SET name = ?, source = ?, blueprint_hash = ?, "
-        "image_path = ?, image_width = ?, image_height = ?, grid_json = ?, "
-        "zones_json = ?, fog_outside = ?, rev = rev + 1, updated_at = ? "
-        "WHERE id = ?",
-        (
-            blueprint.name,
-            blueprint.source,
-            scenes.blueprint_hash(blueprint),
-            blueprint.image.path,
-            blueprint.image.width,
-            blueprint.image.height,
-            json.dumps(
-                blueprint.grid.model_dump(mode="json"),
-                ensure_ascii=False,
-                sort_keys=True,
+    async with _lock(table.id):
+        record = await _require_scene(database, table)
+        blueprint = scenes.load_blueprint(root / record.blueprint_path)
+        if blueprint is None:
+            raise SceneUnreadable(record.blueprint_path)
+        revealed = {
+            zone.id: zone.revealed
+            for zone in scenes.stored_zones(record.zones_json)
+        }
+        zones = [
+            zone.model_copy(update={"revealed": revealed.get(zone.id, False)})
+            for zone in blueprint.zones
+        ]
+        await database.execute(
+            "UPDATE scenes SET name = ?, source = ?, blueprint_hash = ?, "
+            "image_path = ?, image_width = ?, image_height = ?, grid_json = ?, "
+            "zones_json = ?, fog_outside = ?, rev = rev + 1, updated_at = ? "
+            "WHERE id = ?",
+            (
+                blueprint.name,
+                blueprint.source,
+                scenes.blueprint_hash(blueprint),
+                blueprint.image.path,
+                blueprint.image.width,
+                blueprint.image.height,
+                json.dumps(
+                    blueprint.grid.model_dump(mode="json"),
+                    ensure_ascii=False,
+                    sort_keys=True,
+                ),
+                _zone_text(zones),
+                int(blueprint.fog_outside),
+                int(time.time()),
+                record.id,
             ),
-            _zone_text(zones),
-            int(blueprint.fog_outside),
-            int(time.time()),
-            record.id,
-        ),
-    )
-    await end_turns(database, table.id, "system")
+        )
+        await end_turns(database, table.id, "system")
+        await _settle_round(database, table.id)
 
 
 async def summary(
@@ -677,6 +948,10 @@ async def summary(
     record = await _scene_for(database, table)
     zones, tokens, fog_outside = await _table_view(database, table, record)
     narrator = role == "narrator"
+    public = [
+        token for token in tokens if _token_public(token, zones, fog_outside)
+    ]
+    public_ids = {token.id for token in public}
     return TableSummary(
         id=table.id,
         campaign=table.campaign,
@@ -695,8 +970,61 @@ async def summary(
             narrator,
             root if narrator else None,
         ),
-        tokens=_summary_tokens(tokens, zones, fog_outside, narrator),
+        tokens=_summary_tokens(tokens, public, narrator),
+        turn=_table_turn(
+            await _open_turn_row(database, table.id), narrator, public_ids
+        ),
+        participants=await _summary_participants(
+            database, table, record, public
+        ),
         warning=warning,
+    )
+
+
+async def _summary_participants(
+    database: Database,
+    table: TableRow,
+    record: scenes.SceneRecord | None,
+    public: list[TokenRow],
+) -> list[TableParticipant]:
+    if record is None:
+        return []
+    acted = await _acted_token_ids(database, table.id, record.id, table.round)
+    return [
+        TableParticipant(
+            token_id=token.id,
+            character_id=token.character_id,
+            label=token.label,
+            owner_id=token.owner_id,
+            acted=token.id in acted,
+        )
+        for token in public
+    ]
+
+
+def _table_turn(
+    turn: TurnRow | None, narrator: bool, public_ids: set[str]
+) -> TableTurn | None:
+    if turn is None:
+        return None
+    if narrator or turn.token_id in public_ids:
+        return TableTurn(
+            id=turn.id,
+            round=turn.round,
+            token_id=turn.token_id,
+            character_id=turn.character_id,
+            label=turn.label,
+            owner_id=turn.owner_id,
+            started_at=turn.started_at,
+        )
+    return TableTurn(
+        id=turn.id,
+        round=turn.round,
+        token_id=None,
+        character_id=None,
+        label="",
+        owner_id=None,
+        started_at=turn.started_at,
     )
 
 
@@ -751,19 +1079,10 @@ def scene_saved(record: scenes.SceneRecord, root: Path | None) -> bool:
 
 def _summary_tokens(
     tokens: list[TokenRow],
-    zones: list[SceneZone],
-    fog_outside: bool,
+    public: list[TokenRow],
     narrator: bool,
 ) -> list[TableToken]:
-    shown = (
-        tokens
-        if narrator
-        else [
-            token
-            for token in tokens
-            if _token_public(token, zones, fog_outside)
-        ]
-    )
+    shown = tokens if narrator else public
     return [_table_token(token) for token in shown]
 
 
@@ -893,19 +1212,16 @@ def _snapshot_scene(
 
 
 async def _open_turn(database: Database, table_id: str) -> SnapshotTurn | None:
-    row = await database.fetchone(
-        "SELECT * FROM turns WHERE table_id = ? AND ended_at IS NULL",
-        (table_id,),
-    )
-    if row is None:
+    turn = await _open_turn_row(database, table_id)
+    if turn is None:
         return None
     return SnapshotTurn(
-        id=row["id"],
-        round=row["round"],
-        token_id=row["token_id"],
-        character_id=row["character_id"],
-        label=row["label"],
-        started_at=row["started_at"],
+        id=turn.id,
+        round=turn.round,
+        token_id=turn.token_id,
+        character_id=turn.character_id,
+        label=turn.label,
+        started_at=turn.started_at,
     )
 
 
@@ -952,11 +1268,7 @@ async def close_table(
     database: Database, root: Path, table: TableRow
 ) -> TableRow:
     async with _lock(table.id):
-        fresh = await table_row(database, table.id)
-        if fresh is None:
-            raise TableNotFound(table.id)
-        if fresh.status != "open":
-            raise TableClosed(table.id)
+        fresh = await _require_fresh_table(database, table.id)
         await end_turns(database, fresh.id, "system")
         snapshot = await build_snapshot(database, fresh, status="closed")
         relative = snapshot_relative(fresh.campaign, fresh.id)
@@ -988,7 +1300,7 @@ async def reopen_table(
         await _refuse_other_open(database, fresh)
         await end_turns(database, fresh.id, "system")
         warning = None
-        round_number = fresh.round
+        round_number = fresh.round + 1
         path = _snapshot_file(root, fresh)
         snapshot = None if path is None else read_snapshot(path)
         if snapshot is None:
@@ -998,7 +1310,7 @@ async def reopen_table(
             if restored is None:
                 warning = SNAPSHOT_INVALID
             else:
-                round_number = restored
+                round_number = restored + 1
         now = int(time.time())
         await database.execute(
             "UPDATE tables SET status = 'open', round = ?, closed_by = NULL, "
