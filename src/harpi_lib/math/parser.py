@@ -69,6 +69,10 @@ class DiceParser:
         tokens = self.tokenize(expression)
         return self._evaluate_expression(tokens)
 
+    def format_result(self, result: RollResult, expression: str) -> str:
+        """Format an already evaluated result as the parser prints it."""
+        return self._format_result(result, expression)
+
     def is_valid_dice_string(self, expression: str) -> bool:
         """Check if the string is a valid dice expression.
 

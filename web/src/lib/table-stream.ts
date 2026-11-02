@@ -1,10 +1,12 @@
 import { writable } from "svelte/store";
 import type {
   TableDragMarker,
+  TableRoll,
   TableSheetChanged,
   TableSummary,
   TablePresenceEntry,
 } from "./contract/panel.gen";
+import { mergeRolls } from "./rolls";
 import { createTableEventStream } from "./sse";
 import type { AwakeTargets, EventSourceLike, TableSseFrame } from "./sse";
 
@@ -18,6 +20,7 @@ export interface TableLiveState {
   viewers: TablePresenceEntry[];
   drags: TableDragMarker[];
   sheetChanges: TableSheetChanged[];
+  rolls: TableRoll[];
   closedReason: string | null;
   link: TableLink;
   localDrag: string | null;
@@ -37,6 +40,7 @@ export function initialTableLive(): TableLiveState {
     viewers: [],
     drags: [],
     sheetChanges: [],
+    rolls: [],
     closedReason: null,
     link: "connecting",
     localDrag: null,
@@ -173,6 +177,16 @@ export function reduceTableFrame(
       closed: false,
     };
   }
+  if (frame.type === "table.roll") {
+    if (state.summary === null || frame.data.table_id !== state.summary.id) {
+      return { state, diverged: false, closed: false };
+    }
+    return {
+      state: { ...state, rolls: mergeRolls(state.rolls, [frame.data]) },
+      diverged: false,
+      closed: false,
+    };
+  }
   if (frame.type === "table.closed") {
     return {
       state: {
@@ -241,11 +255,15 @@ export function createTableLiveStore(options: TableLiveOptions = {}) {
       update((state) => ({
         ...state,
         summary,
+        rolls: summary?.id === state.summary?.id ? state.rolls : [],
         closedReason: summary?.status === "open" ? null : state.closedReason,
       }));
     },
     setLink(link: string): void {
       update((state) => ({ ...state, link: linkState(link) }));
+    },
+    addRolls(rolls: TableRoll[]): void {
+      update((state) => ({ ...state, rolls: mergeRolls(state.rolls, rolls) }));
     },
     setLocalDrag(tokenId: string | null): void {
       update((state) => {

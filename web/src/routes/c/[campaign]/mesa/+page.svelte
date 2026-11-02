@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { get } from "svelte/store";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
@@ -13,6 +13,12 @@
   import { createTableLiveStore, startTableStream } from "$lib/table-stream";
   import type { TableStreamOptions } from "$lib/table-stream";
   import { createMovePump } from "$lib/table-moves";
+  import {
+    rollCursor,
+    rollMessage,
+    rollNote,
+    rollSourceLabel,
+  } from "$lib/rolls";
   import {
     canEndTurn,
     canPassTurn,
@@ -38,6 +44,7 @@
   } from "$lib/contract/panel.gen";
 
   const api = createApiClient();
+  const ROLL_PAGE = 50;
   const slug = $derived(page.params.campaign ?? "");
   const queryTable = $derived(page.url.searchParams.get("table") ?? "");
 
@@ -88,7 +95,13 @@
   let drawerLoading = $state(false);
   let drawerFailure = $state("");
 
+  let rollDraft = $state("");
+  let rollSending = $state(false);
+
   const viewerRole = $derived(table?.role ?? campaignRole);
+  const liveLink = $derived($live.link);
+  const liveTableId = $derived(table?.id ?? null);
+  const liveStatus = $derived(table?.status ?? null);
   const narrator = $derived(viewerRole === "narrator");
   const pending = $derived(viewerRole === "pending");
   const spectator = $derived(viewerRole === "spectator");
@@ -116,6 +129,41 @@
     turn !== null &&
       !participants.some((item) => item.token_id === turn.token_id),
   );
+  const rollable = $derived(
+    viewerRole === "narrator" || viewerRole === "player",
+  );
+
+  async function loadRolls(tableId: string) {
+    try {
+      let after = untrack(() => rollCursor(get(live).rolls));
+      for (;;) {
+        const batch = await api.tableRolls(tableId, after, ROLL_PAGE);
+        if (batch.rolls.length === 0) return;
+        live.addRolls(batch.rolls);
+        if (batch.rolls.length < ROLL_PAGE) return;
+        after = batch.rolls.at(-1)?.id ?? after;
+      }
+    } catch (error) {
+      failure = rollNote(error);
+    }
+  }
+
+  async function submitRoll() {
+    const current = table;
+    const expression = rollDraft.trim();
+    if (current === null || expression === "" || rollSending) return;
+    rollSending = true;
+    failure = "";
+    try {
+      const result = await api.postTableRoll(current.id, { expression });
+      live.addRolls(result.rolls);
+      rollDraft = "";
+    } catch (error) {
+      failure = rollNote(error);
+    } finally {
+      rollSending = false;
+    }
+  }
 
   function syncStream() {
     const current = get(live).summary;
@@ -192,6 +240,12 @@
     if (latest.rev <= lastSheetRev) return;
     lastSheetRev = latest.rev;
     reloadSheet();
+  });
+
+  $effect(() => {
+    if (liveTableId === null) return;
+    if (liveStatus === "open" && liveLink !== "connected") return;
+    void loadRolls(liveTableId);
   });
 
   $effect(() => {
@@ -748,6 +802,62 @@
           </section>
         {/if}
 
+        <section class="table__panel" data-testid="table-rolls">
+          <h2 class="panel-label">Rolagem</h2>
+          {#if rollable && table.status === "open"}
+            <form
+              class="table__roll"
+              data-testid="table-roll-form"
+              onsubmit={(event) => {
+                event.preventDefault();
+                void submitRoll();
+              }}
+            >
+              <label class="table__field">
+                <span class="data-label">Expressão</span>
+                <input
+                  class="hud-input"
+                  type="text"
+                  maxlength="120"
+                  placeholder="4dF"
+                  autocomplete="off"
+                  spellcheck="false"
+                  data-testid="table-roll-input"
+                  disabled={rollSending}
+                  bind:value={rollDraft}
+                />
+              </label>
+              <button
+                class="hud-btn hud-btn--primary"
+                type="submit"
+                data-testid="table-roll-submit"
+                disabled={rollSending || rollDraft.trim() === ""}
+              >
+                Rolar
+              </button>
+            </form>
+          {/if}
+          {#if $live.rolls.length === 0}
+            <p class="system-note" data-testid="table-roll-empty">
+              Nenhuma rolagem ainda.
+            </p>
+          {:else}
+            <ol class="roll__log" data-testid="table-roll-log">
+              {#each $live.rolls as roll (roll.id)}
+                <li class="roll__row" data-testid="table-roll">
+                  <span
+                    class="roll__tag"
+                    class:is-discord={roll.source === "discord"}
+                  >
+                    {rollSourceLabel(roll.source)}
+                  </span>
+                  <span class="roll__text">{rollMessage(roll)}</span>
+                </li>
+              {/each}
+            </ol>
+          {/if}
+        </section>
+
         {#if narrator}
           <section class="table__panel" data-testid="table-conduct">
             <h2 class="panel-label">Condução</h2>
@@ -1276,6 +1386,59 @@
     font-family: var(--font-label);
     font-size: 0.75rem;
     color: var(--label);
+  }
+
+  .table__roll {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 0.5rem;
+  }
+
+  .roll__log {
+    display: grid;
+    gap: 0.35rem;
+    max-block-size: 18rem;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+  }
+
+  .roll__row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    gap: 0.5rem;
+    padding-block: 0.35rem;
+    border-block-start: 1px solid var(--rule);
+  }
+
+  .roll__row:first-child {
+    border-block-start: 0;
+  }
+
+  .roll__tag {
+    font-family: var(--font-label);
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+
+  .roll__tag.is-discord {
+    color: var(--dim);
+  }
+
+  .roll__text {
+    min-inline-size: 0;
+    font-family: var(--font-value);
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: var(--sand);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   .drawer__backdrop {

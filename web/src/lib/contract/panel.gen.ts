@@ -251,6 +251,21 @@ export const TableParticipant = z.strictObject({ acted: z.boolean(), character_i
 export type TablePresenceEntry = z.infer<typeof TablePresenceEntry>;
 export const TablePresenceEntry = z.strictObject({ name: z.string(), role: z.enum(["narrator", "player", "pending", "spectator"]) });
 
+export type TableRollDiceGroup = z.infer<typeof TableRollDiceGroup>;
+export const TableRollDiceGroup = z.strictObject({ kept: z.array(z.boolean()).nullable(), notation: z.string(), total: z.number().int(), values: z.array(z.number().int()) });
+
+export type TableRollDice = z.infer<typeof TableRollDice>;
+export const TableRollDice = z.strictObject({ expression: z.string(), groups: z.array(TableRollDiceGroup), index: z.number().int(), of: z.number().int() });
+
+export type TableRoll = z.infer<typeof TableRoll>;
+export const TableRoll = z.strictObject({ actor_id: z.string().nullable(), actor_label: z.string(), created_at: z.number().int(), dice: TableRollDice, discord_message_id: z.string().nullable(), expression: z.string(), id: z.string(), scene_id: z.string().nullable(), scene_label: z.string(), source: z.enum(["panel", "discord"]), table_id: z.string(), text: z.string(), total: z.number().int(), turn_id: z.string().nullable() });
+
+export type TableRollCreate = z.infer<typeof TableRollCreate>;
+export const TableRollCreate = z.strictObject({ expression: z.string().min(1) });
+
+export type TableRollList = z.infer<typeof TableRollList>;
+export const TableRollList = z.strictObject({ rolls: z.array(TableRoll) });
+
 export type TableScene = z.infer<typeof TableScene>;
 export const TableScene = z.strictObject({ fog: z.array(SceneRect).default([]), fog_outside: z.boolean(), grid: SceneGrid, height: z.number().int(), id: z.string(), map_url: z.string(), name: z.string(), saved: z.boolean().default(true), slug: z.string(), source: z.enum(["image", "sketch"]), width: z.number().int(), zones: z.array(SceneZone) });
 
@@ -282,7 +297,7 @@ export type TableStreamViewers = z.infer<typeof TableStreamViewers>;
 export const TableStreamViewers = z.strictObject({ viewers: z.array(TablePresenceEntry) });
 
 export type TableSseEnvelope = z.infer<typeof TableSseEnvelope>;
-export const TableSseEnvelope = z.union([TableStreamSnapshot, TableStreamDelta, TableStreamViewers, TableDragMarker, TableSheetChanged, Heartbeat, TableClosedEvent]);
+export const TableSseEnvelope = z.union([TableStreamSnapshot, TableStreamDelta, TableStreamViewers, TableDragMarker, TableSheetChanged, TableRoll, Heartbeat, TableClosedEvent]);
 
 export type TableTokenCreate = z.infer<typeof TableTokenCreate>;
 export const TableTokenCreate = z.strictObject({ character_id: z.string().nullable().default(null), color: z.string().default("#e9dfc7"), h: z.number().int().min(1).default(1), label: z.string(), owner_id: z.string().nullable().default(null), visible: z.boolean().default(true), w: z.number().int().min(1).default(1), x: z.number().min(0), y: z.number().min(0) });

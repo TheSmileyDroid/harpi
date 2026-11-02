@@ -38,6 +38,7 @@ from pages.events import bp as events_bp
 from pages.tables import bp as tables_bp
 
 from src import alerts
+from src.bot_state import clear_panel_loop, init_panel_loop
 from src.config import Settings
 from src.discord_bot import run_bot_in_background
 from src.logging_setup import configure_logging
@@ -386,6 +387,7 @@ _sync_task: asyncio.Task[None] | None = None
 async def startup():
     global _database, _retention_task, _backup_task, _disk_task
     global _sync_task
+    init_panel_loop(asyncio.get_running_loop())
     settings = Settings.from_env()
     alerts.configure_alerts(settings.alert_webhook)
     vault.configure(vault.from_settings(settings))
@@ -438,6 +440,7 @@ async def shutdown():
     if sync_task is not None:
         await vault_sync.stop_sync(sync_task)
     await alerts.stop_alerts()
+    clear_panel_loop()
     vault.configure(vault.Vault())
     vault_index.configure(vault_index.VaultIndex())
     database = _database
