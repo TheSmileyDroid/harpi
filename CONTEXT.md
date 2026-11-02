@@ -164,6 +164,10 @@ _Avoid_: discovered, unlocked, visible
 The same field changed in the panel and in the vault since the last version the app accepted. The file stays untouched and the sheet turns read-only until each field gets a decision. A sheet is `ok`, `conflito`, `ausente`, `invalido` or `desconhecido`.
 _Avoid_: merge error, divergence, dirty
 
+**Sheet notice**:
+The warning a sheet state raises for the campaign: `conflito`, `ausente`, `invalido` or `desconhecido`. It lives in the panel queue and, when a Table is open, in that channel's one message per sheet and state, edited to the resolution instead of reposted.
+_Avoid_: alert, notification
+
 ### Table
 
 **Table**:

@@ -72,6 +72,8 @@ def build_fixtures() -> dict[str, object]:
         SheetExtra,
         SheetInventoryEntry,
         SheetLadderStep,
+        SheetNoticeItem,
+        SheetNoticeList,
         SheetSkill,
         SheetStressBox,
         SheetStressTrack,
@@ -271,6 +273,19 @@ def build_fixtures() -> dict[str, object]:
             error=ErrorDetail(code="not_found", message="Not found"),
         ),
         "SheetConflictList": SheetConflictList(conflicts=[conflict_field]),
+        "SheetNoticeList": SheetNoticeList(
+            notices=[
+                SheetNoticeItem(
+                    id="ntc_1",
+                    sheet_id="sht_ana",
+                    character_id="chr_ana",
+                    name="Ana",
+                    state="conflito",
+                    title="ficha em conflito",
+                    fields=["block.refresh", "block.fate_points"],
+                )
+            ]
+        ),
         "SheetConflictDetail": SheetConflictDetail(
             error=ErrorDetail(
                 code="sheet_field_conflict",

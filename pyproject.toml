@@ -159,6 +159,8 @@ ignore_names = [
     "preserve_quotes",
     # ApprovalList.approvals: the queue payload the client reads.
     "approvals",
+    # SheetNoticeList.notices: the pending warning list the client reads.
+    "notices",
     # Scene wire models: the blueprint grid, rectangle and gallery summary
     # fields are read by the client through the generated contract, not by
     # Python attribute access here.

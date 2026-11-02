@@ -203,6 +203,12 @@ export const SheetExtraInput = z.strictObject({ cost: z.number().int().nullable(
 export type SheetInventoryInput = z.infer<typeof SheetInventoryInput>;
 export const SheetInventoryInput = z.strictObject({ item: z.string(), note: z.string().default(""), qty: z.number().int().default(1) });
 
+export type SheetNoticeItem = z.infer<typeof SheetNoticeItem>;
+export const SheetNoticeItem = z.strictObject({ character_id: z.string().nullable(), fields: z.array(z.string()), id: z.string(), name: z.string(), sheet_id: z.string(), state: z.enum(["conflito", "ausente", "invalido", "desconhecido"]), title: z.string() });
+
+export type SheetNoticeList = z.infer<typeof SheetNoticeList>;
+export const SheetNoticeList = z.strictObject({ notices: z.array(SheetNoticeItem) });
+
 export type SheetSkillInput = z.infer<typeof SheetSkillInput>;
 export const SheetSkillInput = z.strictObject({ name: z.string(), rank: z.number().int() });
 

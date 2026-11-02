@@ -327,6 +327,22 @@
       }
     ]
   },
+  "SheetNoticeList": {
+    "notices": [
+      {
+        "character_id": "chr_ana",
+        "fields": [
+          "block.refresh",
+          "block.fate_points"
+        ],
+        "id": "ntc_1",
+        "name": "Ana",
+        "sheet_id": "sht_ana",
+        "state": "conflito",
+        "title": "ficha em conflito"
+      }
+    ]
+  },
   "StatusSnapshot": {
     "bot": {
       "online": true

@@ -190,6 +190,14 @@ def current_state(base_json: str) -> dict[str, Any]:
     return {key: data.get(key) for key in STATE_KEYS}
 
 
+def character_id_from_base(base_json: str | None) -> str | None:
+    data = current_state(base_json or "{}")
+    frontmatter = data.get("frontmatter")
+    if not isinstance(frontmatter, dict):
+        return None
+    return notes.field_front(frontmatter, "harpi-character-id")
+
+
 def pending_of(base_json: str | None) -> dict[str, Any] | None:
     pending = _document(base_json).get("pending")
     return pending if isinstance(pending, dict) else None

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from src.panel import notes, sheet_merge, sheet_store
+from src.panel import sheet_merge, sheet_store
 from src.panel.schemas import SheetPatch
 from src.panel.sheet_merge import MergeConflict, MergeResult, SheetState
 from src.panel.sheet_write import SheetRecord, read_text
@@ -170,7 +170,7 @@ def _conflict_record(row: Any) -> ConflictRecord:
     return ConflictRecord(
         id=row["id"],
         sheet_id=row["harpi_id"],
-        character_id=_character_id(row["base_json"]),
+        character_id=sheet_store.character_id_from_base(row["base_json"]),
         path=row["path"],
         field_path=row["field_path"],
         base=row["base"],
@@ -178,14 +178,6 @@ def _conflict_record(row: Any) -> ConflictRecord:
         theirs=row["theirs"],
         allow_both=allows_both(row["field_path"]),
     )
-
-
-def _character_id(base_json: str | None) -> str | None:
-    data = sheet_store.current_state(base_json or "{}")
-    frontmatter = data.get("frontmatter")
-    if not isinstance(frontmatter, dict):
-        return None
-    return notes.field_front(frontmatter, "harpi-character-id")
 
 
 async def owner_of(

@@ -45,7 +45,7 @@ async def test_open_creates_the_schema_and_applies_it_once(tmp_path):
         "SELECT COUNT(*) AS n FROM schema_migrations"
     )
     assert row is not None
-    assert row["n"] == 9
+    assert row["n"] == 10
 
     await database.close()
     reopened = Database(tmp_path / "harpi.db")
@@ -54,7 +54,7 @@ async def test_open_creates_the_schema_and_applies_it_once(tmp_path):
         "SELECT COUNT(*) AS n FROM schema_migrations"
     )
     assert row is not None
-    assert row["n"] == 9
+    assert row["n"] == 10
     await reopened.close()
 
 

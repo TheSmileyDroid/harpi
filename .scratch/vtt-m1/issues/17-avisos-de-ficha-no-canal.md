@@ -4,10 +4,10 @@
 
 **Blocked by:** 08 — Sync: merge e conflitos; 12 — Mesa: abrir, tokens e névoa.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Uma mensagem por ficha em conflito, mencionando dono da ficha e narrador, com nome, campos e link do painel.
-- [ ] Uma mensagem por ficha `ausente` e uma por `invalido`, uma vez cada; merge silencioso não gera mensagem.
-- [ ] Resolver edita a mensagem para "resolvido por <nome>"; cinco campos em conflito geram uma mensagem, não cinco.
-- [ ] Sem mesa aberta no canal, nada é postado e o aviso aparece só no painel.
-- [ ] `make check` verde.
+- [x] Uma mensagem por ficha em conflito, mencionando dono da ficha e narrador, com nome, campos e link do painel.
+- [x] Uma mensagem por ficha `ausente` e uma por `invalido`, uma vez cada; merge silencioso não gera mensagem.
+- [x] Resolver edita a mensagem para "resolvido por <nome>"; cinco campos em conflito geram uma mensagem, não cinco.
+- [x] Sem mesa aberta no canal, nada é postado e o aviso aparece só no painel.
+- [x] `make check` verde.

@@ -638,6 +638,109 @@ async def test_the_conflict_queue_lists_the_campaign_or_the_own_sheets(
     assert other["conflicts"] == []
 
 
+async def test_the_notice_queue_lists_the_pending_sheet_warnings(
+    client, world
+):
+    await conflicted_sheet(client, world)
+
+    own = await body(await client.get(f"/api/campaigns/{SLUG}/notices"))
+    await sign_in(client, NARRATOR)
+    all_rows = await body(await client.get(f"/api/campaigns/{SLUG}/notices"))
+
+    assert [(item["name"], item["state"]) for item in own["notices"]] == [
+        ("Ana", "conflito")
+    ]
+    assert own["notices"][0]["fields"] == ["block.refresh"]
+    assert own["notices"][0]["title"] == "ficha em conflito"
+    assert len(all_rows["notices"]) == 1
+
+
+class NoticeMessage:
+    def __init__(self, message_id: int, content: str) -> None:
+        self.id = message_id
+        self.content = content
+
+    async def edit(self, content: str, *, allowed_mentions=None) -> None:
+        del allowed_mentions
+        self.content = content
+
+
+class NoticeChannel:
+    def __init__(self) -> None:
+        self.sent: list[str] = []
+        self.messages: dict[int, NoticeMessage] = {}
+
+    async def send(
+        self, content: str, *, allowed_mentions=None
+    ) -> NoticeMessage:
+        del allowed_mentions
+        message = NoticeMessage(9000 + len(self.sent), content)
+        self.sent.append(content)
+        self.messages[message.id] = message
+        return message
+
+    async def fetch_message(self, message_id: int) -> NoticeMessage:
+        return self.messages[message_id]
+
+
+class NoticeBot:
+    def __init__(self, channel: NoticeChannel) -> None:
+        self.channel = channel
+
+    def get_channel(self, channel_id: int) -> NoticeChannel:
+        del channel_id
+        return self.channel
+
+
+async def test_the_channel_gets_one_notice_and_resolving_edits_it(
+    client, world, monkeypatch: pytest.MonkeyPatch
+):
+    from src import bot_state
+    from src.panel import sheet_notices
+
+    channel = NoticeChannel()
+    monkeypatch.setattr(bot_state, "_bot_ref", NoticeBot(channel))
+
+    async def inline(coro, timeout: float | None = None):
+        del timeout
+        return await coro
+
+    monkeypatch.setattr(sheet_notices, "run_on_bot_loop", inline)
+    monkeypatch.setenv("PANEL_BASE_URL", "https://painel.example")
+    await world.database.execute(
+        "INSERT INTO tables ("
+        "id, campaign_slug, channel_id, name, status, round, spectators, rev, "
+        "opened_by, opened_at, created_at, updated_at"
+        ") VALUES ('tbl_1', ?, '42', 'Sessão', 'open', 1, 0, 1, ?, 1, 1, 1)",
+        (SLUG, NARRATOR),
+    )
+
+    await conflicted_sheet(client, world)
+    queue = await body(await client.get(f"/api/campaigns/{SLUG}/conflicts"))
+
+    assert len(channel.sent) == 1
+    assert "Ana" in channel.sent[0]
+    assert f"<@{PLAYER}>" in channel.sent[0]
+    assert f"<@{NARRATOR}>" in channel.sent[0]
+    assert "block.refresh" in channel.sent[0]
+    assert (
+        "https://painel.example/c/{}/personagens".format(SLUG)
+        in channel.sent[0]
+    )
+
+    response = await client.post(
+        f"/api/campaigns/{SLUG}/conflicts/{queue['conflicts'][0]['id']}/resolve",
+        json={"decision": "ours"},
+        headers=HEADERS,
+    )
+
+    assert response.status_code == 200
+    assert len(channel.sent) == 1
+    assert next(iter(channel.messages.values())).content == (
+        "resolvido por Panel User"
+    )
+
+
 async def test_resolving_the_field_writes_once_and_unlocks_the_sheet(
     client, world
 ):
