@@ -34,6 +34,7 @@ import {
   TableSummary,
   TableTokenCreate,
   TableTokenPatch,
+  TableTurnRequest,
   UrlRequest,
   VolumeRequest,
 } from "./contract/panel.gen";
@@ -449,6 +450,18 @@ export function createApiClient({
         `/api/tables/${encodeURIComponent(tableId)}/tokens/${encodeURIComponent(tokenId)}`,
         TableSummary,
         { method: "DELETE", json: true, silent: true },
+      );
+    },
+    tableTurn(tableId: string, body: z.input<typeof TableTurnRequest>) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/turns`,
+        TableSummary,
+        {
+          method: "POST",
+          requestSchema: TableTurnRequest,
+          body,
+          silent: true,
+        },
       );
     },
     setTableSpectators(tableId: string, body: z.input<typeof TableSpectators>) {

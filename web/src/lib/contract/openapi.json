@@ -2529,6 +2529,54 @@
         "title": "TableOpen",
         "type": "object"
       },
+      "TableParticipant": {
+        "additionalProperties": false,
+        "properties": {
+          "acted": {
+            "title": "Acted",
+            "type": "boolean"
+          },
+          "character_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Character Id"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          },
+          "token_id": {
+            "title": "Token Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token_id",
+          "character_id",
+          "label",
+          "owner_id",
+          "acted"
+        ],
+        "title": "TableParticipant",
+        "type": "object"
+      },
       "TableScene": {
         "additionalProperties": false,
         "properties": {
@@ -2652,6 +2700,14 @@
             "title": "Name",
             "type": "string"
           },
+          "participants": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TableParticipant"
+            },
+            "title": "Participants",
+            "type": "array"
+          },
           "role": {
             "enum": [
               "narrator",
@@ -2694,6 +2750,17 @@
             },
             "title": "Tokens",
             "type": "array"
+          },
+          "turn": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TableTurn"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "viewer_id": {
             "title": "Viewer Id",
@@ -2993,6 +3060,113 @@
           }
         },
         "title": "TableTokenPatch",
+        "type": "object"
+      },
+      "TableTurn": {
+        "additionalProperties": false,
+        "properties": {
+          "character_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Character Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          },
+          "round": {
+            "title": "Round",
+            "type": "integer"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "integer"
+          },
+          "token_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Id"
+          }
+        },
+        "required": [
+          "id",
+          "round",
+          "token_id",
+          "character_id",
+          "label",
+          "owner_id",
+          "started_at"
+        ],
+        "title": "TableTurn",
+        "type": "object"
+      },
+      "TableTurnRequest": {
+        "properties": {
+          "action": {
+            "enum": [
+              "open",
+              "pass",
+              "end"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "expected_turn_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Turn Id"
+          },
+          "token_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Token Id"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "TableTurnRequest",
         "type": "object"
       },
       "Track": {
@@ -5981,6 +6155,82 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TableTokenPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableSummary"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/tables/{table_id}/turns": {
+      "post": {
+        "operationId": "post_turn",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableTurnRequest"
               }
             }
           }

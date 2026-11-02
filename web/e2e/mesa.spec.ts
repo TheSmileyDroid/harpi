@@ -83,6 +83,48 @@ test("closing writes the snapshot and reopening restores the table", async ({
   await expect(page.getByTestId("table-close")).toBeVisible();
 });
 
+test("the narrator runs a round with a turn", async ({ page }) => {
+  await signIn(page);
+  await seedScene(page);
+  await page.goto(MESA);
+  await page.getByTestId("table-open-channel").fill("123456789012345678");
+  await page.getByTestId("table-open-submit").click();
+  await expect(page.getByTestId("table-summary")).toBeVisible();
+
+  await page.getByTestId("map-zone-zon_sala").click();
+  for (const label of ["Ana", "Bob"]) {
+    await page.getByTestId("table-token-label").fill(label);
+    await page.getByTestId("table-token-submit").click();
+  }
+  await expect(page.getByTestId("table-turn-state")).toHaveText(
+    "Sem turno aberto.",
+  );
+
+  await page.getByRole("button", { name: "Abrir turno de Ana" }).click();
+  await expect(page.getByTestId("table-turn-state")).toHaveText(
+    "Em turno: Ana",
+  );
+
+  await page.getByTestId("table-token-label").fill("Cid");
+  await page.keyboard.press("n");
+  await expect(page.getByTestId("table-turn-state")).toHaveText(
+    "Em turno: Ana",
+  );
+
+  await page.getByRole("heading", { name: "Turno" }).click();
+  await page.keyboard.press("n");
+  await expect(page.getByTestId("table-turn-state")).toHaveText(
+    "Em turno: Bob",
+  );
+
+  await page.getByTestId("table-turn-end").click();
+  await expect(page.getByTestId("table-round")).toHaveText("Rodada 2");
+  await expect(page.getByTestId("table-turn-state")).toHaveText(
+    "Sem turno aberto.",
+  );
+  await expect(page.getByTestId("table-turn-end")).toHaveCount(0);
+});
+
 test("the map stays scrollable with a zoom on a phone", async ({ page }) => {
   await signIn(page);
   await seedScene(page);

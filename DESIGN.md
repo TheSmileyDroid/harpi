@@ -375,6 +375,10 @@ The map is the live scene under the same sunken well and bright-rule frame as th
 
 A token is a square with 3px corners and at least a 2.25rem hit target at any zoom, centered in its cells. PC tokens take the sand border, NPC tokens the oxide border, and the viewer's own token carries an amber ring. The label is a placard under the token and hides below 48rem. Dragging uses pointer capture, a local preview and a commit on drop; another viewer's drag marks the token with an oxide dashed outline and the viewer's name for 3 seconds, without blocking input. Zoom keys step the surface between fit and 3x, and below 48rem the surface keeps a 32px cell minimum and scrolls inside the viewport. The map never uses the music dock.
 
+### The Turn Panel
+
+The turn panel is one plate in the table's 20rem column, above Conducting. It opens with a plate label, a single readout line for the open turn (or `Sem turno aberto.`), then the public participants as rows divided by 1px rules. A row pairs the participant label in JetBrains Mono sand with a Barlow small-caps state: `EM TURNO` in amber, `AGIU` in faint ash, `PENDENTE` in dim ash. A pending row carries one arrow key at the end of the row; the narrator's arrow opens the turn when none is open and passes when one is, and the player of the turn sees the same arrow to pass. The end key sits in a key strip under the list and stays bone ink at rest; the panel never makes it sand. No new color enters the panel: amber is the live turn, faint ash is the past turn, and the plate and rules are the shared ladder.
+
 ### The Seek Scale (signature)
 - The seek control is a stepped amber scale in the dock: flex 1, min-width 8rem, 2.5rem tall (2.75rem on coarse pointers), sunken fill ruled with the unlit steps (7px of raised plate, 3px off), inside a 1px bright rule with 3px corners.
 - **Fill:** the played span is the lit steps (7px of amber, 3px off) with 3px right corners. While paused it swaps to the caution band (7px of oxide, 5px off).

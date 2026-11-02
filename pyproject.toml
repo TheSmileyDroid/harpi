@@ -176,6 +176,8 @@ ignore_names = [
     "map_url",
     "started_at",
     "saved_at",
+    # TableSummary.participants: the turn roster the client reads.
+    "participants",
     # YtMusicData.uploader: property consumed through panel serialization.
     "uploader",
     # ASGI entry point (imported by uvicorn via the "app:asgi_app" string in

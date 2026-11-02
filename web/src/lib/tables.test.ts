@@ -1,20 +1,32 @@
 import { describe, expect, it } from "vitest";
+import { ApiError } from "./api";
 import {
+  canEndTurn,
+  canPassTurn,
   gridColumns,
   mapMinWidth,
+  nextPendingId,
+  ownsTurn,
   rectPath,
   rectsPath,
   tableRoleLabel,
   tableRoundLabel,
   tableSpectatorsLabel,
   tableStateNote,
+  tableTurnNote,
   tokenBox,
   tokenIsPublic,
   zoneContains,
   zoneLabelPoint,
   zonePath,
 } from "./tables";
-import type { SceneZone, TableScene, TableToken } from "./contract/panel.gen";
+import type {
+  SceneZone,
+  TableParticipant,
+  TableScene,
+  TableToken,
+  TableTurn,
+} from "./contract/panel.gen";
 
 const grid = { cell_px: 70, offset_x: 0, offset_y: 0, visible: true };
 
@@ -144,5 +156,88 @@ describe("table geometry", () => {
 
   it("puts the zone label at the centre of its bounding box", () => {
     expect(zoneLabelPoint(zone(), grid)).toEqual({ x: 175, y: 210 });
+  });
+});
+
+function participant(
+  overrides: Partial<TableParticipant> = {},
+): TableParticipant {
+  return {
+    token_id: "tok_1",
+    character_id: null,
+    label: "Ana",
+    owner_id: null,
+    acted: false,
+    ...overrides,
+  };
+}
+
+function turn(overrides: Partial<TableTurn> = {}): TableTurn {
+  return {
+    id: "trn_1",
+    round: 1,
+    token_id: "tok_1",
+    character_id: null,
+    label: "Ana",
+    owner_id: "555",
+    started_at: 1,
+    ...overrides,
+  };
+}
+
+describe("table turns", () => {
+  it("lists who has not acted yet", () => {
+    const participants = [
+      participant({ token_id: "tok_1", acted: true }),
+      participant({ token_id: "tok_2", label: "Bob" }),
+      participant({ token_id: "tok_3", label: "Cid" }),
+    ];
+
+    expect(nextPendingId(participants, turn())).toBe("tok_2");
+    expect(nextPendingId(participants, null)).toBe("tok_2");
+  });
+
+  it("recognises the player of the turn from the token owner", () => {
+    const participants = [
+      participant({ token_id: "tok_1", owner_id: "555", acted: true }),
+      participant({ token_id: "tok_2", label: "Bob", owner_id: "777" }),
+    ];
+
+    expect(ownsTurn(turn(), "555")).toBe(true);
+    expect(ownsTurn(turn(), "777")).toBe(false);
+    expect(canEndTurn("player", turn(), "555")).toBe(true);
+    expect(canEndTurn("player", turn(), "777")).toBe(false);
+    expect(canEndTurn("narrator", turn(), "100")).toBe(true);
+    expect(canPassTurn("player", participants, turn(), "555")).toBe(true);
+    expect(canPassTurn("player", participants, turn(), "777")).toBe(false);
+    expect(canPassTurn("narrator", participants, turn(), "100")).toBe(true);
+  });
+
+  it("cannot pass when there is no turn or nobody is pending", () => {
+    const lone = [participant({ acted: true })];
+
+    expect(canPassTurn("narrator", lone, null, "100")).toBe(false);
+    expect(canPassTurn("narrator", lone, turn(), "100")).toBe(false);
+    expect(canEndTurn("narrator", null, "100")).toBe(false);
+  });
+
+  it("keeps the waiting turn owned while its token is hidden", () => {
+    const hidden = turn({ token_id: "tok_9", owner_id: "555" });
+    const pending = [participant({ token_id: "tok_2", label: "Bob" })];
+
+    expect(ownsTurn(hidden, "555")).toBe(true);
+    expect(canEndTurn("player", hidden, "555")).toBe(true);
+    expect(canPassTurn("player", pending, hidden, "555")).toBe(true);
+  });
+
+  it("notes the turn failures in Portuguese", () => {
+    expect(
+      tableTurnNote(
+        new ApiError({ code: "turn_taken", message: "m", status: 422 }),
+      ),
+    ).toBe("Esse participante já agiu nesta rodada.");
+    expect(tableTurnNote(new Error("boom"))).toBe(
+      "Não foi possível mudar o turno.",
+    );
   });
 });

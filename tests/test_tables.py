@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 from collections.abc import Iterable
@@ -7,13 +8,17 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from aiosqlite import IntegrityError
 from PIL import Image
 
 from app import app as quart_app
 from app import configure_panel_session
+from pages import campaigns as campaigns_page
 from pages import tables as tables_page
 from src.config import Settings
 from src.panel import login, state, vault, vault_index
+from src.panel import rate_limit
+from src.panel import tables as table_domain
 from src.panel.vault_index import VaultIndex
 from src.storage import (
     clear_database,
@@ -52,6 +57,9 @@ async def world(tmp_path, monkeypatch: pytest.MonkeyPatch):
     await database.open()
     init_registry(SqliteRegistry(database))
     init_database(database)
+    campaigns_page.SCENE_WRITE_BUCKETS = rate_limit.UserTokenBuckets(
+        rate_limit.SCENE_WRITES_PER_MINUTE
+    )
     vault.configure(vault.Vault(root=root))
     vault_index.configure(VaultIndex(root))
     yield SimpleNamespace(root=root, database=database)
@@ -392,7 +400,7 @@ async def test_reopening_restores_the_snapshot(client, world):
     reopened = await body(response)
     assert reopened["status"] == "open"
     assert reopened["warning"] is None
-    assert reopened["round"] == 1
+    assert reopened["round"] == 2
     assert reopened["scene"]["zones"][0]["revealed"] is True
     assert reopened["scene"]["fog_outside"] is True
     assert [token["label"] for token in reopened["tokens"]] == ["Ana"]
@@ -1268,3 +1276,705 @@ async def test_the_player_summary_does_not_read_the_blueprint(
     response = await summary(client, table["id"])
 
     assert response["scene"]["saved"] is True
+
+
+async def public_scene(client, world) -> dict[str, Any]:
+    await sign_in(client, NARRATOR)
+    await image_scene(client, world, fog_outside=False)
+    _, table = await open_table(client)
+    return table
+
+
+AUTO = object()
+
+
+async def turn(
+    client,
+    table_id: str,
+    action: str,
+    token_id: str | None = None,
+    expected: object = AUTO,
+):
+    payload: dict[str, Any] = {"action": action}
+    if token_id is not None:
+        payload["token_id"] = token_id
+    if expected is AUTO:
+        expected = None
+        if action in {"pass", "end"}:
+            view = await summary(client, table_id)
+            expected = None if view["turn"] is None else view["turn"]["id"]
+    if expected is not None:
+        payload["expected_turn_id"] = expected
+    response = await client.post(
+        f"{TABLES_ROUTE}/{table_id}/turns", json=payload, headers=CSRF
+    )
+    return response, await body(response)
+
+
+def participant(payload: dict[str, Any], label: str) -> dict[str, Any]:
+    return next(
+        item for item in payload["participants"] if item["label"] == label
+    )
+
+
+async def test_the_narrator_opens_the_turn_of_a_pending_participant(
+    client, world
+):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    await add_token(client, table["id"], label="Bob", x=5, y=5)
+
+    response, payload = await turn(client, table["id"], "open", ana["id"])
+
+    assert response.status_code == 200, payload
+    assert payload["turn"]["token_id"] == ana["id"]
+    assert payload["turn"]["label"] == "Ana"
+    assert payload["turn"]["round"] == 1
+    assert participant(payload, "Ana")["acted"] is True
+    assert participant(payload, "Bob")["acted"] is False
+    row = await world.database.fetchone(
+        "SELECT * FROM turns WHERE table_id = ?", (table["id"],)
+    )
+    assert row is not None
+    assert row["ended_at"] is None
+    assert row["round"] == 1
+    assert row["started_by"] == NARRATOR
+
+
+async def test_a_hidden_token_never_takes_a_turn(client, world):
+    await sign_in(client, NARRATOR)
+    await image_scene(client, world, fog_outside=True)
+    _, table = await open_table(client)
+    goblin = await add_token(
+        client, table["id"], label="Goblin", x=2, y=2, visible=False
+    )
+
+    response, payload = await turn(client, table["id"], "open", goblin["id"])
+
+    assert response.status_code == 422
+    assert payload["error"]["code"] == "turn_not_participant"
+    view = await summary(client, table["id"])
+    assert view["participants"] == []
+    assert view["turn"] is None
+
+
+async def test_only_one_turn_is_open_and_an_acted_token_is_not_pending(
+    client, world
+):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    bob = await add_token(client, table["id"], label="Bob", x=5, y=5)
+    await turn(client, table["id"], "open", ana["id"])
+
+    second, payload = await turn(client, table["id"], "open", bob["id"])
+
+    assert second.status_code == 422
+    assert payload["error"]["code"] == "turn_open"
+    await turn(client, table["id"], "end", ana["id"])
+    acted, again = await turn(client, table["id"], "open", ana["id"])
+    assert acted.status_code == 422
+    assert again["error"]["code"] == "turn_taken"
+
+
+async def test_the_player_passes_their_turn_and_ends_up_without_one(
+    client, world
+):
+    table = await public_scene(client, world)
+    ana = await add_token(
+        client, table["id"], label="Ana", x=0, y=0, owner_id=PLAYER
+    )
+    bob = await add_token(
+        client, table["id"], label="Bob", x=5, y=5, owner_id=PLAYER
+    )
+    await add_token(client, table["id"], label="Cid", x=8, y=8)
+    await turn(client, table["id"], "open", ana["id"])
+    await player_access(client, world)
+
+    passed, payload = await turn(client, table["id"], "pass", bob["id"])
+
+    assert passed.status_code == 200, payload
+    assert payload["turn"]["token_id"] == bob["id"]
+    assert participant(payload, "Ana")["acted"] is True
+    assert participant(payload, "Bob")["acted"] is True
+    ended, done = await turn(client, table["id"], "end")
+
+    assert ended.status_code == 200, done
+    assert done["turn"] is None
+    assert done["round"] == 1
+    assert participant(done, "Bob")["acted"] is True
+
+
+async def test_passing_to_someone_who_already_acted_is_422(client, world):
+    table = await public_scene(client, world)
+    ana = await add_token(
+        client, table["id"], label="Ana", x=0, y=0, owner_id=PLAYER
+    )
+    bob = await add_token(client, table["id"], label="Bob", x=5, y=5)
+    await turn(client, table["id"], "open", ana["id"])
+    await player_access(client, world)
+
+    response, payload = await turn(client, table["id"], "pass", ana["id"])
+
+    assert response.status_code == 422
+    assert payload["error"]["code"] == "turn_taken"
+    await turn(client, table["id"], "pass", bob["id"])
+    await sign_in(client, NARRATOR)
+    again, taken = await turn(client, table["id"], "pass", ana["id"])
+    assert again.status_code == 422
+    assert taken["error"]["code"] == "turn_taken"
+
+
+async def test_the_last_pending_ends_the_round_and_nobody_starts_alone(
+    client, world
+):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    bob = await add_token(client, table["id"], label="Bob", x=5, y=5)
+    await turn(client, table["id"], "open", ana["id"])
+
+    _, passed = await turn(client, table["id"], "pass", bob["id"])
+
+    assert passed["round"] == 1
+    assert passed["turn"]["token_id"] == bob["id"]
+    response, closed = await turn(client, table["id"], "end")
+
+    assert response.status_code == 200
+    assert closed["round"] == 2
+    assert closed["turn"] is None
+    assert participant(closed, "Ana")["acted"] is False
+    assert participant(closed, "Bob")["acted"] is False
+    rows = await world.database.fetchall(
+        "SELECT * FROM turns WHERE table_id = ? ORDER BY started_at",
+        (table["id"],),
+    )
+    assert [row["round"] for row in rows] == [1, 1]
+    assert all(row["ended_at"] is not None for row in rows)
+
+
+async def test_ending_without_passing_leaves_the_table_without_a_turn(
+    client, world
+):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    await add_token(client, table["id"], label="Bob", x=5, y=5)
+    await turn(client, table["id"], "open", ana["id"])
+
+    response, payload = await turn(client, table["id"], "end", ana["id"])
+
+    assert response.status_code == 200
+    assert payload["turn"] is None
+    assert payload["round"] == 1
+
+
+async def test_a_token_created_mid_round_enters_pending(client, world):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    await add_token(client, table["id"], label="Bob", x=5, y=5)
+    await turn(client, table["id"], "open", ana["id"])
+    await turn(client, table["id"], "end", ana["id"])
+
+    cid = await add_token(client, table["id"], label="Cid", x=8, y=8)
+
+    view = await summary(client, table["id"])
+    assert participant(view, "Ana")["acted"] is True
+    assert participant(view, "Cid")["acted"] is False
+    opened, payload = await turn(client, table["id"], "open", cid["id"])
+    assert opened.status_code == 200, payload
+
+
+async def test_a_token_that_enters_a_revealed_zone_enters_pending(
+    client, world
+):
+    await sign_in(client, NARRATOR)
+    await image_scene(client, world, fog_outside=True)
+    _, table = await open_table(client)
+    hidden = await add_token(client, table["id"], label="Goblin", x=2, y=2)
+    view = await summary(client, table["id"])
+    assert view["participants"] == []
+
+    await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/zones/zon_sala/reveal",
+        json={},
+        headers=CSRF,
+    )
+
+    view = await summary(client, table["id"])
+    assert participant(view, "Goblin")["acted"] is False
+    response, payload = await turn(client, table["id"], "open", hidden["id"])
+    assert response.status_code == 200, payload
+
+
+async def test_moving_a_token_into_a_revealed_zone_enters_pending(
+    client, world
+):
+    await sign_in(client, NARRATOR)
+    await image_scene(client, world, fog_outside=True)
+    _, table = await open_table(client)
+    hidden = await add_token(client, table["id"], label="Goblin", x=0, y=0)
+    await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/zones/zon_sala/reveal",
+        json={},
+        headers=CSRF,
+    )
+    assert (await summary(client, table["id"]))["participants"] == []
+
+    await client.patch(
+        f"{TABLES_ROUTE}/{table['id']}/tokens/{hidden['id']}",
+        json={"x": 2, "y": 2},
+        headers=CSRF,
+    )
+
+    view = await summary(client, table["id"])
+    assert participant(view, "Goblin")["acted"] is False
+
+
+async def test_hiding_the_last_pending_closes_the_round(client, world):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    bob = await add_token(client, table["id"], label="Bob", x=5, y=5)
+    await turn(client, table["id"], "open", ana["id"])
+    await turn(client, table["id"], "end")
+
+    response = await client.patch(
+        f"{TABLES_ROUTE}/{table['id']}/tokens/{bob['id']}",
+        json={"visible": False},
+        headers=CSRF,
+    )
+
+    assert response.status_code == 200
+    view = await body(response)
+    assert view["round"] == 2
+    assert view["turn"] is None
+    assert [item["label"] for item in view["participants"]] == ["Ana"]
+    assert view["participants"][0]["acted"] is False
+
+
+async def test_hiding_the_token_that_holds_the_turn_ends_it(client, world):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    await add_token(client, table["id"], label="Bob", x=5, y=5)
+    await turn(client, table["id"], "open", ana["id"])
+
+    response = await client.patch(
+        f"{TABLES_ROUTE}/{table['id']}/tokens/{ana['id']}",
+        json={"visible": False},
+        headers=CSRF,
+    )
+
+    assert response.status_code == 200
+    view = await body(response)
+    assert view["turn"] is None
+    assert view["round"] == 1
+    assert [item["label"] for item in view["participants"]] == ["Bob"]
+    row = await world.database.fetchone(
+        "SELECT ended_at FROM turns WHERE table_id = ?", (table["id"],)
+    )
+    assert row is not None and row["ended_at"] is not None
+
+
+async def test_hiding_another_token_keeps_the_open_turn(client, world):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    bob = await add_token(client, table["id"], label="Bob", x=5, y=5)
+    await turn(client, table["id"], "open", bob["id"])
+
+    response = await client.patch(
+        f"{TABLES_ROUTE}/{table['id']}/tokens/{ana['id']}",
+        json={"visible": False},
+        headers=CSRF,
+    )
+
+    assert response.status_code == 200
+    view = await body(response)
+    assert view["turn"]["token_id"] == bob["id"]
+    assert [item["token_id"] for item in view["participants"]] == [bob["id"]]
+
+
+async def test_hiding_a_token_that_already_acted_does_not_block_the_round(
+    client, world
+):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    bob = await add_token(client, table["id"], label="Bob", x=5, y=5)
+    await turn(client, table["id"], "open", ana["id"])
+    await turn(client, table["id"], "end")
+    await client.patch(
+        f"{TABLES_ROUTE}/{table['id']}/tokens/{ana['id']}",
+        json={"visible": False},
+        headers=CSRF,
+    )
+    await turn(client, table["id"], "open", bob["id"])
+
+    response, payload = await turn(client, table["id"], "end")
+
+    assert response.status_code == 200
+    assert payload["round"] == 2
+    assert payload["turn"] is None
+    assert [item["label"] for item in payload["participants"]] == ["Bob"]
+    assert payload["participants"][0]["acted"] is False
+
+
+async def test_removing_a_token_ends_its_open_turn(client, world):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    await turn(client, table["id"], "open", ana["id"])
+
+    removed = await client.delete(
+        f"{TABLES_ROUTE}/{table['id']}/tokens/{ana['id']}",
+        headers={**CSRF, "Content-Type": "application/json"},
+    )
+
+    assert removed.status_code == 200
+    view = await body(removed)
+    assert view["participants"] == []
+    assert view["turn"] is None
+    row = await world.database.fetchone(
+        "SELECT ended_at FROM turns WHERE table_id = ?", (table["id"],)
+    )
+    assert row is not None and row["ended_at"] is not None
+
+
+async def test_removing_another_token_keeps_the_open_turn(client, world):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    bob = await add_token(client, table["id"], label="Bob", x=5, y=5)
+    await turn(client, table["id"], "open", ana["id"])
+
+    removed = await client.delete(
+        f"{TABLES_ROUTE}/{table['id']}/tokens/{bob['id']}",
+        headers={**CSRF, "Content-Type": "application/json"},
+    )
+
+    assert removed.status_code == 200
+    view = await body(removed)
+    assert view["turn"]["token_id"] == ana["id"]
+    assert [item["label"] for item in view["participants"]] == ["Ana"]
+
+
+async def test_closing_ends_the_round_and_reopening_starts_a_new_one(
+    client, world
+):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    await add_token(client, table["id"], label="Bob", x=5, y=5)
+    await turn(client, table["id"], "open", ana["id"])
+    await turn(client, table["id"], "end", ana["id"])
+
+    closed = await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/close", json={}, headers=CSRF
+    )
+    assert closed.status_code == 200
+    reopened = await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/reopen", json={}, headers=CSRF
+    )
+
+    assert reopened.status_code == 200
+    view = await body(reopened)
+    assert view["status"] == "open"
+    assert view["round"] == 2
+    assert view["turn"] is None
+    assert all(item["acted"] is False for item in view["participants"])
+    snapshot = world.root / CAMPAIGN / "tables" / f"{table['id']}.json"
+    data = json.loads(snapshot.read_text(encoding="utf-8"))
+    assert data["table"]["status"] == "closed"
+    assert data["table"]["round"] == 1
+    assert data["turn"] is None
+
+
+async def test_only_the_player_of_the_turn_passes_or_ends_it(client, world):
+    table = await public_scene(client, world)
+    ana = await add_token(
+        client, table["id"], label="Ana", x=0, y=0, owner_id=PLAYER
+    )
+    bob = await add_token(
+        client, table["id"], label="Bob", x=5, y=5, owner_id=None
+    )
+    await turn(client, table["id"], "open", bob["id"])
+    await player_access(client, world)
+
+    ended, payload = await turn(client, table["id"], "end")
+
+    assert ended.status_code == 403
+    assert payload["error"]["code"] == "turn_not_yours"
+    await sign_in(client, NARRATOR)
+    await turn(client, table["id"], "end")
+    await turn(client, table["id"], "open", ana["id"])
+    await sign_in(client, PLAYER)
+    own, own_payload = await turn(client, table["id"], "end")
+
+    assert own.status_code == 200, own_payload
+    assert own_payload["turn"] is None
+
+
+async def test_players_cannot_open_and_pending_or_spectators_cannot_act(
+    client, world
+):
+    table = await public_scene(client, world)
+    ana = await add_token(
+        client, table["id"], label="Ana", x=0, y=0, owner_id=PLAYER
+    )
+    await player_access(client, world)
+
+    opened, opened_payload = await turn(client, table["id"], "open", ana["id"])
+    assert opened.status_code == 403
+    assert opened_payload["error"]["code"] == "forbidden"
+
+    await add_member(world.database, STRANGER)
+    await sign_in(client, STRANGER)
+    pending, pending_payload = await turn(
+        client, table["id"], "open", ana["id"]
+    )
+    assert pending.status_code == 403
+    assert pending_payload["error"]["code"] == "forbidden"
+
+    await sign_in(client, NARRATOR)
+    await turn(client, table["id"], "open", ana["id"])
+    await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/spectators",
+        json={"enabled": True},
+        headers=CSRF,
+    )
+    await sign_in(client, "999")
+    spectator, spectator_payload = await turn(client, table["id"], "end")
+
+    assert spectator.status_code == 403
+    assert spectator_payload["error"]["code"] == "forbidden"
+
+
+async def test_a_closed_table_refuses_turn_actions(client, world):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/close", json={}, headers=CSRF
+    )
+
+    response, payload = await turn(client, table["id"], "open", ana["id"])
+
+    assert response.status_code == 409
+    assert payload["error"]["code"] == "table_closed"
+
+
+async def test_an_unknown_turn_target_is_404(client, world):
+    table = await public_scene(client, world)
+    await add_token(client, table["id"], label="Ana", x=0, y=0)
+
+    response, payload = await turn(client, table["id"], "open", "tok_nada")
+
+    assert response.status_code == 404
+    assert payload["error"]["code"] == "not_found"
+
+
+async def test_changing_scene_with_the_last_turn_closes_the_round(
+    client, world
+):
+    await sign_in(client, NARRATOR)
+    await image_scene(client, world, name="Cripta", fog_outside=False)
+    await create_scene(
+        client,
+        name="Calabouço",
+        source="sketch",
+        image_width=800,
+        image_height=600,
+        zones=[zone("Cela", "zon_cela")],
+    )
+    _, table = await open_table(client)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    await turn(client, table["id"], "open", ana["id"])
+
+    response = await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/scene",
+        json={"scene": "calabouco"},
+        headers=CSRF,
+    )
+
+    assert response.status_code == 200
+    view = await body(response)
+    assert view["scene"]["slug"] == "calabouco"
+    assert view["round"] == 2
+    assert view["turn"] is None
+    assert view["participants"] == []
+
+
+async def test_reloading_a_scene_with_the_last_turn_closes_the_round(
+    client, world
+):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    bob = await add_token(client, table["id"], label="Bob", x=5, y=5)
+    await turn(client, table["id"], "open", ana["id"])
+    await turn(client, table["id"], "pass", bob["id"])
+
+    response = await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/scene/reload", json={}, headers=CSRF
+    )
+
+    assert response.status_code == 200
+    view = await body(response)
+    assert view["round"] == 2
+    assert view["turn"] is None
+    assert [item["label"] for item in view["participants"]] == ["Ana", "Bob"]
+    assert all(item["acted"] is False for item in view["participants"])
+
+
+async def test_the_player_cutout_redacts_the_hidden_turn(client, world):
+    await sign_in(client, NARRATOR)
+    await image_scene(client, world, fog_outside=False)
+    _, table = await open_table(client)
+    goblin = await add_token(
+        client,
+        table["id"],
+        label="Goblin",
+        character_id="chr_goblin",
+        owner_id=None,
+        x=0,
+        y=0,
+    )
+    await turn(client, table["id"], "open", goblin["id"])
+    await world.database.execute(
+        "UPDATE tokens SET visible = 0 WHERE id = ?", (goblin["id"],)
+    )
+    await player_access(client, world)
+
+    cut = await summary(client, table["id"])
+
+    assert cut["turn"] is not None
+    assert cut["turn"]["token_id"] is None
+    assert cut["turn"]["label"] == ""
+    assert cut["turn"]["character_id"] is None
+    assert cut["turn"]["owner_id"] is None
+    await sign_in(client, NARRATOR)
+    full = await summary(client, table["id"])
+    assert full["turn"]["token_id"] == goblin["id"]
+    assert full["turn"]["label"] == "Goblin"
+    assert full["turn"]["character_id"] == "chr_goblin"
+
+
+async def test_a_stale_tab_cannot_move_the_turn(client, world):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    bob = await add_token(client, table["id"], label="Bob", x=5, y=5)
+    cid = await add_token(client, table["id"], label="Cid", x=8, y=8)
+    _, opened = await turn(client, table["id"], "open", ana["id"])
+    stale = opened["turn"]["id"]
+    passed, payload = await turn(
+        client, table["id"], "pass", bob["id"], expected=stale
+    )
+    assert passed.status_code == 200, payload
+
+    stale_pass, rejected = await turn(
+        client, table["id"], "pass", cid["id"], expected=stale
+    )
+    stale_end, ended = await turn(client, table["id"], "end", expected=stale)
+    view = await summary(client, table["id"])
+
+    assert stale_pass.status_code == 409
+    assert rejected["error"]["code"] == "turn_stale"
+    assert stale_end.status_code == 409
+    assert ended["error"]["code"] == "turn_stale"
+    assert view["turn"]["token_id"] == bob["id"]
+
+
+async def test_a_token_from_another_scene_cannot_take_the_turn(client, world):
+    table = await public_scene(client, world)
+    await create_scene(
+        client,
+        name="Calabouço",
+        source="sketch",
+        image_width=800,
+        image_height=600,
+        zones=[zone("Cela", "zon_cela")],
+    )
+    await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/scene",
+        json={"scene": "calabouco"},
+        headers=CSRF,
+    )
+    goblin = await add_token(client, table["id"], label="Goblin", x=0, y=0)
+    await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/scene",
+        json={"scene": "cripta"},
+        headers=CSRF,
+    )
+
+    response, payload = await turn(client, table["id"], "open", goblin["id"])
+
+    assert response.status_code == 404
+    assert payload["error"]["code"] == "not_found"
+
+
+async def test_concurrent_open_turns_leave_only_one_open(client, world):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    bob = await add_token(client, table["id"], label="Bob", x=5, y=5)
+    row = await table_domain.table_row(world.database, table["id"])
+    assert row is not None
+
+    results = await asyncio.gather(
+        table_domain.open_turn(
+            world.database, row, token_id=ana["id"], actor_id=NARRATOR
+        ),
+        table_domain.open_turn(
+            world.database, row, token_id=bob["id"], actor_id=NARRATOR
+        ),
+        return_exceptions=True,
+    )
+
+    failures = [item for item in results if isinstance(item, Exception)]
+    assert len(failures) == 1
+    assert isinstance(failures[0], table_domain.TurnAlreadyOpen)
+    rows = await world.database.fetchall(
+        "SELECT id FROM turns WHERE table_id = ? AND ended_at IS NULL",
+        (table["id"],),
+    )
+    assert len(rows) == 1
+
+
+async def insert_turn(
+    database: Database,
+    table_id: str,
+    scene_id: str,
+    turn_id: str,
+    token_id: str,
+    ended_at: int | None,
+) -> None:
+    await database.execute(
+        "INSERT INTO turns ("
+        "id, table_id, scene_id, round, token_id, label, started_at, "
+        "ended_at, started_by"
+        ") VALUES (?, ?, ?, 1, ?, 'X', 1, ?, ?)",
+        (turn_id, table_id, scene_id, token_id, ended_at, NARRATOR),
+    )
+
+
+async def test_the_turn_indexes_refuse_two_open_and_two_per_token_round(
+    client, world
+):
+    table = await public_scene(client, world)
+    ana = await add_token(client, table["id"], label="Ana", x=0, y=0)
+    bob = await add_token(client, table["id"], label="Bob", x=5, y=5)
+    scene_id = table["scene"]["id"]
+    await insert_turn(
+        world.database, table["id"], scene_id, "trn_index_a", ana["id"], None
+    )
+
+    with pytest.raises(IntegrityError):
+        await insert_turn(
+            world.database,
+            table["id"],
+            scene_id,
+            "trn_index_b",
+            bob["id"],
+            None,
+        )
+    await world.database.execute(
+        "UPDATE turns SET ended_at = 2 WHERE id = 'trn_index_a'"
+    )
+    with pytest.raises(IntegrityError):
+        await insert_turn(
+            world.database,
+            table["id"],
+            scene_id,
+            "trn_index_c",
+            ana["id"],
+            2,
+        )

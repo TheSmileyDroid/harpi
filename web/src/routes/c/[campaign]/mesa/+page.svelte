@@ -3,11 +3,15 @@
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { ApiError, createApiClient } from "$lib/api";
+  import { isEditableTarget } from "$lib/keys";
   import SheetEditor from "$lib/components/SheetEditor.svelte";
   import TableMap from "$lib/components/TableMap.svelte";
   import { phaseForError } from "$lib/phase";
   import type { LoadPhase } from "$lib/phase";
   import {
+    canEndTurn,
+    canPassTurn,
+    nextPendingId,
     tableActionNote,
     tableOpenNote,
     tableRoleLabel,
@@ -15,6 +19,7 @@
     tableSpectatorsLabel,
     tableStateNote,
     tableTokenNote,
+    tableTurnNote,
     tableZoneNote,
   } from "$lib/tables";
   import type {
@@ -74,6 +79,20 @@
   const selected = $derived<TableToken | null>(
     table?.tokens.find((token) => token.id === selectedId) ?? null,
   );
+  const turn = $derived(table?.turn ?? null);
+  const participants = $derived(table?.participants ?? []);
+  const turnRole = $derived(viewerRole ?? "spectator");
+  const passable = $derived(
+    canPassTurn(turnRole, participants, turn, table?.viewer_id ?? null),
+  );
+  const endable = $derived(
+    canEndTurn(turnRole, turn, table?.viewer_id ?? null),
+  );
+  const nextTurnId = $derived(nextPendingId(participants, turn));
+  const waiting = $derived(
+    turn !== null &&
+      !participants.some((item) => item.token_id === turn.token_id),
+  );
 
   async function load(campaign: string, directTable: string) {
     phase = "loading";
@@ -109,9 +128,16 @@
 
   $effect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape" && drawerOpen) {
-        closeDrawer();
+      if (isEditableTarget(event.target)) return;
+      if (event.key === "Escape") {
+        if (drawerOpen) closeDrawer();
+        return;
       }
+      if (event.key.toLowerCase() !== "n") return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (!passable || nextTurnId === null) return;
+      event.preventDefault();
+      void changeTurn("pass", nextTurnId);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -345,6 +371,27 @@
     });
   }
 
+  async function changeTurn(action: "open" | "pass" | "end", tokenId?: string) {
+    if (!table) return;
+    await act(`turn-${action}`, async () => {
+      try {
+        table = await api.tableTurn(table!.id, {
+          action,
+          token_id: tokenId ?? null,
+          expected_turn_id: turn?.id ?? null,
+        });
+        notice =
+          action === "open"
+            ? "Turno aberto."
+            : action === "pass"
+              ? "Turno passado."
+              : "Turno encerrado.";
+      } catch (error) {
+        failure = tableTurnNote(error);
+      }
+    });
+  }
+
   async function openToken(token: TableToken) {
     selectedId = token.id;
     drawerOpen = true;
@@ -496,6 +543,82 @@
       </div>
 
       <aside class="table__column" aria-label="Condução da mesa">
+        {#if table.status === "open"}
+          <section class="table__panel" data-testid="table-turn">
+            <h2 class="panel-label">Turno</h2>
+            <p class="system-note" data-testid="table-turn-state">
+              {turn
+                ? waiting
+                  ? turn.label
+                    ? `Aguardando ${turn.label}`
+                    : "Aguardando"
+                  : `Em turno: ${turn.label}`
+                : "Sem turno aberto."}
+            </p>
+            {#if participants.length === 0}
+              <p class="system-note" data-testid="table-turn-empty">
+                Nenhum participante público nesta cena.
+              </p>
+            {:else}
+              <ul class="turn__list">
+                {#each participants as item (item.token_id)}
+                  {@const current = turn?.token_id === item.token_id}
+                  {@const pending = !item.acted}
+                  <li
+                    class="turn__row"
+                    class:is-current={current}
+                    class:is-acted={item.acted && !current}
+                    data-testid={`table-participant-${item.token_id}`}
+                  >
+                    <span class="turn__label">{item.label}</span>
+                    <span class="turn__state">
+                      {current ? "Em turno" : item.acted ? "Agiu" : "Pendente"}
+                    </span>
+                    {#if pending && !current}
+                      {#if narrator && !turn}
+                        <button
+                          class="hud-btn"
+                          type="button"
+                          aria-label={`Abrir turno de ${item.label}`}
+                          data-testid={`table-turn-open-${item.token_id}`}
+                          disabled={busy !== ""}
+                          onclick={() => changeTurn("open", item.token_id)}
+                        >
+                          →
+                        </button>
+                      {:else if passable}
+                        <button
+                          class="hud-btn"
+                          type="button"
+                          aria-label={`Passar para ${item.label}`}
+                          data-testid={`table-turn-pass-${item.token_id}`}
+                          disabled={busy !== ""}
+                          onclick={() => changeTurn("pass", item.token_id)}
+                        >
+                          →
+                        </button>
+                      {/if}
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+            {#if endable}
+              <div class="table__keys">
+                <button
+                  class="hud-btn"
+                  type="button"
+                  data-testid="table-turn-end"
+                  disabled={busy !== ""}
+                  onclick={() => changeTurn("end")}
+                >
+                  Encerrar turno
+                </button>
+              </div>
+            {/if}
+          </section>
+        {/if}
+
         {#if narrator}
           <section class="table__panel" data-testid="table-conduct">
             <h2 class="panel-label">Condução</h2>
@@ -967,6 +1090,53 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+  }
+
+  .turn__list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .turn__row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-block-size: 2.5rem;
+    padding-block: 0.35rem;
+    border-block-start: 1px solid var(--rule);
+  }
+
+  .turn__row:first-child {
+    border-block-start: 0;
+  }
+
+  .turn__label {
+    flex: 1;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-value);
+    color: var(--sand);
+  }
+
+  .turn__state {
+    font-family: var(--font-label);
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .turn__row.is-current .turn__state {
+    color: var(--amber);
+  }
+
+  .turn__row.is-acted .turn__label {
+    color: var(--dim);
   }
 
   .table__check {
