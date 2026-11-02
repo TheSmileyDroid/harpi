@@ -546,6 +546,7 @@ test("readings go stale when the bot loop disappears, then recover", async ({
   page,
   request,
 }) => {
+  await page.clock.install();
   await request.post(`${BACKEND}/__test__/reset`);
   await page.request.post(`${BACKEND}/__test__/login`);
   await page.goto("/");
@@ -557,7 +558,11 @@ test("readings go stale when the bot loop disappears, then recover", async ({
     data: { available: false },
   });
 
-  await expect(page.getByTestId("stale-tag")).toBeVisible({ timeout: 20000 });
+  for (let tick = 0; tick < 20; tick += 1) {
+    await page.clock.runFor(1000);
+    if (await page.getByTestId("stale-tag").isVisible()) break;
+  }
+  await expect(page.getByTestId("stale-tag")).toBeVisible();
   await expect(page.getByTestId("playback-progress")).toHaveCSS(
     "opacity",
     "0.45",

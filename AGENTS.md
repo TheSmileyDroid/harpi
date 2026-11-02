@@ -4,7 +4,7 @@ Harpi is a Discord Integrated VTT. Its features includes music playing through v
 
 ## Verify
 
-`make format` then `make check`. Exit 0 means done. While iterating, `make check-fast` runs the same gates without coverage, CRAP, copy-paste, vulture, knip and Playwright; finish on `make check`.
+`make format` then `make check`, and `make check-e2e` before a PR. Exit 0 in both means done. `make check` prints one report: a line per gate, and the detail of what failed. While iterating, `make check-fast` runs the same gates without the contract diff, coverage, CRAP, copy-paste, vulture, knip and Playwright.
 
 ## Read further when it applies
 

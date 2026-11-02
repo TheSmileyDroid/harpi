@@ -92,9 +92,12 @@ test("the narrator runs a round with a turn", async ({ page }) => {
   await expect(page.getByTestId("table-summary")).toBeVisible();
 
   await page.getByTestId("map-zone-zon_sala").click();
-  for (const label of ["Ana", "Bob"]) {
+  for (const [index, label] of ["Ana", "Bob"].entries()) {
     await page.getByTestId("table-token-label").fill(label);
     await page.getByTestId("table-token-submit").click();
+    await expect(
+      page.locator("[data-testid^='table-participant-']"),
+    ).toHaveCount(index + 1);
   }
   await expect(page.getByTestId("table-turn-state")).toHaveText(
     "Sem turno aberto.",

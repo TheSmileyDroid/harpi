@@ -143,6 +143,11 @@ def _channel_ids(guild_id: int) -> set[str]:
     return {channel.id for channel in state.list_voice_channels(guild_id)}
 
 
+@bp.get("/health")
+def health():
+    return "Alive!", 200
+
+
 @bp.get("/api/session")
 @validate_response(Authenticated, 200)
 def read_session() -> Any:

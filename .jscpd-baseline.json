@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "accept": [
+    {
+      "fingerprint": "d3b767c9ff2249f2",
+      "lines": 10,
+      "where": "src/storage/registry.py:130 ↔ src/storage/registry.py:113",
+      "reason": "divida registrada: select e touch repetem o upsert do viewer; extrair helper"
+    },
+    {
+      "fingerprint": "da8ec132d81d8bef",
+      "lines": 10,
+      "where": "src/panel/sheet_merge.py:346 ↔ src/panel/sheet_merge.py:322",
+      "reason": "divida registrada: decisao de conflito repetida em _merge_list_item e _merge_stress_item"
+    }
+  ]
+}

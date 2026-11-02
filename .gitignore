@@ -168,6 +168,8 @@ node_modules/
 
 # Coverage JSON report (make check)
 coverage.json
+# Per-gate logs and machine reports from make check
+.check/
 mutants/
 .impeccable/
 

@@ -7451,6 +7451,13 @@
         "responses": {}
       }
     },
+    "/health": {
+      "get": {
+        "operationId": "get_health",
+        "parameters": [],
+        "responses": {}
+      }
+    },
     "/{filename}": {
       "get": {
         "operationId": "get_panel_asset",
