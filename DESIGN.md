@@ -365,6 +365,10 @@ The campaign shell never carries the music dock, and the music page never carrie
 ### Named Rules
 **The Two Surfaces Rule.** Music and the table never share a frame: the music page keeps the placard bar and the transport dock, the campaign shell keeps the 14rem rail and no dock. A placard, a key or a reading may cross over; a fixed frame may not.
 
+### The Scene Editor
+
+The editor is a bench: a tool column on the left, the stage in the middle and the inspector on the right, stacking to one column below 56rem. The stage sits in a sunken well under a bright-rule frame, with the drawn rooms filled in the raised plate and contoured in the bright rule. A hidden room keeps a dashed faint contour and carries an `oculta` tag beside its name; selection recolors the contour amber without losing the dash. The erase preview is oxide, never hazard red. Grid lines stay in the rule tone and the grid can be hidden. The inspector edits the cell, the offsets, the room label and the initial reveal state, and holds the sand save key. The editor draws the prepared map only: no fog, no tokens, no live table state.
+
 ### The Seek Scale (signature)
 - The seek control is a stepped amber scale in the dock: flex 1, min-width 8rem, 2.5rem tall (2.75rem on coarse pointers), sunken fill ruled with the unlit steps (7px of raised plate, 3px off), inside a 1px bright rule with 3px corners.
 - **Fill:** the played span is the lit steps (7px of amber, 3px off) with 3px right corners. While paused it swaps to the caution band (7px of oxide, 5px off).

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { createApiClient } from "$lib/api";
   import Select from "$lib/components/Select.svelte";
@@ -282,7 +283,18 @@
             {/if}
           </div>
           <div class="gallery__body">
-            <h2 class="gallery__name">{card.name}</h2>
+            <h2 class="gallery__name">
+              <a
+                class="gallery__open"
+                href={resolve("/c/[campaign]/cenas/[scene]", {
+                  campaign: slug,
+                  scene: card.slug,
+                })}
+                data-testid="scene-open"
+              >
+                {card.name}
+              </a>
+            </h2>
             <dl class="gallery__facts">
               <div class="gallery__fact">
                 <dt class="data-label">Origem</dt>
@@ -470,6 +482,21 @@
     font-size: 1rem;
     line-height: 1.15;
     color: var(--sand);
+  }
+
+  .gallery__open {
+    color: inherit;
+    text-decoration: none;
+    border-radius: var(--radius-key);
+  }
+
+  .gallery__open:hover {
+    color: var(--amber);
+  }
+
+  .gallery__open:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
   }
 
   .gallery__facts {

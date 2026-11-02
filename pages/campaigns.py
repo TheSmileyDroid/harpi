@@ -1384,12 +1384,70 @@ async def read_scene_image(slug: str, scene: str) -> Response:
     if not scenes.valid_scene_slug(scene):
         return _hidden()
     record = await scenes.scene_record(context.database, slug, scene)
-    if record is None or record.source == "sketch":
+    if record is None:
         return _hidden()
+    if record.source == "sketch":
+        return await _sketch_map_response(context, slug, scene, record)
     path = context.index.portrait_path(record.image_path)
     if path is None:
         return _hidden()
     return await image_response(path)
+
+
+async def _sketch_map_response(
+    context: SceneContext,
+    campaign: str,
+    scene: str,
+    record: scenes.SceneRecord,
+) -> Response:
+    path = _sketch_map_path(context.root, campaign, scene, record)
+    if path is None:
+        return _hidden()
+    return await _svg_response(path)
+
+
+def _sketch_map_path(
+    root: Path,
+    campaign: str,
+    scene: str,
+    record: scenes.SceneRecord,
+) -> Path | None:
+    expected = scenes.sketch_image_path(campaign, scene)
+    if record.image_path != expected:
+        return None
+    try:
+        base = root.resolve()
+        path = (base / expected).resolve()
+        path.relative_to(base)
+    except (OSError, ValueError):
+        return None
+    if path.suffix.casefold() != ".svg" or not path.is_file():
+        return None
+    return path
+
+
+async def _svg_response(path: Path) -> Response:
+    try:
+        stat = path.stat()
+    except OSError:
+        return _hidden()
+    token = f"{stat.st_mtime_ns:x}-{stat.st_size:x}"
+    etag = f'"{token}"'
+    headers = {
+        "Cache-Control": IMAGE_CACHE,
+        "ETag": etag,
+        "Last-Modified": http_date(stat.st_mtime),
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "sandbox",
+    }
+    if _etag_matches(request.headers.get("If-None-Match"), token):
+        return Response(status=304, headers=headers)
+    response = await send_file(
+        path, mimetype="image/svg+xml", conditional=False
+    )
+    response.headers["Content-Type"] = "image/svg+xml"
+    response.headers.update(headers)
+    return response
 
 
 @bp.post("/api/campaigns/<slug>/scenes")
@@ -1525,21 +1583,56 @@ async def _persist_scene(
     context: SceneContext,
     slug: str,
     scene: str,
-    saved: tuple[scenes.SceneBlueprint, str, str],
+    saved: scenes.SavedScene,
 ) -> Response | SceneDetail:
-    blueprint, digest, previous = saved
     try:
-        await scenes.store_save(context.database, slug, blueprint, digest)
+        await scenes.store_save(
+            context.database, slug, saved.blueprint, saved.digest
+        )
     except Exception as failure:
-        restored = await _restore_scene(context.root, slug, scene, previous)
-        if not restored:
+        scene_ok = await _restore_scene(
+            context.root, slug, scene, saved.previous_text
+        )
+        map_ok = True
+        if saved.blueprint.source == "sketch":
+            map_ok = await _restore_map(
+                context.root, slug, scene, saved.previous_map
+            )
+        if not (scene_ok and map_ok):
             return error_response(
                 "scene_restore_failed",
-                "The save failed and the previous scene could not be restored",
+                _inconsistent_scene_message(scene_ok, map_ok),
                 503,
             )
         return _storage_failure(failure)
-    return _scene_detail(blueprint, digest)
+    return _scene_detail(saved.blueprint, saved.digest)
+
+
+def _inconsistent_scene_message(scene_ok: bool, map_ok: bool) -> str:
+    files = []
+    if not scene_ok:
+        files.append("blueprint")
+    if not map_ok:
+        files.append("map SVG")
+    return (
+        "The save failed and the previous scene could not be restored for: "
+        + ", ".join(files)
+    )
+
+
+async def _restore_map(
+    root: Path, slug: str, scene: str, text: str | None
+) -> bool:
+    try:
+        await asyncio.to_thread(
+            scenes.restore_map_svg, root, slug, scene, text
+        )
+    except (OSError, UnicodeDecodeError) as failure:
+        logger.opt(exception=failure).error(
+            f"Scene map restore failed: {failure}"
+        )
+        return False
+    return True
 
 
 async def _restore_scene(root: Path, slug: str, scene: str, text: str) -> bool:
@@ -1556,7 +1649,7 @@ async def _saved_scene(
     slug: str,
     scene: str,
     payload: SceneSave,
-) -> tuple[scenes.SceneBlueprint, str, str] | Response:
+) -> scenes.SavedScene | Response:
     try:
         return await asyncio.to_thread(
             scenes.save_existing, root, slug, scene, payload
@@ -1569,5 +1662,5 @@ async def _saved_scene(
         )
     except scenes.InvalidSceneZones as failure:
         return error_response("invalid_payload", str(failure), 422)
-    except OSError as failure:
+    except (OSError, UnicodeDecodeError) as failure:
         return _vault_write_failure(failure)
