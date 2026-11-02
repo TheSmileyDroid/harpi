@@ -325,8 +325,9 @@ async def test_repeat_records_one_row_per_roll_and_one_message(
     ],
 )
 async def test_expression_limits_answer_422(
-    client, world, discord, expression, code
+    client, world, discord, monkeypatch, expression, code
 ):
+    monkeypatch.setattr(random, "randint", lambda _low, _high: 6)
     table_id = await live_table(client, world)
     response = await post_roll(client, table_id, expression)
     assert response.status_code == 422, await body(response)
