@@ -28,6 +28,12 @@ import {
   SceneList,
   SceneSave,
   StatusSnapshot,
+  TableOpen,
+  TableSceneChange,
+  TableSpectators,
+  TableSummary,
+  TableTokenCreate,
+  TableTokenPatch,
   UrlRequest,
   VolumeRequest,
 } from "./contract/panel.gen";
@@ -344,6 +350,114 @@ export function createApiClient({
         {
           method: "PATCH",
           requestSchema: SheetPatch,
+          body,
+          silent: true,
+        },
+      );
+    },
+    tableSummary(tableId: string) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/summary`,
+        TableSummary,
+      );
+    },
+    openTable(body: z.input<typeof TableOpen>) {
+      return request("/api/tables", TableSummary, {
+        method: "POST",
+        requestSchema: TableOpen,
+        body,
+        silent: true,
+      });
+    },
+    closeTable(tableId: string) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/close`,
+        TableSummary,
+        { method: "POST", json: true, silent: true },
+      );
+    },
+    reopenTable(tableId: string) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/reopen`,
+        TableSummary,
+        { method: "POST", json: true, silent: true },
+      );
+    },
+    changeTableScene(tableId: string, body: z.input<typeof TableSceneChange>) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/scene`,
+        TableSummary,
+        {
+          method: "POST",
+          requestSchema: TableSceneChange,
+          body,
+          silent: true,
+        },
+      );
+    },
+    reloadTableScene(tableId: string) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/scene/reload`,
+        TableSummary,
+        { method: "POST", json: true, silent: true },
+      );
+    },
+    revealZone(tableId: string, zoneId: string) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/zones/${encodeURIComponent(zoneId)}/reveal`,
+        TableSummary,
+        { method: "POST", json: true, silent: true },
+      );
+    },
+    hideZone(tableId: string, zoneId: string) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/zones/${encodeURIComponent(zoneId)}/hide`,
+        TableSummary,
+        { method: "POST", json: true, silent: true },
+      );
+    },
+    createTableToken(tableId: string, body: z.input<typeof TableTokenCreate>) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/tokens`,
+        TableSummary,
+        {
+          method: "POST",
+          requestSchema: TableTokenCreate,
+          body,
+          silent: true,
+        },
+      );
+    },
+    patchTableToken(
+      tableId: string,
+      tokenId: string,
+      body: z.input<typeof TableTokenPatch>,
+    ) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/tokens/${encodeURIComponent(tokenId)}`,
+        TableSummary,
+        {
+          method: "PATCH",
+          requestSchema: TableTokenPatch,
+          body,
+          silent: true,
+        },
+      );
+    },
+    deleteTableToken(tableId: string, tokenId: string) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/tokens/${encodeURIComponent(tokenId)}`,
+        TableSummary,
+        { method: "DELETE", json: true, silent: true },
+      );
+    },
+    setTableSpectators(tableId: string, body: z.input<typeof TableSpectators>) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/spectators`,
+        TableSummary,
+        {
+          method: "POST",
+          requestSchema: TableSpectators,
           body,
           silent: true,
         },

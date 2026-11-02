@@ -1340,8 +1340,19 @@ async def read_scenes(slug: str) -> Response | SceneList:
     if isinstance(context, Response):
         return context
     records = await scenes.scene_rows(context.database, slug)
+    live = await context.database.fetchone(
+        "SELECT current_scene_id FROM tables "
+        "WHERE campaign_slug = ? AND status = 'open'",
+        (slug,),
+    )
+    current = None if live is None else live["current_scene_id"]
     return SceneList(
-        scenes=[scenes.summary(record, context.root) for record in records]
+        scenes=[
+            scenes.summary(record, context.root).model_copy(
+                update={"in_use": record.id == current}
+            )
+            for record in records
+        ]
     )
 
 
@@ -1403,7 +1414,7 @@ async def _sketch_map_response(
     path = _sketch_map_path(context.root, campaign, scene, record)
     if path is None:
         return _hidden()
-    return await _svg_response(path)
+    return await svg_response(path)
 
 
 def _sketch_map_path(
@@ -1426,7 +1437,7 @@ def _sketch_map_path(
     return path
 
 
-async def _svg_response(path: Path) -> Response:
+async def svg_response(path: Path) -> Response:
     try:
         stat = path.stat()
     except OSError:

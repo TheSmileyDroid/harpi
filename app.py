@@ -35,6 +35,7 @@ from pages.campaigns import bp as campaigns_bp
 from pages.campaigns import characters_page_refusal
 from pages.contract import ContractOpenAPIProvider
 from pages.events import bp as events_bp
+from pages.tables import bp as tables_bp
 
 from src import alerts
 from src.config import Settings
@@ -372,6 +373,7 @@ app.register_blueprint(events_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(campaigns_bp)
+app.register_blueprint(tables_bp)
 
 _database: Database | None = None
 _retention_task: asyncio.Task[None] | None = None
