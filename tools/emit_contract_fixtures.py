@@ -50,6 +50,9 @@ def build_fixtures() -> dict[str, object]:
         SceneRect,
         SceneSummary,
         SceneZone,
+        TableScene,
+        TableSummary,
+        TableToken,
         SheetActionResult,
         SheetAspect,
         SheetConflictDetail,
@@ -293,6 +296,56 @@ def build_fixtures() -> dict[str, object]:
             ],
             hash="b" * 64,
             saved=True,
+        ),
+        "TableSummary": TableSummary(
+            id="tbl_1",
+            campaign="paratheos",
+            channel_id="123456789012345678",
+            name="Sessão",
+            viewer_id="555",
+            role="narrator",
+            status="open",
+            round=1,
+            spectators=False,
+            scene=TableScene(
+                id="scn_1",
+                slug="cripta",
+                name="Cripta",
+                source="image",
+                width=1920,
+                height=1080,
+                grid=SceneGrid(
+                    cell_px=70, offset_x=0, offset_y=0, visible=True
+                ),
+                fog_outside=True,
+                zones=[
+                    SceneZone(
+                        id="zon_sala",
+                        label="Sala principal",
+                        revealed=True,
+                        rects=[SceneRect(x=1, y=2, w=3, h=2)],
+                    )
+                ],
+                map_url="/api/tables/tbl_1/map",
+                saved=True,
+                fog=[],
+            ),
+            tokens=[
+                TableToken(
+                    id="tok_1",
+                    character_id="chr_ana",
+                    label="Ana",
+                    owner_id="555",
+                    x=2,
+                    y=2,
+                    w=1,
+                    h=1,
+                    color="#e9dfc7",
+                    visible=True,
+                    rev=1,
+                )
+            ],
+            warning=None,
         ),
         "Presence": Presence(
             guild_id="7",

@@ -6,7 +6,12 @@ from typing import Any
 
 from aiosqlite import Row
 
-from src.panel.schemas import CampaignDetail, CampaignRole, CampaignSummary
+from src.panel.schemas import (
+    CampaignDetail,
+    CampaignRole,
+    CampaignSummary,
+    OpenTable,
+)
 from src.storage import get_database
 from src.storage.database import Database
 
@@ -27,6 +32,11 @@ WHERE c.guild_id IN ({guilds})
 _LIST_SQL = _BASE_SQL + " ORDER BY c.name, c.slug"
 
 _DETAIL_SQL = _BASE_SQL + " AND c.slug = ?"
+
+_OPEN_TABLE_SQL = (
+    "SELECT id, name, channel_id FROM tables "
+    "WHERE campaign_slug = ? AND status = 'open'"
+)
 
 
 def _placeholders(count: int) -> str:
@@ -84,7 +94,17 @@ class CampaignAccess:
         summary = _visible_summary(rows[0], user_id)
         if summary is None:
             return None
-        return CampaignDetail(**summary.model_dump(), open_table=None)
+        return CampaignDetail(
+            **summary.model_dump(), open_table=await self._open_table(slug)
+        )
+
+    async def _open_table(self, slug: str) -> OpenTable | None:
+        row = await self._database.fetchone(_OPEN_TABLE_SQL, (slug,))
+        if row is None:
+            return None
+        return OpenTable(
+            id=row["id"], name=row["name"], channel_id=row["channel_id"]
+        )
 
     async def scope(
         self, slug: str, user_id: str, guilds: Collection[str]

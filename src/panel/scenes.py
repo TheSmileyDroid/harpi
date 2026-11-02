@@ -98,6 +98,7 @@ class SceneRecord:
     image_path: str
     image_width: int
     image_height: int
+    grid: SceneGrid
     zones_json: str
     rev: int
 
@@ -699,8 +700,8 @@ def _json_text(value: object) -> str:
 async def scene_rows(database: Database, campaign: str) -> list[SceneRecord]:
     rows = await database.fetchall(
         "SELECT id, campaign_slug, name, source, blueprint_path, "
-        "blueprint_hash, image_path, image_width, image_height, zones_json, "
-        "rev FROM scenes "
+        "blueprint_hash, image_path, image_width, image_height, grid_json, "
+        "zones_json, rev FROM scenes "
         "WHERE campaign_slug = ? ORDER BY name, blueprint_path",
         (campaign,),
     )
@@ -712,10 +713,23 @@ async def scene_record(
 ) -> SceneRecord | None:
     row = await database.fetchone(
         "SELECT id, campaign_slug, name, source, blueprint_path, "
-        "blueprint_hash, image_path, image_width, image_height, zones_json, "
-        "rev FROM scenes "
+        "blueprint_hash, image_path, image_width, image_height, grid_json, "
+        "zones_json, rev FROM scenes "
         "WHERE campaign_slug = ? AND blueprint_path = ?",
         (campaign, blueprint_path(campaign, slug)),
+    )
+    return None if row is None else _record(row)
+
+
+async def scene_record_by_id(
+    database: Database, campaign: str, scene_id: str
+) -> SceneRecord | None:
+    row = await database.fetchone(
+        "SELECT id, campaign_slug, name, source, blueprint_path, "
+        "blueprint_hash, image_path, image_width, image_height, grid_json, "
+        "zones_json, rev FROM scenes "
+        "WHERE campaign_slug = ? AND id = ?",
+        (campaign, scene_id),
     )
     return None if row is None else _record(row)
 
@@ -731,9 +745,17 @@ def _record(row) -> SceneRecord:
         image_path=row["image_path"],
         image_width=row["image_width"],
         image_height=row["image_height"],
+        grid=_grid(row["grid_json"]),
         zones_json=row["zones_json"],
         rev=row["rev"],
     )
+
+
+def _grid(grid_json: str) -> SceneGrid:
+    try:
+        return SceneGrid.model_validate(json.loads(grid_json))
+    except (json.JSONDecodeError, TypeError, ValidationError):
+        return DEFAULT_GRID
 
 
 def summary(record: SceneRecord, root: Path) -> SceneSummary:
@@ -744,7 +766,7 @@ def summary(record: SceneRecord, root: Path) -> SceneSummary:
     if blueprint is None:
         width, height = record.image_width, record.image_height
         grid = DEFAULT_GRID
-        zones = _stored_zones(record.zones_json)
+        zones = stored_zones(record.zones_json)
     else:
         width, height = blueprint.image.width, blueprint.image.height
         grid = blueprint.grid
@@ -768,7 +790,7 @@ def summary(record: SceneRecord, root: Path) -> SceneSummary:
     )
 
 
-def _stored_zones(zones_json: str) -> list[SceneZone]:
+def stored_zones(zones_json: str) -> list[SceneZone]:
     try:
         data = json.loads(zones_json)
         return [SceneZone.model_validate(item) for item in data]

@@ -173,6 +173,9 @@ ignore_names = [
     "rects",
     "zone_count",
     "in_use",
+    "map_url",
+    "started_at",
+    "saved_at",
     # YtMusicData.uploader: property consumed through panel serialization.
     "uploader",
     # ASGI entry point (imported by uvicorn via the "app:asgi_app" string in

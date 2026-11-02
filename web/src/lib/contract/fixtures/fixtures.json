@@ -371,5 +371,65 @@
       ],
       "volume": 0.7
     }
+  },
+  "TableSummary": {
+    "campaign": "paratheos",
+    "channel_id": "123456789012345678",
+    "id": "tbl_1",
+    "name": "Sess\u00e3o",
+    "role": "narrator",
+    "round": 1,
+    "scene": {
+      "fog": [],
+      "fog_outside": true,
+      "grid": {
+        "cell_px": 70,
+        "offset_x": 0,
+        "offset_y": 0,
+        "visible": true
+      },
+      "height": 1080,
+      "id": "scn_1",
+      "map_url": "/api/tables/tbl_1/map",
+      "name": "Cripta",
+      "saved": true,
+      "slug": "cripta",
+      "source": "image",
+      "width": 1920,
+      "zones": [
+        {
+          "id": "zon_sala",
+          "label": "Sala principal",
+          "rects": [
+            {
+              "h": 2,
+              "w": 3,
+              "x": 1,
+              "y": 2
+            }
+          ],
+          "revealed": true
+        }
+      ]
+    },
+    "spectators": false,
+    "status": "open",
+    "tokens": [
+      {
+        "character_id": "chr_ana",
+        "color": "#e9dfc7",
+        "h": 1,
+        "id": "tok_1",
+        "label": "Ana",
+        "owner_id": "555",
+        "rev": 1,
+        "visible": true,
+        "w": 1,
+        "x": 2.0,
+        "y": 2.0
+      }
+    ],
+    "viewer_id": "555",
+    "warning": null
   }
 }

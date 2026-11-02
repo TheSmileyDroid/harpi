@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from typing import Annotated, Any, Literal
 
 from pydantic import (
@@ -50,6 +51,27 @@ def _clean_scene_name(value: Any) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError("a scene needs a name")
     return value.strip()
+
+
+TOKEN_COLOR = re.compile(r"^#[0-9a-f]{6}$")
+
+
+def _token_color(value: Any) -> str:
+    if (
+        not isinstance(value, str)
+        or TOKEN_COLOR.fullmatch(value.casefold()) is None
+    ):
+        raise ValueError("a token color is #rrggbb")
+    return value.casefold()
+
+
+def _clean_label(value: Any) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("a token needs a label")
+    label = value.strip()
+    if len(label) > 120:
+        raise ValueError("a token label is at most 120 characters")
+    return label
 
 
 Snowflake = Annotated[str, BeforeValidator(_as_snowflake)]
@@ -492,6 +514,100 @@ class ErrorDetail(_Response):
 
 class ErrorEnvelope(_Response):
     error: ErrorDetail
+
+
+TableStatus = Literal["open", "closed"]
+TableRole = Literal["narrator", "player", "pending", "spectator"]
+TokenColor = Annotated[str, BeforeValidator(_token_color)]
+TokenLabel = Annotated[str, BeforeValidator(_clean_label)]
+
+
+class TableScene(_Response):
+    id: str
+    slug: str
+    name: str
+    source: SceneSource
+    width: int
+    height: int
+    grid: SceneGrid
+    fog_outside: bool
+    zones: list[SceneZone]
+    fog: list[SceneRect] = []
+    map_url: str
+    saved: bool = True
+
+
+class TableToken(_Response):
+    id: str
+    character_id: str | None
+    label: str
+    owner_id: SnowflakeInput
+    x: float
+    y: float
+    w: int
+    h: int
+    color: str
+    visible: bool
+    rev: int
+
+
+class TableSummary(_Response):
+    id: str
+    campaign: str
+    channel_id: Snowflake
+    name: str
+    viewer_id: Snowflake
+    role: TableRole
+    status: TableStatus
+    round: int
+    spectators: bool
+    scene: TableScene | None
+    tokens: list[TableToken]
+    warning: str | None = None
+
+
+class TableOpen(BaseModel):
+    campaign: str
+    channel_id: Snowflake
+    scene: str
+    name: TextInput = None
+
+
+class TableConflictDetail(_Response):
+    error: ErrorDetail
+    table: OpenTable
+
+
+class TableSceneChange(BaseModel):
+    scene: str
+
+
+class TableTokenCreate(BaseModel):
+    label: TokenLabel
+    character_id: TextInput = None
+    owner_id: SnowflakeInput = None
+    x: float = Field(allow_inf_nan=False, ge=0)
+    y: float = Field(allow_inf_nan=False, ge=0)
+    w: int = Field(default=1, ge=1)
+    h: int = Field(default=1, ge=1)
+    color: TokenColor = "#e9dfc7"
+    visible: bool = True
+
+
+class TableTokenPatch(BaseModel):
+    label: TokenLabel | None = None
+    character_id: TextInput = None
+    owner_id: SnowflakeInput = None
+    x: float | None = Field(default=None, allow_inf_nan=False, ge=0)
+    y: float | None = Field(default=None, allow_inf_nan=False, ge=0)
+    w: int | None = Field(default=None, ge=1)
+    h: int | None = Field(default=None, ge=1)
+    color: TokenColor | None = None
+    visible: bool | None = None
+
+
+class TableSpectators(BaseModel):
+    enabled: bool
 
 
 class ReloadEvent(_Response):

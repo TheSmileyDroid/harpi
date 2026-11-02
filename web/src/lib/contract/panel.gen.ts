@@ -224,6 +224,33 @@ export const StatusSnapshot = z.strictObject({ bot: BotStatus, connection: Conne
 export type SseEnvelope = z.infer<typeof SseEnvelope>;
 export const SseEnvelope = z.union([StatusSnapshot, ReloadEvent, Presence, Position, Heartbeat, Directory]);
 
+export type TableConflictDetail = z.infer<typeof TableConflictDetail>;
+export const TableConflictDetail = z.strictObject({ error: ErrorDetail, table: OpenTable });
+
+export type TableOpen = z.infer<typeof TableOpen>;
+export const TableOpen = z.strictObject({ campaign: z.string(), channel_id: z.string(), name: z.string().nullable().default(null), scene: z.string() });
+
+export type TableScene = z.infer<typeof TableScene>;
+export const TableScene = z.strictObject({ fog: z.array(SceneRect).default([]), fog_outside: z.boolean(), grid: SceneGrid, height: z.number().int(), id: z.string(), map_url: z.string(), name: z.string(), saved: z.boolean().default(true), slug: z.string(), source: z.enum(["image", "sketch"]), width: z.number().int(), zones: z.array(SceneZone) });
+
+export type TableSceneChange = z.infer<typeof TableSceneChange>;
+export const TableSceneChange = z.strictObject({ scene: z.string() });
+
+export type TableSpectators = z.infer<typeof TableSpectators>;
+export const TableSpectators = z.strictObject({ enabled: z.boolean() });
+
+export type TableToken = z.infer<typeof TableToken>;
+export const TableToken = z.strictObject({ character_id: z.string().nullable(), color: z.string(), h: z.number().int(), id: z.string(), label: z.string(), owner_id: z.string().nullable(), rev: z.number().int(), visible: z.boolean(), w: z.number().int(), x: z.number(), y: z.number() });
+
+export type TableSummary = z.infer<typeof TableSummary>;
+export const TableSummary = z.strictObject({ campaign: z.string(), channel_id: z.string(), id: z.string(), name: z.string(), role: z.enum(["narrator", "player", "pending", "spectator"]), round: z.number().int(), scene: TableScene.nullable(), spectators: z.boolean(), status: z.enum(["open", "closed"]), tokens: z.array(TableToken), viewer_id: z.string(), warning: z.string().nullable().default(null) });
+
+export type TableTokenCreate = z.infer<typeof TableTokenCreate>;
+export const TableTokenCreate = z.strictObject({ character_id: z.string().nullable().default(null), color: z.string().default("#e9dfc7"), h: z.number().int().min(1).default(1), label: z.string(), owner_id: z.string().nullable().default(null), visible: z.boolean().default(true), w: z.number().int().min(1).default(1), x: z.number().min(0), y: z.number().min(0) });
+
+export type TableTokenPatch = z.infer<typeof TableTokenPatch>;
+export const TableTokenPatch = z.strictObject({ character_id: z.string().nullable().default(null), color: z.string().nullable().default(null), h: z.number().int().min(1).nullable().default(null), label: z.string().nullable().default(null), owner_id: z.string().nullable().default(null), visible: z.boolean().nullable().default(null), w: z.number().int().min(1).nullable().default(null), x: z.number().min(0).nullable().default(null), y: z.number().min(0).nullable().default(null) }).partial();
+
 export type UrlRequest = z.infer<typeof UrlRequest>;
 export const UrlRequest = z.strictObject({ url: z.string().nullable().default(null) }).partial();
 

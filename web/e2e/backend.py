@@ -531,6 +531,7 @@ async def _reset_campaign_state() -> None:
             "sheet_conflicts",
             "character_visibility",
             "sheet_files",
+            "tables",
             "scenes",
             "members",
         ):
