@@ -12,6 +12,7 @@
   import type { LoadPhase } from "$lib/phase";
   import { createTableLiveStore, startTableStream } from "$lib/table-stream";
   import type { TableStreamOptions } from "$lib/table-stream";
+  import { createMovePump } from "$lib/table-moves";
   import {
     canEndTurn,
     canPassTurn,
@@ -51,6 +52,21 @@
   let failure = $state("");
   let notice = $state("");
   let warning = $state("");
+  let moveLimited = $state(false);
+
+  const moves = createMovePump({
+    send: (batch) => {
+      const current = table;
+      if (!current) return Promise.resolve(null);
+      return api.tableMoves(current.id, batch);
+    },
+    onLimited: (limited) => {
+      moveLimited = limited;
+    },
+    onEnd: () => {
+      live.setLocalDrag(null);
+    },
+  });
 
   let openDraft = $state({ scene: "", channel: "", name: "" });
   let sceneDraft = $state("");
@@ -156,7 +172,14 @@
 
   onMount(() => {
     void load(slug, queryTable);
-    return () => stream?.stop();
+    const onPageHide = () => {
+      moves.flush();
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      stream?.stop();
+    };
   });
 
   let lastSheetRev = 0;
@@ -326,15 +349,22 @@
     });
   }
 
-  async function moveToken(token: TableToken, x: number, y: number) {
-    if (!table || !narrator) return;
-    await act("move", async () => {
-      try {
-        adoptSummary(await api.patchTableToken(table!.id, token.id, { x, y }));
-      } catch (error) {
-        failure = tableTokenNote(error);
-      }
-    });
+  function beginTokenMove(token: TableToken, x: number, y: number) {
+    if (!table || table.status !== "open") return;
+    live.setLocalDrag(token.id);
+    moves.begin(token.id, x, y);
+  }
+
+  function dragTokenTo(token: TableToken, x: number, y: number) {
+    if (!table || table.status !== "open") return;
+    live.moveLocal(token.id, x, y);
+    moves.move(token.id, x, y);
+  }
+
+  function endTokenMove(token: TableToken, x: number, y: number) {
+    if (!table || table.status !== "open") return;
+    live.moveLocal(token.id, x, y);
+    moves.end(token.id, x, y);
   }
 
   async function createToken() {
@@ -556,6 +586,11 @@
         <span>{warning}</span>
       </p>
     {/if}
+    {#if moveLimited}
+      <p class="placard table__notice" data-testid="table-move-limited">
+        Rede limitada. O movimento vai mais devagar e volta sozinho.
+      </p>
+    {/if}
     {#if $live.closedReason}
       <p class="placard table__notice" data-testid="table-closed-event">
         {$live.closedReason}
@@ -603,9 +638,12 @@
             role={table.role}
             viewerId={table.viewer_id}
             {selectedId}
+            drags={$live.drags}
             ontoken={openToken}
             onzone={toggleZone}
-            onmove={moveToken}
+            onmovestart={beginTokenMove}
+            onmovemove={dragTokenTo}
+            onmoveend={endTokenMove}
           />
         {:else}
           <p class="system-note">A mesa ainda não tem uma cena corrente.</p>

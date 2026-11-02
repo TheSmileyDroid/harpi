@@ -23,6 +23,7 @@ from src.panel.schemas import (
     TableSummary,
     TableToken,
     TableTokenCreate,
+    TableTokenMove,
     TableTokenPatch,
     TableTurn,
 )
@@ -93,6 +94,10 @@ class TurnMissing(TableError):
 
 
 class TurnNotYours(TableError):
+    pass
+
+
+class MoveForbidden(TableError):
     pass
 
 
@@ -378,7 +383,7 @@ async def token_rows(
         return []
     rows = await database.fetchall(
         "SELECT * FROM tokens WHERE table_id = ? AND scene_id = ? "
-        "ORDER BY created_at, id",
+        "ORDER BY created_at, rowid",
         (table_id, scene_id),
     )
     return [_token(row) for row in rows]
@@ -838,6 +843,65 @@ def _merged_token(current: TokenRow, patch: TableTokenPatch) -> dict[str, Any]:
         if value is not None
     })
     return values
+
+
+async def move_tokens(
+    database: Database,
+    table: TableRow,
+    moves: list[TableTokenMove],
+    *,
+    actor_id: str,
+    narrator: bool,
+) -> None:
+    async with _lock(table.id):
+        fresh = await _require_fresh_table(database, table.id)
+        record = await _require_scene(database, fresh)
+        current = {
+            token.id: token
+            for token in await token_rows(database, fresh.id, record.id)
+        }
+        targets = [
+            _move_target(current, move, actor_id, narrator) for move in moves
+        ]
+        for token, move in targets:
+            _check_bounds(record, move.x, move.y, token.w, token.h)
+        now = int(time.time())
+        for _, move in targets:
+            await database.execute(
+                "UPDATE tokens SET x = ?, y = ?, rev = rev + 1, updated_at = ? "
+                "WHERE table_id = ? AND id = ?",
+                (move.x, move.y, now, fresh.id, move.token_id),
+            )
+        await _touch_table(database, fresh.id)
+        await _reveal_moved(
+            database, fresh, record, {item.token_id for item in moves}
+        )
+        await _reconcile_table(database, fresh.id, actor_id)
+
+
+def _move_target(
+    current: dict[str, TokenRow],
+    move: TableTokenMove,
+    actor_id: str,
+    narrator: bool,
+) -> tuple[TokenRow, TableTokenMove]:
+    token = current.get(move.token_id)
+    if token is None:
+        raise TokenNotFound(move.token_id)
+    if not narrator and token.owner_id != actor_id:
+        raise MoveForbidden(move.token_id)
+    return token, move
+
+
+async def _reveal_moved(
+    database: Database,
+    table: TableRow,
+    record: scenes.SceneRecord,
+    moved: set[str],
+) -> None:
+    for token in await token_rows(database, table.id, record.id):
+        if token.id in moved:
+            await _reveal_character(database, table, token)
 
 
 async def delete_token(

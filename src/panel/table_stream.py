@@ -36,6 +36,7 @@ QUEUE_SIZE = 32
 STREAMS_PER_TABLE = 16
 STREAMS_PER_USER = 2
 RETRY_AFTER_SECONDS = 30
+DRAG_SECONDS = 3.0
 CLOSED_REASON = "A mesa foi fechada."
 
 
@@ -108,6 +109,7 @@ class Subscriber:
     stream_rev: int
     boundary_rev: int
     state_queued: bool = False
+    drag_queued: bool = False
     queue: asyncio.Queue[Signal] = field(
         default_factory=lambda: asyncio.Queue(maxsize=QUEUE_SIZE)
     )
@@ -270,13 +272,16 @@ def merge_changes(changes: list[Change], narrator: bool) -> MergedDelta:
 
 
 class TableBroadcaster:
-    def __init__(self, table_id: str) -> None:
+    def __init__(self, table_id: str, clock=time.monotonic) -> None:
         self.table_id = table_id
         self.stream_rev = 0
+        self._clock = clock
         self._window: deque[Change] = deque(maxlen=WINDOW_SIZE)
         self._raw: tables.StreamState | None = None
         self._subscribers: dict[Subscriber, None] = {}
         self._drags: dict[str, TableDragMarker] = {}
+        self._drag_seen: dict[str, float] = {}
+        self._drag_ids: dict[str, str] = {}
         self._closed = False
 
     @property
@@ -286,6 +291,10 @@ class TableBroadcaster:
     @property
     def closed(self) -> bool:
         return self._closed
+
+    @property
+    def state(self) -> tables.StreamState | None:
+        return self._raw
 
     async def bind(self, database: Database, table: tables.TableRow) -> None:
         if self._raw is None:
@@ -320,32 +329,94 @@ class TableBroadcaster:
         return list(shown.values())
 
     def drags(self) -> list[TableDragMarker]:
+        now = self._clock()
+        expired = [
+            token_id
+            for token_id, seen in self._drag_seen.items()
+            if now - seen >= DRAG_SECONDS
+        ]
+        for token_id in expired:
+            self._drag_seen.pop(token_id, None)
+            self._drags.pop(token_id, None)
+            self._drag_ids.pop(token_id, None)
         return list(self._drags.values())
 
-    def set_drag(self, token_id: str, actor: str, active: bool) -> None:
+    def set_drag(
+        self,
+        token_id: str,
+        actor: str,
+        active: bool,
+        drag_id: str | None = None,
+    ) -> None:
+        if not active and not self._drag_ends(token_id, drag_id):
+            return
         event = TableDragMarker(token_id=token_id, actor=actor, active=active)
         if active:
-            self._drags[token_id] = event
+            refreshed = self._drag_refreshes(token_id, actor)
+            self._remember_drag(token_id, event, drag_id)
+            if refreshed:
+                return
         else:
-            self._drags.pop(token_id, None)
+            self._forget_drag(token_id)
         self._broadcast(event)
+
+    def _drag_ends(self, token_id: str, drag_id: str | None) -> bool:
+        if token_id not in self._drags:
+            return False
+        return (
+            drag_id is None or self._drag_ids.get(token_id, drag_id) == drag_id
+        )
+
+    def _drag_refreshes(self, token_id: str, actor: str) -> bool:
+        current = self._drags.get(token_id)
+        return current is not None and current.actor == actor
+
+    def _remember_drag(
+        self, token_id: str, event: TableDragMarker, drag_id: str | None
+    ) -> None:
+        self._drags[token_id] = event
+        self._drag_seen[token_id] = self._clock()
+        if drag_id is not None:
+            self._drag_ids[token_id] = drag_id
+
+    def _forget_drag(self, token_id: str) -> None:
+        self._drags.pop(token_id, None)
+        self._drag_seen.pop(token_id, None)
+        self._drag_ids.pop(token_id, None)
+
+    def start_drag(
+        self, token_ids: list[str], actor: str, drag_id: str
+    ) -> None:
+        for token_id in token_ids:
+            self.set_drag(token_id, actor, True, drag_id)
+
+    def end_drag(self, token_ids: list[str], actor: str, drag_id: str) -> None:
+        for token_id in token_ids:
+            self.set_drag(token_id, actor, False, drag_id)
+
+    def clear_drags(self) -> None:
+        self._drags.clear()
+        self._drag_seen.clear()
+        self._drag_ids.clear()
 
     def publish(
         self, state: tables.StreamState, root: Path | None = None
-    ) -> None:
+    ) -> int:
         if self._closed:
-            return
+            return self.stream_rev
         change = _confirm(self._raw, state, self.stream_rev + 1, root)
         self._raw = state
         if not change.changed:
-            return
+            return self.stream_rev
         self._accept(change)
         self._notify_state()
+        return self.stream_rev
 
     def publish_snapshot(
         self, state: tables.StreamState, root: Path | None = None
     ) -> None:
         self._closed = False
+        self.clear_drags()
         change = _confirm(self._raw, state, self.stream_rev + 1, root)
         self._raw = state
         if change.changed:
@@ -401,6 +472,10 @@ class TableBroadcaster:
             if subscriber.state_queued:
                 return
             subscriber.state_queued = True
+        if isinstance(item, TableDragMarker):
+            if item.active and subscriber.drag_queued:
+                return
+            subscriber.drag_queued = item.active
         try:
             subscriber.queue.put_nowait(item)
         except asyncio.QueueFull:
@@ -464,13 +539,30 @@ async def _load(
 
 async def publish(
     database: Database, table_id: str, *, root: Path | None = None
-) -> None:
+) -> int:
     broadcaster = _BROADCASTERS.get(table_id)
     if broadcaster is None:
-        return
+        return 0
     state = await _load(database, table_id)
-    if state is not None:
-        broadcaster.publish(state, root)
+    if state is None:
+        return broadcaster.stream_rev
+    return broadcaster.publish(state, root)
+
+
+def start_drag(
+    table_id: str, token_ids: list[str], actor: str, drag_id: str
+) -> None:
+    broadcaster = _BROADCASTERS.get(table_id)
+    if broadcaster is not None:
+        broadcaster.start_drag(token_ids, actor, drag_id)
+
+
+def end_drag(
+    table_id: str, token_ids: list[str], actor: str, drag_id: str
+) -> None:
+    broadcaster = _BROADCASTERS.get(table_id)
+    if broadcaster is not None:
+        broadcaster.end_drag(token_ids, actor, drag_id)
 
 
 async def publish_snapshot(
@@ -577,6 +669,10 @@ async def _snapshot(
     )
     subscriber.stream_rev = captured
     subscriber.boundary_rev = captured
+    drags = broadcaster.drags()
+    if subscriber.role != "narrator":
+        visible = {token.id for token in state.tokens}
+        drags = [drag for drag in drags if drag.token_id in visible]
     return _frame(
         "table.snapshot",
         TableStreamSnapshot(
@@ -584,7 +680,7 @@ async def _snapshot(
             table_id=broadcaster.table_id,
             state=state,
             viewers=broadcaster.viewers(),
-            drags=broadcaster.drags(),
+            drags=drags,
         ),
     )
 
@@ -638,7 +734,33 @@ async def _deliver(
         if not broadcaster.closed:
             return None
         return _frame("table.closed", item)
+    if isinstance(item, TableDragMarker):
+        return _drag_frame(broadcaster, subscriber, item)
     return _frame(_FRAME_NAMES[type(item)], item)
+
+
+def _drag_frame(
+    broadcaster: TableBroadcaster,
+    subscriber: Subscriber,
+    item: TableDragMarker,
+) -> str | None:
+    subscriber.drag_queued = False
+    if not _drag_visible(broadcaster, subscriber, item):
+        return None
+    return _frame("table.drag", item)
+
+
+def _drag_visible(
+    broadcaster: TableBroadcaster,
+    subscriber: Subscriber,
+    item: TableDragMarker,
+) -> bool:
+    if subscriber.role == "narrator":
+        return True
+    state = broadcaster.state
+    return state is not None and any(
+        token.id == item.token_id for token in state.public
+    )
 
 
 async def _periodic(

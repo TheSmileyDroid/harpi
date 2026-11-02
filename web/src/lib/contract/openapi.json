@@ -2532,6 +2532,50 @@
         "title": "TableDragMarker",
         "type": "object"
       },
+      "TableMoves": {
+        "properties": {
+          "drag_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Drag Id",
+            "type": "string"
+          },
+          "final": {
+            "default": false,
+            "title": "Final",
+            "type": "boolean"
+          },
+          "moves": {
+            "items": {
+              "$ref": "#/components/schemas/TableTokenMove"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Moves",
+            "type": "array"
+          }
+        },
+        "required": [
+          "drag_id",
+          "moves"
+        ],
+        "title": "TableMoves",
+        "type": "object"
+      },
+      "TableMovesResult": {
+        "additionalProperties": false,
+        "properties": {
+          "stream_rev": {
+            "title": "Stream Rev",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "stream_rev"
+        ],
+        "title": "TableMovesResult",
+        "type": "object"
+      },
       "TableOpen": {
         "properties": {
           "campaign": {
@@ -3225,6 +3269,33 @@
           "y"
         ],
         "title": "TableTokenCreate",
+        "type": "object"
+      },
+      "TableTokenMove": {
+        "properties": {
+          "token_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Token Id",
+            "type": "string"
+          },
+          "x": {
+            "minimum": 0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "minimum": 0,
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "token_id",
+          "x",
+          "y"
+        ],
+        "title": "TableTokenMove",
         "type": "object"
       },
       "TableTokenPatch": {
@@ -6015,6 +6086,102 @@
             "description": ""
           },
           "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/tables/{table_id}/moves": {
+      "post": {
+        "operationId": "post_move_tokens",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableMoves"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableMovesResult"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "429": {
             "content": {
               "application/json": {
                 "schema": {

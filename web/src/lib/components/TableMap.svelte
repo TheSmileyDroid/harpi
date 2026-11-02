@@ -1,5 +1,6 @@
 <script lang="ts">
   import type {
+    TableDragMarker,
     TableScene,
     TableSummary,
     TableToken,
@@ -22,22 +23,30 @@
     role,
     viewerId = null,
     selectedId = null,
+    drags = [],
     ontoken = () => {},
     onzone = () => {},
-    onmove = () => {},
+    onmovestart = () => {},
+    onmovemove = () => {},
+    onmoveend = () => {},
   }: {
     scene: TableScene;
     tokens: TableToken[];
     role: TableRole;
     viewerId?: string | null;
     selectedId?: string | null;
+    drags?: TableDragMarker[];
     ontoken?: (token: TableToken) => void;
     onzone?: (zone: SceneZone) => void;
-    onmove?: (token: TableToken, x: number, y: number) => void;
+    onmovestart?: (token: TableToken, x: number, y: number) => void;
+    onmovemove?: (token: TableToken, x: number, y: number) => void;
+    onmoveend?: (token: TableToken, x: number, y: number) => void;
   } = $props();
 
   let zoom = $state(1);
   let surface = $state<HTMLElement | null>(null);
+  let suppressClick = false;
+  let localPos: Record<string, { x: number; y: number; writes: string[] }> = {};
   let drag = $state<{
     id: string;
     startX: number;
@@ -59,9 +68,22 @@
   );
   const fogVisible = $derived(!narrator && scene.fog_outside);
   const cellPx = $derived(scene.grid.cell_px);
+  const markers = $derived(
+    new Map(drags.map((marker) => [marker.token_id, marker])),
+  );
 
-  function draggable(): boolean {
-    return narrator;
+  function movable(token: TableToken): boolean {
+    if (narrator) return true;
+    return (
+      role === "player" &&
+      token.owner_id !== null &&
+      token.owner_id === viewerId
+    );
+  }
+
+  function remoteDrag(token: TableToken): TableDragMarker | null {
+    if (drag?.id === token.id) return null;
+    return markers.get(token.id) ?? null;
   }
 
   function tokenStyle(token: TableToken): string {
@@ -91,8 +113,13 @@
     return Math.min(Math.max(value, minimum), maximum);
   }
 
+  function snap(value: number): number {
+    return Math.round(value * 2) / 2;
+  }
+
   function startDrag(event: PointerEvent, token: TableToken) {
-    if (!narrator) return;
+    if (!movable(token)) return;
+    suppressClick = false;
     const element = event.currentTarget as HTMLElement;
     element.setPointerCapture(event.pointerId);
     drag = {
@@ -116,29 +143,52 @@
     const dy = (event.clientY - drag.startY) / cell;
     const token = tokens.find((item) => item.id === drag?.id);
     if (!token) return;
-    drag = {
-      ...drag,
-      x: clamp(drag.originX + dx, 0, columns - token.w),
-      y: clamp(drag.originY + dy, 0, rows - token.h),
-      moved: Math.abs(dx) + Math.abs(dy) > 0.1,
-    };
+    const x = snap(clamp(drag.originX + dx, 0, columns - token.w));
+    const y = snap(clamp(drag.originY + dy, 0, rows - token.h));
+    const moved = x !== drag.x || y !== drag.y;
+    if (moved && !drag.moved) onmovestart(token, x, y);
+    drag = { ...drag, x, y, moved: drag.moved || moved };
+    if (moved) onmovemove(token, x, y);
   }
 
   function endDrag(event: PointerEvent, token: TableToken) {
-    if (!drag) return;
     const current = drag;
+    if (!current) return;
     drag = null;
+    suppressClick = current.moved;
+    if (suppressClick) {
+      setTimeout(() => (suppressClick = false), 250);
+    }
     if (event.currentTarget instanceof HTMLElement) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    if (!current.moved) return;
-    onmove(token, Math.round(current.x * 2) / 2, Math.round(current.y * 2) / 2);
+    if (current.moved) onmoveend(token, snap(current.x), snap(current.y));
+  }
+
+  function cancelDrag(token: TableToken) {
+    const current = drag;
+    drag = null;
+    if (current?.moved) {
+      onmoveend(token, snap(current.x), snap(current.y));
+    }
   }
 
   function pickToken(event: MouseEvent, token: TableToken) {
-    if (drag?.moved) return;
+    if (suppressClick) return;
     event.stopPropagation();
     ontoken(token);
+  }
+
+  function baseOf(token: TableToken): {
+    x: number;
+    y: number;
+    writes: string[];
+  } {
+    const local = localPos[token.id];
+    if (!local) return { x: token.x, y: token.y, writes: [] };
+    if (local.x === token.x && local.y === token.y) return local;
+    if (local.writes.includes(`${token.x},${token.y}`)) return local;
+    return { x: token.x, y: token.y, writes: [] };
   }
 
   function tokenKey(event: KeyboardEvent, token: TableToken) {
@@ -147,7 +197,7 @@
       ontoken(token);
       return;
     }
-    if (!narrator) return;
+    if (!movable(token)) return;
     const step = event.shiftKey ? 5 : 1;
     const moves: Record<string, [number, number]> = {
       ArrowLeft: [-step, 0],
@@ -158,11 +208,18 @@
     const move = moves[event.key];
     if (!move) return;
     event.preventDefault();
-    onmove(
-      token,
-      clamp(token.x + move[0], 0, columns - token.w),
-      clamp(token.y + move[1], 0, rows - token.h),
-    );
+    const base = baseOf(token);
+    const x = clamp(base.x + move[0], 0, columns - token.w);
+    const y = clamp(base.y + move[1], 0, rows - token.h);
+    localPos = {
+      ...localPos,
+      [token.id]: {
+        x,
+        y,
+        writes: [...base.writes, `${base.x},${base.y}`].slice(-8),
+      },
+    };
+    onmoveend(token, x, y);
   }
 
   function zoneKey(event: KeyboardEvent, zone: SceneZone) {
@@ -344,6 +401,7 @@
       </svg>
 
       {#each tokens as token (token.id)}
+        {@const remote = remoteDrag(token)}
         <div
           class="map__token-slot"
           class:is-selected={token.id === selectedId}
@@ -351,6 +409,7 @@
         >
           <button
             class={tokenClass(token)}
+            class:is-remote-drag={remote !== null}
             type="button"
             aria-label={tokenLabel(token)}
             aria-pressed={token.id === selectedId}
@@ -358,13 +417,18 @@
             onpointerdown={(event) => startDrag(event, token)}
             onpointermove={moveDrag}
             onpointerup={(event) => endDrag(event, token)}
-            onpointercancel={() => (drag = null)}
+            onpointercancel={() => cancelDrag(token)}
             onclick={(event) => pickToken(event, token)}
             onkeydown={(event) => tokenKey(event, token)}
-            style={`cursor:${draggable() ? "grab" : "pointer"}`}
+            style={`cursor:${movable(token) ? "grab" : "pointer"}`}
           >
             <span class="visually-hidden">{token.label}</span>
           </button>
+          {#if remote}
+            <span class="map__drag-tag" data-testid={`table-drag-${token.id}`}>
+              {remote.actor}
+            </span>
+          {/if}
           <span class="map__token-label">{token.label}</span>
         </div>
       {/each}
@@ -526,6 +590,31 @@
 
   .map__token.is-selected {
     box-shadow: 0 0 0 2px var(--oxide);
+  }
+
+  .map__token.is-remote-drag {
+    border-color: var(--oxide);
+    border-style: dashed;
+  }
+
+  .map__drag-tag {
+    position: absolute;
+    inset-block-end: 100%;
+    inset-inline-start: 50%;
+    translate: -50% -0.25rem;
+    padding: 0.15rem 0.4rem;
+    background: var(--plate-2);
+    border: 1px dashed var(--oxide);
+    border-radius: var(--radius-key);
+    font-family: var(--font-label);
+    font-weight: 600;
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--oxide);
+    pointer-events: none;
   }
 
   .map__token.is-selected.is-own {

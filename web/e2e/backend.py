@@ -25,6 +25,7 @@ from quart import request, session
 import app as app_module
 from pages import api as api_page
 from pages import campaigns as campaigns_page
+from pages import tables as tables_page
 from src import bot_state
 from src.harpi_lib.audio.session import LayerInfo, LoopMode, SessionStatus
 from src.harpi_lib.music import source_policy
@@ -553,6 +554,9 @@ async def _reset_campaign_state() -> None:
     )
     campaigns_page.APPROVAL_BUCKETS = rate_limit.UserTokenBuckets(
         rate_limit.APPROVALS_PER_MINUTE
+    )
+    tables_page.MOVE_BUCKETS = rate_limit.UserTokenBuckets(
+        rate_limit.MOVES_PER_MINUTE
     )
 
 
