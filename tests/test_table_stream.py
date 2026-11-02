@@ -49,8 +49,10 @@ from tests.test_tables import (
     PLAYER,
     SECRET,
     STRANGER,
+    FakeClock,
     add_member,
     add_token,
+    body,
     image_scene,
     open_table,
     player_access,
@@ -639,3 +641,163 @@ async def test_a_table_stream_does_not_touch_the_music_stream_slots(world):
     assert events_page.STREAM_SLOTS.live_streams == before
     slot.release()
     assert slots.acquire(NARRATOR, "tbl_1") is not None
+
+
+async def test_a_move_publishes_a_delta_and_a_drag_marker(world, client):
+    row = await live_table(world, client)
+    stream = await open_stream(world, row, NARRATOR, "narrator", "Mestre")
+    await anext(stream)
+    _, snapshot = await next_frame(stream)
+    token = snapshot["state"]["tokens"][0]
+
+    response = await client.post(
+        f"{TABLES_ROUTE}/{row.id}/moves",
+        json={
+            "drag_id": "drag_1",
+            "final": False,
+            "moves": [{"token_id": token["id"], "x": 3, "y": 2}],
+        },
+        headers=CSRF,
+    )
+    payload = await body(response)
+    frames = [await next_frame(stream), await next_frame(stream)]
+    delta = next(data for name, data in frames if name == "table.delta")
+    drag = next(data for name, data in frames if name == "table.drag")
+
+    assert response.status_code == 200
+    assert payload["stream_rev"] == snapshot["stream_rev"] + 1
+    assert delta["from_stream_rev"] == snapshot["stream_rev"]
+    assert delta["stream_rev"] == payload["stream_rev"]
+    moved = next(item for item in delta["tokens"] if item["id"] == token["id"])
+    assert (moved["x"], moved["y"]) == (3.0, 2.0)
+    assert drag["token_id"] == token["id"]
+    assert drag["active"] is True
+    assert drag["actor"]
+
+    await client.post(
+        f"{TABLES_ROUTE}/{row.id}/moves",
+        json={
+            "drag_id": "drag_1",
+            "final": True,
+            "moves": [{"token_id": token["id"], "x": 4, "y": 2}],
+        },
+        headers=CSRF,
+    )
+    await next_frame(stream)
+    ended = await next_frame(stream)
+
+    assert ended[0] == "table.drag"
+    assert ended[1]["active"] is False
+    broadcaster = table_stream.broadcaster_for(row.id)
+    assert broadcaster is not None
+    assert broadcaster.drags() == []
+    await stream.aclose()
+
+
+def test_a_drag_marker_expires_after_three_seconds():
+    clock = FakeClock()
+    broadcaster = table_stream.TableBroadcaster("tbl_1", clock=clock)
+    broadcaster.set_drag("tok_1", "Mestre", True)
+
+    clock.now += table_stream.DRAG_SECONDS - 0.1
+    assert [item.token_id for item in broadcaster.drags()] == ["tok_1"]
+
+    clock.now += 0.2
+    assert broadcaster.drags() == []
+
+
+async def test_a_scene_change_clears_the_drag_markers(world, client):
+    row = await live_table(world, client)
+    broadcaster, subscriber = await table_stream.subscribe(
+        world.database, row, user_id=NARRATOR, role="narrator", name="Mestre"
+    )
+    broadcaster.set_drag("tok_1", "Mestre", True)
+    state = await table_domain.stream_state(world.database, row)
+
+    broadcaster.publish_snapshot(state, world.root)
+
+    assert broadcaster.drags() == []
+    assert isinstance(subscriber.queue.get_nowait(), TableDragMarker)
+    assert isinstance(
+        subscriber.queue.get_nowait(), table_stream.SnapshotSignal
+    )
+    table_stream.unsubscribe(broadcaster, subscriber)
+
+
+def test_a_stale_drop_does_not_clear_a_newer_drag_marker():
+    broadcaster = table_stream.TableBroadcaster("tbl_1")
+    broadcaster.start_drag(["tok_1"], "Ana", "drag_a")
+    broadcaster.start_drag(["tok_1"], "Bob", "drag_b")
+
+    broadcaster.end_drag(["tok_1"], "Ana", "drag_a")
+
+    assert [item.actor for item in broadcaster.drags()] == ["Bob"]
+
+    broadcaster.end_drag(["tok_1"], "Bob", "drag_b")
+
+    assert broadcaster.drags() == []
+
+
+def test_repeated_drag_frames_broadcast_once_until_the_drop():
+    broadcaster = table_stream.TableBroadcaster("tbl_1")
+    subscriber = broadcaster.subscribe("1", "narrator", "Mestre")
+
+    broadcaster.start_drag(["tok_1"], "Ana", "drag_a")
+    broadcaster.start_drag(["tok_1"], "Ana", "drag_a")
+    broadcaster.start_drag(["tok_1"], "Ana", "drag_a")
+
+    assert _types(subscriber) == [TableDragMarker]
+
+    broadcaster.end_drag(["tok_1"], "Ana", "drag_a")
+
+    assert _types(subscriber) == [TableDragMarker, TableDragMarker]
+    table_stream.unsubscribe(broadcaster, subscriber)
+
+
+async def test_a_hidden_token_drag_stays_out_of_the_player_cutout(
+    world, client
+):
+    row = await live_table(world, client)
+    tokens = await table_domain.token_rows(
+        world.database, row.id, row.current_scene_id
+    )
+    hidden = next(token for token in tokens if not token.visible)
+    visible = next(token for token in tokens if token.visible)
+    narrator = await open_stream(world, row, NARRATOR, "narrator", "Mestre")
+    await anext(narrator)
+    await next_frame(narrator)
+    broadcaster = table_stream.broadcaster_for(row.id)
+    assert broadcaster is not None
+    broadcaster.set_drag(hidden.id, "Mestre", True)
+    broadcaster.set_drag(visible.id, "Mestre", True)
+
+    player = await open_stream(world, row, PLAYER, "player", "Dona")
+    await anext(player)
+    name, snapshot = await next_frame(player)
+
+    assert name == "table.snapshot"
+    assert [drag["token_id"] for drag in snapshot["drags"]] == [visible.id]
+    await player.aclose()
+
+    _, subscriber = await table_stream.subscribe(
+        world.database, row, user_id=PLAYER, role="player", name="Dona"
+    )
+    hidden_frame = await table_stream._deliver(
+        broadcaster,
+        subscriber,
+        world.database,
+        world.root,
+        TableDragMarker(token_id=hidden.id, actor="Mestre", active=True),
+    )
+    visible_frame = await table_stream._deliver(
+        broadcaster,
+        subscriber,
+        world.database,
+        world.root,
+        TableDragMarker(token_id=visible.id, actor="Mestre", active=True),
+    )
+
+    assert hidden_frame is None
+    assert visible_frame is not None
+    table_stream.unsubscribe(broadcaster, subscriber)
+    await narrator.aclose()

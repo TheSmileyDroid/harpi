@@ -626,6 +626,22 @@ class TableTokenPatch(BaseModel):
     visible: bool | None = None
 
 
+class TableTokenMove(BaseModel):
+    token_id: str = Field(min_length=1, max_length=64)
+    x: float = Field(allow_inf_nan=False, ge=0)
+    y: float = Field(allow_inf_nan=False, ge=0)
+
+
+class TableMoves(BaseModel):
+    drag_id: str = Field(min_length=1, max_length=64)
+    final: bool = False
+    moves: list[TableTokenMove] = Field(min_length=1, max_length=64)
+
+
+class TableMovesResult(_Response):
+    stream_rev: int
+
+
 class TableSpectators(BaseModel):
     enabled: bool
 

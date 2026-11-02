@@ -28,6 +28,8 @@ import {
   SceneList,
   SceneSave,
   StatusSnapshot,
+  TableMoves,
+  TableMovesResult,
   TableOpen,
   TableSceneChange,
   TableSpectators,
@@ -89,6 +91,7 @@ interface RequestBaseOptions {
   silent?: boolean;
   json?: boolean;
   formData?: FormData;
+  keepalive?: boolean;
 }
 
 interface RequestBodyOptions<
@@ -118,8 +121,17 @@ export function createApiClient({
     responseSchema: z.ZodTypeAny,
     options: RequestBodyOptions<z.ZodTypeAny> | RequestBaseOptions = {},
   ): Promise<unknown> {
-    const { method = "GET", silent = false, json = false } = options;
+    const {
+      method = "GET",
+      silent = false,
+      json = false,
+      keepalive = false,
+    } = options;
     const init: RequestInit = { method, credentials };
+
+    if (keepalive) {
+      init.keepalive = true;
+    }
 
     if ("requestSchema" in options) {
       const wireBody = options.requestSchema.parse(options.body);
@@ -461,6 +473,19 @@ export function createApiClient({
           requestSchema: TableTurnRequest,
           body,
           silent: true,
+        },
+      );
+    },
+    tableMoves(tableId: string, body: z.input<typeof TableMoves>) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/moves`,
+        TableMovesResult,
+        {
+          method: "POST",
+          requestSchema: TableMoves,
+          body,
+          silent: true,
+          keepalive: true,
         },
       );
     },

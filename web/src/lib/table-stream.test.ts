@@ -335,3 +335,127 @@ describe("table stream recovery", () => {
     expect(target.count("online")).toBe(0);
   });
 });
+
+describe("drag markers and the local drag", () => {
+  function manualStore() {
+    const tasks = new Map<number, () => void>();
+    let sequence = 0;
+    const store = createTableLiveStore({
+      schedule: (fn) => {
+        sequence += 1;
+        tasks.set(sequence, fn);
+        return sequence as unknown as ReturnType<typeof setTimeout>;
+      },
+      cancel: (id) => {
+        tasks.delete(id as unknown as number);
+      },
+    });
+    function fire(): void {
+      for (const [id, fn] of [...tasks]) {
+        tasks.delete(id);
+        fn();
+      }
+    }
+    return { store, tasks, fire };
+  }
+
+  it("drops a drag marker when its three seconds run out", () => {
+    const { store, tasks, fire } = manualStore();
+    store.apply(snapshotFrame());
+    store.apply({
+      type: "table.drag",
+      data: { token_id: "tok_1", actor: "Ana", active: true },
+    });
+
+    expect(get(store).drags).toHaveLength(1);
+    expect(tasks.size).toBe(1);
+
+    fire();
+
+    expect(get(store).drags).toEqual([]);
+  });
+
+  it("renews the marker on each drag frame and clears it on the drop", () => {
+    const { store, tasks, fire } = manualStore();
+    store.apply(snapshotFrame());
+    const start = {
+      type: "table.drag" as const,
+      data: { token_id: "tok_1", actor: "Ana", active: true },
+    };
+    store.apply(start);
+    const first = [...tasks.keys()];
+    store.apply(start);
+
+    expect(first.every((id) => !tasks.has(id))).toBe(true);
+    expect(get(store).drags).toHaveLength(1);
+
+    store.apply({
+      type: "table.drag",
+      data: { token_id: "tok_1", actor: "Ana", active: false },
+    });
+
+    expect(get(store).drags).toEqual([]);
+    expect(tasks.size).toBe(0);
+    fire();
+  });
+
+  it("keeps the local position while the same token is being dragged", () => {
+    const { store } = manualStore();
+    store.apply(snapshotFrame());
+    store.setLocalDrag("tok_1");
+    const outcome = store.apply(
+      deltaFrame(4, 5, {
+        tokens: [{ ...SNAPSHOT.state.tokens[0]!, x: 9, y: 9 }],
+      }),
+    );
+
+    expect(outcome.diverged).toBe(false);
+    expect(get(store).streamRev).toBe(5);
+    expect(get(store).summary?.tokens[0]?.x).toBe(SNAPSHOT.state.tokens[0]?.x);
+
+    store.setLocalDrag(null);
+    store.apply(
+      deltaFrame(5, 6, {
+        tokens: [{ ...SNAPSHOT.state.tokens[0]!, x: 9, y: 9 }],
+      }),
+    );
+    expect(get(store).summary?.tokens[0]?.x).toBe(9);
+  });
+});
+
+describe("the local drag in the store", () => {
+  it("moves the token locally before the server confirms", () => {
+    const store = createTableLiveStore();
+    store.apply(snapshotFrame());
+    store.setLocalDrag("tok_1");
+
+    store.moveLocal("tok_1", 6, 7);
+
+    const token = get(store).summary?.tokens.find((t) => t.id === "tok_1");
+    expect([token?.x, token?.y]).toEqual([6, 7]);
+  });
+
+  it("removes a token deleted mid-drag only after the drag ends", () => {
+    const store = createTableLiveStore();
+    store.apply(snapshotFrame());
+    store.setLocalDrag("tok_1");
+    store.apply(deltaFrame(4, 5, { removed: ["tok_1"], tokens: [] }));
+
+    expect(get(store).summary?.tokens).toHaveLength(1);
+
+    store.setLocalDrag(null);
+
+    expect(get(store).summary?.tokens).toEqual([]);
+  });
+
+  it("keeps a pending removal when another drag starts before it clears", () => {
+    const store = createTableLiveStore();
+    store.apply(snapshotFrame());
+    store.setLocalDrag("tok_1");
+    store.apply(deltaFrame(4, 5, { removed: ["tok_1"], tokens: [] }));
+    store.setLocalDrag(null);
+
+    expect(get(store).summary?.tokens).toEqual([]);
+    expect(get(store).pendingRemovals).toEqual([]);
+  });
+});

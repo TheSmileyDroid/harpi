@@ -233,6 +233,15 @@ export const TableConflictDetail = z.strictObject({ error: ErrorDetail, table: O
 export type TableDragMarker = z.infer<typeof TableDragMarker>;
 export const TableDragMarker = z.strictObject({ active: z.boolean(), actor: z.string(), token_id: z.string() });
 
+export type TableTokenMove = z.infer<typeof TableTokenMove>;
+export const TableTokenMove = z.strictObject({ token_id: z.string().min(1).max(64), x: z.number().min(0), y: z.number().min(0) });
+
+export type TableMoves = z.infer<typeof TableMoves>;
+export const TableMoves = z.strictObject({ drag_id: z.string().min(1).max(64), final: z.boolean().default(false), moves: z.array(TableTokenMove).min(1).max(64) });
+
+export type TableMovesResult = z.infer<typeof TableMovesResult>;
+export const TableMovesResult = z.strictObject({ stream_rev: z.number().int() });
+
 export type TableOpen = z.infer<typeof TableOpen>;
 export const TableOpen = z.strictObject({ campaign: z.string(), channel_id: z.string(), name: z.string().nullable().default(null), scene: z.string() });
 

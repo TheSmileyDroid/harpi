@@ -18,6 +18,7 @@ from pages.api import error_response
 from pages.campaigns import image_response, svg_response
 from pages.guard import csrf_refusal
 from src.panel import (
+    rate_limit,
     scenes,
     state,
     table_stream,
@@ -30,6 +31,8 @@ from src.panel.schemas import (
     ErrorDetail,
     ErrorEnvelope,
     TableConflictDetail,
+    TableMoves,
+    TableMovesResult,
     TableOpen,
     TableSceneChange,
     TableSpectators,
@@ -44,9 +47,12 @@ from src.storage import get_database
 
 BODY_MODEL = TypeVar("BODY_MODEL", bound=BaseModel)
 BODY_BYTES = 64 * 1024
+MOVE_BYTES = 16 * 1024
 ALLOWED_GUILDS = "table_allowed_guilds"
 
 bp = Blueprint("tables", __name__)
+
+MOVE_BUCKETS = rate_limit.UserTokenBuckets(rate_limit.MOVES_PER_MINUTE)
 
 TURN_REFUSALS: tuple[tuple[type[tables.TableError], str, str, int], ...] = (
     (
@@ -136,8 +142,8 @@ async def _viewer_name(database, campaign: str, user_id: str) -> str:
     return member or session.get("username") or "Convidado"
 
 
-async def _publish(database, table_id: str) -> None:
-    await table_stream.publish(
+async def _publish(database, table_id: str) -> int:
+    return await table_stream.publish(
         database, table_id, root=vault.configured().root
     )
 
@@ -282,9 +288,11 @@ async def _narrator_table(table_id: str) -> TableAccess | Response:
     return access
 
 
-async def _body(model: type[BODY_MODEL]) -> BODY_MODEL | Response:
+async def _body(
+    model: type[BODY_MODEL], limit: int = BODY_BYTES
+) -> BODY_MODEL | Response:
     raw = await request.get_data()
-    if len(raw) > BODY_BYTES:
+    if len(raw) > limit:
         return error_response("payload_too_large", "Payload too large", 413)
     try:
         payload = json.loads(raw)
@@ -732,6 +740,94 @@ async def patch_token(table_id: str, token_id: str) -> Response | TableSummary:
         return _not_found()
     await _publish(database, table_id)
     return await _fresh(database, table_id, access)
+
+
+@bp.post("/api/tables/<table_id>/moves")
+@document_request(TableMoves)
+@document_response(ErrorEnvelope, 403)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 409)
+@document_response(ErrorEnvelope, 413)
+@document_response(ErrorEnvelope, 422)
+@document_response(ErrorEnvelope, 429)
+@validate_response(TableMovesResult, 200)
+async def move_tokens(table_id: str) -> Response | TableMovesResult:
+    access = await _table_access(table_id)
+    if isinstance(access, Response):
+        return access
+    refusal = _move_allowed(access)
+    if refusal is not None:
+        return refusal
+    decision = MOVE_BUCKETS.take(access.user_id)
+    if not decision.allowed:
+        return _too_many_moves(decision)
+    payload = await _body(TableMoves, MOVE_BYTES)
+    if isinstance(payload, Response):
+        return payload
+    database = get_database()
+    if database is None:
+        return _not_found()
+    refusal = await _apply_moves(database, access, payload)
+    if refusal is not None:
+        return refusal
+    stream_rev = await _publish(database, table_id)
+    await _mark_drag(database, access, payload)
+    return TableMovesResult(stream_rev=stream_rev)
+
+
+def _move_allowed(access: TableAccess) -> Response | None:
+    if access.role not in {"narrator", "player"}:
+        return _forbidden()
+    if access.table.status != "open":
+        return _closed()
+    return None
+
+
+def _too_many_moves(decision: rate_limit.Decision) -> Response:
+    response = error_response("too_many_requests", "Too many moves", 429)
+    response.headers["Retry-After"] = str(decision.retry_after_seconds)
+    return response
+
+
+async def _apply_moves(
+    database, access: TableAccess, payload: TableMoves
+) -> Response | None:
+    try:
+        await tables.move_tokens(
+            database,
+            access.table,
+            payload.moves,
+            actor_id=access.user_id,
+            narrator=access.role == "narrator",
+        )
+    except tables.TokenNotFound:
+        return _not_found()
+    except tables.MoveForbidden:
+        return _forbidden()
+    except tables.SceneNotFound:
+        return _not_found()
+    except tables.TableClosed:
+        return _closed()
+    except tables.TableNotFound:
+        return _not_found()
+    except ValueError as failure:
+        return _invalid(str(failure))
+    return None
+
+
+async def _mark_drag(
+    database, access: TableAccess, payload: TableMoves
+) -> None:
+    actor = await _viewer_name(database, access.table.campaign, access.user_id)
+    token_ids = [move.token_id for move in payload.moves]
+    if payload.final:
+        table_stream.end_drag(
+            access.table.id, token_ids, actor, payload.drag_id
+        )
+    else:
+        table_stream.start_drag(
+            access.table.id, token_ids, actor, payload.drag_id
+        )
 
 
 @bp.delete("/api/tables/<table_id>/tokens/<token_id>")

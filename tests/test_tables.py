@@ -1978,3 +1978,265 @@ async def test_the_turn_indexes_refuse_two_open_and_two_per_token_round(
             ana["id"],
             2,
         )
+
+
+class FakeClock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+
+
+async def post_moves(
+    client,
+    table_id: str,
+    moves: list[dict[str, Any]],
+    *,
+    drag_id: str = "drag_1",
+    final: bool = False,
+) -> Any:
+    return await client.post(
+        f"{TABLES_ROUTE}/{table_id}/moves",
+        json={"drag_id": drag_id, "final": final, "moves": moves},
+        headers=CSRF,
+    )
+
+
+async def test_the_narrator_moves_any_token_without_an_expected_rev(
+    client, world
+):
+    table = await public_scene(client, world)
+    token = await add_token(client, table["id"], x=0, y=0)
+    before = token["rev"]
+
+    response = await post_moves(
+        client,
+        table["id"],
+        [{"token_id": token["id"], "x": 3, "y": 4}],
+    )
+    payload = await body(response)
+    view = await summary(client, table["id"])
+    moved = next(item for item in view["tokens"] if item["id"] == token["id"])
+
+    assert response.status_code == 200, payload
+    assert payload == {"stream_rev": 0}
+    assert (moved["x"], moved["y"]) == (3.0, 4.0)
+    assert moved["rev"] > before
+
+
+async def test_a_player_moves_only_the_token_of_their_sheet(client, world):
+    table = await public_scene(client, world)
+    own = await add_token(
+        client, table["id"], label="Ana", owner_id=PLAYER, x=0, y=0
+    )
+    other = await add_token(
+        client, table["id"], label="Bob", owner_id=None, x=2, y=2
+    )
+    await player_access(client, world)
+
+    allowed = await post_moves(
+        client, table["id"], [{"token_id": own["id"], "x": 1, "y": 1}]
+    )
+    refused = await post_moves(
+        client, table["id"], [{"token_id": other["id"], "x": 1, "y": 1}]
+    )
+
+    assert allowed.status_code == 200, await body(allowed)
+    assert refused.status_code == 403
+
+
+async def test_a_pending_or_spectator_cannot_move(client, world):
+    table = await public_scene(client, world)
+    token = await add_token(client, table["id"], x=0, y=0)
+    await sign_in(client, STRANGER)
+    await add_member(world.database, STRANGER)
+
+    response = await post_moves(
+        client, table["id"], [{"token_id": token["id"], "x": 1, "y": 1}]
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "move",
+    [{"x": 12, "y": 0}, {"x": 0, "y": 9}, {"x": 1e300, "y": 0}],
+)
+async def test_a_move_outside_the_map_is_422_without_correction(
+    client, world, move
+):
+    table = await public_scene(client, world)
+    token = await add_token(client, table["id"], x=0, y=0)
+
+    response = await post_moves(
+        client, table["id"], [{"token_id": token["id"], **move}]
+    )
+    view = await summary(client, table["id"])
+    kept = next(item for item in view["tokens"] if item["id"] == token["id"])
+
+    assert response.status_code == 422
+    assert (kept["x"], kept["y"]) == (0.0, 0.0)
+
+
+async def test_a_wide_token_past_the_border_is_422(client, world):
+    table = await public_scene(client, world)
+    token = await add_token(client, table["id"], x=10, y=7, w=2, h=2)
+
+    horizontal = await post_moves(
+        client, table["id"], [{"token_id": token["id"], "x": 11, "y": 7}]
+    )
+    vertical = await post_moves(
+        client, table["id"], [{"token_id": token["id"], "x": 10, "y": 8}]
+    )
+    view = await summary(client, table["id"])
+    kept = next(item for item in view["tokens"] if item["id"] == token["id"])
+
+    assert horizontal.status_code == 422
+    assert vertical.status_code == 422
+    assert (kept["x"], kept["y"], kept["w"], kept["h"]) == (10.0, 7.0, 2, 2)
+
+
+async def test_a_move_body_over_sixteen_kilobytes_is_413(client, world):
+    table = await public_scene(client, world)
+    token = await add_token(client, table["id"], x=0, y=0)
+    raw = json.dumps({
+        "drag_id": "drag_1",
+        "final": False,
+        "moves": [{"token_id": token["id"], "x": 1, "y": 1}],
+        "pad": "x" * (tables_page.MOVE_BYTES + 1),
+    })
+
+    response = await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/moves",
+        data=raw,
+        headers={**CSRF, "Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 413
+
+
+async def test_the_move_bucket_answers_429_with_a_retry_after(
+    client, world, monkeypatch: pytest.MonkeyPatch
+):
+    table = await public_scene(client, world)
+    token = await add_token(client, table["id"], x=0, y=0)
+    monkeypatch.setattr(
+        tables_page,
+        "MOVE_BUCKETS",
+        rate_limit.UserTokenBuckets(1),
+    )
+    move = [{"token_id": token["id"], "x": 1, "y": 1}]
+
+    first = await post_moves(client, table["id"], move)
+    refused = await post_moves(client, table["id"], move)
+
+    assert first.status_code == 200
+    assert refused.status_code == 429
+    assert int(refused.headers["Retry-After"]) >= 1
+
+
+def test_the_move_bucket_holds_six_hundred_per_minute():
+    clock = FakeClock()
+    bucket = rate_limit.UserTokenBuckets(
+        rate_limit.MOVES_PER_MINUTE, clock=clock
+    )
+
+    assert rate_limit.MOVES_PER_MINUTE == 600
+    assert all(bucket.take(PLAYER).allowed for _ in range(600))
+    assert bucket.take(PLAYER).allowed is False
+    clock.advance(60)
+    assert bucket.take(PLAYER).allowed is True
+
+
+async def test_a_move_on_a_closed_table_or_an_unknown_token_is_refused(
+    client, world
+):
+    table = await public_scene(client, world)
+    token = await add_token(client, table["id"], x=0, y=0)
+    missing = await post_moves(
+        client, table["id"], [{"token_id": "tok_missing", "x": 1, "y": 1}]
+    )
+    await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/close", json={}, headers=CSRF
+    )
+    closed = await post_moves(
+        client, table["id"], [{"token_id": token["id"], "x": 1, "y": 1}]
+    )
+
+    assert missing.status_code == 404
+    assert closed.status_code == 409
+
+
+async def test_a_move_out_of_the_public_cutout_ends_the_open_turn(
+    client, world
+):
+    await sign_in(client, NARRATOR)
+    await image_scene(
+        client,
+        world,
+        fog_outside=True,
+        zones=[zone(rects=[{"x": 0, "y": 0, "w": 2, "h": 2}], revealed=True)],
+    )
+    _, table = await open_table(client)
+    token = await add_token(client, table["id"], x=0, y=0)
+    opened = await client.post(
+        f"{TABLES_ROUTE}/{table['id']}/turns",
+        json={"action": "open", "token_id": token["id"]},
+        headers=CSRF,
+    )
+    assert opened.status_code == 200
+
+    response = await post_moves(
+        client, table["id"], [{"token_id": token["id"], "x": 6, "y": 6}]
+    )
+    view = await summary(client, table["id"])
+
+    assert response.status_code == 200
+    assert view["turn"] is None
+
+
+async def test_a_table_closed_between_access_and_lock_is_409(
+    client, world, monkeypatch: pytest.MonkeyPatch
+):
+    table = await public_scene(client, world)
+    token = await add_token(client, table["id"], x=0, y=0)
+    original = table_domain.move_tokens
+
+    async def closing_move(database, row, moves, **kwargs):
+        await database.execute(
+            "UPDATE tables SET status = 'closed' WHERE id = ?", (row.id,)
+        )
+        await original(database, row, moves, **kwargs)
+
+    monkeypatch.setattr(table_domain, "move_tokens", closing_move)
+
+    response = await post_moves(
+        client, table["id"], [{"token_id": token["id"], "x": 1, "y": 1}]
+    )
+
+    assert response.status_code == 409
+    assert (await body(response))["error"]["code"] == "table_closed"
+
+
+async def test_a_table_deleted_between_access_and_lock_is_404(
+    client, world, monkeypatch: pytest.MonkeyPatch
+):
+    table = await public_scene(client, world)
+    token = await add_token(client, table["id"], x=0, y=0)
+    original = table_domain.move_tokens
+
+    async def deleting_move(database, row, moves, **kwargs):
+        await database.execute("DELETE FROM tables WHERE id = ?", (row.id,))
+        await original(database, row, moves, **kwargs)
+
+    monkeypatch.setattr(table_domain, "move_tokens", deleting_move)
+
+    response = await post_moves(
+        client, table["id"], [{"token_id": token["id"], "x": 1, "y": 1}]
+    )
+
+    assert response.status_code == 404
