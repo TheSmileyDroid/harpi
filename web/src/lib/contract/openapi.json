@@ -2477,6 +2477,20 @@
         "title": "StatusSnapshot",
         "type": "object"
       },
+      "TableClosedEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "TableClosedEvent",
+        "type": "object"
+      },
       "TableConflictDetail": {
         "additionalProperties": false,
         "properties": {
@@ -2492,6 +2506,30 @@
           "table"
         ],
         "title": "TableConflictDetail",
+        "type": "object"
+      },
+      "TableDragMarker": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "token_id": {
+            "title": "Token Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token_id",
+          "actor",
+          "active"
+        ],
+        "title": "TableDragMarker",
         "type": "object"
       },
       "TableOpen": {
@@ -2575,6 +2613,31 @@
           "acted"
         ],
         "title": "TableParticipant",
+        "type": "object"
+      },
+      "TablePresenceEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "narrator",
+              "player",
+              "pending",
+              "spectator"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "role"
+        ],
+        "title": "TablePresenceEntry",
         "type": "object"
       },
       "TableScene": {
@@ -2668,6 +2731,48 @@
         "title": "TableSceneChange",
         "type": "object"
       },
+      "TableSheetChanged": {
+        "additionalProperties": false,
+        "properties": {
+          "character_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Character Id"
+          },
+          "rev": {
+            "title": "Rev",
+            "type": "integer"
+          },
+          "sheet_id": {
+            "title": "Sheet Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "conflict",
+              "missing",
+              "invalid"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sheet_id",
+          "character_id",
+          "rev",
+          "state"
+        ],
+        "title": "TableSheetChanged",
+        "type": "object"
+      },
       "TableSpectators": {
         "properties": {
           "enabled": {
@@ -2679,6 +2784,184 @@
           "enabled"
         ],
         "title": "TableSpectators",
+        "type": "object"
+      },
+      "TableSseEnvelope": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/TableStreamSnapshot"
+          },
+          {
+            "$ref": "#/components/schemas/TableStreamDelta"
+          },
+          {
+            "$ref": "#/components/schemas/TableStreamViewers"
+          },
+          {
+            "$ref": "#/components/schemas/TableDragMarker"
+          },
+          {
+            "$ref": "#/components/schemas/TableSheetChanged"
+          },
+          {
+            "$ref": "#/components/schemas/Heartbeat"
+          },
+          {
+            "$ref": "#/components/schemas/TableClosedEvent"
+          }
+        ],
+        "title": "TableSseEnvelope"
+      },
+      "TableStreamDelta": {
+        "additionalProperties": false,
+        "properties": {
+          "from_stream_rev": {
+            "title": "From Stream Rev",
+            "type": "integer"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/TableParticipant"
+            },
+            "title": "Participants",
+            "type": "array"
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Removed",
+            "type": "array"
+          },
+          "round": {
+            "title": "Round",
+            "type": "integer"
+          },
+          "scene": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TableScene"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "spectators": {
+            "title": "Spectators",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "closed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "stream_rev": {
+            "title": "Stream Rev",
+            "type": "integer"
+          },
+          "tokens": {
+            "items": {
+              "$ref": "#/components/schemas/TableToken"
+            },
+            "title": "Tokens",
+            "type": "array"
+          },
+          "turn": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TableTurn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "from_stream_rev",
+          "stream_rev",
+          "scene_id",
+          "tokens",
+          "removed",
+          "turn",
+          "round",
+          "status",
+          "spectators",
+          "participants"
+        ],
+        "title": "TableStreamDelta",
+        "type": "object"
+      },
+      "TableStreamSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "drags": {
+            "items": {
+              "$ref": "#/components/schemas/TableDragMarker"
+            },
+            "title": "Drags",
+            "type": "array"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TableSummary"
+          },
+          "stream_rev": {
+            "title": "Stream Rev",
+            "type": "integer"
+          },
+          "table_id": {
+            "title": "Table Id",
+            "type": "string"
+          },
+          "viewers": {
+            "items": {
+              "$ref": "#/components/schemas/TablePresenceEntry"
+            },
+            "title": "Viewers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "stream_rev",
+          "table_id",
+          "state",
+          "viewers",
+          "drags"
+        ],
+        "title": "TableStreamSnapshot",
+        "type": "object"
+      },
+      "TableStreamViewers": {
+        "additionalProperties": false,
+        "properties": {
+          "viewers": {
+            "items": {
+              "$ref": "#/components/schemas/TablePresenceEntry"
+            },
+            "title": "Viewers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "viewers"
+        ],
+        "title": "TableStreamViewers",
         "type": "object"
       },
       "TableSummary": {
@@ -5648,6 +5931,53 @@
             "description": ""
           },
           "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/tables/{table_id}/events": {
+      "get": {
+        "operationId": "get_table_events",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableSseEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "429": {
             "content": {
               "application/json": {
                 "schema": {

@@ -224,8 +224,14 @@ export const StatusSnapshot = z.strictObject({ bot: BotStatus, connection: Conne
 export type SseEnvelope = z.infer<typeof SseEnvelope>;
 export const SseEnvelope = z.union([StatusSnapshot, ReloadEvent, Presence, Position, Heartbeat, Directory]);
 
+export type TableClosedEvent = z.infer<typeof TableClosedEvent>;
+export const TableClosedEvent = z.strictObject({ reason: z.string() });
+
 export type TableConflictDetail = z.infer<typeof TableConflictDetail>;
 export const TableConflictDetail = z.strictObject({ error: ErrorDetail, table: OpenTable });
+
+export type TableDragMarker = z.infer<typeof TableDragMarker>;
+export const TableDragMarker = z.strictObject({ active: z.boolean(), actor: z.string(), token_id: z.string() });
 
 export type TableOpen = z.infer<typeof TableOpen>;
 export const TableOpen = z.strictObject({ campaign: z.string(), channel_id: z.string(), name: z.string().nullable().default(null), scene: z.string() });
@@ -233,11 +239,17 @@ export const TableOpen = z.strictObject({ campaign: z.string(), channel_id: z.st
 export type TableParticipant = z.infer<typeof TableParticipant>;
 export const TableParticipant = z.strictObject({ acted: z.boolean(), character_id: z.string().nullable(), label: z.string(), owner_id: z.string().nullable(), token_id: z.string() });
 
+export type TablePresenceEntry = z.infer<typeof TablePresenceEntry>;
+export const TablePresenceEntry = z.strictObject({ name: z.string(), role: z.enum(["narrator", "player", "pending", "spectator"]) });
+
 export type TableScene = z.infer<typeof TableScene>;
 export const TableScene = z.strictObject({ fog: z.array(SceneRect).default([]), fog_outside: z.boolean(), grid: SceneGrid, height: z.number().int(), id: z.string(), map_url: z.string(), name: z.string(), saved: z.boolean().default(true), slug: z.string(), source: z.enum(["image", "sketch"]), width: z.number().int(), zones: z.array(SceneZone) });
 
 export type TableSceneChange = z.infer<typeof TableSceneChange>;
 export const TableSceneChange = z.strictObject({ scene: z.string() });
+
+export type TableSheetChanged = z.infer<typeof TableSheetChanged>;
+export const TableSheetChanged = z.strictObject({ character_id: z.string().nullable(), rev: z.number().int(), sheet_id: z.string(), state: z.enum(["ok", "conflict", "missing", "invalid"]) });
 
 export type TableSpectators = z.infer<typeof TableSpectators>;
 export const TableSpectators = z.strictObject({ enabled: z.boolean() });
@@ -250,6 +262,18 @@ export const TableTurn = z.strictObject({ character_id: z.string().nullable(), i
 
 export type TableSummary = z.infer<typeof TableSummary>;
 export const TableSummary = z.strictObject({ campaign: z.string(), channel_id: z.string(), id: z.string(), name: z.string(), participants: z.array(TableParticipant).default([]), role: z.enum(["narrator", "player", "pending", "spectator"]), round: z.number().int(), scene: TableScene.nullable(), spectators: z.boolean(), status: z.enum(["open", "closed"]), tokens: z.array(TableToken), turn: TableTurn.nullable().default(null), viewer_id: z.string(), warning: z.string().nullable().default(null) });
+
+export type TableStreamSnapshot = z.infer<typeof TableStreamSnapshot>;
+export const TableStreamSnapshot = z.strictObject({ drags: z.array(TableDragMarker), state: TableSummary, stream_rev: z.number().int(), table_id: z.string(), viewers: z.array(TablePresenceEntry) });
+
+export type TableStreamDelta = z.infer<typeof TableStreamDelta>;
+export const TableStreamDelta = z.strictObject({ from_stream_rev: z.number().int(), participants: z.array(TableParticipant), removed: z.array(z.string()), round: z.number().int(), scene: TableScene.nullable().default(null), scene_id: z.string().nullable(), spectators: z.boolean(), status: z.enum(["open", "closed"]), stream_rev: z.number().int(), tokens: z.array(TableToken), turn: TableTurn.nullable() });
+
+export type TableStreamViewers = z.infer<typeof TableStreamViewers>;
+export const TableStreamViewers = z.strictObject({ viewers: z.array(TablePresenceEntry) });
+
+export type TableSseEnvelope = z.infer<typeof TableSseEnvelope>;
+export const TableSseEnvelope = z.union([TableStreamSnapshot, TableStreamDelta, TableStreamViewers, TableDragMarker, TableSheetChanged, Heartbeat, TableClosedEvent]);
 
 export type TableTokenCreate = z.infer<typeof TableTokenCreate>;
 export const TableTokenCreate = z.strictObject({ character_id: z.string().nullable().default(null), color: z.string().default("#e9dfc7"), h: z.number().int().min(1).default(1), label: z.string(), owner_id: z.string().nullable().default(null), visible: z.boolean().default(true), w: z.number().int().min(1).default(1), x: z.number().min(0), y: z.number().min(0) });

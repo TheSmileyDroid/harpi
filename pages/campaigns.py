@@ -30,6 +30,7 @@ from src.panel import (
     sheet_store,
     sheet_write,
     state,
+    table_stream,
     vault,
     vault_index,
 )
@@ -61,6 +62,7 @@ from src.panel.schemas import (
     SheetConflictList,
     SheetDetail,
     SheetPatch,
+    TableSheetChanged,
 )
 from src.panel.sheets import default_config
 from src.panel.notes import SheetNote
@@ -591,6 +593,17 @@ async def _write_and_answer(
     )
     if isinstance(persisted, Response):
         return persisted
+    await table_stream.publish_sheet(
+        context.database,
+        context.slug,
+        TableSheetChanged(
+            sheet_id=context.note.id,
+            character_id=context.note.character,
+            rev=result.rev,
+            state="ok",
+        ),
+        result.owner,
+    )
     fresh = (
         context.index.refresh_sheet(context.note.path)
         or notes.parse_sheet(context.note.path, result.text).note
@@ -913,6 +926,17 @@ async def _apply_resolution(
             database, note.path, resolution.field_path
         )
         return persisted
+    await table_stream.publish_sheet(
+        database,
+        slug,
+        TableSheetChanged(
+            sheet_id=note.id,
+            character_id=note.character,
+            rev=result.rev,
+            state="ok",
+        ),
+        result.owner,
+    )
     await sheet_conflicts.settle(database, note.path, user_id)
     await _reload_vault()
     return SheetConflictList(conflicts=[])
@@ -1075,6 +1099,18 @@ async def _restore(context: RestoreContext) -> Response | SheetDetail:
         return _write_failure(failure)
     except Exception as failure:
         return _storage_failure(failure)
+    note = _find_sheet(context.index, slug, context.stored.harpi_id)
+    await table_stream.publish_sheet(
+        context.database,
+        slug,
+        TableSheetChanged(
+            sheet_id=context.stored.harpi_id,
+            character_id=None if note is None else note.character,
+            rev=result.rev,
+            state="ok",
+        ),
+        result.owner,
+    )
     await _reload_vault()
     return _sheet_response(slug, context.stored.harpi_id)
 

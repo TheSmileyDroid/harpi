@@ -20,6 +20,7 @@ from pages.guard import csrf_refusal
 from src.panel import (
     scenes,
     state,
+    table_stream,
     tables,
     vault,
     vault_index,
@@ -32,6 +33,7 @@ from src.panel.schemas import (
     TableOpen,
     TableSceneChange,
     TableSpectators,
+    TableSseEnvelope,
     TableSummary,
     TableTokenCreate,
     TableTokenPatch,
@@ -122,6 +124,86 @@ def _not_found() -> Response:
 
 def _forbidden() -> Response:
     return error_response("forbidden", "Forbidden", 403)
+
+
+async def _viewer_name(database, campaign: str, user_id: str) -> str:
+    row = await database.fetchone(
+        "SELECT display_name FROM members "
+        "WHERE campaign_slug = ? AND user_id = ?",
+        (campaign, user_id),
+    )
+    member = None if row is None else row["display_name"]
+    return member or session.get("username") or "Convidado"
+
+
+async def _publish(database, table_id: str) -> None:
+    await table_stream.publish(
+        database, table_id, root=vault.configured().root
+    )
+
+
+async def _publish_snapshot(database, table_id: str) -> None:
+    await table_stream.publish_snapshot(
+        database, table_id, root=vault.configured().root
+    )
+
+
+class _SlotLease:
+    def __init__(self, slot) -> None:
+        self._slot = slot
+
+    def release(self) -> None:
+        self._slot.release()
+
+    def __del__(self) -> None:
+        self._slot.release()
+
+
+def _closed_frames():
+    yield ": connected\n\n"
+    yield table_stream.closed_frame()
+
+
+async def _table_frames(database, access: TableAccess, name: str, lease):
+    try:
+        async for frame in table_stream.open_stream(
+            database,
+            access.table,
+            user_id=access.user_id,
+            role=access.role,
+            name=name,
+            root=vault.configured().root,
+        ):
+            yield frame
+    finally:
+        lease.release()
+
+
+@bp.get("/api/tables/<table_id>/events")
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 429)
+@document_response(TableSseEnvelope, 200)
+async def table_events(table_id: str):
+    access = await _table_access(table_id)
+    if isinstance(access, Response):
+        return access
+    database = get_database()
+    if database is None:
+        return _not_found()
+    if access.table.status != "open":
+        return Response(_closed_frames(), mimetype="text/event-stream")
+    name = await _viewer_name(database, access.table.campaign, access.user_id)
+    slot = table_stream.TABLE_STREAM_SLOTS.acquire(access.user_id, table_id)
+    if slot is None:
+        response = error_response(
+            "too_many_requests", "Too many live streams", 429
+        )
+        response.headers["Retry-After"] = str(table_stream.RETRY_AFTER_SECONDS)
+        return response
+    return Response(
+        _table_frames(database, access, name, _SlotLease(slot)),
+        mimetype="text/event-stream",
+    )
 
 
 def _closed() -> Response:
@@ -381,6 +463,7 @@ async def close_table(table_id: str) -> Response | TableSummary:
         return error_response(
             "snapshot_failed", "The table snapshot could not be written", 503
         )
+    table_stream.publish_closed(row.id)
     return await _summary(
         database, TableAccess(row, access.user_id, access.role)
     )
@@ -407,6 +490,7 @@ async def reopen_table(table_id: str) -> Response | TableSummary:
         row, warning = await tables.reopen_table(database, root, access.table)
     except tables.TableAlreadyOpen as failure:
         return _conflict(failure.table)
+    await _publish_snapshot(database, row.id)
     return await _summary(
         database,
         TableAccess(row, access.user_id, access.role),
@@ -434,6 +518,7 @@ async def change_scene(table_id: str) -> Response | TableSummary:
         await tables.change_scene(database, access.table, payload.scene)
     except tables.SceneNotFound:
         return _not_found()
+    await _publish_snapshot(database, table_id)
     return await _fresh(database, table_id, access)
 
 
@@ -461,6 +546,7 @@ async def reload_scene(table_id: str) -> Response | TableSummary:
         )
     except tables.SceneNotFound:
         return _not_found()
+    await _publish_snapshot(database, table_id)
     return await _fresh(database, table_id, access)
 
 
@@ -503,6 +589,7 @@ async def _set_zone(
         return _not_found()
     except tables.SceneNotFound:
         return _not_found()
+    await _publish(database, table_id)
     return await _fresh(database, table_id, access)
 
 
@@ -538,6 +625,7 @@ async def _turn_result(
         await _turn_action(database, access, payload)
     except tables.TableError as failure:
         return _turn_refusal(failure)
+    await _publish(database, table_id)
     return await _fresh(database, table_id, access)
 
 
@@ -613,6 +701,7 @@ async def create_token(table_id: str) -> Response | TableSummary:
         return _invalid(str(failure))
     except tables.SceneNotFound:
         return _not_found()
+    await _publish(database, table_id)
     return await _fresh(database, table_id, access)
 
 
@@ -641,6 +730,7 @@ async def patch_token(table_id: str, token_id: str) -> Response | TableSummary:
         return _invalid(str(failure))
     except tables.SceneNotFound:
         return _not_found()
+    await _publish(database, table_id)
     return await _fresh(database, table_id, access)
 
 
@@ -662,6 +752,7 @@ async def delete_token(
         await tables.delete_token(database, access.table, token_id)
     except tables.TokenNotFound:
         return _not_found()
+    await _publish(database, table_id)
     return await _fresh(database, table_id, access)
 
 
@@ -682,4 +773,5 @@ async def set_spectators(table_id: str) -> Response | TableSummary:
     if database is None:
         return _not_found()
     await tables.set_spectators(database, access.table, payload.enabled)
+    await _publish(database, table_id)
     return await _fresh(database, table_id, access)

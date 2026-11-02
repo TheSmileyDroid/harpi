@@ -53,6 +53,11 @@ def build_fixtures() -> dict[str, object]:
         TableScene,
         TableSummary,
         TableToken,
+        TableStreamDelta,
+        TableStreamSnapshot,
+        TableStreamViewers,
+        TableSheetChanged,
+        TablePresenceEntry,
         SheetActionResult,
         SheetAspect,
         SheetConflictDetail,
@@ -387,6 +392,39 @@ def build_fixtures() -> dict[str, object]:
             ),
         ),
     }
+    summary = TableSummary.model_validate(
+        fixtures["TableSummary"].model_dump()
+    )
+    table_viewers = TableStreamViewers(
+        viewers=[TablePresenceEntry(name="Harpi", role="narrator")]
+    )
+    fixtures["TableStreamViewers"] = table_viewers
+    fixtures["TableStreamSnapshot"] = TableStreamSnapshot(
+        stream_rev=4,
+        table_id=summary.id,
+        state=summary,
+        viewers=table_viewers.viewers,
+        drags=[],
+    )
+    fixtures["TableStreamDelta"] = TableStreamDelta(
+        from_stream_rev=3,
+        stream_rev=4,
+        scene_id=summary.scene.id if summary.scene else None,
+        tokens=[],
+        removed=["tok_2"],
+        turn=None,
+        round=2,
+        status="open",
+        spectators=False,
+        participants=[],
+        scene=None,
+    )
+    fixtures["TableSheetChanged"] = TableSheetChanged(
+        sheet_id="sht_ana",
+        character_id="chr_ana",
+        rev=3,
+        state="ok",
+    )
     return {
         name: model.model_dump(mode="json") for name, model in fixtures.items()
     }
