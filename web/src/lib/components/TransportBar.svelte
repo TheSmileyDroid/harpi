@@ -147,7 +147,7 @@
 >
   {#if !ready}
     <span class="progress-readout is-empty" data-testid="transport-empty">
-      No session — connect an output to begin.
+      Nenhum canal conectado
     </span>
   {:else}
     <button

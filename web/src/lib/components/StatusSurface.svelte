@@ -240,7 +240,7 @@
 
   .brand__mark {
     display: block;
-    block-size: 1.6rem;
+    block-size: 3.5rem;
     inline-size: auto;
     image-rendering: pixelated;
   }
