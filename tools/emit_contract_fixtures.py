@@ -43,6 +43,13 @@ def build_fixtures() -> dict[str, object]:
         Presence,
         ReloadEvent,
         SearchResults,
+        SceneDetail,
+        SceneGrid,
+        SceneImage,
+        SceneList,
+        SceneRect,
+        SceneSummary,
+        SceneZone,
         SheetActionResult,
         SheetAspect,
         SheetConflictDetail,
@@ -237,6 +244,56 @@ def build_fixtures() -> dict[str, object]:
         "GuildList": GuildList(guilds=[Guild(id="1", name="Alpha")]),
         "ReloadEvent": ReloadEvent(scope="shell"),
         "SearchResults": SearchResults(results=[track]),
+        "SceneList": SceneList(
+            scenes=[
+                SceneSummary(
+                    slug="cripta",
+                    name="Cripta",
+                    source="image",
+                    thumbnail=(
+                        f"/api/campaigns/paratheos/assets/{'a' * 64}.png"
+                    ),
+                    width=1920,
+                    height=1080,
+                    grid=SceneGrid(
+                        cell_px=70, offset_x=0, offset_y=0, visible=True
+                    ),
+                    zones=[
+                        SceneZone(
+                            id="zon_sala",
+                            label="Sala principal",
+                            revealed=True,
+                            rects=[SceneRect(x=1, y=2, w=3, h=2)],
+                        )
+                    ],
+                    zone_count=1,
+                    saved=True,
+                    in_use=False,
+                )
+            ]
+        ),
+        "SceneDetail": SceneDetail(
+            slug="cripta",
+            name="Cripta",
+            source="image",
+            image=SceneImage(
+                path=f"Harpi/Campaigns/paratheos/assets/{'a' * 64}.png",
+                width=1920,
+                height=1080,
+            ),
+            grid=SceneGrid(cell_px=70, offset_x=0, offset_y=0, visible=True),
+            fog_outside=True,
+            zones=[
+                SceneZone(
+                    id="zon_sala",
+                    label="Sala principal",
+                    revealed=True,
+                    rects=[SceneRect(x=1, y=2, w=3, h=2)],
+                )
+            ],
+            hash="b" * 64,
+            saved=True,
+        ),
         "Presence": Presence(
             guild_id="7",
             viewers=[

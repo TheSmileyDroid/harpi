@@ -502,4 +502,110 @@ describe("createApiClient", () => {
 
     expect(reported).toHaveLength(1);
   });
+
+  it("lists the scenes of a campaign", async () => {
+    const client = createApiClient({
+      fetchImpl: async (path) => {
+        expect(path).toBe("/api/campaigns/paratheos/scenes");
+        return jsonResponse(200, fixtures.SceneList);
+      },
+    });
+
+    await expect(client.scenes("paratheos")).resolves.toEqual(
+      fixtures.SceneList,
+    );
+  });
+
+  it("opens one scene blueprint", async () => {
+    const client = createApiClient({
+      fetchImpl: async (path) => {
+        expect(path).toBe("/api/campaigns/paratheos/scenes/cripta");
+        return jsonResponse(200, fixtures.SceneDetail);
+      },
+    });
+
+    await expect(client.scene("paratheos", "cripta")).resolves.toEqual(
+      fixtures.SceneDetail,
+    );
+  });
+
+  it("creates a scene from a vault image", async () => {
+    const { client, calls } = recordingClient(fixtures.SceneDetail);
+
+    const zones = [
+      {
+        id: "zon_mapa",
+        label: "Mapa",
+        revealed: false,
+        rects: [{ x: 0, y: 0, w: 1, h: 1 }],
+      },
+    ];
+    await client.createScene("paratheos", {
+      name: "Cripta",
+      source: "image",
+      image: "Harpi/Campaigns/paratheos/assets/a.png",
+      zones,
+    });
+
+    expect(calls[0]!.path).toBe("/api/campaigns/paratheos/scenes");
+    expect(calls[0]!.options.method).toBe("POST");
+    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
+      name: "Cripta",
+      source: "image",
+      image: "Harpi/Campaigns/paratheos/assets/a.png",
+      image_width: null,
+      image_height: null,
+      grid: null,
+      fog_outside: false,
+      zones,
+    });
+  });
+
+  it("saves a scene with its base hash", async () => {
+    const { client, calls } = recordingClient(fixtures.SceneDetail);
+
+    await client.saveScene("paratheos", "cripta", {
+      base_hash: "a".repeat(64),
+      name: "Cripta",
+      grid: { cell_px: 70, offset_x: 0, offset_y: 0, visible: true },
+      fog_outside: true,
+      zones: [
+        {
+          id: "zon_mapa",
+          label: "Mapa",
+          revealed: false,
+          rects: [{ x: 0, y: 0, w: 1, h: 1 }],
+        },
+      ],
+    });
+
+    expect(calls[0]!.path).toBe("/api/campaigns/paratheos/scenes/cripta");
+    expect(calls[0]!.options.method).toBe("PUT");
+    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
+      base_hash: "a".repeat(64),
+      name: "Cripta",
+      grid: { cell_px: 70, offset_x: 0, offset_y: 0, visible: true },
+      fog_outside: true,
+      zones: [
+        {
+          id: "zon_mapa",
+          label: "Mapa",
+          revealed: false,
+          rects: [{ x: 0, y: 0, w: 1, h: 1 }],
+        },
+      ],
+    });
+  });
+
+  it("uploads an image as multipart form data", async () => {
+    const { client, calls } = recordingClient(fixtures.AssetDetail);
+    const file = new File(["pixels"], "mapa.png", { type: "image/png" });
+
+    await client.uploadAsset("paratheos", file);
+
+    expect(calls[0]!.path).toBe("/api/campaigns/paratheos/assets");
+    expect(calls[0]!.options.method).toBe("POST");
+    expect(calls[0]!.options.body).toBeInstanceOf(FormData);
+    expect((calls[0]!.options.body as FormData).get("file")).toBe(file);
+  });
 });

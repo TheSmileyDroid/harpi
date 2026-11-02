@@ -40,6 +40,8 @@ test("each campaign page renders the shell with its own mark", async ({
       await expect(page.getByTestId("cast")).toBeVisible();
     } else if (name === "ficha") {
       await expect(page.getByTestId("sheet")).toBeVisible();
+    } else if (name === "cenas") {
+      await expect(page.getByTestId("scenes")).toBeVisible();
     } else {
       await expect(page.getByTestId("page-placeholder")).toBeVisible();
     }

@@ -1,4 +1,4 @@
-import { ApiError } from "./api";
+import { codeNote } from "./errors";
 import type { ApprovalItem } from "./contract/panel.gen";
 import type { LoadPhase } from "./phase";
 
@@ -59,16 +59,4 @@ export function submitNote(error: unknown): string {
     },
     "Não foi possível reenviar a ficha.",
   );
-}
-
-function codeNote(
-  error: unknown,
-  messages: Record<string, string>,
-  fallback: string,
-): string {
-  if (error instanceof ApiError) {
-    const message = messages[error.code];
-    if (message) return message;
-  }
-  return fallback;
 }

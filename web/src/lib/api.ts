@@ -2,6 +2,7 @@ import type { z } from "zod";
 import {
   ApprovalDecision,
   ApprovalList,
+  AssetDetail,
   Authenticated,
   CampaignDetail,
   ChannelList,
@@ -22,6 +23,10 @@ import {
   SheetConflictList,
   SheetDetail,
   SheetPatch,
+  SceneCreate,
+  SceneDetail,
+  SceneList,
+  SceneSave,
   StatusSnapshot,
   UrlRequest,
   VolumeRequest,
@@ -76,6 +81,7 @@ interface RequestBaseOptions {
   method?: string;
   silent?: boolean;
   json?: boolean;
+  formData?: FormData;
 }
 
 interface RequestBodyOptions<
@@ -112,6 +118,8 @@ export function createApiClient({
       const wireBody = options.requestSchema.parse(options.body);
       init.headers = { "Content-Type": "application/json" };
       init.body = JSON.stringify(wireBody);
+    } else if (options.formData) {
+      init.body = options.formData;
     } else if (json) {
       init.headers = { "Content-Type": "application/json" };
       init.body = "{}";
@@ -278,6 +286,51 @@ export function createApiClient({
       return request(
         `/api/campaigns/${encodeURIComponent(slug)}/characters/${encodeURIComponent(characterId)}`,
         CharacterDetail,
+      );
+    },
+    scenes(slug: string) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/scenes`,
+        SceneList,
+      );
+    },
+    scene(slug: string, scene: string) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/scenes/${encodeURIComponent(scene)}`,
+        SceneDetail,
+      );
+    },
+    createScene(slug: string, body: z.input<typeof SceneCreate>) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/scenes`,
+        SceneDetail,
+        {
+          method: "POST",
+          requestSchema: SceneCreate,
+          body,
+          silent: true,
+        },
+      );
+    },
+    saveScene(slug: string, scene: string, body: z.input<typeof SceneSave>) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/scenes/${encodeURIComponent(scene)}`,
+        SceneDetail,
+        {
+          method: "PUT",
+          requestSchema: SceneSave,
+          body,
+          silent: true,
+        },
+      );
+    },
+    uploadAsset(slug: string, file: File) {
+      const form = new FormData();
+      form.append("file", file);
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/assets`,
+        AssetDetail,
+        { method: "POST", formData: form, silent: true },
       );
     },
     writeSheet(

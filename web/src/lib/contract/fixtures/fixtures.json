@@ -210,6 +210,76 @@
   "ReloadEvent": {
     "scope": "shell"
   },
+  "SceneDetail": {
+    "fog_outside": true,
+    "grid": {
+      "cell_px": 70,
+      "offset_x": 0,
+      "offset_y": 0,
+      "visible": true
+    },
+    "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "image": {
+      "height": 1080,
+      "path": "Harpi/Campaigns/paratheos/assets/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+      "width": 1920
+    },
+    "name": "Cripta",
+    "saved": true,
+    "slug": "cripta",
+    "source": "image",
+    "zones": [
+      {
+        "id": "zon_sala",
+        "label": "Sala principal",
+        "rects": [
+          {
+            "h": 2,
+            "w": 3,
+            "x": 1,
+            "y": 2
+          }
+        ],
+        "revealed": true
+      }
+    ]
+  },
+  "SceneList": {
+    "scenes": [
+      {
+        "grid": {
+          "cell_px": 70,
+          "offset_x": 0,
+          "offset_y": 0,
+          "visible": true
+        },
+        "height": 1080,
+        "in_use": false,
+        "name": "Cripta",
+        "saved": true,
+        "slug": "cripta",
+        "source": "image",
+        "thumbnail": "/api/campaigns/paratheos/assets/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+        "width": 1920,
+        "zone_count": 1,
+        "zones": [
+          {
+            "id": "zon_sala",
+            "label": "Sala principal",
+            "rects": [
+              {
+                "h": 2,
+                "w": 3,
+                "x": 1,
+                "y": 2
+              }
+            ],
+            "revealed": true
+          }
+        ]
+      }
+    ]
+  },
   "SearchResults": {
     "results": [
       {
