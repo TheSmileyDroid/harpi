@@ -21,7 +21,13 @@ from watchdog.events import (
 from watchdog.observers import Observer
 from watchdog.observers.api import BaseObserver
 
-from src.panel import sheet_conflicts, sheet_store, sheet_write, vault_index
+from src.panel import (
+    sheet_conflicts,
+    sheet_notices,
+    sheet_store,
+    sheet_write,
+    vault_index,
+)
 from src.panel.sheets import decode_text, load_sheet, sha256_text
 from src.panel.vault import Vault
 from src.panel.vault_index import CAMPAIGN_ROOT, NOTE_FOLDERS, SHEETS_FOLDER
@@ -638,6 +644,7 @@ async def reconcile(
         conflicts = await sheet_conflicts.open_paths(database, campaign)
         plan = plan_campaign(files, rows, conflicts)
         await apply_plan(database, campaign, plan, int(time.time()))
+        await sheet_notices.refresh_background(database, campaign)
 
 
 class Debouncer:

@@ -788,6 +788,23 @@ class SheetConflictDecision(BaseModel):
     decision: Literal["ours", "theirs", "both"]
 
 
+SheetNoticeState = Literal["conflito", "ausente", "invalido", "desconhecido"]
+
+
+class SheetNoticeItem(_Response):
+    id: str
+    sheet_id: str
+    character_id: str | None
+    name: str
+    state: SheetNoticeState
+    title: str
+    fields: list[str]
+
+
+class SheetNoticeList(_Response):
+    notices: list[SheetNoticeItem]
+
+
 class SheetActionResult(_Response):
     action: Literal["restore", "forget"]
     sheet_id: str

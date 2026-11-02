@@ -21,6 +21,7 @@ from src.panel import (
     rate_limit,
     rolls,
     scenes,
+    sheet_notices,
     state,
     table_stream,
     tables,
@@ -370,6 +371,7 @@ async def open_table() -> Response | TableSummary:
         return _not_found()
     except tables.TableAlreadyOpen as failure:
         return _conflict(failure.table)
+    await sheet_notices.refresh_background(database, payload.campaign)
     return await _summary(database, TableAccess(row, user_id, "narrator"))
 
 
@@ -508,6 +510,7 @@ async def reopen_table(table_id: str) -> Response | TableSummary:
         row, warning = await tables.reopen_table(database, root, access.table)
     except tables.TableAlreadyOpen as failure:
         return _conflict(failure.table)
+    await sheet_notices.refresh_background(database, row.campaign)
     await _publish_snapshot(database, row.id)
     return await _summary(
         database,

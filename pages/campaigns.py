@@ -27,6 +27,7 @@ from src.panel import (
     rate_limit,
     scenes,
     sheet_conflicts,
+    sheet_notices,
     sheet_store,
     sheet_write,
     state,
@@ -61,6 +62,8 @@ from src.panel.schemas import (
     SheetConflictField,
     SheetConflictList,
     SheetDetail,
+    SheetNoticeItem,
+    SheetNoticeList,
     SheetPatch,
     TableSheetChanged,
 )
@@ -249,6 +252,7 @@ class RestoreContext:
     index: vault_index.VaultIndex
     root: Path
     stored: sheet_store.StoredSheet
+    actor: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -585,6 +589,7 @@ async def _write_and_answer(
             failure.conflicts,
             failure.base_json,
         )
+        await sheet_notices.refresh(context.database, context.slug)
         return _conflict_detail(rows)
     if isinstance(result, Response):
         return result
@@ -838,6 +843,22 @@ async def read_conflicts(slug: str) -> Response | SheetConflictList:
     return _conflict_list(await sheet_conflicts.queue(database, slug, owner))
 
 
+@bp.get("/api/campaigns/<slug>/notices")
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 503)
+@validate_response(SheetNoticeList, 200)
+async def read_notices(slug: str) -> Response | SheetNoticeList:
+    scope = await _character_scope(slug)
+    if isinstance(scope, Response):
+        return scope
+    user_id, role = scope
+    database = get_database()
+    if database is None:
+        return _not_found()
+    owner = None if role == "narrator" else user_id
+    return _notice_list(await sheet_notices.pending(database, slug, owner))
+
+
 @bp.post("/api/campaigns/<slug>/conflicts/<conflict_id>/resolve")
 @document_request(SheetConflictDecision)
 @document_response(ErrorEnvelope, 403)
@@ -938,6 +959,13 @@ async def _apply_resolution(
         result.owner,
     )
     await sheet_conflicts.settle(database, note.path, user_id)
+    await sheet_notices.resolve(
+        database,
+        slug,
+        note.path,
+        sheet_notices.CONFLICT,
+        user_id,
+    )
     await _reload_vault()
     return SheetConflictList(conflicts=[])
 
@@ -1016,6 +1044,25 @@ def _conflict_list(
     )
 
 
+def _notice_list(
+    rows: Iterable[sheet_notices.NoticeRecord],
+) -> SheetNoticeList:
+    return SheetNoticeList(
+        notices=[
+            SheetNoticeItem(
+                id=row.id,
+                sheet_id=row.sheet_id,
+                character_id=row.character_id,
+                name=row.name,
+                state=row.state,
+                title=row.title,
+                fields=list(row.fields),
+            )
+            for row in rows
+        ]
+    )
+
+
 def _conflict_detail(
     rows: list[sheet_conflicts.ConflictRecord],
 ) -> Response:
@@ -1077,7 +1124,7 @@ async def _restore_context(
     blocked = _recovery_refusal(stored, user_id, role)
     if blocked is not None:
         return blocked
-    return RestoreContext(database, index, index.root, stored)
+    return RestoreContext(database, index, index.root, stored, user_id)
 
 
 async def _restore(context: RestoreContext) -> Response | SheetDetail:
@@ -1099,6 +1146,13 @@ async def _restore(context: RestoreContext) -> Response | SheetDetail:
         return _write_failure(failure)
     except Exception as failure:
         return _storage_failure(failure)
+    await sheet_notices.resolve(
+        context.database,
+        slug,
+        context.stored.path,
+        sheet_notices.MISSING,
+        context.actor,
+    )
     note = _find_sheet(context.index, slug, context.stored.harpi_id)
     await table_stream.publish_sheet(
         context.database,
@@ -1137,6 +1191,13 @@ async def forget_sheet(
     if refusal is not None:
         return refusal
     await sheet_store.forget_sheet(database, stored.path)
+    await sheet_notices.resolve(
+        database,
+        slug,
+        stored.path,
+        sheet_notices.MISSING,
+        user_id,
+    )
     return SheetActionResult(action="forget", sheet_id=sheet_id)
 
 

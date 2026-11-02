@@ -52,6 +52,20 @@ def test_discord_redirect_uri_honors_the_environment(
     )
 
 
+def test_panel_base_url_is_optional(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("PANEL_BASE_URL", raising=False)
+
+    assert Settings.from_env().panel_base_url is None
+
+
+def test_panel_base_url_comes_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("PANEL_BASE_URL", "https://panel.example")
+
+    assert Settings.from_env().panel_base_url == "https://panel.example"
+
+
 def test_js_runtime_dirs_come_from_the_environment(
     monkeypatch: pytest.MonkeyPatch,
 ):

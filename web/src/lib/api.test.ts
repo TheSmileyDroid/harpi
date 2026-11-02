@@ -424,6 +424,19 @@ describe("createApiClient", () => {
     );
   });
 
+  it("reads the sheet notice queue", async () => {
+    const client = createApiClient({
+      fetchImpl: async (path) => {
+        expect(path).toBe("/api/campaigns/paratheos/notices");
+        return jsonResponse(200, fixtures.SheetNoticeList);
+      },
+    });
+
+    await expect(client.notices("paratheos")).resolves.toEqual(
+      fixtures.SheetNoticeList,
+    );
+  });
+
   it("resolves a conflict per field", async () => {
     const { client, calls } = recordingClient(fixtures.SheetConflictList);
 

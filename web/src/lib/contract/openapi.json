@@ -2062,6 +2062,83 @@
         "title": "SheetLadderStep",
         "type": "object"
       },
+      "SheetNoticeItem": {
+        "additionalProperties": false,
+        "properties": {
+          "character_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Character Id"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "sheet_id": {
+            "title": "Sheet Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "conflito",
+              "ausente",
+              "invalido",
+              "desconhecido"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sheet_id",
+          "character_id",
+          "name",
+          "state",
+          "title",
+          "fields"
+        ],
+        "title": "SheetNoticeItem",
+        "type": "object"
+      },
+      "SheetNoticeList": {
+        "additionalProperties": false,
+        "properties": {
+          "notices": {
+            "items": {
+              "$ref": "#/components/schemas/SheetNoticeItem"
+            },
+            "title": "Notices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "notices"
+        ],
+        "title": "SheetNoticeList",
+        "type": "object"
+      },
       "SheetPatch": {
         "properties": {
           "aspects": {
@@ -4672,6 +4749,53 @@
             "description": ""
           },
           "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/campaigns/{slug}/notices": {
+      "get": {
+        "operationId": "get_read_notices",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SheetNoticeList"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
             "content": {
               "application/json": {
                 "schema": {

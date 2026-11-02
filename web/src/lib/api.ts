@@ -22,6 +22,7 @@ import {
   SheetConflictDecision,
   SheetConflictList,
   SheetDetail,
+  SheetNoticeList,
   SheetPatch,
   SceneCreate,
   SceneDetail,
@@ -271,6 +272,12 @@ export function createApiClient({
       return request(
         `/api/campaigns/${encodeURIComponent(slug)}/conflicts`,
         SheetConflictList,
+      );
+    },
+    notices(slug: string) {
+      return request(
+        `/api/campaigns/${encodeURIComponent(slug)}/notices`,
+        SheetNoticeList,
       );
     },
     resolveConflict(

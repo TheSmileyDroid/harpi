@@ -19,6 +19,7 @@
     CampaignDetail,
     CharacterCard,
     SheetConflictField,
+    SheetNoticeItem,
   } from "$lib/contract/panel.gen";
 
   let phase = $state<LoadPhase>("loading");
@@ -27,6 +28,7 @@
   let own = $state<string | null>(null);
   let queue = $state<ApprovalItem[]>([]);
   let conflicts = $state<SheetConflictField[]>([]);
+  let notices = $state<SheetNoticeItem[]>([]);
   let draft = $state({ name: "", concept: "", summary: "" });
   let withSheet = $state(false);
   let notes = $state<Record<string, string>>({});
@@ -56,12 +58,14 @@
         detail.role === "narrator"
           ? (await api.conflicts(campaign)).conflicts
           : [];
+      notices = (await api.notices(campaign)).notices;
       phase = "ready";
     } catch (error) {
       role = null;
       cards = [];
       queue = [];
       conflicts = [];
+      notices = [];
       phase = phaseForError(error);
     }
   }
@@ -228,6 +232,45 @@
             {/each}
           </ul>
         {/if}
+      </section>
+    {/if}
+
+    {#if notices.length > 0}
+      <section
+        class="queue"
+        aria-labelledby="sheet-notices-label"
+        data-testid="sheet-notices"
+      >
+        <h2 class="panel-label" id="sheet-notices-label">Avisos</h2>
+        <ul class="queue__list">
+          {#each notices as notice (notice.id)}
+            <li class="queue__item" data-testid="sheet-notice">
+              <div class="queue__head">
+                <h3 class="queue__name">{notice.name}</h3>
+                <span class="queue__owner">
+                  {notice.title}
+                </span>
+                {#if notice.character_id}
+                  <a
+                    class="queue__open"
+                    href={resolve("/c/[campaign]/ficha/[[character]]", {
+                      campaign: slug,
+                      character: notice.character_id,
+                    })}
+                    data-testid="sheet-notice-open"
+                  >
+                    Abrir ficha
+                  </a>
+                {/if}
+              </div>
+              {#if notice.fields.length > 0}
+                <p class="system-note" data-testid="sheet-notice-fields">
+                  {notice.fields.map(conflictLabel).join(" · ")}
+                </p>
+              {/if}
+            </li>
+          {/each}
+        </ul>
       </section>
     {/if}
 
