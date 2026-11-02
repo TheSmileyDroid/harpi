@@ -150,13 +150,13 @@ export type SceneZone = z.infer<typeof SceneZone>;
 export const SceneZone = z.strictObject({ id: z.string().default(""), label: z.string(), rects: z.array(SceneRect).min(1), revealed: z.boolean().default(false) });
 
 export type SceneCreate = z.infer<typeof SceneCreate>;
-export const SceneCreate = z.strictObject({ fog_outside: z.boolean().default(false), grid: SceneGrid.nullable().default(null), image: z.string().nullable().default(null), image_height: z.number().int().min(1).max(20000).nullable().default(null), image_width: z.number().int().min(1).max(20000).nullable().default(null), name: z.string().min(1).max(120), source: z.enum(["image", "sketch"]), zones: z.array(SceneZone).min(1) });
+export const SceneCreate = z.strictObject({ fog_outside: z.boolean().default(false), grid: SceneGrid.nullable().default(null), image: z.string().nullable().default(null), image_height: z.number().int().min(1).max(20000).nullable().default(null), image_width: z.number().int().min(1).max(20000).nullable().default(null), name: z.string().min(1).max(120), source: z.enum(["image", "sketch"]), zones: z.array(SceneZone) });
 
 export type SceneImage = z.infer<typeof SceneImage>;
 export const SceneImage = z.strictObject({ height: z.number().int().min(1), path: z.string(), width: z.number().int().min(1) });
 
 export type SceneDetail = z.infer<typeof SceneDetail>;
-export const SceneDetail = z.strictObject({ fog_outside: z.boolean(), grid: SceneGrid, hash: z.string(), image: SceneImage, name: z.string().min(1).max(120), saved: z.boolean(), slug: z.string(), source: z.enum(["image", "sketch"]), zones: z.array(SceneZone).min(1) });
+export const SceneDetail = z.strictObject({ fog_outside: z.boolean(), grid: SceneGrid, hash: z.string(), image: SceneImage, name: z.string().min(1).max(120), saved: z.boolean(), slug: z.string(), source: z.enum(["image", "sketch"]), zones: z.array(SceneZone) });
 
 export type SceneSummary = z.infer<typeof SceneSummary>;
 export const SceneSummary = z.strictObject({ grid: SceneGrid, height: z.number().int(), in_use: z.boolean(), name: z.string(), saved: z.boolean(), slug: z.string(), source: z.enum(["image", "sketch"]), thumbnail: z.string().nullable(), width: z.number().int(), zone_count: z.number().int(), zones: z.array(SceneZone) });
@@ -165,7 +165,7 @@ export type SceneList = z.infer<typeof SceneList>;
 export const SceneList = z.strictObject({ scenes: z.array(SceneSummary) });
 
 export type SceneSave = z.infer<typeof SceneSave>;
-export const SceneSave = z.strictObject({ base_hash: z.string(), fog_outside: z.boolean(), grid: SceneGrid, name: z.string().min(1).max(120), zones: z.array(SceneZone).min(1) });
+export const SceneSave = z.strictObject({ base_hash: z.string(), fog_outside: z.boolean(), grid: SceneGrid, name: z.string().min(1).max(120), zones: z.array(SceneZone) });
 
 export type SearchRequest = z.infer<typeof SearchRequest>;
 export const SearchRequest = z.strictObject({ term: z.string().nullable().default(null) }).partial();

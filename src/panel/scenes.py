@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import math
 import re
@@ -19,6 +20,7 @@ from src.panel.schemas import (
     SceneDetail,
     SceneGrid,
     SceneImage,
+    SceneRect,
     SceneSave,
     SceneSource,
     SceneSummary,
@@ -42,6 +44,11 @@ DEFAULT_IMAGE_HEIGHT = 1080
 DEFAULT_GRID = SceneGrid(
     cell_px=DEFAULT_CELL_PX, offset_x=0, offset_y=0, visible=True
 )
+SUNKEN = "#0d0b08"
+PLATE = "#1f1b15"
+RULE_STRONG = "#3d3527"
+SAND = "#e9dfc7"
+SVG_STROKE_WIDTH = 2
 
 
 class SceneError(Exception):
@@ -70,6 +77,14 @@ class SceneConflict(SceneError):
 
 class SceneMissing(SceneError):
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class SavedScene:
+    blueprint: SceneBlueprint
+    digest: str
+    previous_text: str
+    previous_map: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,9 +271,57 @@ def normalized_zones(
             raise InvalidSceneZones("A zone rectangle leaves the map")
         seen.add(zone_id)
         normalized.append(
-            item.model_copy(update={"id": zone_id, "label": label})
+            item.model_copy(
+                update={
+                    "id": zone_id,
+                    "label": label,
+                    "rects": normalize_rects(item.rects),
+                }
+            )
         )
     return normalized
+
+
+def normalize_rects(rects: list[SceneRect]) -> list[SceneRect]:
+    xs = _horizontal_bounds(rects)
+    ys = _vertical_bounds(rects)
+    if len(xs) < 2 or len(ys) < 2:
+        return []
+    covered = _covered_cells(xs, ys, rects)
+    result: list[SceneRect] = []
+    active: dict[tuple[int, int], SceneRect] = {}
+    for row in range(len(ys) - 1):
+        next_active: dict[tuple[int, int], SceneRect] = {}
+        for first, last in _covered_runs(xs, row, covered):
+            key = (xs[first], xs[last + 1])
+            previous = active.get(key)
+            height = ys[row + 1] - ys[row]
+            if previous is not None:
+                previous.h += height
+                next_active[key] = previous
+                continue
+            rect = SceneRect(x=key[0], y=ys[row], w=key[1] - key[0], h=height)
+            result.append(rect)
+            next_active[key] = rect
+        active = next_active
+    return result
+
+
+def _covered_runs(
+    xs: list[int], row: int, covered: set[tuple[int, int]]
+) -> list[tuple[int, int]]:
+    runs: list[tuple[int, int]] = []
+    start: int | None = None
+    for column in range(len(xs) - 1):
+        filled = (column, row) in covered
+        if filled and start is None:
+            start = column
+        if not filled and start is not None:
+            runs.append((start, column - 1))
+            start = None
+    if start is not None:
+        runs.append((start, len(xs) - 2))
+    return runs
 
 
 def _zone_identity(item: SceneZone) -> str:
@@ -272,6 +335,210 @@ def _leaves_map(item: SceneZone, columns: int, rows: int) -> bool:
     )
 
 
+def map_svg(blueprint: SceneBlueprint) -> str:
+    image = blueprint.image
+    paths = "".join(
+        f'<path d="{_zone_path(zone, blueprint.grid)}"/>'
+        for zone in blueprint.zones
+    )
+    labels = "".join(
+        _zone_label(zone, blueprint.grid) for zone in blueprint.zones
+    )
+    font_size = max(11, blueprint.grid.cell_px // 3)
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{image.width}" '
+        f'height="{image.height}" viewBox="0 0 {image.width} '
+        f'{image.height}">\n'
+        f'<rect width="{image.width}" height="{image.height}" '
+        f'fill="{SUNKEN}"/>\n'
+        f'<g fill="{PLATE}" stroke="{RULE_STRONG}" '
+        f'stroke-width="{SVG_STROKE_WIDTH}" fill-rule="evenodd">\n'
+        f"{paths}\n"
+        "</g>\n"
+        f'<g font-family="Barlow, sans-serif" font-size="{font_size}" '
+        f'font-weight="600" fill="{SAND}" stroke="{SUNKEN}" '
+        'stroke-width="3" paint-order="stroke" text-anchor="middle" '
+        f'dominant-baseline="middle">\n{labels}\n</g>\n'
+        "</svg>\n"
+    )
+
+
+def _zone_label(zone: SceneZone, grid: SceneGrid) -> str:
+    left = min(rect.x for rect in zone.rects)
+    top = min(rect.y for rect in zone.rects)
+    right = max(rect.x + rect.w for rect in zone.rects)
+    bottom = max(rect.y + rect.h for rect in zone.rects)
+    x = ((left + right) * grid.cell_px) // 2 + grid.offset_x
+    y = ((top + bottom) * grid.cell_px) // 2 + grid.offset_y
+    return (
+        f'<text x="{x}" y="{y}">{html.escape(zone.label, quote=True)}</text>'
+    )
+
+
+def _zone_path(zone: SceneZone, grid: SceneGrid) -> str:
+    loops = _contour_loops(zone.rects)
+    return " ".join(_loop_path(loop, grid) for loop in loops)
+
+
+def _contour_loops(rects: list[SceneRect]) -> list[list[tuple[int, int]]]:
+    xs = _horizontal_bounds(rects)
+    ys = _vertical_bounds(rects)
+    covered = _covered_cells(xs, ys, rects)
+    return _trace_loops(_boundary_edges(xs, ys, covered))
+
+
+def _horizontal_bounds(rects: list[SceneRect]) -> list[int]:
+    return sorted({
+        value for rect in rects for value in (rect.x, rect.x + rect.w)
+    })
+
+
+def _vertical_bounds(rects: list[SceneRect]) -> list[int]:
+    return sorted({
+        value for rect in rects for value in (rect.y, rect.y + rect.h)
+    })
+
+
+def _covered_cells(
+    xs: list[int], ys: list[int], rects: list[SceneRect]
+) -> set[tuple[int, int]]:
+    return {
+        (index, row)
+        for index in range(len(xs) - 1)
+        for row in range(len(ys) - 1)
+        if _covers(rects, xs, ys, index, row)
+    }
+
+
+def _covers(
+    rects: list[SceneRect],
+    xs: list[int],
+    ys: list[int],
+    index: int,
+    row: int,
+) -> bool:
+    left, right = xs[index], xs[index + 1]
+    top, bottom = ys[row], ys[row + 1]
+    return any(
+        rect.x <= left
+        and right <= rect.x + rect.w
+        and rect.y <= top
+        and bottom <= rect.y + rect.h
+        for rect in rects
+    )
+
+
+def _boundary_edges(
+    xs: list[int], ys: list[int], covered: set[tuple[int, int]]
+) -> set[tuple[tuple[int, int], tuple[int, int]]]:
+    edges: set[tuple[tuple[int, int], tuple[int, int]]] = set()
+    for index, row in covered:
+        left, right = xs[index], xs[index + 1]
+        top, bottom = ys[row], ys[row + 1]
+        edges.add(((left, top), (right, top)))
+        edges.add(((right, top), (right, bottom)))
+        edges.add(((right, bottom), (left, bottom)))
+        edges.add(((left, bottom), (left, top)))
+    return {edge for edge in edges if (edge[1], edge[0]) not in edges}
+
+
+def _trace_loops(
+    edges: set[tuple[tuple[int, int], tuple[int, int]]],
+) -> list[list[tuple[int, int]]]:
+    outgoing: dict[tuple[int, int], list[tuple[int, int]]] = {}
+    for start, end in sorted(edges, key=lambda edge: (edge[0][::-1], edge[1])):
+        outgoing.setdefault(start, []).append(end)
+    loops: list[list[tuple[int, int]]] = []
+    for start in sorted(outgoing, key=lambda point: (point[1], point[0])):
+        while outgoing.get(start):
+            loops.append(_walk(start, outgoing))
+    return loops
+
+
+def _walk(
+    start: tuple[int, int],
+    outgoing: dict[tuple[int, int], list[tuple[int, int]]],
+) -> list[tuple[int, int]]:
+    loop = [start]
+    current = start
+    while True:
+        ends = outgoing.get(current)
+        if not ends:
+            return loop
+        following = ends.pop(0)
+        if not ends:
+            del outgoing[current]
+        loop.append(following)
+        current = following
+        if current == start:
+            return _simplified(loop)
+
+
+def _simplified(loop: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    points = loop[:-1] if loop[0] == loop[-1] else loop
+    if len(points) < 3:
+        return loop
+    kept: list[tuple[int, int]] = []
+    for index, point in enumerate(points):
+        before = points[index - 1]
+        after = points[(index + 1) % len(points)]
+        if _collinear(before, point, after):
+            continue
+        kept.append(point)
+    return kept
+
+
+def _collinear(
+    before: tuple[int, int],
+    point: tuple[int, int],
+    after: tuple[int, int],
+) -> bool:
+    return (point[0] - before[0]) * (after[1] - point[1]) == (
+        point[1] - before[1]
+    ) * (after[0] - point[0])
+
+
+def _loop_path(loop: list[tuple[int, int]], grid: SceneGrid) -> str:
+    points = [
+        (
+            x * grid.cell_px + grid.offset_x,
+            y * grid.cell_px + grid.offset_y,
+        )
+        for x, y in loop
+    ]
+    head, *tail = points
+    commands = [f"M {head[0]} {head[1]}"]
+    commands.extend(f"L {x} {y}" for x, y in tail)
+    commands.append("Z")
+    return " ".join(commands)
+
+
+def read_map_svg(root: Path, campaign: str, slug: str) -> str | None:
+    path = root / sketch_image_path(campaign, slug)
+    if not path.is_file():
+        return None
+    return path.read_text(encoding="utf-8")
+
+
+def write_map_svg(
+    root: Path, campaign: str, slug: str, blueprint: SceneBlueprint
+) -> None:
+    path = root / sketch_image_path(campaign, slug)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write(path, map_svg(blueprint))
+
+
+def restore_map_svg(
+    root: Path, campaign: str, slug: str, text: str | None
+) -> None:
+    path = root / sketch_image_path(campaign, slug)
+    if text is None:
+        path.unlink(missing_ok=True)
+        return
+    atomic_write(path, text)
+
+
 def write_new(root: Path, campaign: str, slug: str, text: str) -> None:
     path = scene_file(root, campaign, slug)
     with write_lock():
@@ -283,7 +550,7 @@ def write_new(root: Path, campaign: str, slug: str, text: str) -> None:
 
 def save_existing(
     root: Path, campaign: str, slug: str, payload: SceneSave
-) -> tuple[SceneBlueprint, str, str]:
+) -> SavedScene:
     path = scene_file(root, campaign, slug)
     with write_lock():
         current = load_blueprint(path)
@@ -305,6 +572,10 @@ def save_existing(
                 ),
             }
         )
+        previous_text = canonical_text(current)
+        previous_map = None
+        if updated.source == "sketch":
+            previous_map = read_map_svg(root, campaign, slug)
         try:
             atomic_write_guarded(
                 path,
@@ -313,7 +584,30 @@ def save_existing(
             )
         except WriteConflict as failure:
             raise SceneConflict("The scene changed on disk") from failure
-    return updated, blueprint_hash(updated), canonical_text(current)
+        _write_sketch_map(root, campaign, slug, updated, path, previous_text)
+    return SavedScene(
+        blueprint=updated,
+        digest=blueprint_hash(updated),
+        previous_text=previous_text,
+        previous_map=previous_map,
+    )
+
+
+def _write_sketch_map(
+    root: Path,
+    campaign: str,
+    slug: str,
+    blueprint: SceneBlueprint,
+    blueprint_file: Path,
+    previous_text: str,
+) -> None:
+    if blueprint.source != "sketch":
+        return
+    try:
+        write_map_svg(root, campaign, slug, blueprint)
+    except OSError:
+        atomic_write(blueprint_file, previous_text)
+        raise
 
 
 def _unchanged(path: Path, base_hash: str) -> bool:

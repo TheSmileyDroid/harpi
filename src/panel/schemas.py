@@ -262,7 +262,7 @@ class SceneBlueprint(_Response):
     image: SceneImage
     grid: SceneGrid
     fog_outside: bool
-    zones: list[SceneZone] = Field(min_length=1)
+    zones: list[SceneZone]
 
 
 class SceneSummary(_Response):
@@ -296,7 +296,7 @@ class SceneCreate(BaseModel):
     image_height: int | None = Field(default=None, ge=1, le=20_000)
     grid: SceneGrid | None = None
     fog_outside: bool = False
-    zones: list[SceneZone] = Field(min_length=1)
+    zones: list[SceneZone]
 
 
 class SceneSave(BaseModel):
@@ -304,7 +304,7 @@ class SceneSave(BaseModel):
     name: SceneName
     grid: SceneGrid
     fog_outside: bool
-    zones: list[SceneZone] = Field(min_length=1)
+    zones: list[SceneZone]
 
 
 SheetStatus = Literal["active", "pending", "archived"]

@@ -55,6 +55,9 @@ async def world(tmp_path, monkeypatch: pytest.MonkeyPatch):
     init_database(database)
     vault.configure(vault.Vault(root=root))
     vault_index.configure(VaultIndex(root))
+    campaigns_page.SCENE_WRITE_BUCKETS = rate_limit.UserTokenBuckets(
+        rate_limit.SCENE_WRITES_PER_MINUTE
+    )
     yield SimpleNamespace(root=root, database=database)
     clear_registry()
     clear_database()
@@ -767,6 +770,442 @@ async def test_a_failed_save_restores_the_previous_blueprint(
 
     assert response.status_code == 503
     assert target.read_bytes() == before
+
+
+async def test_saving_a_sketch_scene_writes_the_map_svg_from_its_cells(
+    client, world
+):
+    await sign_in(client, NARRATOR)
+    _, scene = await create_scene(
+        client,
+        name="Calabouço",
+        source="sketch",
+        image_width=240,
+        image_height=160,
+        grid={
+            "cell_px": 40,
+            "offset_x": 10,
+            "offset_y": 20,
+            "visible": True,
+        },
+        zones=[zone()],
+    )
+
+    response = await client.put(
+        f"{SCENES_ROUTE}/calabouco",
+        json={
+            "base_hash": scene["hash"],
+            "name": "Calabouço",
+            "grid": scene["grid"],
+            "fog_outside": True,
+            "zones": [
+                zone(
+                    rects=[
+                        {"x": 0, "y": 0, "w": 1, "h": 1},
+                        {"x": 1, "y": 0, "w": 1, "h": 1},
+                    ]
+                )
+            ],
+        },
+        headers=CSRF,
+    )
+
+    assert response.status_code == 200
+    saved = await body(response)
+    target = world.root / CAMPAIGN / "assets" / "calabouco-map.svg"
+    assert saved["image"]["path"] == f"{CAMPAIGN}/assets/calabouco-map.svg"
+    assert target.is_file()
+    assert list(target.parent.iterdir()) == [target]
+    svg = target.read_text(encoding="utf-8")
+    assert 'width="240"' in svg
+    assert 'height="160"' in svg
+    assert svg.count("<path") == 1
+    assert 'd="M 10 20 L 90 20 L 90 60 L 10 60 Z"' in svg
+
+
+def test_the_map_svg_traces_the_outer_contour_only():
+    blueprint = scenes.SceneBlueprint.model_validate({
+        "slug": "cripta",
+        "name": "Cripta",
+        "source": "sketch",
+        "image": {
+            "path": f"{CAMPAIGN}/assets/cripta-map.svg",
+            "width": 200,
+            "height": 100,
+        },
+        "grid": {
+            "cell_px": 10,
+            "offset_x": 0,
+            "offset_y": 0,
+            "visible": True,
+        },
+        "fog_outside": True,
+        "zones": [
+            {
+                "id": "zon_l",
+                "label": "Sala em L",
+                "revealed": False,
+                "rects": [
+                    {"x": 0, "y": 0, "w": 2, "h": 1},
+                    {"x": 0, "y": 1, "w": 1, "h": 1},
+                ],
+            }
+        ],
+    })
+
+    svg = scenes.map_svg(blueprint)
+
+    assert svg.count("<path") == 1
+    assert 'd="M 0 0 L 20 0 L 20 10 L 10 10 L 10 20 L 0 20 Z"' in svg
+
+
+async def test_a_stale_hash_does_not_touch_the_map_svg(client, world):
+    await sign_in(client, NARRATOR)
+    _, scene = await create_scene(
+        client, name="Calabouço", source="sketch", zones=[zone()]
+    )
+    first = await client.put(
+        f"{SCENES_ROUTE}/calabouco",
+        json={
+            "base_hash": scene["hash"],
+            "name": "Calabouço",
+            "grid": scene["grid"],
+            "fog_outside": True,
+            "zones": [zone(rects=[{"x": 0, "y": 0, "w": 2, "h": 2}])],
+        },
+        headers=CSRF,
+    )
+    assert first.status_code == 200
+    target = world.root / CAMPAIGN / "assets" / "calabouco-map.svg"
+    before = target.read_bytes()
+    blueprint = world.root / CAMPAIGN / "scenes" / "calabouco.json"
+    data = json.loads(blueprint.read_text(encoding="utf-8"))
+    data["name"] = "Editado no Obsidian"
+    blueprint.write_text(json.dumps(data), encoding="utf-8")
+
+    response = await client.put(
+        f"{SCENES_ROUTE}/calabouco",
+        json={
+            "base_hash": scene["hash"],
+            "name": "Outro nome",
+            "grid": scene["grid"],
+            "fog_outside": True,
+            "zones": [zone(rects=[{"x": 0, "y": 0, "w": 1, "h": 1}])],
+        },
+        headers=CSRF,
+    )
+
+    assert response.status_code == 409
+    assert target.read_bytes() == before
+
+
+async def test_a_failed_database_save_restores_the_previous_map_svg(
+    client, world, monkeypatch: pytest.MonkeyPatch
+):
+    await sign_in(client, NARRATOR)
+    _, scene = await create_scene(
+        client, name="Calabouço", source="sketch", zones=[zone()]
+    )
+    first = await client.put(
+        f"{SCENES_ROUTE}/calabouco",
+        json={
+            "base_hash": scene["hash"],
+            "name": "Calabouço",
+            "grid": scene["grid"],
+            "fog_outside": True,
+            "zones": [zone(rects=[{"x": 0, "y": 0, "w": 2, "h": 2}])],
+        },
+        headers=CSRF,
+    )
+    accepted = await body(first)
+    target = world.root / CAMPAIGN / "assets" / "calabouco-map.svg"
+    before = target.read_bytes()
+
+    async def refuse(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("database is gone")
+
+    monkeypatch.setattr(scenes, "store_save", refuse)
+    response = await client.put(
+        f"{SCENES_ROUTE}/calabouco",
+        json={
+            "base_hash": accepted["hash"],
+            "name": "Calabouço",
+            "grid": accepted["grid"],
+            "fog_outside": True,
+            "zones": [zone(rects=[{"x": 0, "y": 0, "w": 1, "h": 1}])],
+        },
+        headers=CSRF,
+    )
+
+    assert response.status_code == 503
+    assert target.read_bytes() == before
+    assert list(target.parent.iterdir()) == [target]
+
+
+async def test_a_sketch_scene_serves_its_generated_map(client, world):
+    await sign_in(client, NARRATOR)
+    _, scene = await create_scene(
+        client,
+        name="Calabouço",
+        source="sketch",
+        image_width=420,
+        image_height=280,
+        zones=[zone('Sala & <Cripta> "A"')],
+    )
+    missing = await client.get(f"{SCENES_ROUTE}/calabouco/image")
+    assert missing.status_code == 404
+
+    saved = await client.put(
+        f"{SCENES_ROUTE}/calabouco",
+        json={
+            "base_hash": scene["hash"],
+            "name": "Calabouço",
+            "grid": scene["grid"],
+            "fog_outside": True,
+            "zones": [zone('Sala & <Cripta> "A"')],
+        },
+        headers=CSRF,
+    )
+    assert saved.status_code == 200
+
+    response = await client.get(f"{SCENES_ROUTE}/calabouco/image")
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "image/svg+xml"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["Content-Security-Policy"] == "sandbox"
+    body = await response.get_data()
+    text = body.decode("utf-8")
+    assert "<svg" in text
+    assert "Sala &amp; &lt;Cripta&gt; &quot;A&quot;" in text
+    assert "<Cripta>" not in text
+    assert "<text" in text
+
+
+async def test_a_forged_overlapping_zone_is_normalized(client, world):
+    await sign_in(client, NARRATOR)
+    _, scene = await create_image_scene(client, world)
+
+    response = await client.put(
+        f"{SCENES_ROUTE}/cripta",
+        json={
+            "base_hash": scene["hash"],
+            "name": "Cripta",
+            "grid": scene["grid"],
+            "fog_outside": True,
+            "zones": [
+                zone(
+                    rects=[
+                        {"x": 0, "y": 0, "w": 2, "h": 1},
+                        {"x": 1, "y": 0, "w": 2, "h": 1},
+                    ]
+                ),
+            ],
+        },
+        headers=CSRF,
+    )
+
+    assert response.status_code == 200
+    assert (await body(response))["zones"][0]["rects"] == [
+        {"x": 0, "y": 0, "w": 3, "h": 1},
+    ]
+
+
+async def test_a_scene_can_save_with_no_rooms(client, world):
+    await sign_in(client, NARRATOR)
+    _, scene = await create_scene(
+        client, name="Calabouço", source="sketch", zones=[zone()]
+    )
+
+    response = await client.put(
+        f"{SCENES_ROUTE}/calabouco",
+        json={
+            "base_hash": scene["hash"],
+            "name": "Calabouço",
+            "grid": scene["grid"],
+            "fog_outside": True,
+            "zones": [],
+        },
+        headers=CSRF,
+    )
+
+    assert response.status_code == 200
+    assert (await body(response))["zones"] == []
+    detail = await client.get(f"{SCENES_ROUTE}/calabouco")
+    assert (await body(detail))["zones"] == []
+    svg = await client.get(f"{SCENES_ROUTE}/calabouco/image")
+    assert svg.status_code == 200
+    assert b"<path" not in await svg.get_data()
+
+
+async def test_a_failed_map_restore_reports_the_inconsistency(
+    client, world, monkeypatch: pytest.MonkeyPatch
+):
+    await sign_in(client, NARRATOR)
+    _, scene = await create_scene(
+        client, name="Calabouço", source="sketch", zones=[zone()]
+    )
+    first = await client.put(
+        f"{SCENES_ROUTE}/calabouco",
+        json={
+            "base_hash": scene["hash"],
+            "name": "Calabouço",
+            "grid": scene["grid"],
+            "fog_outside": True,
+            "zones": [zone(rects=[{"x": 0, "y": 0, "w": 2, "h": 2}])],
+        },
+        headers=CSRF,
+    )
+    accepted = await body(first)
+
+    async def refuse_store(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("database is gone")
+
+    def refuse_restore(*args: object, **kwargs: object) -> None:
+        raise OSError("disk is read-only")
+
+    monkeypatch.setattr(scenes, "store_save", refuse_store)
+    monkeypatch.setattr(scenes, "restore_map_svg", refuse_restore)
+    response = await client.put(
+        f"{SCENES_ROUTE}/calabouco",
+        json={
+            "base_hash": accepted["hash"],
+            "name": "Calabouço",
+            "grid": accepted["grid"],
+            "fog_outside": True,
+            "zones": [zone(rects=[{"x": 0, "y": 0, "w": 1, "h": 1}])],
+        },
+        headers=CSRF,
+    )
+
+    assert response.status_code == 503
+    payload = await body(response)
+    assert payload["error"]["code"] == "scene_restore_failed"
+    assert "map SVG" in payload["error"]["message"]
+
+
+async def test_a_corrupt_previous_map_blocks_the_save_before_writing(
+    client, world
+):
+    await sign_in(client, NARRATOR)
+    _, scene = await create_scene(
+        client, name="Calabouço", source="sketch", zones=[zone()]
+    )
+    first = await client.put(
+        f"{SCENES_ROUTE}/calabouco",
+        json={
+            "base_hash": scene["hash"],
+            "name": "Calabouço",
+            "grid": scene["grid"],
+            "fog_outside": True,
+            "zones": [zone(rects=[{"x": 0, "y": 0, "w": 2, "h": 2}])],
+        },
+        headers=CSRF,
+    )
+    accepted = await body(first)
+    blueprint = world.root / CAMPAIGN / "scenes" / "calabouco.json"
+    target = world.root / CAMPAIGN / "assets" / "calabouco-map.svg"
+    before_scene = blueprint.read_bytes()
+    target.write_bytes(b"\xff\xfe\x00")
+    before_map = target.read_bytes()
+
+    response = await client.put(
+        f"{SCENES_ROUTE}/calabouco",
+        json={
+            "base_hash": accepted["hash"],
+            "name": "Calabouço",
+            "grid": accepted["grid"],
+            "fog_outside": True,
+            "zones": [zone(rects=[{"x": 0, "y": 0, "w": 1, "h": 1}])],
+        },
+        headers=CSRF,
+    )
+
+    assert response.status_code == 503
+    assert (await body(response))["error"]["code"] == "vault_write_failed"
+    assert blueprint.read_bytes() == before_scene
+    assert target.read_bytes() == before_map
+
+
+async def test_a_failed_first_map_save_leaves_no_orphan_svg(
+    client, world, monkeypatch: pytest.MonkeyPatch
+):
+    await sign_in(client, NARRATOR)
+    _, scene = await create_scene(
+        client, name="Calabouço", source="sketch", zones=[zone()]
+    )
+    blueprint = world.root / CAMPAIGN / "scenes" / "calabouco.json"
+    before = blueprint.read_bytes()
+
+    async def refuse(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("database is gone")
+
+    monkeypatch.setattr(scenes, "store_save", refuse)
+    response = await client.put(
+        f"{SCENES_ROUTE}/calabouco",
+        json={
+            "base_hash": scene["hash"],
+            "name": "Calabouço",
+            "grid": scene["grid"],
+            "fog_outside": True,
+            "zones": [zone(rects=[{"x": 0, "y": 0, "w": 2, "h": 2}])],
+        },
+        headers=CSRF,
+    )
+
+    target = world.root / CAMPAIGN / "assets" / "calabouco-map.svg"
+    assert response.status_code == 503
+    assert blueprint.read_bytes() == before
+    assert not target.exists()
+
+
+async def test_a_failed_image_save_keeps_an_unrelated_map_file(
+    client, world, monkeypatch: pytest.MonkeyPatch
+):
+    await sign_in(client, NARRATOR)
+    _, scene = await create_image_scene(client, world)
+    target = world.root / CAMPAIGN / "assets" / "cripta-map.svg"
+    target.write_text("<svg/>", encoding="utf-8")
+
+    async def refuse(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("database is gone")
+
+    monkeypatch.setattr(scenes, "store_save", refuse)
+    response = await client.put(
+        f"{SCENES_ROUTE}/cripta",
+        json={
+            "base_hash": scene["hash"],
+            "name": "Cripta",
+            "grid": scene["grid"],
+            "fog_outside": True,
+            "zones": [zone()],
+        },
+        headers=CSRF,
+    )
+
+    assert response.status_code == 503
+    assert target.read_text(encoding="utf-8") == "<svg/>"
+
+
+async def test_an_image_scene_never_writes_a_map_svg(client, world):
+    await sign_in(client, NARRATOR)
+    _, scene = await create_image_scene(client, world)
+
+    response = await client.put(
+        f"{SCENES_ROUTE}/cripta",
+        json={
+            "base_hash": scene["hash"],
+            "name": "Cripta",
+            "grid": scene["grid"],
+            "fog_outside": True,
+            "zones": [zone()],
+        },
+        headers=CSRF,
+    )
+
+    assert response.status_code == 200
+    assets = world.root / CAMPAIGN / "assets"
+    assert not (assets / "cripta-map.svg").exists()
 
 
 async def test_creating_beyond_the_bucket_answers_429(

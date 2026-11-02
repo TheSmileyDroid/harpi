@@ -250,7 +250,10 @@ def guard_documentation():
 
 @app.after_request
 def send_security_headers(response: Response) -> Response:
-    response.headers.update(app.config["SECURITY_HEADERS"])
+    headers = dict(app.config["SECURITY_HEADERS"])
+    if response.headers.get("Content-Security-Policy") == "sandbox":
+        headers.pop("Content-Security-Policy", None)
+    response.headers.update(headers)
     return response
 
 
