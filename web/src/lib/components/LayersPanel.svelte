@@ -19,7 +19,7 @@
   const layers = $derived($appStore.playback?.layers ?? []);
   const hasSession = $derived($appStore.playback !== null);
   const confirmMessage = $derived(
-    pending ? `Remove layer "${pending.title}"?` : "Remove this layer?",
+    pending ? `Remover a camada "${pending.title}"?` : "Remover esta camada?",
   );
 
   async function sendLayerVolume(id: string, value: number) {
@@ -43,7 +43,7 @@
     try {
       const snapshot = await api.removeLayer(layer.id);
       appStore.applyStatus(snapshot);
-      toasts.push("Layer removed");
+      toasts.push("Camada removida");
     } catch {
       return;
     } finally {
@@ -54,19 +54,20 @@
 
 <section class="hud-panel" data-testid="layers-panel">
   <div class="panel-band">
-    <span class="panel-label">Layers</span>
+    <span class="panel-label">Camadas</span>
     {#if layers.length > 0}
-      <span class="panel-band__meta">{formatCount(layers.length, "layer")}</span
+      <span class="panel-band__meta"
+        >{formatCount(layers.length, "camada", "camadas")}</span
       >
     {/if}
   </div>
   {#if !hasSession}
     <p class="data-value is-empty" data-testid="layers-empty">
-      No active session
+      Nenhuma sessão ativa
     </p>
   {:else if layers.length === 0}
     <EmptyState
-      message="No layers — add one from Search."
+      message="Nenhuma camada — adicione uma pela busca."
       testid="layers-empty"
       buttonTestid="layers-search"
       onsearch={() => appStore.openSearch()}
@@ -96,7 +97,7 @@
             <VolumeSlider
               gain={layer.volume}
               send={(value) => sendLayerVolume(layer.id, value)}
-              label="Layer volume"
+              label="Volume da camada"
               className="layer-volume"
               controlTestid="layer-volume-control"
               sliderTestid="layer-volume"
@@ -107,10 +108,10 @@
               class="hud-btn hud-btn-danger"
               onclick={() => askRemove(layer)}
               disabled={busy}
-              aria-label={`Remove layer ${layer.title}`}
+              aria-label={`Remover a camada ${layer.title}`}
               data-testid="layer-remove"
             >
-              Remove
+              Remover
             </button>
           </div>
         </li>

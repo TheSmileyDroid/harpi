@@ -153,7 +153,7 @@ export function createApiClient({
     } catch {
       const error = new ApiError({
         code: "network_error",
-        message: "Cannot reach the panel API",
+        message: "Não foi possível falar com a API do painel",
         status: 0,
       });
       if (!silent) {
@@ -186,7 +186,7 @@ export function createApiClient({
     if (!parsed.success) {
       const error = new ApiError({
         code: "contract_violation",
-        message: "The panel got an unexpected response",
+        message: "O painel recebeu uma resposta inesperada",
         status: response.status,
       });
       if (!silent) {

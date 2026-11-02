@@ -10,11 +10,11 @@
   import StatusSurface from "$lib/components/StatusSurface.svelte";
 
   const AUTH_MESSAGES: Record<string, string> = {
-    unconfigured: "Discord sign-in is not configured on this server",
-    cancelled: "Discord sign-in was cancelled",
-    denied: "That Discord account is not in an allowed server",
-    unavailable: "Harpi could not verify your servers right now",
-    failed: "Discord sign-in failed",
+    unconfigured: "O login pelo Discord não está configurado neste servidor",
+    cancelled: "Login pelo Discord cancelado",
+    denied: "Essa conta do Discord não está em um servidor autorizado",
+    unavailable: "O Harpi não conseguiu verificar seus servidores agora",
+    failed: "Falha no login pelo Discord",
   };
 
   let phase = $state<"checking" | "signed-out" | "signed-in">("checking");
@@ -118,7 +118,7 @@
     appStore.reset();
     errorRegion.clear();
     phase = "signed-out";
-    toasts.push("Signed out");
+    toasts.push("Sessão encerrada");
   }
 
   async function boot() {
@@ -167,7 +167,7 @@
       alt=""
       aria-hidden="true"
     />
-    <span>Linking…</span>
+    <span>Vinculando…</span>
   </main>
 {:else if phase === "signed-out"}
   <SignIn loginUrl={api.loginUrl} />

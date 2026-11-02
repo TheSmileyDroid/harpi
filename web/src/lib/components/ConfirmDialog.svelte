@@ -40,7 +40,7 @@
       onclick={oncancel}
       data-testid={cancelTestid}
     >
-      Cancel
+      Cancelar
     </button>
     <button
       type="button"
@@ -48,7 +48,7 @@
       onclick={onconfirm}
       data-testid={executeTestid}
     >
-      Confirm
+      Confirmar
     </button>
   </div>
 </dialog>

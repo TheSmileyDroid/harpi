@@ -7,7 +7,7 @@ const GUILD_B_CHANNEL_NAME = `Channel ${GUILD_B}`;
 async function signIn(page: import("@playwright/test").Page) {
   await page.request.post(`${BACKEND}/__test__/login`);
   await page.goto("/");
-  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+  await expect(page.getByTestId("bot-status")).toHaveText("NO AR");
 }
 
 async function openSearch(page: import("@playwright/test").Page) {
@@ -31,18 +31,20 @@ test("sign in with Discord, then a pushed status change lands without a reload",
 
   await page.goto("/");
   await expect(page.getByTestId("signin")).toBeVisible();
-  await expect(page.getByTestId("sign-in")).toHaveText("CONTINUE WITH DISCORD");
+  await expect(page.getByTestId("sign-in")).toHaveText(
+    "CONTINUAR COM O DISCORD",
+  );
 
   await page.request.post(`${BACKEND}/__test__/login`);
   await page.goto("/");
 
   await expect(page.getByTestId("signin")).toHaveCount(0);
-  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
-  await expect(page.getByTestId("link-state")).toHaveText("LINK LIVE");
+  await expect(page.getByTestId("bot-status")).toHaveText("NO AR");
+  await expect(page.getByTestId("link-state")).toHaveText("VÍNCULO ATIVO");
   await expect(page.getByTestId("guild-id")).toContainText("Alpha Guild");
   await expect(page.getByTestId("guild-id")).toContainText("Channel 1");
   await expect(page.getByTestId("connection")).toHaveText(
-    "Linked to Channel 1",
+    "Vinculado a Channel 1",
   );
   await expect(page.getByTestId("now-playing")).toHaveText("Now Track");
   await expect(page.getByTestId("presence-panel")).toContainText("harness");
@@ -53,7 +55,7 @@ test("sign in with Discord, then a pushed status change lands without a reload",
   await expect(page.getByTestId("now-playing")).toHaveText("Next Track");
 
   await request.post(`${BACKEND}/__test__/bot`, { data: { online: false } });
-  await expect(page.getByTestId("bot-status")).toHaveText("OFFLINE");
+  await expect(page.getByTestId("bot-status")).toHaveText("FORA DO AR");
 
   expect(loads).toBe(2);
 });
@@ -65,7 +67,7 @@ test("a denied authorization surfaces on the sign-in page", async ({
 
   await expect(page.getByTestId("signin")).toBeVisible();
   await expect(page.getByTestId("error-region")).toContainText(
-    "not in an allowed server",
+    "não está em um servidor autorizado",
   );
 });
 
@@ -102,13 +104,13 @@ test("a dropped stream reconnects and resyncs state without a reload", async ({
   await page.request.post(`${BACKEND}/__test__/login`);
   await page.goto("/");
 
-  await expect(page.getByTestId("link-state")).toHaveText("LINK LOST");
+  await expect(page.getByTestId("link-state")).toHaveText("VÍNCULO PERDIDO");
 
   await request.post(`${BACKEND}/__test__/track`, {
     data: { title: "Reconnect Track" },
   });
 
-  await expect(page.getByTestId("link-state")).toHaveText("LINK LIVE", {
+  await expect(page.getByTestId("link-state")).toHaveText("VÍNCULO ATIVO", {
     timeout: 15000,
   });
   await expect(page.getByTestId("now-playing")).toHaveText("Reconnect Track");
@@ -158,11 +160,11 @@ test("selects a shared guild, connects to a voice channel, then disconnects", as
   await page.getByTestId("connect").click();
 
   await expect(page.getByTestId("connection")).toHaveText(
-    `Linked to ${GUILD_B_CHANNEL_NAME}`,
+    `Vinculado a ${GUILD_B_CHANNEL_NAME}`,
   );
-  await expect(page.getByTestId("toasts")).toContainText("Connected");
+  await expect(page.getByTestId("toasts")).toContainText("Conectado");
   await expect(page.getByTestId("guild-id")).toContainText("Beta Guild");
-  await expect(page.getByTestId("last-connection")).toContainText("linked");
+  await expect(page.getByTestId("last-connection")).toContainText("conectou");
   await expect(page.getByTestId("last-connection")).toContainText(
     GUILD_B_CHANNEL_NAME,
   );
@@ -172,13 +174,13 @@ test("selects a shared guild, connects to a voice channel, then disconnects", as
   await page.getByTestId("disconnect-confirm-cancel").click();
   await expect(page.getByTestId("disconnect-confirm")).toBeHidden();
   await expect(page.getByTestId("connection")).toHaveText(
-    `Linked to ${GUILD_B_CHANNEL_NAME}`,
+    `Vinculado a ${GUILD_B_CHANNEL_NAME}`,
   );
 
   await page.getByTestId("disconnect").click();
   await page.getByTestId("disconnect-confirm-execute").click();
 
-  await expect(page.getByTestId("connection")).toHaveText("Not connected");
+  await expect(page.getByTestId("connection")).toHaveText("Sem conexão");
 });
 
 test("searches, queues, and removes, with queue changes live over SSE", async ({
@@ -207,14 +209,14 @@ test("searches, queues, and removes, with queue changes live over SSE", async ({
   );
 
   await page.getByTestId("queue-track").click();
-  await expect(page.getByTestId("toasts")).toContainText("Added to queue");
+  await expect(page.getByTestId("toasts")).toContainText("Adicionada à fila");
   await expect(page.getByTestId("queue-row").first()).toContainText(
     "daft punk",
   );
 
   await page.getByTestId("queue-remove").first().click();
-  await expect(page.getByTestId("toasts")).toContainText("Removed from queue");
-  await expect(page.getByTestId("queue-empty")).toContainText("Queue empty");
+  await expect(page.getByTestId("toasts")).toContainText("Removida da fila");
+  await expect(page.getByTestId("queue-empty")).toContainText("Fila vazia");
 
   await page.getByTestId("toast-action").click();
   await expect(page.getByTestId("queue-row").first()).toContainText(
@@ -222,7 +224,7 @@ test("searches, queues, and removes, with queue changes live over SSE", async ({
   );
 
   await page.getByTestId("queue-remove").first().click();
-  await expect(page.getByTestId("queue-empty")).toContainText("Queue empty");
+  await expect(page.getByTestId("queue-empty")).toContainText("Fila vazia");
 
   await request.post(`${BACKEND}/__test__/enqueue`, {
     data: { url: "https://example.com/Live" },
@@ -251,7 +253,7 @@ test("a pasted link resolves to a row and waits for confirmation", async ({
   await expect(page.getByTestId("queue-row")).toHaveCount(0);
 
   await page.getByTestId("queue-track").click();
-  await expect(page.getByTestId("toasts")).toContainText("Added to queue");
+  await expect(page.getByTestId("toasts")).toContainText("Adicionada à fila");
   await expect(page.getByTestId("queue-row").first()).toContainText(
     "https://example.com/song",
   );
@@ -321,8 +323,8 @@ test("drives transport, seeks, and changes volume against live position", async 
   expect(statusRequests).toBe(bootStatusRequests);
 
   await page.getByTestId("play-pause").click();
-  await expect(page.getByTestId("play-pause")).toHaveText("Play");
-  await expect(page.getByTestId("playback-state")).toHaveText("Paused");
+  await expect(page.getByTestId("play-pause")).toHaveText("Tocar");
+  await expect(page.getByTestId("playback-state")).toHaveText("Pausado");
 
   const track = page.getByTestId("seek-track");
   const box = await track.boundingBox();
@@ -390,7 +392,9 @@ test("adds a layer, changes its volume, and removes it with confirmation", async
 
   await page.getByTestId("search-result").first().hover();
   await page.getByTestId("layer-track").first().click();
-  await expect(page.getByTestId("toasts")).toContainText("Added as layer");
+  await expect(page.getByTestId("toasts")).toContainText(
+    "Adicionada como camada",
+  );
   await expect(page.getByTestId("layer-row").first()).toContainText(
     "daft punk",
   );
@@ -423,8 +427,10 @@ test("adds a layer, changes its volume, and removes it with confirmation", async
   await page.getByTestId("layer-remove").first().click();
   await expect(page.getByTestId("layer-confirm-dialog")).toBeVisible();
   await page.getByTestId("layer-confirm-execute").click();
-  await expect(page.getByTestId("toasts")).toContainText("Layer removed");
-  await expect(page.getByTestId("layers-empty")).toContainText("No layers");
+  await expect(page.getByTestId("toasts")).toContainText("Camada removida");
+  await expect(page.getByTestId("layers-empty")).toContainText(
+    "Nenhuma camada",
+  );
 
   const calls = (await (
     await request.get(`${BACKEND}/__test__/calls`)
@@ -464,7 +470,7 @@ test("seek is keyboard-operable and results expose a listbox", async ({
   await openSearch(page);
   await page.getByTestId("search-input").fill("daft punk");
   await expect(
-    page.getByRole("listbox", { name: "Search results" }),
+    page.getByRole("listbox", { name: "Resultados da busca" }),
   ).toBeVisible();
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("option").first()).toHaveAttribute(
@@ -516,7 +522,7 @@ test("a guild the bot joins appears in the picker without a reload", async ({
 
   await page.request.post(`${BACKEND}/__test__/login`);
   await page.goto("/");
-  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+  await expect(page.getByTestId("bot-status")).toHaveText("NO AR");
   await openOutput(page);
   await page.getByTestId("guild-select").click();
   await expect(page.getByTestId("guild-option")).toHaveCount(2);
@@ -544,7 +550,7 @@ test("readings go stale when the bot loop disappears, then recover", async ({
   await page.request.post(`${BACKEND}/__test__/login`);
   await page.goto("/");
 
-  await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+  await expect(page.getByTestId("bot-status")).toHaveText("NO AR");
   await expect(page.getByTestId("stale-tag")).toHaveCount(0);
 
   await request.post(`${BACKEND}/__test__/loop`, {
@@ -581,12 +587,12 @@ test("a lost link marks readings stale, then they recover", async ({
   await page.request.post(`${BACKEND}/__test__/login`);
   await page.goto("/");
 
-  await expect(page.getByTestId("link-state")).toHaveText("LINK LOST");
+  await expect(page.getByTestId("link-state")).toHaveText("VÍNCULO PERDIDO");
   await expect(page.getByTestId("stale-tag")).toBeVisible();
 
   allow = true;
 
-  await expect(page.getByTestId("link-state")).toHaveText("LINK LIVE", {
+  await expect(page.getByTestId("link-state")).toHaveText("VÍNCULO ATIVO", {
     timeout: 20000,
   });
   await expect(page.getByTestId("stale-tag")).toHaveCount(0, {

@@ -1,13 +1,13 @@
 # Harpi
 
-A Discord bot (music, dice, TTS) and a Svelte web panel sharing one process and one runtime. This glossary is the shared vocabulary for both surfaces; when code, docs, or discussion name a concept here, use this term.
+A Discord bot (music, dice, TTS) and a Svelte web panel sharing one process and one runtime. This glossary is the shared vocabulary for both surfaces; when code, docs, or discussion name a concept here, use this term. Panel and bot text is Brazilian Portuguese, so an entry whose surface name differs from the code name carries a `UI:` note.
 
 ## Language
 
 ### Playback
 
 **Session**:
-One guild's playback state machine (`PlaybackSession`). There is exactly one per voice connection.
+One guild's playback state machine (`PlaybackSession`). There is exactly one per voice connection. UI: Sessão.
 _Avoid_: player, guild player, audio session
 
 **Session manager**:
@@ -22,7 +22,7 @@ _Avoid_: mixer (the Mixer is a different thing), queue
 Sums the Session's layers with the queue source into one audio stream for the voice client.
 
 **Layer**:
-Background audio playing over the queue (tones, TTS). Layers are summed by the Mixer.
+Background audio playing over the queue (tones, TTS). Layers are summed by the Mixer. UI: Camada.
 
 **Source chain**:
 How music plays: yt-dlp search → stream selection and probing → FFmpeg decode → Mixer → voice client.
@@ -43,6 +43,10 @@ _Avoid_: cookie jar, session store
 The fixed bottom bar of the Music page: progress bar, play/pause, skip/previous, loop, volume. The Session's controls, rendered as one surface.
 _Avoid_: player (reserved), playback bar, control bar
 
+**Output**:
+The guild and voice channel the bot is told to join, chosen in the Output picker. UI: Saída.
+_Avoid_: target, destination
+
 **Volume**:
 Linear gain applied to a source, 0.0–1.0, where 1.0 is unity: the ceiling never amplifies above the source. Volume is what is stored, what the `!volume` command speaks, and what the readout shows; the panel slider is a perceptual input device over it (position squared, ADR 0002).
 _Avoid_: loudness (perception, not the value), level
@@ -52,7 +56,7 @@ The transient list of candidates returned by the single search on the Music page
 _Avoid_: search panel (there is only one search), results page
 
 **Layers rail**:
-The collapsible right-hand column of the Music page (15.5rem, above 56rem) holding the Layers, the Session readouts and the Linked list. The Queue lives in the main column under Now Playing.
+The collapsible right-hand column of the Music page (15.5rem, above 56rem) holding the Camadas, the Sessão readouts and the Conectados list. The Fila lives in the main column under Now Playing.
 _Avoid_: side panel, queue panel, layers panel
 
 **Toast**:
@@ -69,11 +73,11 @@ A signed-in panel user with a selected guild and channel, refreshed by the prese
 _Avoid_: user (the Discord account), session (that is playback)
 
 **Link**:
-The panel's connection to the server's event stream: linking, live, or reconnecting. The Output picker shows it as LINKING, LINK LIVE, or LINK LOST.
+The panel's connection to the server's event stream: linking, live, or reconnecting. The Output picker shows it as VINCULANDO, VÍNCULO ATIVO, or VÍNCULO PERDIDO.
 _Avoid_: connection (that is voice), socket
 
 **Stale**:
-A panel reading state: values stopped arriving while the link may still be up. Shown as an amber STALE tag in the top bar, with the readouts dimmed. Recovery clears it, and nothing is lost by waiting.
+A panel reading state: values stopped arriving while the link may still be up. Shown as an amber DESATUALIZADO tag in the top bar, with the readouts dimmed. Recovery clears it, and nothing is lost by waiting.
 _Avoid_: disconnected (that is the link), offline (that is the bot)
 
 **Directory**:

@@ -20,6 +20,6 @@
     onclick={onsearch}
     data-testid={buttonTestid}
   >
-    Search
+    Buscar
   </button>
 </div>

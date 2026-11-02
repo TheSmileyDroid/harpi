@@ -8,14 +8,14 @@ import {
 
 describe("formatCount", () => {
   it("uses the singular for one and the plural otherwise", () => {
-    expect(formatCount(0, "track")).toBe("0 tracks");
-    expect(formatCount(1, "track")).toBe("1 track");
-    expect(formatCount(4, "track")).toBe("4 tracks");
+    expect(formatCount(0, "faixa", "faixas")).toBe("0 faixas");
+    expect(formatCount(1, "faixa", "faixas")).toBe("1 faixa");
+    expect(formatCount(4, "faixa", "faixas")).toBe("4 faixas");
   });
 
-  it("takes an irregular plural", () => {
-    expect(formatCount(1, "layer")).toBe("1 layer");
-    expect(formatCount(3, "layer")).toBe("3 layers");
+  it("takes an explicit plural", () => {
+    expect(formatCount(1, "camada", "camadas")).toBe("1 camada");
+    expect(formatCount(3, "camada", "camadas")).toBe("3 camadas");
   });
 });
 
@@ -58,16 +58,16 @@ describe("formatSeen", () => {
   const now = 1_700_000_060_000;
 
   it("marks a fresh heartbeat as now", () => {
-    expect(formatSeen(1_700_000_055, now)).toBe("now");
+    expect(formatSeen(1_700_000_055, now)).toBe("agora");
   });
 
   it("counts seconds and minutes since the last heartbeat", () => {
-    expect(formatSeen(1_700_000_020, now)).toBe("40s ago");
-    expect(formatSeen(1_699_999_800, now)).toBe("4m ago");
+    expect(formatSeen(1_700_000_020, now)).toBe("há 40s");
+    expect(formatSeen(1_699_999_800, now)).toBe("há 4min");
   });
 
   it("falls back for a missing timestamp", () => {
-    expect(formatSeen(null, now)).toBe("unknown");
-    expect(formatSeen(0, now)).toBe("unknown");
+    expect(formatSeen(null, now)).toBe("desconhecido");
+    expect(formatSeen(0, now)).toBe("desconhecido");
   });
 });

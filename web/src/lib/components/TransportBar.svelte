@@ -43,7 +43,7 @@
   const botOnline = $derived($appStore.bot.online);
   const keysDisabled = $derived(busy || !botOnline);
   const duration = $derived(playback?.current_music?.duration ?? 0);
-  const title = $derived(playback?.current_music?.title ?? "Nothing playing");
+  const title = $derived(playback?.current_music?.title ?? "Nada tocando");
   const isPaused = $derived(playback?.is_paused === true);
   const serverRatio = $derived(duration > 0 ? $positionSeconds / duration : 0);
   const displayRatio = $derived(
@@ -155,49 +155,49 @@
       class="hud-btn"
       onclick={previous}
       disabled={keysDisabled}
-      title={botOnline ? undefined : "Bot offline"}
+      title={botOnline ? undefined : "Bot fora do ar"}
       data-testid="previous"
     >
-      Prev
+      Anterior
     </button>
     <button
       type="button"
       class="hud-btn hud-btn--primary"
       onclick={togglePlay}
       disabled={keysDisabled}
-      title={botOnline ? undefined : "Bot offline"}
+      title={botOnline ? undefined : "Bot fora do ar"}
       data-testid="play-pause"
     >
-      {isPaused ? "Play" : "Pause"}
+      {isPaused ? "Tocar" : "Pausar"}
     </button>
     <button
       type="button"
       class="hud-btn"
       onclick={skip}
       disabled={keysDisabled}
-      title={botOnline ? undefined : "Bot offline"}
+      title={botOnline ? undefined : "Bot fora do ar"}
       data-testid="skip"
     >
-      Skip
+      Pular
     </button>
     <button
       type="button"
       class="hud-btn"
       onclick={cycleLoop}
       disabled={keysDisabled}
-      title={`Loop ${playback?.loop_mode} — next ${nextLoopMode(playback?.loop_mode)}`}
+      title={`Repetição ${playback?.loop_mode} — a seguir ${nextLoopMode(playback?.loop_mode)}`}
       data-testid="loop"
     >
-      Loop {playback?.loop_mode}
+      Repetição {playback?.loop_mode}
     </button>
     <div
       class="progress-track"
       bind:this={track}
       data-duration={duration}
-      title="Click or drag to seek"
+      title="Clique ou arraste para avançar"
       role="slider"
       tabindex="0"
-      aria-label="Seek"
+      aria-label="Ir para posição"
       aria-disabled={!botOnline}
       aria-valuemin="0"
       aria-valuemax={duration}
@@ -225,7 +225,7 @@
       valueTestid="volume-value"
     />
     <span class="progress-readout" data-testid="progress-readout">
-      {#if !botOnline}<span class="transport-warn">Bot offline</span>
+      {#if !botOnline}<span class="transport-warn">Bot fora do ar</span>
       {/if}<span class="readout-time"
         >{formatDuration(displayRatio * duration)} / {formatDuration(
           duration,
@@ -233,5 +233,5 @@
       ><span class="readout-title">{title}</span>
     </span>
   {/if}
-  <footer class="status-strip" data-testid="status-strip">Harpi panel</footer>
+  <footer class="status-strip" data-testid="status-strip">Painel Harpi</footer>
 </div>

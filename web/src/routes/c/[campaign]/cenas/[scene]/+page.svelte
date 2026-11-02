@@ -556,7 +556,7 @@
 
     {#if failure}
       <p class="panel-error" role="alert" data-testid="scene-editor-error">
-        <span class="stamp is-hazard">Hazard</span>
+        <span class="stamp is-hazard">Perigo</span>
         <span>{failure}</span>
         <button
           class="hud-btn"

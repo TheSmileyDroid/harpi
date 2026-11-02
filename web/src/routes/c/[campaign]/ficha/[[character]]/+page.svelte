@@ -244,7 +244,7 @@
     {/if}
     {#if resubmitFailure}
       <p class="panel-error" role="alert" data-testid="sheet-resubmit-error">
-        <span class="stamp is-hazard">Hazard</span>
+        <span class="stamp is-hazard">Perigo</span>
         <span>{resubmitFailure}</span>
       </p>
     {/if}
@@ -293,7 +293,7 @@
     {/if}
     {#if recoveryFailure}
       <p class="panel-error" role="alert" data-testid="sheet-recovery-error">
-        <span class="stamp is-hazard">Hazard</span>
+        <span class="stamp is-hazard">Perigo</span>
         <span>{recoveryFailure}</span>
       </p>
     {/if}
@@ -311,7 +311,7 @@
     {/if}
     {#if sheet.error}
       <p class="panel-error" role="alert" data-testid="sheet-error">
-        <span class="stamp is-hazard">Hazard</span>
+        <span class="stamp is-hazard">Perigo</span>
         <span>{sheet.error}</span>
       </p>
     {/if}

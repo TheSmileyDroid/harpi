@@ -3,7 +3,7 @@
   import { appStore } from "$lib/store";
   import { toasts } from "$lib/toasts";
   import { createDebouncer } from "$lib/debounce";
-  import { formatDuration } from "$lib/format";
+  import { formatCount, formatDuration } from "$lib/format";
   import type { ApiClient } from "$lib/api";
   import Thumbnail from "./Thumbnail.svelte";
 
@@ -69,7 +69,7 @@
     try {
       const snapshot = await api.queue(url);
       appStore.applyStatus(snapshot);
-      toasts.push("Added to queue");
+      toasts.push("Adicionada à fila");
       appStore.closeSearch();
     } catch {
       return;
@@ -90,7 +90,7 @@
     try {
       const snapshot = await api.layer(track.url);
       appStore.applyStatus(snapshot);
-      toasts.push("Added as layer");
+      toasts.push("Adicionada como camada");
       appStore.closeSearch();
     } catch {
       return;
@@ -154,18 +154,18 @@
   bind:this={dialog}
   onclose={() => appStore.closeSearch()}
   onpointerdown={onBackdropPointerDown}
-  aria-label="Search"
+  aria-label="Buscar"
   data-testid="search-panel"
 >
-  <span class="panel-label">Search</span>
+  <span class="panel-label">Buscar</span>
   <div class="search-field">
     <input
       bind:this={input}
       class="hud-input search-input"
       type="search"
-      placeholder="Search YouTube or paste a URL"
+      placeholder="Busque no YouTube ou cole uma URL"
       autocomplete="off"
-      aria-label="Search YouTube"
+      aria-label="Buscar no YouTube"
       role="combobox"
       aria-expanded={showResults}
       aria-controls={showResults ? "search-results" : undefined}
@@ -182,7 +182,7 @@
       <button
         type="button"
         class="search-clear"
-        aria-label="Clear search"
+        aria-label="Limpar busca"
         onclick={clearSearch}
         data-testid="search-clear"
       ></button>
@@ -190,25 +190,25 @@
   </div>
   {#if status === "searching"}
     <p class="search-status" role="status" data-testid="search-status">
-      Searching…
+      Buscando…
     </p>
   {:else if status === "empty"}
     <p class="search-status" role="status" data-testid="search-status">
-      No results — try another search.
+      Nenhum resultado — tente outra busca.
     </p>
   {:else if status === "error"}
     <p class="search-status is-alert" role="alert" data-testid="search-status">
-      Search failed — check the link and try again.
+      A busca falhou — confira o vínculo e tente de novo.
     </p>
   {:else if showResults}
     <div
       class="search-dropdown"
       role="listbox"
       id="search-results"
-      aria-label="Search results"
+      aria-label="Resultados da busca"
     >
       <span class="visually-hidden" role="status" aria-live="polite">
-        {results.length} results
+        {formatCount(results.length, "resultado", "resultados")}
       </span>
       {#each results as track, index (track.url)}
         <div
@@ -236,13 +236,13 @@
     </div>
     <div class="search-actions" data-testid="search-actions">
       <span class="search-selection">
-        <span class="data-label">Selected</span>
+        <span class="data-label">Selecionado</span>
         <span
           class="data-value"
           class:is-empty={!activeResult}
           data-testid="search-selection"
         >
-          {activeResult ? activeResult.title : "No track selected"}
+          {activeResult ? activeResult.title : "Nenhuma faixa selecionada"}
         </span>
       </span>
       <span class="search-buttons">
@@ -253,7 +253,7 @@
           disabled={!activeResult || busyUrl !== null}
           data-testid="queue-track"
         >
-          Queue
+          Fila
         </button>
         <button
           type="button"
@@ -262,7 +262,7 @@
           disabled={!activeResult || layerUrl !== null}
           data-testid="layer-track"
         >
-          Layer
+          Camada
         </button>
       </span>
     </div>

@@ -236,7 +236,7 @@ function createStream<F>({
     onError?.(
       new ApiError({
         code: "contract_violation",
-        message: `Unexpected ${name} event`,
+        message: `Evento inesperado: ${name}`,
         status: 0,
       }),
     );

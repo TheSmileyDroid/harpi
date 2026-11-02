@@ -112,7 +112,7 @@ for (const { label, width, height } of RESOLUTIONS) {
 
     await page.request.post(`${BACKEND}/__test__/login`);
     await page.reload();
-    await expect(page.getByTestId("bot-status")).toHaveText("ONLINE");
+    await expect(page.getByTestId("bot-status")).toHaveText("NO AR");
 
     await expectNoHorizontalOverflow(page, `${label} console`);
     await expectInsideViewport(page, "[data-testid='open-search']", label);

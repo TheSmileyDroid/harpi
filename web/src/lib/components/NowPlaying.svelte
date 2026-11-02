@@ -1,6 +1,7 @@
 <script lang="ts">
   import { appStore } from "$lib/store";
   import { formatDuration, formatVolume } from "$lib/format";
+  import { layersCountLabel, playbackStateLabel } from "$lib/music";
   import { positionSeconds } from "$lib/playback-clock";
   import Readout from "./Readout.svelte";
   import Thumbnail from "./Thumbnail.svelte";
@@ -17,27 +18,26 @@
       .join(" · "),
   );
   const playbackState = $derived(
-    playback === null || track === null
-      ? "Stopped"
-      : playback.is_playing
-        ? playback.is_paused
-          ? "Paused"
-          : "Playing"
-        : "Stopped",
+    playbackStateLabel({
+      hasPlayback: playback !== null,
+      hasTrack: track !== null,
+      isPlaying: playback?.is_playing ?? false,
+      isPaused: playback?.is_paused ?? false,
+    }),
   );
 </script>
 
 <section class="hud-panel now-playing" data-testid="playback-panel">
   <div class="panel-band">
-    <span class="panel-label">Now playing</span>
+    <span class="panel-label">Tocando agora</span>
     {#if !botOnline}
-      <span class="stale" data-testid="playback-stale">bot offline</span>
+      <span class="stale" data-testid="playback-stale">bot fora do ar</span>
     {/if}
     <span class="stamp" data-testid="playback-state">{playbackState}</span>
   </div>
   {#if playback === null}
     <p class="data-value is-empty" data-testid="playback-empty">
-      {connected ? "Voice link up, no session" : "No active session"}
+      {connected ? "Voz conectada, sem sessão" : "Nenhuma sessão ativa"}
     </p>
     <button
       type="button"
@@ -48,34 +48,34 @@
       }}
       data-testid="connect-output"
     >
-      {connected ? "Reconnect output" : "Connect output to begin"}
+      {connected ? "Reconectar a saída" : "Conecte uma saída para começar"}
     </button>
   {:else}
     <div class="now-playing__body">
       <Thumbnail
         src={track?.thumbnail ?? ""}
-        alt={track?.title ?? "Now playing"}
+        alt={track?.title ?? "Tocando agora"}
         className="now-playing__art"
         size={96}
       />
       <div class="now-playing__meta">
         <p class="now-playing__title" data-testid="now-playing">
-          {track?.title ?? "Nothing playing"}
+          {track?.title ?? "Nada tocando"}
         </p>
         <p class="now-playing__line">
-          {sourceLine || "Source unknown"}
+          {sourceLine || "Origem desconhecida"}
         </p>
         <div class="rating">
           <Readout
-            label="Time"
+            label="Tempo"
             value={`${formatDuration($positionSeconds)} / ${formatDuration(
               track?.duration,
             )}`}
             testid="playback-progress"
           />
-          <Readout label="Loop" value={playback.loop_mode} />
+          <Readout label="Repetição" value={playback.loop_mode} />
           <Readout label="Volume" value={formatVolume(playback.volume)} />
-          <Readout label="Layers" value={`${layers.length} on`} />
+          <Readout label="Camadas" value={layersCountLabel(layers.length)} />
         </div>
       </div>
     </div>

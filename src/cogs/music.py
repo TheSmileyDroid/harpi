@@ -34,8 +34,8 @@ def _queue_message(status: SessionStatus) -> str:
 
 def _layers_message(status: SessionStatus) -> str:
     if not status.layers:
-        return "Nenhum layer de áudio de fundo adicionado"
-    message_lines = ["**Layers de áudio de fundo:**"]
+        return "Nenhuma camada de áudio de fundo adicionada"
+    message_lines = ["**Camadas de áudio de fundo:**"]
     for idx, layer in enumerate(status.layers, start=1):
         message_lines.append(f"{idx}. {layer.title}")
     return "\n".join(message_lines)
@@ -363,7 +363,7 @@ class MusicCog(Cog):
 
         """
         await self._simple_verb(
-            ctx, "clear_layers", "Layers de áudio de fundo limpos."
+            ctx, "clear_layers", "Camadas de áudio de fundo limpas."
         )
 
     @command("list_layers")

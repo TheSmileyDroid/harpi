@@ -8,10 +8,11 @@
 
 <main class="signin" data-testid="signin">
   <div class="hud-panel signin-panel" data-testid="signin-panel">
-    <span class="panel-label">Access</span>
-    <p class="page-title signin-title">HARPI PANEL</p>
+    <span class="panel-label">Acesso</span>
+    <p class="page-title signin-title">PAINEL HARPI</p>
     <p class="signin-note">
-      Sign in with Discord. You must share a server with Harpi to enter.
+      Entre com o Discord. Você precisa compartilhar um servidor com o Harpi
+      para entrar.
     </p>
     <button
       type="button"
@@ -19,7 +20,7 @@
       onclick={begin}
       data-testid="sign-in"
     >
-      CONTINUE WITH DISCORD
+      CONTINUAR COM O DISCORD
     </button>
   </div>
 </main>

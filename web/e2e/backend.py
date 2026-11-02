@@ -392,9 +392,7 @@ async def select_guild(response):
 async def _reconcile_campaign() -> None:
     database = get_database()
     if database is not None:
-        await vault_sync.reconcile(
-            database, VAULT_ROOT, {"paratheos"}
-        )
+        await vault_sync.reconcile(database, VAULT_ROOT, {"paratheos"})
 
 
 @quart_app.post("/__test__/vault-replace")
@@ -537,7 +535,9 @@ async def _reset_campaign_state() -> None:
             "members",
         ):
             await database.execute(f"DELETE FROM {table}")
-        shutil.rmtree(database.path.parent / "vault-backups", ignore_errors=True)
+        shutil.rmtree(
+            database.path.parent / "vault-backups", ignore_errors=True
+        )
     shutil.rmtree(VAULT_ROOT, ignore_errors=True)
     VAULT_ROOT.mkdir(parents=True, exist_ok=True)
     seed_vault()

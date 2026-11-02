@@ -4,6 +4,7 @@
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { ApiError, createApiClient } from "$lib/api";
+  import { codeMessage } from "$lib/errors";
   import { isEditableTarget } from "$lib/keys";
   import { shellLinkLabel } from "$lib/shell";
   import SheetEditor from "$lib/components/SheetEditor.svelte";
@@ -181,7 +182,7 @@
         streamingId = null;
       },
       onError: (error) => {
-        failure = error instanceof ApiError ? error.message : String(error);
+        failure = codeMessage(error) ?? "Não foi possível ler a mesa.";
       },
     };
     stream = startTableStream(options);
@@ -625,7 +626,7 @@
   {#if phase === "ready" && table}
     {#if failure}
       <p class="panel-error" role="alert" data-testid="table-error">
-        <span class="stamp is-hazard">Hazard</span>
+        <span class="stamp is-hazard">Perigo</span>
         <span>{failure}</span>
       </p>
     {/if}
@@ -1099,7 +1100,7 @@
         <h2 class="panel-label">Abrir mesa</h2>
         {#if failure}
           <p class="panel-error" role="alert" data-testid="table-open-error">
-            <span class="stamp is-hazard">Hazard</span>
+            <span class="stamp is-hazard">Perigo</span>
             <span>{failure}</span>
           </p>
         {/if}
@@ -1191,7 +1192,7 @@
       <p class="system-note">Carregando ficha…</p>
     {:else if drawerFailure}
       <p class="panel-error" role="alert" data-testid="table-drawer-error">
-        <span class="stamp is-hazard">Hazard</span>
+        <span class="stamp is-hazard">Perigo</span>
         <span>{drawerFailure}</span>
       </p>
     {:else if character}

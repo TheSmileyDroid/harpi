@@ -6,7 +6,7 @@
   <div class="error-region" data-testid="error-region">
     {#each $errorRegion as error (error.id)}
       <p class="panel-error" role="alert">
-        <span class="stamp is-hazard">Hazard</span>
+        <span class="stamp is-hazard">Perigo</span>
         <span data-testid="error-message">{error.message}</span>
         {#if error.code === "contract_violation"}
           <button
@@ -15,7 +15,7 @@
             onclick={() => location.reload()}
             data-testid="error-refresh"
           >
-            Refresh
+            Recarregar
           </button>
         {/if}
         <button
@@ -24,7 +24,7 @@
           onclick={() => errorRegion.dismiss(error.id)}
           data-testid="error-dismiss"
         >
-          Dismiss
+          Dispensar
         </button>
       </p>
     {/each}

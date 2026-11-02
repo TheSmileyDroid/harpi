@@ -332,7 +332,7 @@ async def test_add_layer_reports_load_failures():
         ("skip", "skip", "Música pulada"),
         ("pause", "pause", "Música pausada"),
         ("resume", "resume", "Música retomada"),
-        ("clean_layers", "clear_layers", "Layers de áudio de fundo limpos."),
+        ("clean_layers", "clear_layers", "Camadas de áudio de fundo limpas."),
     ],
 )
 async def test_simple_verbs_delegate_and_reply(
@@ -505,7 +505,7 @@ def test_queue_message_for_an_empty_queue():
 
 def test_layers_message_for_empty_layers():
     assert _layers_message(_status()) == (
-        "Nenhum layer de áudio de fundo adicionado"
+        "Nenhuma camada de áudio de fundo adicionada"
     )
 
 
@@ -518,7 +518,7 @@ def test_layers_message_lists_layers():
             )
         )
     )
-    assert message == "**Layers de áudio de fundo:**\n1. Rain\n2. Fire"
+    assert message == "**Camadas de áudio de fundo:**\n1. Rain\n2. Fire"
 
 
 async def test_list_queue_sends_the_formatted_queue():
@@ -538,7 +538,7 @@ async def test_list_layers_sends_the_formatted_layers():
 
     await _invoke(cog.list_layers, cog, ctx)
 
-    assert ctx.sent == ["Nenhum layer de áudio de fundo adicionado"]
+    assert ctx.sent == ["Nenhuma camada de áudio de fundo adicionada"]
 
 
 @pytest.mark.parametrize("index", [0, 2, -1])

@@ -5,6 +5,7 @@
   import StatusChip from "./StatusChip.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import Select from "./Select.svelte";
+  import { linkLabel, outputHint, outputSummary } from "$lib/music";
   import type { ApiClient } from "$lib/api";
   import type { StatusSnapshot } from "$lib/contract/panel.gen";
 
@@ -38,25 +39,15 @@
     $appStore.selectedChannelId ?? $appStore.connection.channel_id,
   );
   const summary = $derived(
-    activeGuild
-      ? `${activeGuild.name}${activeChannel ? ` · ${activeChannel.name}` : ""}`
-      : "Select output",
+    outputSummary(activeGuild?.name ?? null, activeChannel?.name ?? null),
   );
   const connectHint = $derived(
-    !$appStore.bot.online
-      ? "Bot offline"
-      : effectiveGuildId === null
-        ? "Select a guild"
-        : targetChannelId === null
-          ? "Select a channel"
-          : null,
+    outputHint({
+      botOnline: $appStore.bot.online,
+      guildId: effectiveGuildId,
+      channelId: targetChannelId,
+    }),
   );
-
-  const linkLabels: Record<string, string> = {
-    connected: "LINK LIVE",
-    reconnecting: "LINK LOST",
-    connecting: "LINKING",
-  };
 
   async function loadGuilds() {
     const payload = await api.guilds().catch(() => null);
@@ -136,7 +127,7 @@
   function connect() {
     return mutate(
       () => api.connect(effectiveGuildId, targetChannelId),
-      "Connected",
+      "Conectado",
     );
   }
 
@@ -150,7 +141,7 @@
 
   function confirmDisconnect() {
     confirmingDisconnect = false;
-    return mutate(() => api.disconnect(), "Disconnected");
+    return mutate(() => api.disconnect(), "Desconectado");
   }
 
   function onWindowClick(event: MouseEvent) {
@@ -211,17 +202,17 @@
     data-testid="output-picker"
   >
     <span class="placard">
-      <span class="placard__label">Output</span>
+      <span class="placard__label">Saída</span>
       <span class="placard__value" data-testid="guild-id">{summary}</span>
     </span>
     <span class="placard" data-flipped={!$appStore.bot.online}>
-      <span class="placard__label">Carrier</span>
+      <span class="placard__label">Portadora</span>
       <StatusChip online={$appStore.bot.online} />
     </span>
     <span class="placard">
-      <span class="placard__label">Voice</span>
+      <span class="placard__label">Voz</span>
       <span class="link-state" data-testid="link-state" data-link={link}>
-        {linkLabels[link] ?? "LINKING"}
+        {linkLabel(link)}
       </span>
     </span>
   </button>
@@ -231,14 +222,14 @@
       class="output-picker__popover"
       id="output-picker-popover"
       role="dialog"
-      aria-label="Output"
+      aria-label="Saída"
     >
-      <span class="panel-label">Output</span>
+      <span class="panel-label">Saída</span>
       <div class="data-row">
-        <span class="data-label">Guild</span>
+        <span class="data-label">Servidor</span>
         <Select
-          label="Guild"
-          placeholder="Select a guild"
+          label="Servidor"
+          placeholder="Escolha um servidor"
           testid="guild-select"
           optionTestid="guild-option"
           disabled={busy}
@@ -252,10 +243,10 @@
       </div>
       {#if effectiveGuildId !== null}
         <div class="data-row">
-          <span class="data-label">Channel</span>
+          <span class="data-label">Canal</span>
           <Select
-            label="Channel"
-            placeholder="Select a channel"
+            label="Canal"
+            placeholder="Escolha um canal"
             testid="channel-select"
             optionTestid="channel-option"
             disabled={busy}
@@ -273,7 +264,7 @@
       {/if}
       {#if connected && !hasSession}
         <p class="system-note" data-testid="session-idle-note">
-          Voice link up, session idle — reconnect to take control.
+          Voz conectada, sessão ociosa — reconecte para assumir o controle.
         </p>
       {/if}
       <div class="action-strip">
@@ -284,7 +275,7 @@
           disabled={busy || !$appStore.bot.online || targetChannelId === null}
           data-testid="connect"
         >
-          {connected ? "Reconnect" : "Connect"}
+          {connected ? "Reconectar" : "Conectar"}
         </button>
         {#if connected}
           <button
@@ -294,7 +285,7 @@
             disabled={busy}
             data-testid="disconnect"
           >
-            Disconnect
+            Desconectar
           </button>
         {/if}
       </div>
@@ -303,7 +294,7 @@
 
   <ConfirmDialog
     open={confirmingDisconnect}
-    message="Disconnect the bot from voice?"
+    message="Desconectar o bot da voz?"
     testid="disconnect-confirm"
     cancelTestid="disconnect-confirm-cancel"
     executeTestid="disconnect-confirm-execute"

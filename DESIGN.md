@@ -258,7 +258,7 @@ A warm near-black board carrying plate-toned placards, inked in amber for state 
 ### Named Rules
 **The Three Faces Rule.** Urbanist for headings and the two stamps, Barlow for legends, controls and prose, JetBrains Mono for values. Nothing else. No value is ever set in Urbanist, and no heading is ever set in JetBrains Mono.
 
-**The Stamp Rule.** Urbanist appears twice as a stamp: the Now Playing state stamp (PLAYING, PAUSED, STOPPED) and the Hazard stamp on a fault plate, both at weight 800 with 0.14em tracking. It is a stamp, not a heading face.
+**The Stamp Rule.** Urbanist appears twice as a stamp: the Now Playing state stamp (TOCANDO, PAUSADO, PARADO) and the Hazard stamp on a fault plate, both at weight 800 with 0.14em tracking. It is a stamp, not a heading face.
 
 ## Layout
 
@@ -266,7 +266,7 @@ The music page is a single column capped at 72rem and centred, padded 0.75rem at
 
 The campaign shell is a fixed 14rem rail beside a fluid content column. The content column caps at 72rem, pads 0.75rem at the top and 1.25rem at the sides, and clears its own bottom with 2rem; no dock takes part. Below 56rem the rail becomes a band across the top and the content column starts under it. Panels inside the shell follow the same 1rem stack and 1rem padding as the music page.
 
-The console is one column until 56rem, where it splits into a fluid main column (Now Playing over Queue) and a 15.5rem rail (Layers, Session, Linked). The rail collapses behind a Hide layers key and reopens with Show layers. The rating grid auto-fits at `minmax(7rem, 1fr)`, so four readouts sit in one row on desktop and wrap to two columns on a phone. The queue list caps at 60vh and scrolls until 56rem, where it takes the height left over so the plates meet the dock.
+The console is one column until 56rem, where it splits into a fluid main column (Tocando agora over Fila) and a 15.5rem rail (Camadas, Sessão, Conectados). The rail collapses behind an Ocultar camadas key and reopens with Mostrar camadas. The rating grid auto-fits at `minmax(7rem, 1fr)`, so four readouts sit in one row on desktop and wrap to two columns on a phone. The queue list caps at 60vh and scrolls until 56rem, where it takes the height left over so the plates meet the dock.
 
 Fixed chrome stacks above the dock: toasts at the right corner (z-index 60), the error region mirrored at the left (65), the output popover below both (40) and a select list under that (50), with the dock itself at 10. Toasts and errors both clear the dock through `calc(var(--transport-height) + 0.5rem)`. Measured on the built panel at maximum scroll, the lowest panel bottom sits 24px above the dock top at both 1440x900 and 390x844. Authored controls clear 40px (keys, inputs and the seek scale at 2.5rem, rising to 2.75rem on coarse pointers) with two exceptions: keys inside a queue or layer row and inside a fault plate sit at 2rem, and the native volume range is 16px tall on desktop.
 
@@ -327,13 +327,13 @@ Placards are the state unit, keys are instrument keys, and plates are what holds
 - **Coarse pointers:** keys and inputs rise to a 2.75rem minimum height.
 
 ### Chips (the carrier chip)
-- **Carrier:** a 0.4rem square lamp inside the carrier placard beside Barlow 600 at 0.6875rem tracking 0.16em. Online reads ONLINE with an amber lamp in sand text. Offline reads OFFLINE in hazard red with a hazard-red lamp that blinks at 1s `steps(2)`, gated behind a motion preference. On the flipped placard the chip and its lamp take the sand ink instead, because hazard red on sand measures 2.4:1. This is the only blinking chip.
-- **Link state:** Barlow 600, 0.6875rem, tracking 0.16em. LINK LIVE in amber, LINK LOST in hazard red, LINKING in dim ash.
-- **Stale tag:** a hazard-red tag beside the link state, Urbanist 700 at 0.6875rem tracking 0.16em uppercase, 1px hazard-red border, 2px corners, reading STALE. It appears as soon as the link drops, or when no status, position, or directory frame has arrived for 15 seconds, and clears on the next one. While it is up, readout values, the Now Playing title, and the dock readout drop to 45% opacity; every control stays live.
+- **Carrier:** a 0.4rem square lamp inside the carrier placard beside Barlow 600 at 0.6875rem tracking 0.16em. Online reads NO AR with an amber lamp in sand text. Offline reads FORA DO AR in hazard red with a hazard-red lamp that blinks at 1s `steps(2)`, gated behind a motion preference. On the flipped placard the chip and its lamp take the sand ink instead, because hazard red on sand measures 2.4:1. This is the only blinking chip.
+- **Link state:** Barlow 600, 0.6875rem, tracking 0.16em. VÍNCULO ATIVO in amber, VÍNCULO PERDIDO in hazard red, VINCULANDO in dim ash.
+- **Stale tag:** a hazard-red tag beside the link state, Urbanist 700 at 0.6875rem tracking 0.16em uppercase, 1px hazard-red border, 2px corners, reading DESATUALIZADO. It appears as soon as the link drops, or when no status, position, or directory frame has arrived for 15 seconds, and clears on the next one. While it is up, readout values, the Now Playing title, and the dock readout drop to 45% opacity; every control stays live.
 
 ### Cards / Containers
 - **Panel:** the one container. Placard plate interior, 1px bright rule, 4px corners, 1rem padding.
-- **Panel band:** a plate label in Urbanist 700 at 0.75rem tracking 0.18em uppercase, sand, trailed by a 1px rule that fills the remaining width, with an optional right-hand meta in JetBrains Mono 0.75rem, faint ash, tabular. The Now Playing band ends with the state stamp, and a hazard-red stale badge ("bot offline") joins it when the carrier is down.
+- **Panel band:** a plate label in Urbanist 700 at 0.75rem tracking 0.18em uppercase, sand, trailed by a 1px rule that fills the remaining width, with an optional right-hand meta in JetBrains Mono 0.75rem, faint ash, tabular. The Now Playing band ends with the state stamp, and a hazard-red stale badge ("bot fora do ar") joins it when the carrier is down.
 - **Rating plate:** a grid of cells in the rating bed at `minmax(7rem, 1fr)`, divided by inset hairlines rather than gaps, 3px corners, overflow hidden. Each cell pads 0.5rem 0.6rem and holds a data label over a value that steps up to 0.9375rem.
 - **Empty state:** an uppercase dim-ash readout beside the key that fixes it (Search), or a lone empty line when there is no session.
 - **Thumbnail:** a square at 96px (Now Playing, 4rem under 30rem), 48px (search rows) or 32px (queue and layer rows), with a 1px bright rule and 3px corners. A missing thumbnail draws a 45-degree hatch in the bright rule over the raised plate.
@@ -393,7 +393,7 @@ The turn panel is one plate in the table's 20rem column, above Conducting. It op
 - **Compact:** under 30rem the dock wraps. Keys share a row at `flex: 1 1 4.5rem`, the readout and the status strip hide, the seek scale takes a full-width row, and the volume control shrinks to 6rem.
 
 ### Fault Plates and Toasts
-- **Fault plate:** the error region, fixed above the dock's left corner. A hazard well under a 0.4rem banded hazard strip at the top, 1px hazard-red border, 4px corners, hazard ink, and it leads with the Hazard stamp in hazard red, then the message, then Dismiss (and Refresh for a contract violation). It arrives from the left.
+- **Fault plate:** the error region, fixed above the dock's left corner. A hazard well under a 0.4rem banded hazard strip at the top, 1px hazard-red border, 4px corners, hazard ink, and it leads with the Hazard stamp in hazard red, then the message, then Dispensar (and Recarregar for a contract violation). It arrives from the left.
 - **Toast:** the confirmation channel, fixed above the dock's right corner. Raised plate, 1px bright rule, a 1px amber left edge, 3px corners, Barlow 600 at 0.6875rem tracking 0.1em uppercase in sand, arriving from the right. Errors never arrive here. An undo action rides inside the toast as a small key.
 - Both clear the dock through `calc(var(--transport-height) + 0.5rem)`, so a wrapped dock on a phone never covers them.
 

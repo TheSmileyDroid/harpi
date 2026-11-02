@@ -7,7 +7,7 @@
   let {
     options,
     value = null,
-    placeholder = "Select",
+    placeholder = "Selecione",
     disabled = false,
     label,
     testid = "select",

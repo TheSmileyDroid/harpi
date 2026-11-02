@@ -1,17 +1,18 @@
 <script lang="ts">
   import { appStore } from "$lib/store";
   import { formatSeen } from "$lib/format";
+  import { connectionActionLabel, connectionActorLabel } from "$lib/music";
   import type { ConnectionEvent } from "$lib/contract/panel.gen";
 
   const viewers = $derived($appStore.presence?.viewers ?? []);
   const last = $derived($appStore.presence?.last_connection ?? null);
 
   function actorLabel(event: ConnectionEvent): string {
-    return event.actor_name ?? "The bot";
+    return connectionActorLabel(event.actor_name);
   }
 
   function actionLabel(event: ConnectionEvent): string {
-    return event.action === "connect" ? "linked" : "released";
+    return connectionActionLabel(event.action);
   }
 </script>
 
@@ -20,10 +21,10 @@
   data-testid="presence-panel"
   aria-labelledby="presence-title"
 >
-  <span class="panel-label" id="presence-title">Linked</span>
+  <span class="panel-label" id="presence-title">Conectados</span>
   {#if viewers.length === 0}
     <p class="data-value is-empty" data-testid="presence-empty">
-      No one else is linked
+      Ninguém mais conectado
     </p>
   {:else}
     <ul class="roster" data-testid="roster">
@@ -33,7 +34,7 @@
             {viewer.display_name || viewer.username}
           </span>
           <span class="roster__channel">
-            {viewer.channel_name ?? "No channel"}
+            {viewer.channel_name ?? "Sem canal"}
           </span>
           <span class="roster__seen" data-testid="viewer-seen">
             {formatSeen(viewer.seen_at)}

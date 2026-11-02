@@ -131,7 +131,7 @@
 {/if}
 {#if failure}
   <p class="panel-error" role="alert" data-testid="sheet-save-error">
-    <span class="stamp is-hazard">Hazard</span>
+    <span class="stamp is-hazard">Perigo</span>
     <span>{failure}</span>
   </p>
 {/if}

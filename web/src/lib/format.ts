@@ -20,7 +20,7 @@ export function formatVolume(gain: number | null | undefined): string {
 export function formatCount(
   count: number,
   singular: string,
-  plural = `${singular}s`,
+  plural: string,
 ): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
@@ -30,9 +30,9 @@ export function formatSeen(
   nowMs = Date.now(),
 ): string {
   const stamp = Number(seconds);
-  if (!Number.isFinite(stamp) || stamp <= 0) return "unknown";
+  if (!Number.isFinite(stamp) || stamp <= 0) return "desconhecido";
   const age = Math.max(0, Math.floor(nowMs / 1000 - stamp));
-  if (age < 10) return "now";
-  if (age < 60) return `${age}s ago`;
-  return `${Math.floor(age / 60)}m ago`;
+  if (age < 10) return "agora";
+  if (age < 60) return `há ${age}s`;
+  return `há ${Math.floor(age / 60)}min`;
 }

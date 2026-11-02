@@ -34,8 +34,8 @@
     try {
       const snapshot = await api.removeFromQueue(url);
       appStore.applyStatus(snapshot);
-      toasts.push("Removed from queue", {
-        label: "Re-add",
+      toasts.push("Removida da fila", {
+        label: "Adicionar de novo",
         run: () => undoRemove(url),
       });
     } catch {
@@ -69,7 +69,7 @@
     try {
       const snapshot = await api.clearQueue();
       appStore.applyStatus(snapshot);
-      toasts.push("Queue cleared");
+      toasts.push("Fila limpa");
     } catch {
       return;
     } finally {
@@ -80,20 +80,22 @@
 
 <section class="hud-panel queue-panel" data-testid="queue-panel">
   <div class="panel-band">
-    <span class="panel-label">Queue</span>
+    <span class="panel-label">Fila</span>
     {#if queue.length > 0}
       <span class="panel-band__meta">
-        {formatCount(queue.length, "track")} · {formatDuration(totalDuration)}
+        {formatCount(queue.length, "faixa", "faixas")} · {formatDuration(
+          totalDuration,
+        )}
       </span>
     {/if}
   </div>
   {#if !hasSession}
     <p class="data-value is-empty" data-testid="queue-empty">
-      No active session
+      Nenhuma sessão ativa
     </p>
   {:else if queue.length === 0}
     <EmptyState
-      message="Queue empty — search to add tracks."
+      message="Fila vazia — busque para adicionar faixas."
       testid="queue-empty"
       buttonTestid="queue-search"
       onsearch={() => appStore.openSearch()}
@@ -131,10 +133,10 @@
             class="hud-btn hud-btn-danger"
             onclick={() => removeTrack(track.url)}
             disabled={busy}
-            aria-label={`Remove ${track.title} from queue`}
+            aria-label={`Remover ${track.title} da fila`}
             data-testid="queue-remove"
           >
-            Remove
+            Remover
           </button>
         </li>
       {/each}
@@ -147,7 +149,7 @@
         disabled={busy}
         data-testid="queue-clear"
       >
-        Clear queue
+        Limpar fila
       </button>
     </div>
   {/if}
@@ -155,7 +157,7 @@
 
 <ConfirmDialog
   open={confirmingClear}
-  message="Clear the whole queue?"
+  message="Limpar a fila inteira?"
   onconfirm={confirmClear}
   oncancel={cancelClear}
 />

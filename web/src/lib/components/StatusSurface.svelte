@@ -2,6 +2,7 @@
   import { get } from "svelte/store";
   import { appStore } from "$lib/store";
   import { toasts } from "$lib/toasts";
+  import { botStateLabel, linkStateWord, voiceLinkLabel } from "$lib/music";
   import type { ApiClient } from "$lib/api";
   import OutputPicker from "./OutputPicker.svelte";
   import NowPlaying from "./NowPlaying.svelte";
@@ -41,22 +42,19 @@
     ) ?? null,
   );
   const voiceLabel = $derived(
-    !botOnline
-      ? "Unavailable"
-      : connected
-        ? voiceChannel
-          ? `Linked to ${voiceChannel.name}`
-          : $appStore.connection.channel_id
-            ? `Linked to ${$appStore.connection.channel_id}`
-            : "Linked"
-        : "Not connected",
+    voiceLinkLabel({
+      botOnline,
+      connected,
+      channelName: voiceChannel?.name ?? null,
+      channelId: $appStore.connection.channel_id,
+    }),
   );
 
   async function refresh() {
     refreshing = true;
     try {
       if (await onrefresh()) {
-        toasts.push("Status refreshed");
+        toasts.push("Status atualizado");
       }
     } finally {
       refreshing = false;
@@ -75,7 +73,7 @@
     try {
       const snapshot = await api.connect(guildId, channelId);
       appStore.applyStatus(snapshot);
-      toasts.push("Reconnected");
+      toasts.push("Reconectado");
       await onresync();
     } catch {
       return;
@@ -112,7 +110,7 @@
     <OutputPicker {api} {link} {onresync} />
     {#if stale}
       <span class="stale-tag" data-testid="stale-tag" role="status">
-        Stale
+        Desatualizado
       </span>
     {/if}
     <button
@@ -121,7 +119,7 @@
       onclick={() => appStore.openSearch()}
       data-testid="open-search"
     >
-      Search <span class="bar__kbd">{kbdLabel}</span>
+      Buscar <span class="bar__kbd">{kbdLabel}</span>
     </button>
     <button
       type="button"
@@ -129,20 +127,20 @@
       onclick={() => void onsignout()}
       data-testid="sign-out"
     >
-      Sign out
+      Sair
     </button>
   </header>
 
   <span class="visually-hidden" role="status" aria-live="polite">
-    Bot {botOnline ? "online" : "offline"}; panel link {link}{stale
-      ? "; readings stale"
-      : ""}
+    Bot {botStateLabel(botOnline)}; vínculo do painel {linkStateWord(link)}; {stale
+      ? "leituras desatualizadas"
+      : "leituras atualizadas"}
   </span>
 
   <div class="console" data-testid="console">
     <section
       class="console__main"
-      aria-label="Music"
+      aria-label="Música"
       data-testid="console-main"
     >
       <NowPlaying />
@@ -151,7 +149,7 @@
 
     <aside
       class="console__rail"
-      aria-label="Layers and session"
+      aria-label="Camadas e sessão"
       data-testid="console-rail"
     >
       {#if layersOpen}
@@ -162,7 +160,7 @@
           onclick={() => (layersOpen = false)}
           data-testid="layers-toggle"
         >
-          Hide layers
+          Ocultar camadas
         </button>
       {:else}
         <button
@@ -171,32 +169,32 @@
           onclick={() => (layersOpen = true)}
           data-testid="layers-reopen"
         >
-          Show layers
+          Mostrar camadas
         </button>
       {/if}
 
       <section
         class="hud-panel"
         data-testid="connection-panel"
-        aria-label="Session"
+        aria-label="Sessão"
       >
-        <span class="panel-label">Session</span>
+        <span class="panel-label">Sessão</span>
         <div class="rating">
           <Readout
             label="Bot"
-            value={$appStore.bot.online ? "Online" : "Offline"}
+            value={botStateLabel($appStore.bot.online)}
             testid="bot-online"
           />
-          <Readout label="Voice" value={voiceLabel} testid="connection" />
+          <Readout label="Voz" value={voiceLabel} testid="connection" />
         </div>
         {#if !botOnline}
           <p class="system-note" data-testid="bot-offline-note">
-            Bot offline — playback and voice are unavailable until it
-            reconnects.
+            Bot fora do ar — reprodução e voz ficam indisponíveis até ele
+            voltar.
           </p>
         {:else if connected && !hasSession}
           <p class="system-note" data-testid="session-idle-note">
-            Voice link up, session idle — reconnect to take control.
+            Voz conectada, sessão ociosa — reconecte para assumir o controle.
           </p>
         {/if}
         <div class="action-strip">
@@ -208,7 +206,7 @@
               disabled={reconnecting}
               data-testid="reconnect"
             >
-              {reconnecting ? "Reconnecting…" : "Reconnect"}
+              {reconnecting ? "Reconectando…" : "Reconectar"}
             </button>
           {/if}
           <button
@@ -218,7 +216,7 @@
             disabled={refreshing}
             data-testid="refresh"
           >
-            {refreshing ? "Checking…" : "Refresh"}
+            {refreshing ? "Verificando…" : "Atualizar"}
           </button>
         </div>
       </section>

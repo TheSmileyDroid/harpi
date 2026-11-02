@@ -8,5 +8,5 @@
   data-online={online}
 >
   <span class="bot-lamp" class:blink={!online} aria-hidden="true"></span>
-  {online ? "ONLINE" : "OFFLINE"}
+  {online ? "NO AR" : "FORA DO AR"}
 </span>
