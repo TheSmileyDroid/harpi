@@ -132,9 +132,9 @@
   </header>
 
   <span class="visually-hidden" role="status" aria-live="polite">
-    Bot {botStateLabel(botOnline)}; vínculo do painel {linkStateWord(link)}; {stale
-      ? "leituras desatualizadas"
-      : "leituras atualizadas"}
+    Bot {botStateLabel(botOnline).toLowerCase()}; vínculo do painel {linkStateWord(
+      link,
+    )}{stale ? "; leituras desatualizadas" : ""}
   </span>
 
   <div class="console" data-testid="console">

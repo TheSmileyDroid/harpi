@@ -551,7 +551,7 @@ async def test_remove_layer_rejects_out_of_range_indices(index: int):
 
     await _invoke(cog.remove_layer, cog, ctx, index=index)
 
-    assert ctx.sent == ["Layer inválido."]
+    assert ctx.sent == ["Camada inválida."]
 
 
 async def test_remove_layer_removes_by_display_index():
@@ -567,4 +567,4 @@ async def test_remove_layer_removes_by_display_index():
     await _invoke(cog.remove_layer, cog, ctx, index=2)
 
     assert session.calls == [("remove_layer", "l2")]
-    assert ctx.sent == ["Layer removido: Fire"]
+    assert ctx.sent == ["Camada removida: Fire"]

@@ -5,6 +5,7 @@ export interface ErrorEntry {
   id: number;
   code: string;
   message: string;
+  key: string;
 }
 
 export function codeNote(
@@ -22,8 +23,6 @@ export function codeNote(
 let nextId = 0;
 
 const MESSAGES_BY_CODE: Record<string, string> = {
-  network_error: "Não foi possível falar com a API do painel",
-  contract_violation: "O painel recebeu uma resposta inesperada",
   bad_request: "Requisição inválida.",
   forbidden: "Sem permissão.",
   invalid_decision: "A decisão é inválida.",
@@ -75,12 +74,13 @@ export function createErrorRegion() {
     subscribe,
     report(error: unknown): number {
       const code = readString(error, "code") ?? "error";
+      const raw = readString(error, "message") ?? "";
       const message = messageFor(error, code);
       const repeated = get(store).find(
-        (entry) => entry.code === code && entry.message === message,
+        (entry) => entry.code === code && entry.key === raw,
       );
       if (repeated) return repeated.id;
-      const entry: ErrorEntry = { id: ++nextId, code, message };
+      const entry: ErrorEntry = { id: ++nextId, code, message, key: raw };
       update((errors) => [...errors, entry]);
       return entry.id;
     },

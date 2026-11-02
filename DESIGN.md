@@ -205,14 +205,14 @@ The binding commitment from PRODUCT.md holds: the panel's retrofuturist industri
 A warm near-black board carrying plate-toned placards, inked in amber for state and bone for reading, with oxide and hazard red held back for caution and breakage.
 
 ### Primary
-- **State Amber** (`#f2b24e`): the state lamp and the live reading. Placard legends, the Now Playing state stamp, the seek scale and its fill, the volume value, queue and layer indices, the reconnect point for hover on plates. Measured at 9.2:1 on a plate and 8.2:1 on a raised plate.
+- **State Amber** (`#f2b24e`): the state lamp and the live reading. Placard legends, the Tocando agora state stamp, the seek scale and its fill, the volume value, queue and layer indices, the reconnect point for hover on plates. Measured at 9.2:1 on a plate and 8.2:1 on a raised plate.
 - **Placard Sand** (`#e9dfc7`): the material of what the operator presses, and the ink of titles. The primary key, the search sheet's Queue key, the flipped carrier placard, the sign-in key, plus track titles, band names and readout values. Measured at 12.9:1 on a plate.
 
 ### Secondary
 - **Oxide Caution** (`#ce7442`): the caution band and the hover border. Hover borders on keys and select triggers, and the seek fill while paused. Measured at 5.1:1 on a plate.
 
 ### Tertiary
-- **Hazard Red** (`#f0604a`): breakage only. The offline carrier chip and lamp, the stale badge on the Now Playing band, the stale tag in the top bar, the Hazard stamp, fault-plate borders, the bot-offline chip, the reconnecting link state, search failure text, and the light stripes of the hazard band. Measured at 5.3:1 on a plate.
+- **Hazard Red** (`#f0604a`): breakage only. The offline carrier chip and lamp, the stale badge on the Tocando agora band, the stale tag in the top bar, the Perigo stamp, fault-plate borders, the bot-offline chip, the reconnecting link state, search failure text, and the light stripes of the hazard band. Measured at 5.3:1 on a plate.
 - **Hazard Well** (`#2a1712`): the bed under hazard plates and the dark stripe of the hazard band.
 - **Hazard Ink** (`#d9c7b4`): the readable ink on the hazard well. Measured at 10.4:1 on the well.
 
@@ -246,10 +246,10 @@ A warm near-black board carrying plate-toned placards, inked in amber for state 
 
 ### Hierarchy
 - **Display** (800, 0.95rem, tracking 0.16em, uppercase): the page title and the boot plate. The wordmark narrows it to 0.85rem at 0.24em, and the sign-in title widens it to 1rem.
-- **Headline** (700, 1.375rem, line-height 1.15, tracking -0.01em): the track title in the Now Playing plate, dropping to 1.125rem and wrapping under 30rem.
+- **Headline** (700, 1.375rem, line-height 1.15, tracking -0.01em): the track title in the Tocando agora plate, dropping to 1.125rem and wrapping under 30rem.
 - **Plate** (700, 0.75rem, line-height 1, tracking 0.18em, uppercase): the panel label, trailed by a 1px rule that fills the remaining width.
 - **Placard** (600, 0.6875rem, line-height 1, tracking 0.16em, uppercase): placard labels, the link state, the carrier chip.
-- **Stamp** (800, 0.8125rem, line-height 1, tracking 0.14em, uppercase): the state stamp and the Hazard stamp. The state stamp is always amber, whatever the carrier is doing: it reports playback, and the carrier's health is the stale badge's job. The Hazard stamp is hazard red.
+- **Stamp** (800, 0.8125rem, line-height 1, tracking 0.14em, uppercase): the state stamp and the Perigo stamp. The state stamp is always amber, whatever the carrier is doing: it reports playback, and the carrier's health is the stale badge's job. The Perigo stamp is hazard red.
 - **Control** (600, 0.72rem, line-height 1, tracking 0.14em, uppercase): every key.
 - **Label** (600, 0.6875rem, tracking 0.12em, uppercase): data labels over their values. Track names in the queue, layer and search rows step up to 0.875rem at weight 500.
 - **Value** (400, 0.8125rem, line-height 1.5): the body default, data values, input text. Rating cells step up to 0.9375rem and compact readouts tighten to 1.2. Tabular numerals wherever a number can change.
@@ -258,7 +258,7 @@ A warm near-black board carrying plate-toned placards, inked in amber for state 
 ### Named Rules
 **The Three Faces Rule.** Urbanist for headings and the two stamps, Barlow for legends, controls and prose, JetBrains Mono for values. Nothing else. No value is ever set in Urbanist, and no heading is ever set in JetBrains Mono.
 
-**The Stamp Rule.** Urbanist appears twice as a stamp: the Now Playing state stamp (TOCANDO, PAUSADO, PARADO) and the Hazard stamp on a fault plate, both at weight 800 with 0.14em tracking. It is a stamp, not a heading face.
+**The Stamp Rule.** Urbanist appears twice as a stamp: the Tocando agora state stamp (TOCANDO, PAUSADO, PARADO) and the Perigo stamp on a fault plate, both at weight 800 with 0.14em tracking. It is a stamp, not a heading face.
 
 ## Layout
 
@@ -270,7 +270,7 @@ The console is one column until 56rem, where it splits into a fluid main column 
 
 Fixed chrome stacks above the dock: toasts at the right corner (z-index 60), the error region mirrored at the left (65), the output popover below both (40) and a select list under that (50), with the dock itself at 10. Toasts and errors both clear the dock through `calc(var(--transport-height) + 0.5rem)`. Measured on the built panel at maximum scroll, the lowest panel bottom sits 24px above the dock top at both 1440x900 and 390x844. Authored controls clear 40px (keys, inputs and the seek scale at 2.5rem, rising to 2.75rem on coarse pointers) with two exceptions: keys inside a queue or layer row and inside a fault plate sit at 2rem, and the native volume range is 16px tall on desktop.
 
-Breakpoints observed: 30rem is the compact collapse (the placard bar wraps and the output placard takes a full row, the shortcut hint hides, the dock wraps with the keys sharing a row and the readout and status strip hiding, queue and search rows wrap, the seek scale takes a full-width row, the Now Playing art drops to 4rem). At 48rem the dock readout caps at 22ch, and at 56rem the console splits. Coarse pointers raise keys, inputs and select rows to 2.75rem, the dock volume slider to 2.75rem, and the seek scale to 2.75rem. The world never switches off at any width: density collapses, the placards stay.
+Breakpoints observed: 30rem is the compact collapse (the placard bar wraps and the output placard takes a full row, the shortcut hint hides, the dock wraps with the keys sharing a row and the readout and status strip hiding, queue and search rows wrap, the seek scale takes a full-width row, the Tocando agora art drops to 4rem). At 48rem the dock readout caps at 22ch, and at 56rem the console splits. Coarse pointers raise keys, inputs and select rows to 2.75rem, the dock volume slider to 2.75rem, and the seek scale to 2.75rem. The world never switches off at any width: density collapses, the placards stay.
 
 Spacing rhythm: 0.35rem inside rows, 0.5rem between placards and controls, 0.75rem inside clusters, 0.85rem from a panel band to its content, 1rem between panels, 1.25rem page gutters.
 
@@ -313,7 +313,7 @@ Placards are the state unit, keys are instrument keys, and plates are what holds
 - **Shape:** 3px corners, raised-plate fill, min-height 2.5rem, padding 0.4rem 0.6rem, 0.5rem gap between the claim and its value. Hover inside the output trigger lifts the fill to sand at 8% into the raised plate.
 - **Claim:** Barlow 600, 0.6875rem, tracking 0.16em, uppercase, amber.
 - **Value:** JetBrains Mono 0.8125rem, line-height 1.2, sand, ellipsised. It is never empty: an absent value falls back to a label such as "Select output".
-- **The bar:** the placard bar is a raised-plate band with a 1px bright rule, 4px corners, 0.5rem padding and 0.5rem gaps, and it wraps. It holds the wordmark placard, the output placard, the carrier placard, the voice placard, then the Search key and the Sign out key.
+- **The bar:** the placard bar is a raised-plate band with a 1px bright rule, 4px corners, 0.5rem padding and 0.5rem gaps, and it wraps. It holds the wordmark placard, the output placard, the carrier placard, the voice placard, then the Buscar key and the Sair key.
 - **Flipped:** when the carrier drops, the carrier placard inverts to sand under a 0.4rem banded hazard strip with the printed grain behind it and a printed edge, and both its label and its value switch to sand ink. This is the one place the offline chip is not hazard red: on a sand fill, hazard red measures 2.4:1, so the chip and its lamp take the sand ink and the banded strip carries the hazard.
 
 ### Keys (Buttons)
@@ -329,27 +329,27 @@ Placards are the state unit, keys are instrument keys, and plates are what holds
 ### Chips (the carrier chip)
 - **Carrier:** a 0.4rem square lamp inside the carrier placard beside Barlow 600 at 0.6875rem tracking 0.16em. Online reads NO AR with an amber lamp in sand text. Offline reads FORA DO AR in hazard red with a hazard-red lamp that blinks at 1s `steps(2)`, gated behind a motion preference. On the flipped placard the chip and its lamp take the sand ink instead, because hazard red on sand measures 2.4:1. This is the only blinking chip.
 - **Link state:** Barlow 600, 0.6875rem, tracking 0.16em. VÍNCULO ATIVO in amber, VÍNCULO PERDIDO in hazard red, VINCULANDO in dim ash.
-- **Stale tag:** a hazard-red tag beside the link state, Urbanist 700 at 0.6875rem tracking 0.16em uppercase, 1px hazard-red border, 2px corners, reading DESATUALIZADO. It appears as soon as the link drops, or when no status, position, or directory frame has arrived for 15 seconds, and clears on the next one. While it is up, readout values, the Now Playing title, and the dock readout drop to 45% opacity; every control stays live.
+- **Stale tag:** a hazard-red tag beside the link state, Urbanist 700 at 0.6875rem tracking 0.16em uppercase, 1px hazard-red border, 2px corners, reading DESATUALIZADO. It appears as soon as the link drops, or when no status, position, or directory frame has arrived for 15 seconds, and clears on the next one. While it is up, readout values, the Tocando agora title, and the dock readout drop to 45% opacity; every control stays live.
 
 ### Cards / Containers
 - **Panel:** the one container. Placard plate interior, 1px bright rule, 4px corners, 1rem padding.
-- **Panel band:** a plate label in Urbanist 700 at 0.75rem tracking 0.18em uppercase, sand, trailed by a 1px rule that fills the remaining width, with an optional right-hand meta in JetBrains Mono 0.75rem, faint ash, tabular. The Now Playing band ends with the state stamp, and a hazard-red stale badge ("bot fora do ar") joins it when the carrier is down.
+- **Panel band:** a plate label in Urbanist 700 at 0.75rem tracking 0.18em uppercase, sand, trailed by a 1px rule that fills the remaining width, with an optional right-hand meta in JetBrains Mono 0.75rem, faint ash, tabular. The Tocando agora band ends with the state stamp, and a hazard-red stale badge ("bot fora do ar") joins it when the carrier is down.
 - **Rating plate:** a grid of cells in the rating bed at `minmax(7rem, 1fr)`, divided by inset hairlines rather than gaps, 3px corners, overflow hidden. Each cell pads 0.5rem 0.6rem and holds a data label over a value that steps up to 0.9375rem.
-- **Empty state:** an uppercase dim-ash readout beside the key that fixes it (Search), or a lone empty line when there is no session.
-- **Thumbnail:** a square at 96px (Now Playing, 4rem under 30rem), 48px (search rows) or 32px (queue and layer rows), with a 1px bright rule and 3px corners. A missing thumbnail draws a 45-degree hatch in the bright rule over the raised plate.
+- **Empty state:** an uppercase dim-ash readout beside the key that fixes it (Buscar), or a lone empty line when there is no session.
+- **Thumbnail:** a square at 96px (Tocando agora, 4rem under 30rem), 48px (search rows) or 32px (queue and layer rows), with a 1px bright rule and 3px corners. A missing thumbnail draws a 45-degree hatch in the bright rule over the raised plate.
 
 ### Inputs / Fields
 - **Style:** the sunken well. `#0d0b08` fill, 1px bright rule, 3px corners, sand text at 0.8125rem, padding 0.55rem 0.7rem. Placeholder in faint ash.
 - **Focus:** a 2px amber outline at 2px offset. The volume controls take the same outline at 3px offset through `:focus-within`.
 - **Select:** the panel never renders a native popup. The trigger is a plate-like control (raised-plate fill, bright rule, 3px corners, 0.8125rem sand) with a 0.4rem rotated-square chevron that sits over an in-world listbox (raised plate, bright rule, 3px corners, options divided by `rule` hairlines, the active option lifted to sand at 12% into the plate, wipe-open behind a motion preference). Full keyboard model: arrows, Home/End, Enter/Space, Escape, 500ms typeahead, outside-click close.
-- **Search palette:** a modal dialog capped at 42rem, 12vh from the top, on a black 60% backdrop. A Search plate label, the field over a raised-plate results list, the active row lifted to sand at 12% into the plate, then a strip naming the selected track beside the Queue (sand, primary) and Layer keys.
+- **Search palette:** a modal dialog capped at 42rem, 12vh from the top, on a black 60% backdrop. A Buscar plate label, the field over a raised-plate results list, the active row lifted to sand at 12% into the plate, then a strip naming the selected track beside the Fila (sand, primary) and Camada keys.
 - **Volume scale:** a native range restyled as a ruled scale. Sunken fill, 1px bright rule, 3px corners, a 1px tick every 4px, an amber 0.4rem thumb with 2px corners, 8rem wide in the dock and 6rem in a layer row. It is 16px tall on desktop and 44px in the dock on coarse pointers, the one native control below the 40px authored floor.
 
 ### Navigation
 
 The panel has two surfaces and two ways of getting around. They share placards and keys, and never share a frame.
 
-**The music page** has no nav: the placard bar is the wayfinding. It holds the wordmark placard (the pixel mark at 1.6rem beside HARPI in Urbanist 800 at 0.85rem tracking 0.24em), the output placard (guild and channel, hover-lifted), the carrier placard, the voice placard, then the Search key with its shortcut hint (Ctrl K, or the command key on a Mac, hidden under 30rem) and the Sign out key. The output placard is also the control: it opens a popover holding the Guild and Channel selects, an optional hint, and the Connect or Reconnect key beside Disconnect. Under 30rem the bar wraps and the output placard takes a full row.
+**The music page** has no nav: the placard bar is the wayfinding. It holds the wordmark placard (the pixel mark at 1.6rem beside HARPI in Urbanist 800 at 0.85rem tracking 0.24em), the output placard (guild and channel, hover-lifted), the carrier placard, the voice placard, then the Buscar key with its shortcut hint (Ctrl K, or the command key on a Mac, hidden under 30rem) and the Sair key. The output placard is also the control: it opens a popover holding the Servidor and Canal selects, an optional hint, and the Conectar or Reconectar key beside Desconectar. Under 30rem the bar wraps and the output placard takes a full row.
 
 **The campaign shell** frames every `/c/<campaign>/…` page. A 14rem rail runs the full viewport height, fixed, on the plate tone with a 1px bright rule on its inner edge. From top to bottom it holds:
 
@@ -393,21 +393,21 @@ The turn panel is one plate in the table's 20rem column, above Conducting. It op
 - **Compact:** under 30rem the dock wraps. Keys share a row at `flex: 1 1 4.5rem`, the readout and the status strip hide, the seek scale takes a full-width row, and the volume control shrinks to 6rem.
 
 ### Fault Plates and Toasts
-- **Fault plate:** the error region, fixed above the dock's left corner. A hazard well under a 0.4rem banded hazard strip at the top, 1px hazard-red border, 4px corners, hazard ink, and it leads with the Hazard stamp in hazard red, then the message, then Dispensar (and Recarregar for a contract violation). It arrives from the left.
+- **Fault plate:** the error region, fixed above the dock's left corner. A hazard well under a 0.4rem banded hazard strip at the top, 1px hazard-red border, 4px corners, hazard ink, and it leads with the Perigo stamp in hazard red, then the message, then Dispensar (and Recarregar for a contract violation). It arrives from the left.
 - **Toast:** the confirmation channel, fixed above the dock's right corner. Raised plate, 1px bright rule, a 1px amber left edge, 3px corners, Barlow 600 at 0.6875rem tracking 0.1em uppercase in sand, arriving from the right. Errors never arrive here. An undo action rides inside the toast as a small key.
 - Both clear the dock through `calc(var(--transport-height) + 0.5rem)`, so a wrapped dock on a phone never covers them.
 
 ### Readouts, Gauges and Rows
 - **Readout cell:** a data label (Barlow 600, 0.6875rem, tracking 0.12em, uppercase, dim ash) over its value (JetBrains Mono, sand, tabular numerals), in the rating bed.
 - **Queue gauge:** a 4rem by 0.4rem stepped bar per row, filled in amber proportional to the longest queued track over the unlit step track. A readout, not a control.
-- **Queue row:** a 2.75rem minimum height, the index in amber (01), a 32px thumbnail, the title, the gauge, then "uploader · duration" in faint ash and a Remove key. Rows divide with `rule` hairlines and arrive staggered.
-- **Layer row:** the index, thumbnail and title, then a 6rem volume scale and a Remove key below. Rows use FLIP so removal slides the survivors instead of snapping them.
-- **Linked roster:** a three-column grid of name, channel and seen time with hairline row separators.
-- **Empty states:** uppercase dim-ash readouts ("Queue empty — search to add tracks.", "No layers — add one from Search.") beside the key that fixes it.
+- **Queue row:** a 2.75rem minimum height, the index in amber (01), a 32px thumbnail, the title, the gauge, then "uploader · duration" in faint ash and a Remover key. Rows divide with `rule` hairlines and arrive staggered.
+- **Layer row:** the index, thumbnail and title, then a 6rem volume scale and a Remover key below. Rows use FLIP so removal slides the survivors instead of snapping them.
+- **Conectados roster:** a three-column grid of name, channel and seen time with hairline row separators.
+- **Empty states:** uppercase dim-ash readouts ("Fila vazia — busque para adicionar faixas.", "Nenhuma camada — adicione uma pela busca.") beside the key that fixes it.
 
 ### Browser Surfaces and the Boot Plate
 - **Selection:** amber background, ground text. **Caret:** amber. **Scrollbars:** thin, bright-rule thumb with a 3px ground border on a transparent track.
-- **Boot:** the pixel mark at 38px beside "Linking…" in Urbanist 800 at 0.85rem tracking 0.2em uppercase in dim ash, with the mark blinking behind a motion preference.
+- **Boot:** the pixel mark at 38px beside "Vinculando…" in Urbanist 800 at 0.85rem tracking 0.2em uppercase in dim ash, with the mark blinking behind a motion preference.
 - **Sign-in:** a plate labelled Access holding the HARPI PANEL title, the note that a shared Discord server is required, and a full-width sand CONTINUE WITH DISCORD key.
 
 ## Do's and Don'ts
@@ -437,6 +437,6 @@ The turn panel is one plate in the table's 20rem column, above Conducting. It op
 - **Don't** invert a key to sand unless it is the primary action or the flipped placard.
 - **Don't** let the struck gray disabled ink (3.7:1) leak into readable content.
 - **Don't** invent a second authored moment. The placard flip is the only one.
-- **Don't** add spinners, skeletons or fake progress: waiting is text in place (Linking…, Checking…, Reconnecting…, Searching…).
+- **Don't** add spinners, skeletons or fake progress: waiting is text in place (Vinculando…, Verificando…, Reconectando…, Buscando…).
 - **Don't** ship the OS-native select popup or the native search-cancel button. Overlays are built in-world.
 - **Don't** drop the fixed chrome below the dock or hardcode the dock height.

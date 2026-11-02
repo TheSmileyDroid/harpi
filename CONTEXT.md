@@ -56,7 +56,7 @@ The transient list of candidates returned by the single search on the Music page
 _Avoid_: search panel (there is only one search), results page
 
 **Layers rail**:
-The collapsible right-hand column of the Music page (15.5rem, above 56rem) holding the Camadas, the Sessão readouts and the Conectados list. The Fila lives in the main column under Now Playing.
+The collapsible right-hand column of the Music page (15.5rem, above 56rem) holding the Camadas, the Sessão readouts and the Conectados list. The Fila lives in the main column under Tocando agora.
 _Avoid_: side panel, queue panel, layers panel
 
 **Toast**:

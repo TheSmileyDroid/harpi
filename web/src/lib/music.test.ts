@@ -6,6 +6,7 @@ import {
   layersCountLabel,
   linkLabel,
   linkStateWord,
+  loopModeLabel,
   outputHint,
   outputSummary,
   playbackStateLabel,
@@ -114,6 +115,15 @@ describe("layersCountLabel", () => {
   it("agrees in number", () => {
     expect(layersCountLabel(1)).toBe("1 ativa");
     expect(layersCountLabel(3)).toBe("3 ativas");
+  });
+});
+
+describe("loopModeLabel", () => {
+  it("names the loop mode instead of showing the raw value", () => {
+    expect(loopModeLabel("track")).toBe("Faixa");
+    expect(loopModeLabel("queue")).toBe("Fila");
+    expect(loopModeLabel("off")).toBe("Desligada");
+    expect(loopModeLabel(null)).toBe("Desligada");
   });
 });
 

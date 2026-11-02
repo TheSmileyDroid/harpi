@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { botStateLabel } from "$lib/music";
+
   let { online }: { online: boolean } = $props();
 </script>
 
@@ -8,5 +10,5 @@
   data-online={online}
 >
   <span class="bot-lamp" class:blink={!online} aria-hidden="true"></span>
-  {online ? "NO AR" : "FORA DO AR"}
+  {botStateLabel(online).toUpperCase()}
 </span>

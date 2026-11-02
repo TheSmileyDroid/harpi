@@ -63,6 +63,12 @@ export function layersCountLabel(count: number): string {
   return formatCount(count, "ativa", "ativas");
 }
 
+export function loopModeLabel(mode: string | null | undefined): string {
+  if (mode === "track") return "Faixa";
+  if (mode === "queue") return "Fila";
+  return "Desligada";
+}
+
 export function connectionActorLabel(name: string | null): string {
   return name ?? "O bot";
 }

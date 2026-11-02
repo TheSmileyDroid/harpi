@@ -86,7 +86,7 @@
     </nav>
 
     <div class="shell__link placard" data-testid="shell-link">
-      <span class="placard__label">Link</span>
+      <span class="placard__label">Vínculo</span>
       <span class="link-state" data-link={link} data-testid="shell-link-state">
         {shellLinkLabel(link)}
       </span>

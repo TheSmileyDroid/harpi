@@ -348,11 +348,11 @@ class MusicCog(Cog):
                 return
             status = session.status
             if index < 1 or index > len(status.layers):
-                _ = await ctx.send("Layer inválido.")
+                _ = await ctx.send("Camada inválida.")
                 return
             layer = status.layers[index - 1]
             await session.remove_layer(layer.id)
-            _ = await ctx.send(f"Layer removido: {layer.title}")
+            _ = await ctx.send(f"Camada removida: {layer.title}")
 
     @command("clean_layers")
     async def clean_layers(self, ctx: Context) -> None:

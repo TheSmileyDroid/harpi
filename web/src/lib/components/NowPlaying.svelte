@@ -1,7 +1,11 @@
 <script lang="ts">
   import { appStore } from "$lib/store";
   import { formatDuration, formatVolume } from "$lib/format";
-  import { layersCountLabel, playbackStateLabel } from "$lib/music";
+  import {
+    layersCountLabel,
+    loopModeLabel,
+    playbackStateLabel,
+  } from "$lib/music";
   import { positionSeconds } from "$lib/playback-clock";
   import Readout from "./Readout.svelte";
   import Thumbnail from "./Thumbnail.svelte";
@@ -73,7 +77,10 @@
             )}`}
             testid="playback-progress"
           />
-          <Readout label="Repetição" value={playback.loop_mode} />
+          <Readout
+            label="Repetição"
+            value={loopModeLabel(playback.loop_mode)}
+          />
           <Readout label="Volume" value={formatVolume(playback.volume)} />
           <Readout label="Camadas" value={layersCountLabel(layers.length)} />
         </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { appStore } from "$lib/store";
   import { formatDuration } from "$lib/format";
+  import { loopModeLabel } from "$lib/music";
   import { positionSeconds } from "$lib/playback-clock";
   import {
     nextLoopMode,
@@ -185,10 +186,12 @@
       class="hud-btn"
       onclick={cycleLoop}
       disabled={keysDisabled}
-      title={`Repetição ${playback?.loop_mode} — a seguir ${nextLoopMode(playback?.loop_mode)}`}
+      title={`Repetição ${loopModeLabel(playback?.loop_mode)} — a seguir ${loopModeLabel(
+        nextLoopMode(playback?.loop_mode),
+      )}`}
       data-testid="loop"
     >
-      Repetição {playback?.loop_mode}
+      Repetição {loopModeLabel(playback?.loop_mode)}
     </button>
     <div
       class="progress-track"

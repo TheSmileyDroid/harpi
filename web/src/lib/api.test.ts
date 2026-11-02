@@ -509,7 +509,7 @@ describe("createApiClient", () => {
 
     await expect(client.status()).rejects.toMatchObject({
       code: "error",
-      message: "Request failed",
+      message: "A requisição falhou",
       status: 500,
     });
 

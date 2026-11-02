@@ -182,7 +182,11 @@
         streamingId = null;
       },
       onError: (error) => {
-        failure = codeMessage(error) ?? "Não foi possível ler a mesa.";
+        failure =
+          codeMessage(error) ??
+          (error instanceof Error && error.message
+            ? error.message
+            : "Não foi possível ler a mesa.");
       },
     };
     stream = startTableStream(options);
@@ -709,7 +713,7 @@
         <section class="table__panel" data-testid="table-viewers">
           <h2 class="panel-label">Na mesa</h2>
           <p class="system-note" data-testid="table-link">
-            Link: {shellLinkLabel($live.link)}
+            Vínculo: {shellLinkLabel($live.link)}
           </p>
           {#if $live.viewers.length === 0}
             <p class="system-note">Ninguém na mesa.</p>

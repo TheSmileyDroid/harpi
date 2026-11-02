@@ -52,7 +52,7 @@ function errorDetail(payload: unknown): { code: string; message: string } {
   if (typeof error?.code === "string" && typeof error.message === "string") {
     return { code: error.code, message: error.message };
   }
-  return { code: "error", message: "Request failed" };
+  return { code: "error", message: "A requisição falhou" };
 }
 
 export class ApiError extends Error {
