@@ -19,6 +19,7 @@ from pages.campaigns import image_response, svg_response
 from pages.guard import csrf_refusal
 from src.panel import (
     rate_limit,
+    rolls,
     scenes,
     state,
     table_stream,
@@ -34,6 +35,8 @@ from src.panel.schemas import (
     TableMoves,
     TableMovesResult,
     TableOpen,
+    TableRollCreate,
+    TableRollList,
     TableSceneChange,
     TableSpectators,
     TableSseEnvelope,
@@ -48,11 +51,18 @@ from src.storage import get_database
 BODY_MODEL = TypeVar("BODY_MODEL", bound=BaseModel)
 BODY_BYTES = 64 * 1024
 MOVE_BYTES = 16 * 1024
+ROLL_BYTES = 1024
+ROLL_LIMIT_DEFAULT = 50
+ROLL_LIMIT_MAX = 200
 ALLOWED_GUILDS = "table_allowed_guilds"
 
 bp = Blueprint("tables", __name__)
 
 MOVE_BUCKETS = rate_limit.UserTokenBuckets(rate_limit.MOVES_PER_MINUTE)
+ROLL_POST_BUCKETS = rate_limit.UserTokenBuckets(rate_limit.ROLLS_PER_MINUTE)
+ROLL_READ_BUCKETS = rate_limit.UserTokenBuckets(
+    rate_limit.ROLL_READS_PER_MINUTE
+)
 
 TURN_REFUSALS: tuple[tuple[type[tables.TableError], str, str, int], ...] = (
     (
@@ -784,9 +794,7 @@ def _move_allowed(access: TableAccess) -> Response | None:
 
 
 def _too_many_moves(decision: rate_limit.Decision) -> Response:
-    response = error_response("too_many_requests", "Too many moves", 429)
-    response.headers["Retry-After"] = str(decision.retry_after_seconds)
-    return response
+    return _too_many("Too many moves", decision)
 
 
 async def _apply_moves(
@@ -871,3 +879,137 @@ async def set_spectators(table_id: str) -> Response | TableSummary:
     await tables.set_spectators(database, access.table, payload.enabled)
     await _publish(database, table_id)
     return await _fresh(database, table_id, access)
+
+
+def _too_many(message: str, decision: rate_limit.Decision) -> Response:
+    response = error_response("too_many_requests", message, 429)
+    response.headers["Retry-After"] = str(decision.retry_after_seconds)
+    return response
+
+
+def _roll_limit() -> int | None:
+    raw = request.args.get("limit")
+    if raw is None:
+        return ROLL_LIMIT_DEFAULT
+    if not raw.isdigit():
+        return None
+    limit = int(raw)
+    return limit if 1 <= limit <= ROLL_LIMIT_MAX else None
+
+
+@bp.get("/api/tables/<table_id>/rolls")
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 422)
+@document_response(ErrorEnvelope, 429)
+@validate_response(TableRollList, 200)
+async def list_rolls(table_id: str) -> Response | TableRollList:
+    access = await _roll_read_access(table_id)
+    if isinstance(access, Response):
+        return access
+    limit = _roll_limit()
+    if limit is None:
+        return _invalid(f"The limit is between 1 and {ROLL_LIMIT_MAX}")
+    database = get_database()
+    if database is None:
+        return _not_found()
+    try:
+        rows = await rolls.list_rolls(
+            database,
+            access.table.id,
+            after=request.args.get("after") or None,
+            limit=limit,
+        )
+    except rolls.RollInvalid as failure:
+        return _roll_refusal(failure)
+    return TableRollList(rolls=rows)
+
+
+def _roll_refusal(failure: rolls.RollInvalid) -> Response:
+    return error_response(failure.code, failure.message, 422)
+
+
+async def _roll_read_access(table_id: str) -> TableAccess | Response:
+    access = await _table_access(table_id)
+    if isinstance(access, Response):
+        return access
+    if access.role == "spectator" and access.table.status != "open":
+        return _not_found()
+    decision = ROLL_READ_BUCKETS.take(access.user_id)
+    if not decision.allowed:
+        return _too_many("Too many roll reads", decision)
+    return access
+
+
+@bp.post("/api/tables/<table_id>/rolls")
+@document_request(TableRollCreate)
+@document_response(ErrorEnvelope, 403)
+@document_response(ErrorEnvelope, 404)
+@document_response(ErrorEnvelope, 409)
+@document_response(ErrorEnvelope, 413)
+@document_response(ErrorEnvelope, 422)
+@document_response(ErrorEnvelope, 429)
+@document_response(ErrorEnvelope, 502)
+@validate_response(TableRollList, 200)
+async def post_roll(table_id: str) -> Response | TableRollList:
+    access = await _roll_write_access(table_id)
+    if isinstance(access, Response):
+        return access
+    payload = await _body(TableRollCreate, ROLL_BYTES)
+    if isinstance(payload, Response):
+        return payload
+    try:
+        plan = rolls.evaluate(payload.expression)
+    except rolls.RollInvalid as failure:
+        return _roll_refusal(failure)
+    database = get_database()
+    if database is None:
+        return _not_found()
+    return await _panel_roll(database, access, plan)
+
+
+async def _roll_write_access(table_id: str) -> TableAccess | Response:
+    access = await _table_access(table_id)
+    if isinstance(access, Response):
+        return access
+    if access.role not in {"narrator", "player"}:
+        return _forbidden()
+    if access.table.status != "open":
+        return _closed()
+    decision = ROLL_POST_BUCKETS.take(access.user_id)
+    if not decision.allowed:
+        return _too_many("Too many rolls", decision)
+    return access
+
+
+async def _panel_roll(
+    database, access: TableAccess, plan: rolls.RollPlan
+) -> Response | TableRollList:
+    scene = await rolls.scene_context(database, access.table)
+    turn_id = await rolls.turn_for(database, access.table, access.user_id)
+    label = await _viewer_name(database, access.table.campaign, access.user_id)
+    try:
+        text = rolls.message_text(label, scene.label, plan.body)
+    except rolls.RollInvalid as failure:
+        return _roll_refusal(failure)
+    try:
+        message_id = await rolls.post_message(access.table.channel_id, text)
+    except Exception:
+        return error_response(
+            "discord_unavailable", "Discord is unavailable", 502
+        )
+    rows = await rolls.record(
+        database,
+        access.table,
+        plan=plan,
+        context=rolls.RollContext(
+            actor_id=access.user_id,
+            actor_label=label,
+            source="panel",
+            message_id=message_id,
+            scene=scene,
+            turn_id=turn_id,
+        ),
+    )
+    for row in rows:
+        table_stream.publish_roll(access.table.id, row)
+    return TableRollList(rolls=rows)

@@ -58,6 +58,10 @@ def build_fixtures() -> dict[str, object]:
         TableStreamViewers,
         TableSheetChanged,
         TablePresenceEntry,
+        TableRoll,
+        TableRollDice,
+        TableRollDiceGroup,
+        TableRollList,
         SheetActionResult,
         SheetAspect,
         SheetConflictDetail,
@@ -100,6 +104,34 @@ def build_fixtures() -> dict[str, object]:
         ours="9",
         theirs="4",
         allow_both=False,
+    )
+    table_roll = TableRoll(
+        id="rol_01J0000000000000000000000",
+        table_id="tbl_1",
+        scene_id="scn_1",
+        scene_label="Cripta",
+        turn_id="trn_1",
+        actor_id="555",
+        actor_label="Ana",
+        source="panel",
+        expression="4dF",
+        total=1,
+        dice=TableRollDice(
+            index=1,
+            of=1,
+            expression="4dF",
+            groups=[
+                TableRollDiceGroup(
+                    notation="4dF",
+                    values=[-1, 0, 1, 1],
+                    kept=None,
+                    total=1,
+                )
+            ],
+        ),
+        text="` 1 ` ⟵ [ - , , + , + ] 4dF",
+        discord_message_id="123456789012345678",
+        created_at=1700000000,
     )
     fixtures: dict[str, BaseModel] = {
         "ApprovalList": ApprovalList(
@@ -352,6 +384,8 @@ def build_fixtures() -> dict[str, object]:
             ],
             warning=None,
         ),
+        "TableRoll": table_roll,
+        "TableRollList": TableRollList(rolls=[table_roll]),
         "Presence": Presence(
             guild_id="7",
             viewers=[

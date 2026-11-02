@@ -372,6 +372,76 @@
       "volume": 0.7
     }
   },
+  "TableRoll": {
+    "actor_id": "555",
+    "actor_label": "Ana",
+    "created_at": 1700000000,
+    "dice": {
+      "expression": "4dF",
+      "groups": [
+        {
+          "kept": null,
+          "notation": "4dF",
+          "total": 1,
+          "values": [
+            -1,
+            0,
+            1,
+            1
+          ]
+        }
+      ],
+      "index": 1,
+      "of": 1
+    },
+    "discord_message_id": "123456789012345678",
+    "expression": "4dF",
+    "id": "rol_01J0000000000000000000000",
+    "scene_id": "scn_1",
+    "scene_label": "Cripta",
+    "source": "panel",
+    "table_id": "tbl_1",
+    "text": "` 1 ` \u27f5 [ - , , + , + ] 4dF",
+    "total": 1,
+    "turn_id": "trn_1"
+  },
+  "TableRollList": {
+    "rolls": [
+      {
+        "actor_id": "555",
+        "actor_label": "Ana",
+        "created_at": 1700000000,
+        "dice": {
+          "expression": "4dF",
+          "groups": [
+            {
+              "kept": null,
+              "notation": "4dF",
+              "total": 1,
+              "values": [
+                -1,
+                0,
+                1,
+                1
+              ]
+            }
+          ],
+          "index": 1,
+          "of": 1
+        },
+        "discord_message_id": "123456789012345678",
+        "expression": "4dF",
+        "id": "rol_01J0000000000000000000000",
+        "scene_id": "scn_1",
+        "scene_label": "Cripta",
+        "source": "panel",
+        "table_id": "tbl_1",
+        "text": "` 1 ` \u27f5 [ - , , + , + ] 4dF",
+        "total": 1,
+        "turn_id": "trn_1"
+      }
+    ]
+  },
   "TableSheetChanged": {
     "character_id": "chr_ana",
     "rev": 3,

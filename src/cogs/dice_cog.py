@@ -1,11 +1,16 @@
-from typing import Dict, List
+from collections.abc import Awaitable, Callable
+from typing import Any, Dict, List
 
 from discord import Message
 from discord.ext.commands import Bot, Cog, command
 from discord.ext.commands.context import Context
 from loguru import logger
 
+from src.bot_state import run_on_panel_loop
 from src.harpi_lib.math.parser import DiceParser, RollResult
+from src.panel import rolls
+
+NO_TABLE_ACCESS = "Você não tem acesso a esta mesa."
 
 
 class DiceCog(Cog):
@@ -16,10 +21,17 @@ class DiceCog(Cog):
 
     @Cog.listener()
     async def on_message(self, message: Message) -> None:
+        if getattr(message.author, "bot", False):
+            return
+        if getattr(message, "webhook_id", None):
+            return
         if message.author == self.bot.user:
             return
         parser = DiceParser()
         if not parser.is_valid_dice_string(message.content):
+            return
+        mirrored = await self._mirror(message, message.content)
+        if await self._answer(message.reply, mirrored):
             return
         response = parser.roll(message.content)
         await message.reply(response)
@@ -29,9 +41,49 @@ class DiceCog(Cog):
     )
     async def roll(self, ctx: Context, *, args: str) -> None:
         """Roll dice (e.g., 2d6 or 1d20+5)."""
+        mirrored = await self._mirror(getattr(ctx, "message", None), args)
+        if await self._answer(ctx.reply, mirrored):
+            return
         parser = DiceParser()
         response = parser.roll(args)
         await ctx.reply(response)
+
+    async def _answer(
+        self,
+        reply: Callable[[str], Awaitable[Any]],
+        mirrored: rolls.ChannelRoll | None,
+    ) -> bool:
+        if mirrored is None:
+            return False
+        if mirrored.text is not None:
+            await reply(mirrored.text)
+        elif mirrored.refused:
+            await reply(NO_TABLE_ACCESS)
+        return True
+
+    async def _mirror(
+        self, message: Message | None, expression: str
+    ) -> rolls.ChannelRoll | None:
+        if message is None:
+            return None
+        guild = getattr(message, "guild", None)
+        if guild is None:
+            return None
+        author = message.author
+        label = getattr(author, "display_name", None) or author.name
+        try:
+            return await run_on_panel_loop(
+                rolls.channel_roll(
+                    channel_id=str(message.channel.id),
+                    guild_id=str(guild.id),
+                    author_id=str(author.id),
+                    author_label=str(label),
+                    message_id=str(message.id),
+                    expression=expression,
+                )
+            )
+        except Exception:
+            return None
 
     @command(name="monte", aliases=["montecarlo", "simulation"])
     async def monte_carlo(

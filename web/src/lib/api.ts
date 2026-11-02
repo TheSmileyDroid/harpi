@@ -31,6 +31,8 @@ import {
   TableMoves,
   TableMovesResult,
   TableOpen,
+  TableRollCreate,
+  TableRollList,
   TableSceneChange,
   TableSpectators,
   TableSummary,
@@ -496,6 +498,26 @@ export function createApiClient({
         {
           method: "POST",
           requestSchema: TableSpectators,
+          body,
+          silent: true,
+        },
+      );
+    },
+    tableRolls(tableId: string, after: string | null = null, limit = 50) {
+      const query = new URLSearchParams({ limit: String(limit) });
+      if (after !== null) query.set("after", after);
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/rolls?${query.toString()}`,
+        TableRollList,
+      );
+    },
+    postTableRoll(tableId: string, body: z.input<typeof TableRollCreate>) {
+      return request(
+        `/api/tables/${encodeURIComponent(tableId)}/rolls`,
+        TableRollList,
+        {
+          method: "POST",
+          requestSchema: TableRollCreate,
           body,
           silent: true,
         },

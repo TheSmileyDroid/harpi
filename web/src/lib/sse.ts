@@ -8,6 +8,7 @@ import {
   StatusSnapshot,
   TableClosedEvent,
   TableDragMarker,
+  TableRoll,
   TableSheetChanged,
   TableStreamDelta,
   TableStreamSnapshot,
@@ -57,6 +58,7 @@ type SheetChangedFrame = {
   type: "sheet.changed";
   data: TableSheetChanged;
 };
+type TableRollFrame = { type: "table.roll"; data: TableRoll };
 type TableHeartbeatFrame = { type: "heartbeat"; data: Heartbeat };
 type TableClosedFrame = { type: "table.closed"; data: TableClosedEvent };
 export type TableSseFrame =
@@ -65,6 +67,7 @@ export type TableSseFrame =
   | TablePresenceFrame
   | TableDragFrame
   | SheetChangedFrame
+  | TableRollFrame
   | TableHeartbeatFrame
   | TableClosedFrame;
 
@@ -74,6 +77,7 @@ const TABLE_SSE_SCHEMAS = {
   "table.viewers": TableStreamViewers,
   "table.drag": TableDragMarker,
   "sheet.changed": TableSheetChanged,
+  "table.roll": TableRoll,
   heartbeat: Heartbeat,
   "table.closed": TableClosedEvent,
 } as const;

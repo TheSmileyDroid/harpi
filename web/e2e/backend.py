@@ -558,6 +558,12 @@ async def _reset_campaign_state() -> None:
     tables_page.MOVE_BUCKETS = rate_limit.UserTokenBuckets(
         rate_limit.MOVES_PER_MINUTE
     )
+    tables_page.ROLL_POST_BUCKETS = rate_limit.UserTokenBuckets(
+        rate_limit.ROLLS_PER_MINUTE
+    )
+    tables_page.ROLL_READ_BUCKETS = rate_limit.UserTokenBuckets(
+        rate_limit.ROLL_READS_PER_MINUTE
+    )
 
 
 @quart_app.post("/__test__/loop")

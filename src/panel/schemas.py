@@ -655,6 +655,48 @@ class TableTurnRequest(BaseModel):
     expected_turn_id: TextInput = None
 
 
+RollSource = Literal["panel", "discord"]
+
+
+class TableRollDiceGroup(_Response):
+    notation: str
+    values: list[int]
+    kept: list[bool] | None
+    total: int
+
+
+class TableRollDice(_Response):
+    index: int
+    of: int
+    expression: str
+    groups: list[TableRollDiceGroup]
+
+
+class TableRoll(_Response):
+    id: str
+    table_id: str
+    scene_id: str | None
+    scene_label: str
+    turn_id: str | None
+    actor_id: SnowflakeInput
+    actor_label: str
+    source: RollSource
+    expression: str
+    total: int
+    dice: TableRollDice
+    text: str
+    discord_message_id: SnowflakeInput
+    created_at: int
+
+
+class TableRollCreate(BaseModel):
+    expression: str = Field(min_length=1)
+
+
+class TableRollList(_Response):
+    rolls: list[TableRoll]
+
+
 class TablePresenceEntry(_Response):
     name: str
     role: TableRole
@@ -710,6 +752,7 @@ class TableSseEnvelope(
         | TableStreamViewers
         | TableDragMarker
         | TableSheetChanged
+        | TableRoll
         | Heartbeat
         | TableClosedEvent
     ]
@@ -814,6 +857,7 @@ TABLE_SSE_EVENTS: dict[str, type[BaseModel]] = {
     "table.viewers": TableStreamViewers,
     "table.drag": TableDragMarker,
     "sheet.changed": TableSheetChanged,
+    "table.roll": TableRoll,
     "heartbeat": Heartbeat,
     "table.closed": TableClosedEvent,
 }

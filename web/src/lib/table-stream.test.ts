@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
 import fixtures from "./contract/fixtures/fixtures.json";
 import type {
+  TableRoll,
   TableSheetChanged,
   TableStreamSnapshot,
   TableStreamViewers,
@@ -19,6 +20,7 @@ const SNAPSHOT = fixtures.TableStreamSnapshot as TableStreamSnapshot;
 const DELTA = fixtures.TableStreamDelta;
 const VIEWERS = fixtures.TableStreamViewers as TableStreamViewers;
 const SHEET = fixtures.TableSheetChanged as TableSheetChanged;
+const ROLL = fixtures.TableRoll as TableRoll;
 const CLOSED = { reason: "A mesa foi fechada." };
 
 class FakeEventSource implements EventSourceLike {
@@ -160,6 +162,37 @@ describe("reduceTableFrame", () => {
     ]);
     expect(withoutDrag.state.drags).toEqual([]);
     expect(viewers.state.viewers).toEqual(VIEWERS.viewers);
+  });
+
+  it("appends a table.roll frame and dedupes it by id", () => {
+    const frame = { type: "table.roll", data: ROLL } as TableSseFrame;
+    const start = reduceTableFrame(initialTableLive(), snapshotFrame());
+    const first = reduceTableFrame(start.state, frame);
+    const again = reduceTableFrame(first.state, frame);
+
+    expect(again.state.rolls).toEqual([ROLL]);
+  });
+
+  it("ignores a table.roll from another table", () => {
+    const start = reduceTableFrame(initialTableLive(), snapshotFrame());
+    const stale = {
+      type: "table.roll",
+      data: { ...ROLL, table_id: "tbl_previous" },
+    } as TableSseFrame;
+    const after = reduceTableFrame(start.state, stale);
+
+    expect(after.state.rolls).toEqual([]);
+  });
+
+  it("keeps the log for one table and clears it on a table change", () => {
+    const store = createTableLiveStore();
+    const first = { ...SNAPSHOT.state, id: "tbl_first" };
+    store.setSummary(first);
+    store.addRolls([ROLL]);
+    store.setSummary({ ...first });
+    expect(get(store).rolls).toEqual([ROLL]);
+    store.setSummary({ ...first, id: "tbl_second" });
+    expect(get(store).rolls).toEqual([]);
   });
 
   it("keeps the latest sheet change per sheet", () => {

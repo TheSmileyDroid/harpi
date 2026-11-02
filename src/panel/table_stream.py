@@ -17,6 +17,7 @@ from src.panel.schemas import (
     TableClosedEvent,
     TableDragMarker,
     TableParticipant,
+    TableRoll,
     TableRole,
     TableScene,
     TableSheetChanged,
@@ -62,6 +63,7 @@ Signal = (
     | TableStreamViewers
     | TableDragMarker
     | TableSheetChanged
+    | TableRoll
     | TableClosedEvent
 )
 
@@ -438,6 +440,11 @@ class TableBroadcaster:
             if subscriber.role == "narrator" or subscriber.user_id == owner_id:
                 self._enqueue(subscriber, event)
 
+    def publish_roll(self, roll: TableRoll) -> None:
+        if self._closed:
+            return
+        self._broadcast(roll)
+
     def changes_between(
         self, from_rev: int, to_rev: int
     ) -> list[Change] | None:
@@ -592,6 +599,12 @@ async def publish_sheet(
         broadcaster = _BROADCASTERS.get(table_id)
         if broadcaster is not None:
             broadcaster.publish_sheet(event, owner_id)
+
+
+def publish_roll(table_id: str, roll: TableRoll) -> None:
+    broadcaster = _BROADCASTERS.get(table_id)
+    if broadcaster is not None:
+        broadcaster.publish_roll(roll)
 
 
 class TableStreamSlot:
