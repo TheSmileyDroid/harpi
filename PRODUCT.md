@@ -1,63 +1,56 @@
 # Product
 
-<!-- impeccable:product-schema 1 -->
-
 ## Platform
 
 web
 
-## Users
+## Users and purpose
 
-The maintainer and their own Discord guild(s) are the primary users: the maintainer operates Harpi, guild members use its music, dice, and TTS features through Discord and the web panel. Self-hosters running Harpi for their own servers are a confirmed second audience, kept runnable by strangers as a real constraint (self-hosting first).
-
-## Product Purpose
-
-Harpi replaces a pile of separate Discord bots with one simpler thing: music playback, dice rolling, and TTS in a single bot, plus a Svelte web panel for controlling music, all served by one Quart process. Success means the guild gets those features without juggling multiple bots and dashboards, and a self-hoster can run the whole thing from a repo clone.
+The maintainer and their guilds run Harpi; members use its music, dice and TTS
+through Discord and the panel. Self-hosters are a confirmed second audience: a
+stranger must be able to run it from a repo clone. One bot instead of a pile:
+music, dice and TTS, plus a Svelte panel for the music, in one Quart process.
 
 ## Positioning
 
-One process, one panel. Music, dice, TTS, and a Svelte control panel share one runtime instead of a fleet of separate bots with separate dashboards. The bot and the panel are one feature on two surfaces (commands and panel), not two products.
+One process, one panel. The bot and the panel are one feature on two surfaces,
+never two products.
 
-## Operating Context
+## Operating context
 
-- Discord guilds: each guild has one `PlaybackSession` (playback state machine) tied to its voice connection.
-- Music enters through yt-dlp search, stream selection and probing, FFmpeg decode, and mixing into the voice client.
-- The web panel (Svelte/CRT retro theme) is served by the same process at `http://localhost:8000`; use `make build` then `make start`, and production runs via Docker Compose.
-- Development: `uv` for Python deps, `make dev` for auto-reload, `make format` / `make check` as the verification gates.
-- Tests are all fakes and all offline; the real bot must never be started to check something (it joins the maintainer's live guild).
+- One `PlaybackSession` per guild, tied to its voice connection.
+- Music: yt-dlp search, stream selection and probing, FFmpeg decode, mixing.
+- The panel is served by the same process; `make start`, or Compose in prod.
+- Dev: `uv`, `make dev` for reload, `make format`/`make check` as the gates.
+- Tests are offline fakes; the real bot is never started to check something.
+- One Python process, two event loops; panel actions cross through
+  `run_on_bot_loop`. `src/config.py` is the sole owner of the environment. The
+  bot never imports the web layer; `harpi_lib` imports neither discord.ui nor
+  Quart.
 
-## Capabilities and Constraints
+## Capabilities and hard rules
 
-- Features: music player (queue, layers, transport), dice roller, TTS using an external voice.
-- The panel shows who is linked to the selected guild, who made the last connect or disconnect, and follows a connection made by another member. A local SQLite registry (`src/storage/`, ADR 0008) persists it.
-- Single Python 3.13 process running two event loops (Quart + discord.py); panel actions cross the loop boundary through `run_on_bot_loop`.
-- Web surface is a Svelte SPA over a JSON API; `pages/` holds the Quart API blueprints that drive the domain seam in `src/panel/`.
-- Hard product rules: music does not die while playing; bot state explains itself (physically in a voice channel means connected to it); no error requires a bot restart, and the bot alerts when failing, never failing in silence.
-- `src/config.py` is the sole owner of environment configuration.
-- The bot never imports from the web layer; `harpi_lib` holds domain logic with no discord.ui or Quart imports.
+- Music (queue, layers, transport), dice, TTS.
+- The panel shows who is linked to the selected guild and the last connect or
+  disconnect; the SQLite registry (ADR 0008) persists it.
+- Music does not die while playing; state explains itself; no error needs a
+  restart; failures alert instead of staying silent.
 
-## Brand Commitments
+## Brand
 
-- The web panel's retrofuturist industrial-placard identity (HAZARD PLACARD: sand-and-oxide material, posted placards that pair a claim with the value proving it, equipment rating plates, banded hazard for breakage) is binding. It replaced the unmarked-carrier receiver world (steel-navy plates, phosphor-cyan signal ink, a sodium dial lamp for what is live), which had replaced the amber CRT theme. Future design work must extend the placard world, never replace it.
-- Name: Harpi.
-- Glossary vocabulary in `CONTEXT.md` is binding for code, docs, and discussion.
+The retrofuturist industrial-placard identity is binding; see `DESIGN.md`. It
+replaced the unmarked-carrier receiver world; future design extends it, never
+replaces it. The name is Harpi; the glossary in `docs/agents/architecture.md`
+is binding. No testimonials, benchmarks or press exist; do not fabricate any.
 
-## Evidence on Hand
+## Principles
 
-- `README.md` (feature list, run instructions).
-- `CONTEXT.md` (domain glossary for both surfaces).
-- `docs/agents/architecture.md`, `docs/agents/panel.md`, `docs/agents/testing.md`, `DESIGN.md`.
-- `docs/adr/0002-perceptual-volume-slider.md`.
-- No testimonials, case studies, press, or benchmarks exist; future work must not fabricate any.
+1. One process, one panel: a feature exists on both surfaces as one thing.
+2. Simplicity over feature count.
+3. Never fail in silence.
+4. State must explain itself.
+5. Honest gates: verification runs offline against fakes; a failing gate is
+   fixed or the dead thing deleted, never faked or lowered.
 
-## Product Principles
-
-1. One process, one panel: a feature exists on the Discord command surface and the web panel as one thing, never as two products.
-2. Simplicity over feature count: replacing other bots means fewer moving parts, not more features.
-3. Never fail in silence: errors surface (persistent error region, bot alerts); no error may require a restart.
-4. State must explain itself: what the bot reports matches what it is physically doing in voice.
-5. Honest gates: verification runs offline against fakes; a failing gate is fixed or the dead thing is deleted, never faked or lowered.
-
-## Accessibility & Inclusion
-
-No product-specific accessibility requirement has been established. The cyberpunk instrument-console theme (the unmarked-carrier receiver world) is binding, so future design work must reconcile readability with the theme rather than dropping it.
+No product-specific accessibility requirement is established. The theme is
+binding, so readability is reconciled with it rather than dropped.

@@ -1,59 +1,34 @@
 # Harpi
 
-This is a discord bot made mainly for replacing other bots
-in a simplier way with features like:
+A Discord bot that replaces a pile of them: music player, dice roller and TTS,
+with one Svelte panel for the music, all in one process.
 
-- Music Player
-- Dice Roller
-- TTS using external voice
+## Run
 
-## Running
+```sh
+make bootstrap   # uv sync --upgrade + bun update
+make start       # builds the SPA, serves it and the API on :8000
+make dev         # Vite on :5173 with reload, Quart on :8000
+```
 
-To run Harpi locally, install and upgrade the Python and web
-dependencies in one step:
+Sign-in uses Discord OAuth2. Copy `.env.example` to `.env`, set
+`DISCORD_CLIENT_ID` and `SECRET_KEY`, and register `DISCORD_REDIRECT_URI` on the
+Discord application. Only members of the guilds in `PANEL_GUILD_ALLOWLIST` are
+admitted. The app binds `127.0.0.1` by default; set `HOST` or pass `--host`.
 
-    make bootstrap
+## Production
 
-This runs `uv sync --upgrade` for the backend and `bun update` in `web/`
-for the frontend. Run it again whenever you want to pull newer versions.
+```sh
+docker network create harpi-edge
+docker compose up
+```
 
-Build the frontend and run the bot:
+No host port is published: Nginx Proxy Manager reaches `harpi-backend:8000` on
+`harpi-edge`. See [docs/security/runbook.md](docs/security/runbook.md).
 
-    make build
-    uv run python -m src
+## Checks
 
-Or `make start`, which builds the SPA and runs the app. The panel is served
-at http://localhost:8000 alongside the API.
-
-For development with auto-reload:
-
-    make dev
-
-In development, Vite serves the UI at http://localhost:5173 with hot
-module reload, and Quart serves the API at http://localhost:8000.
-
-The panel signs in with Discord. Set `DISCORD_CLIENT_ID` and
-`SECRET_KEY` in `.env` (copy `.env.example` to start) and register
-`DISCORD_REDIRECT_URI` as a redirect on the Discord application. A member
-authorizes the app at `GET /api/auth/discord` and gets a signed login cookie.
-Only members of the guilds listed in `PANEL_GUILD_ALLOWLIST` are admitted; an
-account outside that list is refused. The app binds to `127.0.0.1` by
-default; set `HOST` or pass `--host` to change it.
-
-To run in production, create the external edge network once and use Docker
-Compose:
-
-    docker network create harpi-edge
-    docker compose up
-
-The app publishes no host port. Nginx Proxy Manager reaches it as
-`harpi-backend:8000` on `harpi-edge`; the network and the egress deny are
-covered in [docs/security/runbook-edge-network.md](docs/security/runbook-edge-network.md).
-
-## Security checks
-
-`make security` runs gitleaks, osv-scanner, and trivy when they are installed
-locally, and prints which checks only CI runs. The CI workflow scans the git
-history, both lockfiles, and the built image;
-[docs/security/scanners.md](docs/security/scanners.md) covers each scanner, the
-pinned versions, and how to triage a finding.
+`make check` runs every gate and prints one report; `make check-e2e` adds
+Playwright; `make security` runs the scanners that are installed locally. See
+[docs/agents/testing.md](docs/agents/testing.md) and
+[docs/security/scanners.md](docs/security/scanners.md).
