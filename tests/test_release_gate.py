@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import io
-import sys
-
+import tools.release_gate as release_gate
 from tools.release_gate import (
     FAIL,
     PASS,
@@ -317,47 +315,72 @@ def test_no_checks_fails():
     assert "no checks ran" in summary
 
 
-def test_the_status_command_prints_one_line_and_passes(capsys):
-    code = main([
-        "status",
-        "--name",
-        "x",
-        "--actual",
-        "401",
-        "--expected",
-        "401",
-    ])
+def test_pre_passes_when_nothing_answers(monkeypatch, capsys):
+    monkeypatch.setattr(release_gate, "_dns", lambda hostname: "")
+    monkeypatch.setattr(release_gate, "_proxy_format", lambda: "config")
+    monkeypatch.setattr(release_gate, "_proxy_payload", lambda *_: "")
+    monkeypatch.setattr(release_gate, "_curl_status", lambda url, **kw: "000")
+
+    code = main(["--pre"])
 
     assert code == 0
-    assert capsys.readouterr().out == "PASS x: answered 401\n"
+    assert "verdict: PASS" in capsys.readouterr().out
 
 
-def test_the_status_command_exits_one_on_a_mismatch(capsys):
-    code = main([
-        "status",
-        "--name",
-        "x",
-        "--actual",
-        "200",
-        "--expected",
-        "401",
-    ])
+def test_pre_fails_when_the_public_host_answers(monkeypatch, capsys):
+    monkeypatch.setattr(release_gate, "_dns", lambda hostname: "203.0.113.9")
+    monkeypatch.setattr(release_gate, "_proxy_format", lambda: "none")
+    monkeypatch.setattr(release_gate, "_curl_status", lambda url, **kw: "200")
 
+    code = main(["--pre"])
+
+    out = capsys.readouterr().out
     assert code == 1
-    assert capsys.readouterr().out == "FAIL x: answered 200, expected 401\n"
+    assert "FAIL dns" in out
+    assert "FAIL public host" in out
 
 
-def test_the_report_command_prints_a_skip(capsys):
-    code = main(["report", "--status", "SKIP", "--name", "x", "--detail", "y"])
+def test_release_skips_the_authenticated_probes_without_a_cookie(
+    monkeypatch, capsys
+):
+    monkeypatch.delenv("HARPI_SESSION_COOKIE", raising=False)
 
-    assert code == 0
-    assert capsys.readouterr().out == "SKIP x: y\n"
+    def status(url, **kw):
+        return "401" if url.endswith("/api/session") else "404"
 
+    monkeypatch.setattr(release_gate, "_curl_status", status)
+    monkeypatch.setattr(
+        release_gate,
+        "_curl_headers",
+        lambda url, **kw: (
+            "Strict-Transport-Security: max-age=31536000\r\nSet-Cookie: "
+            + GOOD_COOKIE
+        ),
+    )
 
-def test_the_verdict_command_reads_stdin(monkeypatch, capsys):
-    monkeypatch.setattr(sys, "stdin", io.StringIO("PASS a: b\nFAIL c: d\n"))
+    code = main(["--release", "--base-url", "https://example.test"])
 
-    code = main(["verdict"])
-
+    out = capsys.readouterr().out
     assert code == 1
-    assert "verdict: FAIL" in capsys.readouterr().out
+    assert "SKIP ssrf queue probe" in out
+    assert "verdict: INCOMPLETE" in out
+
+
+def test_release_needs_a_base_url(capsys):
+    try:
+        main(["--release"])
+    except SystemExit as exit_error:
+        assert exit_error.code == 2
+    else:  # pragma: no cover - argparse always exits
+        raise AssertionError("argparse accepted --release without --base-url")
+    assert "--base-url" in capsys.readouterr().err
+
+
+def test_ports_fails_when_nmap_is_missing(monkeypatch, capsys):
+    monkeypatch.setattr(release_gate.shutil, "which", lambda name: None)
+
+    code = main(["--ports", "example.test"])
+
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL open ports" in out

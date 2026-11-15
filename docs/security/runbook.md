@@ -181,12 +181,12 @@ docker run --rm --entrypoint sh IMAGE -c 'ls /app/.env /app/cookies.txt /app/dat
 
 ## 4. Verification
 
-`deploy/release-gate.sh` changes nothing. Three modes, one at a time:
+`tools/release_gate.py` changes nothing. Three modes, one at a time:
 
 ```sh
-deploy/release-gate.sh --pre
-deploy/release-gate.sh --release --base-url https://harpi.smileydroid.com.br
-deploy/release-gate.sh --ports harpi.smileydroid.com.br
+uv run python tools/release_gate.py --pre
+uv run python tools/release_gate.py --release --base-url https://harpi.smileydroid.com.br
+uv run python tools/release_gate.py --ports harpi.smileydroid.com.br
 ```
 
 Each check prints `PASS`, `FAIL` or `SKIP`; the verdict is `PASS` only when
