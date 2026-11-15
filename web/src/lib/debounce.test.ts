@@ -1,35 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDebouncer } from "./debounce";
 
-function controlledSchedule() {
-  const pending = new Map<number, () => void>();
-  let nextId = 0;
-  return {
-    pending,
-    schedule(fn: () => void) {
-      const id = ++nextId;
-      pending.set(id, fn);
-      return id;
-    },
-    cancel(id: number) {
-      pending.delete(id);
-    },
-    fire(id: number) {
-      const fn = pending.get(id);
-      pending.delete(id);
-      fn?.();
-    },
-  };
-}
-
 describe("createDebouncer", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("runs the latest call once after the delay", () => {
-    const clock = controlledSchedule();
-    const debouncer = createDebouncer({
-      delay: 300,
-      schedule: clock.schedule,
-      cancel: clock.cancel,
-    });
+    const debouncer = createDebouncer(300);
     let calls = 0;
 
     debouncer.run(() => (calls += 1));
@@ -37,24 +19,21 @@ describe("createDebouncer", () => {
     debouncer.run(() => (calls += 1));
 
     expect(calls).toBe(0);
-    expect(clock.pending.size).toBe(1);
-    clock.fire([...clock.pending.keys()][0]!);
+    vi.advanceTimersByTime(299);
+    expect(calls).toBe(0);
+    vi.advanceTimersByTime(1);
 
     expect(calls).toBe(1);
   });
 
   it("drops a scheduled call on cancel", () => {
-    const clock = controlledSchedule();
-    const debouncer = createDebouncer({
-      schedule: clock.schedule,
-      cancel: clock.cancel,
-    });
+    const debouncer = createDebouncer(300);
     let calls = 0;
 
     debouncer.run(() => (calls += 1));
     debouncer.cancel();
+    vi.advanceTimersByTime(1000);
 
-    expect(clock.pending.size).toBe(0);
     expect(calls).toBe(0);
   });
 });

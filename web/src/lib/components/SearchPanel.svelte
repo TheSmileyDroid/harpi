@@ -17,7 +17,9 @@
   let layerUrl = $state<string | null>(null);
   let input = $state<HTMLInputElement | null>(null);
   let dialog = $state<HTMLDialogElement | null>(null);
-  const debouncer = createDebouncer();
+  // Wait for typing to settle before searching, so one phrase is one request.
+  const SEARCH_DEBOUNCE_MS = 300;
+  const debouncer = createDebouncer(SEARCH_DEBOUNCE_MS);
 
   const open = $derived($appStore.search.open);
   const results = $derived($appStore.search.results);

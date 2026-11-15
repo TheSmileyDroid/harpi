@@ -5,28 +5,18 @@ export interface Debouncer {
   cancel(): void;
 }
 
-export interface DebouncerOptions {
-  delay?: number;
-  schedule?: (fn: () => void, timeout: number) => Timer;
-  cancel?: (id: Timer) => void;
-}
-
-export function createDebouncer({
-  delay = 300,
-  schedule = setTimeout,
-  cancel = clearTimeout,
-}: DebouncerOptions = {}): Debouncer {
+export function createDebouncer(delay: number): Debouncer {
   let timer: Timer | null = null;
   return {
     run(fn) {
-      if (timer !== null) cancel(timer);
-      timer = schedule(() => {
+      if (timer !== null) clearTimeout(timer);
+      timer = setTimeout(() => {
         timer = null;
         fn();
       }, delay);
     },
     cancel() {
-      if (timer !== null) cancel(timer);
+      if (timer !== null) clearTimeout(timer);
       timer = null;
     },
   };

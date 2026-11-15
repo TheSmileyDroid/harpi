@@ -3,6 +3,9 @@
   import { volumeGain, volumePosition } from "$lib/transport";
   import { formatVolume } from "$lib/format";
 
+  // Wait for the drag to settle before sending, so one gesture is one request.
+  const VOLUME_DEBOUNCE_MS = 300;
+
   let {
     gain = 0,
     send,
@@ -24,7 +27,7 @@
   } = $props();
 
   let dragging = $state<number | null>(null);
-  const debouncer = createDebouncer({ delay: 300 });
+  const debouncer = createDebouncer(VOLUME_DEBOUNCE_MS);
 
   const position = $derived(dragging ?? volumePosition(gain ?? 0));
   const displayGain = $derived(volumeGain(position));

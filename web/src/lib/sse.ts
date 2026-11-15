@@ -204,22 +204,6 @@ function createStream<F>({
     timer = schedule(connect, delay);
   }
 
-  function forceReconnect() {
-    if (stopped) return;
-    clearTimer();
-    clearWatchdog();
-    source?.close();
-    source = null;
-    attempt = 0;
-    connect();
-  }
-
-  function reconnect() {
-    if (stopped) return;
-    clearTimer();
-    drop();
-  }
-
   return {
     start() {
       if (!stopped) return;
@@ -233,8 +217,6 @@ function createStream<F>({
       source?.close();
       source = null;
     },
-    forceReconnect,
-    reconnect,
   };
 }
 

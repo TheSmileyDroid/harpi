@@ -64,9 +64,6 @@ export interface ApiClientOptions {
 interface RequestBaseOptions {
   method?: string;
   silent?: boolean;
-  json?: boolean;
-  formData?: FormData;
-  keepalive?: boolean;
 }
 
 interface RequestBodyOptions<
@@ -96,27 +93,13 @@ export function createApiClient({
     responseSchema: z.ZodTypeAny,
     options: RequestBodyOptions<z.ZodTypeAny> | RequestBaseOptions = {},
   ): Promise<unknown> {
-    const {
-      method = "GET",
-      silent = false,
-      json = false,
-      keepalive = false,
-    } = options;
+    const { method = "GET", silent = false } = options;
     const init: RequestInit = { method, credentials };
-
-    if (keepalive) {
-      init.keepalive = true;
-    }
 
     if ("requestSchema" in options) {
       const wireBody = options.requestSchema.parse(options.body);
       init.headers = { "Content-Type": "application/json" };
       init.body = JSON.stringify(wireBody);
-    } else if (options.formData) {
-      init.body = options.formData;
-    } else if (json) {
-      init.headers = { "Content-Type": "application/json" };
-      init.body = "{}";
     }
 
     let response: FetchResponse;
