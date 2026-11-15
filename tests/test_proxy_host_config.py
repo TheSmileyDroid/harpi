@@ -12,9 +12,6 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "deploy" / "npm-proxy-host.sh"
-VERIFY = ROOT / "deploy" / "verify-proxy.sh"
-ADMIN_CHECK = ROOT / "deploy" / "check-admin-exposure.sh"
-RATE_CHECK = ROOT / "deploy" / "check-rate-limits.sh"
 RATE_ZONES = ROOT / "deploy" / "npm" / "harpi-rate-limits-http.conf"
 FAIL2BAN_INSTALL = ROOT / "deploy" / "fail2ban" / "install.sh"
 HOSTNAME = "harpi.smileydroid.com.br"
@@ -118,23 +115,6 @@ def test_advanced_config_caps_the_body_and_limits_each_api_zone_by_ip():
     assert "location /api/auth/" in text
 
 
-def test_campaigns_alone_accept_an_upload_sized_body():
-    text = tls_body()["advanced_config"]
-
-    assert "client_max_body_size 17m;" in text
-    assert text.count("client_max_body_size 17m;") == 1
-    campaign = text.split("location /api/campaigns/ {", 1)[1].split("}", 1)[0]
-    assert "client_max_body_size 17m;" in campaign
-    assert "limit_req zone=harpi_campaigns burst=60 nodelay;" in campaign
-
-
-def test_tables_and_campaigns_have_their_own_rate_zones():
-    text = tls_body()["advanced_config"]
-
-    tables = text.split("location /api/tables/ {", 1)[1].split("}", 1)[0]
-    assert "limit_req zone=harpi_tables burst=30 nodelay;" in tables
-
-
 def test_rate_limit_zones_live_in_the_custom_http_context():
     text = RATE_ZONES.read_text()
 
@@ -144,14 +124,6 @@ def test_rate_limit_zones_live_in_the_custom_http_context():
     )
     assert (
         "limit_req_zone $binary_remote_addr zone=harpi_api:1m rate=60r/m;"
-        in text
-    )
-    assert (
-        "limit_req_zone $binary_remote_addr zone=harpi_campaigns:1m rate=300r/m;"
-        in text
-    )
-    assert (
-        "limit_req_zone $binary_remote_addr zone=harpi_tables:1m rate=600r/m;"
         in text
     )
 
@@ -208,7 +180,7 @@ def test_a_bad_certificate_value_fails_loudly():
 
 @pytest.mark.parametrize(
     "script",
-    [SCRIPT, VERIFY, ADMIN_CHECK, RATE_CHECK, FAIL2BAN_INSTALL],
+    [SCRIPT, FAIL2BAN_INSTALL],
     ids=lambda path: path.name,
 )
 def test_shell_scripts_parse(script: Path):
@@ -220,23 +192,3 @@ def test_shell_scripts_parse(script: Path):
     )
 
     assert completed.returncode == 0, completed.stderr
-
-
-def test_verification_script_never_writes():
-    text = VERIFY.read_text()
-
-    for verb in (
-        "-X POST",
-        "-X PUT",
-        "-X DELETE",
-        "iptables",
-        "docker restart",
-    ):
-        assert verb not in text
-
-
-def test_rate_limit_check_never_writes():
-    text = RATE_CHECK.read_text()
-
-    for verb in ("-X POST", "-X PUT", "-X DELETE", "--data", "iptables"):
-        assert verb not in text

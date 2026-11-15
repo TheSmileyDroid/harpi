@@ -250,7 +250,7 @@ apply_host() {
   else
     printf 'no certificate attached; NPM keeps forced HTTPS, HTTP/2 and HSTS off until one is\n'
   fi
-  printf 'next: deploy/verify-proxy.sh\n'
+  printf 'next: deploy/release-gate.sh --release, see docs/security/runbook.md\n'
 }
 
 check_host() {

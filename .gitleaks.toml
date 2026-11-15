@@ -6,5 +6,5 @@ description = "Fake credentials in tests and the RFC 6455 WebSocket sample nonce
 paths = [
   '''tests/test_redaction\.py''',
   '''tests/test_config\.py''',
-  '''deploy/verify-proxy\.sh''',
 ]
+regexes = ['''dGhlIHNhbXBsZSBub25jZQ==''']
