@@ -3,9 +3,6 @@ services:
     container_name: harpi-backend
     build: .
     environment:
-      - DISCORD_TOKEN=${DISCORD_TOKEN}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - PYTHONUNBUFFERED=1
       - TZ=UTC
       - HARPI_DB_PATH=/app/data/harpi.db
       - HARPI_WORK_DIR=/work

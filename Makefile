@@ -4,9 +4,9 @@ SHELL := /bin/bash
 SECURITY_IMAGE ?= harpi:local
 
 -include .env
-export $(shell sed 's/=.*//' .env 2>/dev/null || true)
+export
 
-.PHONY: bootstrap dev start build contract lint check check-fast check-e2e check-network security soak mutants
+.PHONY: bootstrap dev start build contract check check-fast check-e2e check-network security soak
 
 bootstrap:
 	uv sync --upgrade
@@ -18,8 +18,7 @@ dev:
 	uv run python -m src --reload & \
 	wait -n
 
-start:
-	$(MAKE) build
+start: build
 	uv run python -m src
 
 build:
@@ -27,7 +26,6 @@ build:
 
 contract:
 	@uv run python tools/export_contract.py
-	@uv run python tools/emit_contract_fixtures.py
 	@cd web && bun run gen:contract
 
 format:
@@ -73,8 +71,3 @@ security:
 
 soak:
 	HARPI_YTDL_DEBUG=1 uv run python -m tools.soak_playback $(SOAK_ARGS)
-
-mutants:
-	# mutmut_run.py patches mutmut's mutant naming for this repo's src.*
-	# import layout; plain `uv run mutmut run` would never activate mutants.
-	uv run python tools/mutmut_run.py run

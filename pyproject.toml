@@ -6,31 +6,19 @@ authors = [{ name = "TheSmileyDroid", email = "ghsilha@gmail.com" }]
 dependencies = [
     "aiohttp>=3.11",
     "aiosqlite>=0.22.1",
-    "cryptography>=45.0.3",
     "discord.py[voice]>=2.5.2",
     "gtts>=2.5.4",
-    "hypercorn>=0.18.0",
     "loguru>=0.7.3",
     "numpy>=2.4.0",
     "pillow>=11.2.1",
-    "playwright>=1.61.0",
     "psutil>=7.0.0",
     "pydantic>=2.13.4",
-    "pydub>=0.25.1",
     "python-dotenv>=1.1.0",
-    "python-socketio>=5.11.0",
-    "pytz>=2025.2",
     "quart>=0.20.0",
     "quart-schema>=0.23.0",
-    "ruamel.yaml>=0.18.6",
-    "ruff>=0.16.0",
-    "safebag>=0.2.0",
-    "ty>=0.0.65",
     "uvicorn[standard]>=0.34.3",
-    "vulture>=2.16",
-    "websockets>=15.0.1",
-    "wikipedia-api>=0.8.1",
     "yt-dlp>=2025.10.22",
+    # yt-dlp loads this plugin through its entry point, never through an import.
     "yt-dlp-ejs>=0.3.2",
 ]
 
@@ -41,19 +29,16 @@ dev = [
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
     "radon",
-    "mutmut<3.6",
-    # 3.6+ asserts no trampoline hit module may start with `src.`, which
-    # this repo's import layout (`from src.x import y`) violates on every
-    # mutated call, so stats collection always crashes.
     "pytest-xdist>=3.8.0",
+    "ruff>=0.16.0",
+    "ty>=0.0.65",
+    "vulture>=2.16",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["."]
-# Bare `pytest` (e.g. `pytest -m network`) must not wander into the
-# mutmut scratch tree under mutants/; only the real suite is collected.
 testpaths = ["tests"]
 # Real-network tests are never part of the offline gate; run them with
 # `pytest -m network` (a CLI -m overrides this one).
@@ -114,9 +99,6 @@ select = [
 ]
 
 fixable = ["ALL"]
-unfixable = []
-
-ignore = ["EM", "CPY001", "G", "UP007", "D", "S101", "E501", "DTZ005"]
 
 [tool.ruff.lint.per-file-ignores]
 # Test fakes mirror real library signatures; parameters exist to match
@@ -174,29 +156,6 @@ ignore_names = [
     "scope",
     "read_only",
     "preserve_quotes",
-    # ApprovalList.approvals: the queue payload the client reads.
-    "approvals",
-    # SheetNoticeList.notices: the pending warning list the client reads.
-    "notices",
-    # Scene wire models: the blueprint grid, rectangle and gallery summary
-    # fields are read by the client through the generated contract, not by
-    # Python attribute access here.
-    "cell_px",
-    "offset_x",
-    "offset_y",
-    "visible",
-    "x",
-    "y",
-    "w",
-    "h",
-    "rects",
-    "zone_count",
-    "in_use",
-    "map_url",
-    "started_at",
-    "saved_at",
-    # TableSummary.participants: the turn roster the client reads.
-    "participants",
     # YtMusicData.uploader: property consumed through panel serialization.
     "uploader",
     # ASGI entry point (imported by uvicorn via the "app:asgi_app" string in
@@ -205,10 +164,6 @@ ignore_names = [
     # Module-level pytest attribute (read by pytest, not our code):
     # applies the network marker + banner fixture to network test files.
     "pytestmark",
-    # Quart reads the request class from the app and the per-request body
-    # limit from the request instance; this code only sets them.
-    "request_class",
-    "_max_content_length",
     # Framework-read flags: Quart's signed-session flag and URL-map slash
     # merging (set in pages/api.py and app.py), plus uvicorn's server stop
     # flag (set in tests); all assigned for the framework to consume.
@@ -226,14 +181,3 @@ ignore_names = [
     "do_PUT",
     "log_message",
 ]
-
-
-[tool.mutmut]
-# The whole src package must be in the mutated tree: tests import src.cogs
-# and src.bot_state, and a partial copy would shadow the real src package
-# with one that cannot import.  pages/ is Quart glue and the page tests
-# import it, so it must be walked too (mutmut only copies what it walks).
-# app.py and tools/ ride along unmutated (also_copy).
-paths_to_mutate = ["src", "pages"]
-also_copy = ["app.py", "tools"]
-pytest_add_cli_args_test_selection = ["tests/"]

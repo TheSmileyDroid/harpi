@@ -21,7 +21,6 @@ venv/
 coverage.json
 coverage.xml
 htmlcov/
-mutants/
 tests/
 docs/
 deploy/
@@ -44,7 +43,6 @@ common/
 references/
 router/
 AGENTS.md
-CONTEXT.md
 DESIGN.md
 PRODUCT.md
 SmileyBot.png
