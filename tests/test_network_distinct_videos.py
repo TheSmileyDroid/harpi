@@ -42,7 +42,7 @@ DISTINCT_VIDEO_COUNT = 10
 
 def video_id(musicdata: YTMusicData) -> str:
     """Extract the 11-char video id from the watch URL of *musicdata*."""
-    query = parse_qs(urlsplit(musicdata.get_url()).query)
+    query = parse_qs(urlsplit(musicdata.url).query)
     ids = query.get("v")
     return ids[0] if ids else "<no-id>"
 

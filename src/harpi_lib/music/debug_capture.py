@@ -1,33 +1,20 @@
-"""Rolling diagnostic capture for the YouTube source chain.
+"""One-line diagnostics for the YouTube source chain.
 
-Every stage of the chain writes one line per event here, and any
-ffmpeg stderr tail is attached when a stream ends early or fails. The
-file lives under ``.scratch/ytdl-debug/`` (gitignored) and rotates by
-size so a long soak cannot fill the disk.
+Every stage of the chain calls :func:`record`, which writes at DEBUG. Turning on
+``HARPI_YTDL_DEBUG`` raises the level ``logging_setup`` installs, so the events
+land in the same rotated log as everything else.
 """
 
 from __future__ import annotations
 
 import threading
-import time
 from collections import deque
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
 from loguru import logger
 
-from src.config import Settings
-
-REPO_ROOT = Path(__file__).resolve().parents[3]
-DEBUG_DIR = REPO_ROOT / ".scratch" / "ytdl-debug"
-DEBUG_FILE = DEBUG_DIR / "ytdl-debug.log"
-ROTATED_FILE = DEBUG_DIR / "ytdl-debug.log.1"
-MAX_BYTES = 2_000_000
 STDERR_TAIL_LINES = 40
-CAPTURE_ENABLED = Settings.from_env().ytdl_debug
-
-_write_lock = threading.Lock()
 
 
 class StderrTail:
@@ -46,14 +33,6 @@ class StderrTail:
             return "\n".join(self._lines)
 
 
-def _rotate_if_needed() -> None:
-    try:
-        if DEBUG_FILE.exists() and DEBUG_FILE.stat().st_size > MAX_BYTES:
-            DEBUG_FILE.replace(ROTATED_FILE)
-    except OSError as exc:
-        logger.debug(f"ytdl debug rotation failed: {exc}")
-
-
 def redact_source(source: object) -> str:
     """Render an audio source safe for logs: bare host, or a pipe marker."""
     if not isinstance(source, str):
@@ -66,18 +45,6 @@ def redact_source(source: object) -> str:
 
 
 def record(event: str, **fields: Any) -> None:
-    """Append one diagnostic line to the rolling file and the log."""
-    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    """Write one diagnostic line at DEBUG level."""
     rendered = " ".join(f"{key}={value!r}" for key, value in fields.items())
-    line = f"{stamp} {event} {rendered}".rstrip()
-    logger.debug(line)
-    if not CAPTURE_ENABLED:
-        return
-    try:
-        DEBUG_DIR.mkdir(parents=True, exist_ok=True)
-        with _write_lock:
-            _rotate_if_needed()
-            with DEBUG_FILE.open("a", encoding="utf-8") as handle:
-                handle.write(line + "\n")
-    except OSError as exc:
-        logger.debug(f"ytdl debug write failed: {exc}")
+    logger.debug(f"{event} {rendered}".rstrip())

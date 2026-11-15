@@ -38,14 +38,12 @@ async def disconnect(guild_id: int) -> None:
     await run_on_bot_loop(get_bot().sessions.disconnect(guild_id))
 
 
-async def search_tracks(
-    term: str, track_source: type[YTMusicData] = YTMusicData
-) -> list[Track]:
+async def search_tracks(term: str) -> list[Track]:
     term = term.strip()
     if not term:
         return []
     await refuse_outside_source_policy(term)
-    return _track_list(await track_source.from_url(term))
+    return _track_list(await YTMusicData.from_url(term))
 
 
 def _track_list(results: list[YTMusicData]) -> list[Track]:

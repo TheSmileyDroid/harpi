@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import cast
 
 import discord
@@ -12,8 +13,20 @@ from src.harpi_lib.audio.session import (
     SessionStatus,
 )
 from src.harpi_lib.harpi_bot import HarpiBot
-from src.harpi_lib.parse import parse_finite_float
 from src.panel import actions
+
+
+def _parse_finite_float(raw: str | None = "") -> float | None:
+    """Parse *raw* into a finite float, or return ``None``.
+
+    ``None``, empty strings, and non-numeric text return ``None``.
+    NaN and infinity also return ``None`` because they are not finite.
+    """
+    try:
+        value = float(raw or "")
+    except (ValueError, TypeError):
+        return None
+    return value if math.isfinite(value) else None
 
 
 def _queue_message(status: SessionStatus) -> str:
@@ -193,7 +206,7 @@ class MusicCog(Cog):
             session = await self._require_session(ctx)
             if session is None:
                 return
-            target = parse_finite_float(position)
+            target = _parse_finite_float(position)
             if target is None:
                 _ = await ctx.send("Posição inválida")
                 return
@@ -268,7 +281,7 @@ class MusicCog(Cog):
                     f"Volume atual: {session.status.volume:.2f}"
                 )
                 return
-            target = parse_finite_float(level)
+            target = _parse_finite_float(level)
             if target is None:
                 _ = await ctx.send("Volume inválido")
                 return

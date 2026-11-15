@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import io
 import subprocess
-from pathlib import Path
 from typing import Any
 
 import discord
+from loguru import logger
 import pytest
 
 from src.harpi_lib.music import debug_capture, ytdl_source
@@ -16,41 +16,18 @@ from src.harpi_lib.music.ffmpeg_source import FFmpegPCMAudio
 from src.harpi_lib.music.ytdl_source import YoutubeDLSource
 
 
-@pytest.fixture
-def debug_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setattr(debug_capture, "CAPTURE_ENABLED", True)
-    monkeypatch.setattr(debug_capture, "DEBUG_DIR", tmp_path)
-    monkeypatch.setattr(
-        debug_capture, "DEBUG_FILE", tmp_path / "ytdl-debug.log"
+def test_record_writes_one_debug_line():
+    lines: list[str] = []
+    sink = logger.add(
+        lambda message: lines.append(message.record["message"]),
+        level="DEBUG",
     )
-    monkeypatch.setattr(
-        debug_capture, "ROTATED_FILE", tmp_path / "ytdl-debug.log.1"
-    )
-    return tmp_path
+    try:
+        debug_capture.record("track-stop", title="x", played="1.0")
+    finally:
+        logger.remove(sink)
 
-
-def test_record_appends_one_line(debug_dir: Path):
-    debug_capture.record("track-stop", title="x", played="1.0")
-
-    text = (debug_dir / "ytdl-debug.log").read_text()
-
-    assert "track-stop" in text
-    assert "title='x'" in text
-    assert "played='1.0'" in text
-    assert text.count("\n") == 1
-
-
-def test_record_rotates_before_overwriting(
-    debug_dir: Path, monkeypatch: pytest.MonkeyPatch
-):
-    monkeypatch.setattr(debug_capture, "MAX_BYTES", 10)
-    log = debug_dir / "ytdl-debug.log"
-    log.write_text("x" * 20)
-
-    debug_capture.record("event")
-
-    assert (debug_dir / "ytdl-debug.log.1").exists()
-    assert "event" in log.read_text()
+    assert lines == ["track-stop title='x' played='1.0'"]
 
 
 def test_stderr_tail_keeps_only_the_last_lines():
@@ -132,9 +109,7 @@ def _build_source(duration: int, stderr_text: str) -> YoutubeDLSource:
     )
 
 
-def test_read_reports_early_stop_with_stderr(
-    debug_dir: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_read_reports_early_stop_with_stderr(monkeypatch: pytest.MonkeyPatch):
     recorded: list[tuple[str, dict[str, Any]]] = []
     monkeypatch.setattr(
         debug_capture,
@@ -154,9 +129,7 @@ def test_read_reports_early_stop_with_stderr(
     assert stop["early"] is True
 
 
-def test_read_reports_stop_once(
-    debug_dir: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_read_reports_stop_once(monkeypatch: pytest.MonkeyPatch):
     events: list[str] = []
     monkeypatch.setattr(
         debug_capture, "record", lambda event, **fields: events.append(event)
@@ -170,9 +143,7 @@ def test_read_reports_stop_once(
     assert "ffmpeg-stderr" not in events
 
 
-def test_read_full_track_is_not_early(
-    debug_dir: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_read_full_track_is_not_early(monkeypatch: pytest.MonkeyPatch):
     recorded: list[tuple[str, dict[str, Any]]] = []
     monkeypatch.setattr(
         debug_capture,

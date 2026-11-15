@@ -16,6 +16,7 @@ from quart_schema import document_request, document_response, validate_response
 from src.bot_state import bot_running
 from src.harpi_lib.audio.session import LOOP_MODE_ALIASES
 from src.harpi_lib.music.source_policy import SourcePolicyError
+from src.harpi_lib.music.ytmusic import NothingFoundError
 from src.panel import actions, rate_limit, sampler, state
 from src.panel.schemas import (
     Authenticated,
@@ -264,6 +265,8 @@ async def api_search() -> Any:
         results = await actions.search_tracks(data.term)
     except SourcePolicyError as exc:
         return error_response("bad_request", str(exc), 400)
+    except NothingFoundError:
+        return {"results": []}
     return {"results": results}
 
 
@@ -284,6 +287,8 @@ async def _mutate_url(mutation: Any) -> Any:
         await mutation(guild, data.url)
     except SourcePolicyError as exc:
         return error_response("bad_request", str(exc), 400)
+    except NothingFoundError as exc:
+        return error_response("not_found", str(exc), 404)
     return await state.status_snapshot(guild)
 
 

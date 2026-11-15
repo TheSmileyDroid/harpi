@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from src.config import Settings
-from src.panel import backup
+from src.panel import backup, periodic
 from src.storage.database import Database
 from src.storage.registry import Actor, Place, SqliteRegistry
 
@@ -166,7 +166,7 @@ async def test_start_daily_backup_runs_at_once_and_stop_cancels(
     task = backup.start_daily_backup(settings)
     for _ in range(3):
         await asyncio.sleep(0)
-    await backup.stop_daily_backup(task)
+    await periodic.stop_all([task])
 
     assert len(calls) == 1
     assert task.cancelled()

@@ -17,26 +17,30 @@ from src.harpi_lib.music import (
     stream_probe,
     ytmusic,
 )
-from src.harpi_lib.music.ffmpeg_source import FFmpegPCMAudio, ffmpeg_options
-from src.harpi_lib.music.ytmusic import YTMusicData, pick_thumbnail
+from src.harpi_lib.music.ffmpeg_source import (
+    FFMPEG_BEFORE_OPTIONS,
+    FFMPEG_OPTIONS,
+    FFmpegPCMAudio,
+)
+from src.harpi_lib.music.ytmusic import (
+    NothingFoundError,
+    YTMusicData,
+    pick_thumbnail,
+)
 
 BYTES_PER_SECOND = 48000 * 2 * 2
 EARLY_STOP_GRACE_SECONDS = 5.0
 
 
-class UniqueAudioSource(discord.PCMVolumeTransformer):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.id: str = str(uuid.uuid4())
-
-
-class YoutubeDLSource(UniqueAudioSource):
+class YoutubeDLSource(discord.PCMVolumeTransformer):
     """Audio source that streams from YouTube via yt-dlp and FFmpeg."""
 
     def __init__(
         self, source: discord.AudioSource, data: dict[str, Any], **kwargs: Any
     ) -> None:
         super().__init__(original=source, **kwargs)
+
+        self.id: str = str(uuid.uuid4())
 
         self.data: dict[str, str | int] = data
 
@@ -125,12 +129,12 @@ class YoutubeDLSource(UniqueAudioSource):
         """
         info, stream_url = await cls._pick_stream(musicdata)
         data = dict(info)
-        data["url"] = musicdata.get_url()
+        data["url"] = musicdata.url
         return cls(
             FFmpegPCMAudio(
                 source=stream_url,
-                options=ffmpeg_options["options"],
-                before_options=ffmpeg_options["before_options"],
+                options=FFMPEG_OPTIONS,
+                before_options=FFMPEG_BEFORE_OPTIONS,
             ),
             data=data,
             volume=volume,
@@ -151,10 +155,8 @@ class YoutubeDLSource(UniqueAudioSource):
 
     @staticmethod
     def _reject_unplayable(musicdata: YTMusicData) -> NoReturn:
-        debug_capture.record("stream-reject", url=musicdata.get_url())
-        raise ValueError(
-            f"No playable stream found for URL: {musicdata.get_url()}"
-        )
+        debug_capture.record("stream-reject", url=musicdata.url)
+        raise NothingFoundError(musicdata.url)
 
     @classmethod
     async def _probe_or_none(
@@ -213,7 +215,7 @@ class YoutubeDLSource(UniqueAudioSource):
         Raises via ``_reject_unplayable`` when the fresh URL is unusable
         or the probe cannot find a playable stream.
         """
-        fresh = await cls._extract_fresh(musicdata.get_url())
+        fresh = await cls._extract_fresh(musicdata.url)
         fresh_url = cls._select_stream_url(fresh)
         if not isinstance(fresh_url, str) or not fresh_url.startswith((
             "http://",

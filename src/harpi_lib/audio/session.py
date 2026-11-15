@@ -17,7 +17,7 @@ from src.harpi_lib.audio.mixer import MixerSource
 from src.harpi_lib.music.ffmpeg_source import FastStartFFmpegPCMAudio
 from src.harpi_lib.music.stream_probe import ProbeEnvironmentError
 from src.harpi_lib.music.ytdl_source import YoutubeDLSource
-from src.harpi_lib.music.ytmusic import YTMusicData
+from src.harpi_lib.music.ytmusic import NothingFoundError, YTMusicData
 
 MAX_SEEK_SECONDS = 4 * 3600
 TRACK_LOAD_TIMEOUT = 60.0
@@ -222,7 +222,7 @@ class PlaybackSession:
         """
         music_data_list = await YTMusicData.from_url(link)
         if not music_data_list:
-            raise ValueError("Nenhuma música encontrada para este link")
+            raise NothingFoundError(link)
         self._queue.extend(music_data_list)
         logger.info(
             f"Added {len(music_data_list)} track(s) to queue in guild {self._guild_id}"
@@ -407,7 +407,7 @@ class PlaybackSession:
         """
         music_data_list = await YTMusicData.from_url(link)
         if not music_data_list:
-            raise ValueError("Nenhuma música encontrada para este link")
+            raise NothingFoundError(link)
         source = await asyncio.wait_for(
             YoutubeDLSource.from_music_data(
                 music_data_list[0], volume=DEFAULT_LAYER_VOLUME

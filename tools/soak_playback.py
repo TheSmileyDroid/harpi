@@ -10,7 +10,8 @@ Run it in the background while the live bot is exercised:
 
     HARPI_YTDL_DEBUG=1 .venv/bin/python -m tools.soak_playback --tracks 20 --window 60
 
-Diagnostics for every event land in .scratch/ytdl-debug/ytdl-debug.log.
+Diagnostics for every event print to stderr at DEBUG level; run the bot with
+``HARPI_YTDL_DEBUG=1`` to keep them in the rotated log.
 """
 
 from __future__ import annotations

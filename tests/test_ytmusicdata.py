@@ -22,7 +22,7 @@ from src.harpi_lib.music.stream_probe import (
 )
 from src.harpi_lib.music.ytdl_source import YoutubeDLSource
 from src.harpi_lib.music.ytmusic import YTMusicData
-from src.harpi_lib.music.nothing_found import NothingFoundError
+from src.harpi_lib.music.ytmusic import NothingFoundError
 
 
 def _stream_formats() -> list[dict[str, Any]]:
@@ -959,7 +959,7 @@ async def test_from_music_data_flat_entry_probes_fresh_stream_once(
     monkeypatch.setattr(stream_probe, "probe_stream_audio", probe)
     monkeypatch.setattr(ytmusic, "ytdl", extractor)
 
-    with pytest.raises(ValueError, match="No playable stream found"):
+    with pytest.raises(NothingFoundError, match="nenhum vídeo"):
         await YoutubeDLSource.from_music_data(musicdata, volume=0.5)
 
     assert extractor.calls == [("https://www.youtube.com/watch?v=flat", False)]

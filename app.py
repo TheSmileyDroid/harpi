@@ -4,15 +4,11 @@ import asyncio
 import base64
 import hashlib
 import re
-from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Any, cast
 
-from hypercorn.typing import HTTPScope
 from loguru import logger
 from quart import (
     Quart,
-    Request,
     Response,
     g,
     has_request_context,
@@ -21,7 +17,6 @@ from quart import (
     session,
 )
 from quart_schema import QuartSchema
-from werkzeug.datastructures import Headers
 from werkzeug.exceptions import HTTPException
 from werkzeug.wsgi import host_is_trusted
 
@@ -42,6 +37,7 @@ from src.panel import (
     backup,
     disk_pressure,
     login,
+    periodic,
     retention,
     state,
 )
@@ -63,42 +59,7 @@ WEB_BUILD = Path(__file__).resolve().parent / "web" / "build"
 
 MAX_REQUEST_BODY_BYTES = 64 * 1024
 
-
-class PanelRequest(Request):
-    def __init__(
-        self,
-        method: str,
-        scheme: str,
-        path: str,
-        query_string: bytes,
-        headers: Headers,
-        root_path: str,
-        http_version: str,
-        scope: HTTPScope,
-        *,
-        max_content_length: int | None = None,
-        body_timeout: int | None = None,
-        send_push_promise: Callable[[str, Headers], Awaitable[None]],
-    ) -> None:
-        limit = max_content_length or MAX_REQUEST_BODY_BYTES
-        super().__init__(
-            method,
-            scheme,
-            path,
-            query_string,
-            headers,
-            root_path,
-            http_version,
-            scope,
-            max_content_length=limit,
-            body_timeout=body_timeout,
-            send_push_promise=send_push_promise,
-        )
-        self._max_content_length = limit
-
-
 app = Quart(__name__, static_folder=None)
-app.request_class = cast(Any, PanelRequest)
 
 
 def configure_panel_session(settings: Settings) -> None:
@@ -176,8 +137,6 @@ DOCUMENTATION_PATHS: frozenset[str] = frozenset({
     "/scalar",
 })
 
-MAX_REQUEST_BODY_BYTES = 64 * 1024
-
 
 def configure_security(settings: Settings) -> None:
     app.config["PUBLIC_MODE"] = settings.public_mode
@@ -186,7 +145,6 @@ def configure_security(settings: Settings) -> None:
     app.config["SECURITY_HEADERS"] = build_security_headers(WEB_BUILD)
 
 
-app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.url_map.merge_slashes = False
 configure_panel_session(BOOT_SETTINGS)
 configure_security(BOOT_SETTINGS)
@@ -344,14 +302,12 @@ app.register_blueprint(api_bp)
 app.register_blueprint(auth_bp)
 
 _database: Database | None = None
-_retention_task: asyncio.Task[None] | None = None
-_backup_task: asyncio.Task[None] | None = None
-_disk_task: asyncio.Task[None] | None = None
+_periodic_tasks: list[asyncio.Task[None]] = []
 
 
 @app.before_serving
 async def startup():
-    global _database, _retention_task, _backup_task, _disk_task
+    global _database, _periodic_tasks
     settings = Settings.from_env()
     alerts.configure_alerts(settings.alert_webhook)
     if get_registry() is None:
@@ -365,9 +321,11 @@ async def startup():
         except Exception as e:
             _database = None
             logger.opt(exception=True).error(f"Panel storage unavailable: {e}")
-    _retention_task = retention.start_daily_purge(settings)
-    _backup_task = backup.start_daily_backup(settings)
-    _disk_task = disk_pressure.start_disk_watch(settings)
+    _periodic_tasks = [
+        retention.start_daily_purge(settings),
+        backup.start_daily_backup(settings),
+        disk_pressure.start_disk_watch(settings),
+    ]
     try:
         run_bot_in_background(settings)
         logger.info("Discord bot initialization started")
@@ -377,19 +335,9 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    global _database, _retention_task, _backup_task, _disk_task
-    task = _retention_task
-    _retention_task = None
-    if task is not None:
-        await retention.stop_daily_purge(task)
-    backup_task = _backup_task
-    _backup_task = None
-    if backup_task is not None:
-        await backup.stop_daily_backup(backup_task)
-    disk_task = _disk_task
-    _disk_task = None
-    if disk_task is not None:
-        await disk_pressure.stop_disk_watch(disk_task)
+    global _database, _periodic_tasks
+    tasks, _periodic_tasks = _periodic_tasks, []
+    await periodic.stop_all(tasks)
     await alerts.stop_alerts()
     database = _database
     _database = None

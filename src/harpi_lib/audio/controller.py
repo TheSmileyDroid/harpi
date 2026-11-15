@@ -1,4 +1,4 @@
-from src.harpi_lib.music.ytdl_source import UniqueAudioSource
+from src.harpi_lib.music.ytdl_source import YoutubeDLSource
 from collections.abc import Iterable
 import threading
 
@@ -43,7 +43,7 @@ class AudioController:
                 sounds.append(("tts", self._tts_track))
             return sounds
 
-    def add_layer(self, source: UniqueAudioSource) -> str:
+    def add_layer(self, source: YoutubeDLSource) -> str:
         """Add a background audio layer and return its ID."""
         with self._lock:
             self._layers[source.id] = source

@@ -7,7 +7,7 @@ from dataclasses import replace
 from typing import cast
 
 from src.config import Settings
-from src.panel import retention, state
+from src.panel import periodic, retention, state
 from src.storage import clear_registry, init_registry
 from src.storage.registry import PurgedHistory, Registry
 
@@ -53,7 +53,7 @@ async def test_start_daily_purge_purges_at_once_and_stop_cancels():
         task = retention.start_daily_purge(_settings())
         for _ in range(3):
             await asyncio.sleep(0)
-        await retention.stop_daily_purge(task)
+        await periodic.stop_all([task])
     finally:
         clear_registry()
 

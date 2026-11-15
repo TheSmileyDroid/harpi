@@ -17,13 +17,23 @@ from loguru import logger
 
 from src.config import Settings
 from src.harpi_lib.music import cookie_store, source_policy
-from src.harpi_lib.music.nothing_found import NothingFoundError
 from src.harpi_lib.music.ytdl_options import (
     PUBLIC_PLAYLIST_LIMIT,
     build_ytdl_options,
 )
 
 _work_cookie = cookie_store.prepare_cookie_file()
+
+
+class NothingFoundError(ValueError):
+    """Raised when a search query finds no video."""
+
+    def __init__(self, query: str) -> None:
+        self.query = query
+        super().__init__(
+            f"Não foi possível encontrar nenhum vídeo para {query}.",
+        )
+
 
 JS_RUNTIME_PRIORITY = ("deno", "node", "quickjs", "bun")
 
@@ -287,9 +297,6 @@ class YTMusicData:
     @property
     def title(self) -> str:
         return self._title
-
-    def get_url(self) -> str:
-        return self._url
 
     @property
     def url(self) -> str:

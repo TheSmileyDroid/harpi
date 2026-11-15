@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import suppress
 
 from loguru import logger
 
 from src.config import Settings
-from src.panel import state
+from src.panel import periodic, state
 
 RETENTION_INTERVAL_SECONDS = state.SECONDS_PER_DAY
 
@@ -28,10 +27,4 @@ async def run_daily(settings: Settings) -> None:
 
 
 def start_daily_purge(settings: Settings) -> asyncio.Task[None]:
-    return asyncio.create_task(run_daily(settings), name="harpi-retention")
-
-
-async def stop_daily_purge(task: asyncio.Task[None]) -> None:
-    task.cancel()
-    with suppress(asyncio.CancelledError):
-        await task
+    return periodic.start("harpi-retention", run_daily(settings))

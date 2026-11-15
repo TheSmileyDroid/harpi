@@ -26,10 +26,6 @@ def init_database(database: Database) -> None:
     _database = database
 
 
-def get_database() -> Database | None:
-    return _database
-
-
 def clear_database() -> None:
     global _database
     _database = None

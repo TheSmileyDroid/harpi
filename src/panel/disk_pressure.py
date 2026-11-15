@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from contextlib import suppress
 from pathlib import Path
 
 import psutil
@@ -12,6 +11,7 @@ from loguru import logger
 
 from src import alerts
 from src.config import Settings
+from src.panel import periodic
 
 DISK_CHECK_INTERVAL_SECONDS = 300
 DISK_PRESSURE_PERCENT = 85.0
@@ -71,10 +71,4 @@ async def run_periodically(
 
 
 def start_disk_watch(settings: Settings) -> asyncio.Task[None]:
-    return asyncio.create_task(run_periodically(settings), name="harpi-disk")
-
-
-async def stop_disk_watch(task: asyncio.Task[None]) -> None:
-    task.cancel()
-    with suppress(asyncio.CancelledError):
-        await task
+    return periodic.start("harpi-disk", run_periodically(settings))

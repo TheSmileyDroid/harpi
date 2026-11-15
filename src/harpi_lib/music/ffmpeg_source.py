@@ -30,12 +30,11 @@ _RECONNECT_OPTIONS = (
     "5",
 )
 
-ffmpeg_options = {
-    "options": "-vn",
-    "before_options": " ".join(_RECONNECT_OPTIONS),
-}
-
-# Browser-like HTTP headers, the same set yt-dlp attaches to every request.
+# ffmpeg arguments for a live stream: no video, and reconnect after a drop.
+FFMPEG_OPTIONS = "-vn"
+FFMPEG_BEFORE_OPTIONS = " ".join(
+    _RECONNECT_OPTIONS
+)  # Browser-like HTTP headers, the same set yt-dlp attaches to every request.
 # YouTube's CDN answers the googlevideo stream URLs with 403 when ffmpeg
 # fetches them without these headers, so probing and playback send them.
 _FFMPEG_HEADERS = (

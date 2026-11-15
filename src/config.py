@@ -32,10 +32,6 @@ def _env_or(name: str, default: str) -> str:
     return os.getenv(name) or default
 
 
-def _env_or_none(name: str) -> str | None:
-    return os.getenv(name) or None
-
-
 def _allowlist_from_env() -> frozenset[int]:
     raw = os.getenv("PANEL_GUILD_ALLOWLIST", "")
     entries = [entry for entry in re.split(r"[,\s]+", raw.strip()) if entry]
@@ -67,7 +63,6 @@ class Settings:
     secret_key: str | None
     discord_client_id: str | None = None
     discord_redirect_uri: str = DEFAULT_REDIRECT_URI
-    panel_base_url: str | None = None
     ytdl_debug: bool = False
     js_runtime_dirs: str = ""
     db_path: str = "data/harpi.db"
@@ -94,7 +89,6 @@ class Settings:
             discord_redirect_uri=_env_or(
                 "DISCORD_REDIRECT_URI", DEFAULT_REDIRECT_URI
             ),
-            panel_base_url=_env_or_none("PANEL_BASE_URL"),
             ytdl_debug=_env_flag("HARPI_YTDL_DEBUG"),
             js_runtime_dirs=_env_or("HARPI_JS_RUNTIME_DIRS", ""),
             db_path=_env_or("HARPI_DB_PATH", "data/harpi.db"),

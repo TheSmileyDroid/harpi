@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import sqlite3
 import tempfile
-from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,6 +17,7 @@ from loguru import logger
 
 from src import alerts
 from src.config import Settings
+from src.panel import periodic
 
 BACKUP_DIRECTORY_NAME = "backups"
 BACKUP_FILE_PREFIX = "harpi-"
@@ -164,10 +164,4 @@ async def run_daily(settings: Settings) -> None:
 
 
 def start_daily_backup(settings: Settings) -> asyncio.Task[None]:
-    return asyncio.create_task(run_daily(settings), name="harpi-backup")
-
-
-async def stop_daily_backup(task: asyncio.Task[None]) -> None:
-    task.cancel()
-    with suppress(asyncio.CancelledError):
-        await task
+    return periodic.start("harpi-backup", run_daily(settings))

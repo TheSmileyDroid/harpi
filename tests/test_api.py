@@ -28,7 +28,7 @@ from src.config import Settings
 from src.harpi_lib.audio.session import LayerInfo, LoopMode
 from src.harpi_lib.harpi_bot import HarpiBot
 from src.harpi_lib.music import source_policy
-from src.harpi_lib.music.ytmusic import YTMusicData
+from src.harpi_lib.music.ytmusic import NothingFoundError, YTMusicData
 from src.panel import login, rate_limit, state
 from src.storage import clear_registry
 from src.storage.registry import Actor
@@ -38,6 +38,7 @@ from tests.fakes import (
     FakeBot,
     FakeGuild,
     FakeSession,
+    FailingPlaySession,
     found_track,
     patch_search,
     playing_status,
@@ -1054,6 +1055,46 @@ async def test_queue_accepts_a_youtube_url_in_public_mode(
     ) in session_obj.calls
 
 
+async def test_queue_reports_an_unplayable_link_as_not_found(
+    client, bot: ApiBot, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    await _select_guild(client)
+    session_obj = bot.sessions._session
+    assert session_obj is not None
+
+    async def nothing_found(link: str) -> None:
+        raise NothingFoundError(link)
+
+    monkeypatch.setattr(session_obj, "play", nothing_found)
+
+    response = await client.post(
+        "/api/queue", json={"url": "https://example.com/song"}
+    )
+
+    assert response.status_code == 404
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "not_found"
+    assert "nenhum vídeo" in body["error"]["message"]
+
+
+async def test_queue_keeps_an_unexpected_failure_as_a_server_error(
+    client, bot: ApiBot, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+    await _select_guild(client)
+    bot.sessions._session = FailingPlaySession()
+    monkeypatch.setitem(quart_app.config, "TESTING", False)
+
+    response = await client.post(
+        "/api/queue", json={"url": "https://example.com/song"}
+    )
+
+    assert response.status_code == 500
+    body = json.loads(await response.get_data())
+    assert body["error"]["code"] == "internal_error"
+
+
 async def test_queue_remove_dispatches_and_answers_with_the_same_truth_as_status(
     client, bot: ApiBot
 ):
@@ -1175,6 +1216,22 @@ async def test_search_maps_a_failure_to_the_error_envelope(
     assert response.status_code == 500
     body = json.loads(await response.get_data())
     assert body["error"]["code"] == "internal_error"
+
+
+async def test_search_without_a_result_answers_an_empty_list(
+    client, monkeypatch: pytest.MonkeyPatch
+):
+    await _login(client)
+
+    async def nothing_found(term: str) -> list[YTMusicData]:
+        raise NothingFoundError(term)
+
+    monkeypatch.setattr(YTMusicData, "from_url", staticmethod(nothing_found))
+
+    response = await client.post("/api/search", json={"term": "zzz"})
+
+    assert response.status_code == 200
+    assert json.loads(await response.get_data()) == {"results": []}
 
 
 async def test_thirty_searches_in_a_minute_hit_the_bucket(
