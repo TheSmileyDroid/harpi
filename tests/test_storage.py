@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src.storage.database import Database
+from src.storage.database import MIGRATIONS, Database
 from src.storage.registry import (
     PRESENCE_TTL_SECONDS,
     Actor,
@@ -40,12 +40,13 @@ async def open_registry(tmp_path) -> tuple[Database, SqliteRegistry]:
 
 async def test_open_creates_the_schema_and_applies_it_once(tmp_path):
     database, _ = await open_registry(tmp_path)
+    expected = len(list(MIGRATIONS.glob("*.sql")))
 
     row = await database.fetchone(
         "SELECT COUNT(*) AS n FROM schema_migrations"
     )
     assert row is not None
-    assert row["n"] == 11
+    assert row["n"] == expected
 
     await database.close()
     reopened = Database(tmp_path / "harpi.db")
@@ -54,7 +55,7 @@ async def test_open_creates_the_schema_and_applies_it_once(tmp_path):
         "SELECT COUNT(*) AS n FROM schema_migrations"
     )
     assert row is not None
-    assert row["n"] == 11
+    assert row["n"] == expected
     await reopened.close()
 
 
