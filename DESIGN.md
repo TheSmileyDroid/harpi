@@ -264,8 +264,6 @@ A warm near-black board carrying plate-toned placards, inked in amber for state 
 
 The music page is a single column capped at 72rem and centred, padded 0.75rem at the top, 1.25rem at the sides and `calc(var(--transport-height) + 1.5rem)` at the bottom so the fixed dock never sits over content. The placard bar wraps at the top with 0.5rem gaps and 0.5rem padding. Panels stack with 1rem gaps and pad 1rem, and a panel band sits 0.85rem above its content.
 
-The campaign shell is a fixed 14rem rail beside a fluid content column. The content column caps at 72rem, pads 0.75rem at the top and 1.25rem at the sides, and clears its own bottom with 2rem; no dock takes part. Below 56rem the rail becomes a band across the top and the content column starts under it. Panels inside the shell follow the same 1rem stack and 1rem padding as the music page.
-
 The console is one column until 56rem, where it splits into a fluid main column (Tocando agora over Fila) and a 15.5rem rail (Camadas, Sessão, Conectados). The rail collapses behind an Ocultar camadas key and reopens with Mostrar camadas. The rating grid auto-fits at `minmax(7rem, 1fr)`, so four readouts sit in one row on desktop and wrap to two columns on a phone. The queue list caps at 60vh and scrolls until 56rem, where it takes the height left over so the plates meet the dock.
 
 Fixed chrome stacks above the dock: toasts at the right corner (z-index 60), the error region mirrored at the left (65), the output popover below both (40) and a select list under that (50), with the dock itself at 10. Toasts and errors both clear the dock through `calc(var(--transport-height) + 0.5rem)`. Measured on the built panel at maximum scroll, the lowest panel bottom sits 24px above the dock top at both 1440x900 and 390x844. Authored controls clear 40px (keys, inputs and the seek scale at 2.5rem, rising to 2.75rem on coarse pointers) with two exceptions: keys inside a queue or layer row and inside a fault plate sit at 2rem, and the native volume range is 16px tall on desktop.
@@ -347,37 +345,9 @@ Placards are the state unit, keys are instrument keys, and plates are what holds
 
 ### Navigation
 
-The panel has two surfaces and two ways of getting around. They share placards and keys, and never share a frame.
+The panel has one surface and one way of getting around: placards and keys, with no frame to share.
 
 **The music page** has no nav: the placard bar is the wayfinding. It holds the wordmark placard (the pixel mark at 1.6rem beside HARPI in Urbanist 800 at 0.85rem tracking 0.24em), the output placard (guild and channel, hover-lifted), the carrier placard, the voice placard, then the Buscar key with its shortcut hint (Ctrl K, or the command key on a Mac, hidden under 30rem) and the Sair key. The output placard is also the control: it opens a popover holding the Servidor and Canal selects, an optional hint, and the Conectar or Reconectar key beside Desconectar. Under 30rem the bar wraps and the output placard takes a full row.
-
-**The campaign shell** frames every `/c/<campaign>/…` page. A 14rem rail runs the full viewport height, fixed, on the plate tone with a 1px bright rule on its inner edge. From top to bottom it holds:
-
-- **The wordmark** as the way home: the pixel mark at 1.6rem beside HARPI in Urbanist 800 at 0.85rem tracking 0.24em, on a link that takes the usual 2px amber focus outline.
-- **The campaign placard:** a placard stacked label over value, the claim CAMPANHA in Barlow 600 at 0.6875rem tracking 0.16em amber, and the campaign name in JetBrains Mono 0.8125rem sand, ellipsised at the rail width.
-- **The pages:** MESA, PERSONAGENS, FICHA and CENAS in one column, each a 2.5rem row in Barlow 600 at 0.72rem tracking 0.14em, divided by 1px `rule` hairlines. A 0.4rem square lamp leads each row. The inactive row is dim ash with a bright-rule lamp; hover lifts the ink to sand, the fill to the raised plate and the border to oxide, exactly like a key. The active row is a raised-plate fill, a sand label and an amber lamp, and it carries `aria-current="page"`. The active row is never a sand fill: sand stays the pressed surface.
-- **The link placard** at the foot of the rail: the claim LINK over the state, ATIVO in amber when the stream is live, PERDIDO in hazard red when it is reconnecting, CONECTANDO in dim ash before the first frame. It is a reading, not a control.
-
-Below 56rem the rail turns into a band across the top. The wordmark and the campaign placard share the first row, the four page links wrap under them as a row of keys with the lamps, and the link placard takes the end of the band. The band is not fixed and scrolls away with the page; the content column starts under it. The shell's content column caps at 72rem and centres while the rail stays put; below 56rem the band is the full width of the page.
-
-The campaign shell never carries the music dock, and the music page never carries the campaign rail. A VTT page owns its bottom edge and has no `--transport-height` to clear.
-
-### Named Rules
-**The Two Surfaces Rule.** Music and the table never share a frame: the music page keeps the placard bar and the transport dock, the campaign shell keeps the 14rem rail and no dock. A placard, a key or a reading may cross over; a fixed frame may not.
-
-### The Scene Editor
-
-The editor is a bench: a tool column on the left, the stage in the middle and the inspector on the right, stacking to one column below 56rem. The stage sits in a sunken well under a bright-rule frame, with the drawn rooms filled in the raised plate and contoured in the bright rule. A hidden room keeps a dashed faint contour and carries an `oculta` tag beside its name; selection recolors the contour amber without losing the dash. The erase preview is oxide, never hazard red. Grid lines stay in the rule tone and the grid can be hidden. The inspector edits the cell, the offsets, the room label and the initial reveal state, and holds the sand save key. The editor draws the prepared map only: no fog, no tokens, no live table state.
-
-### The Table Map
-
-The map is the live scene under the same sunken well and bright-rule frame as the editor stage, with the grid drawn in the rule tone and scalable without changing cell coordinates. Zones are fog: for the narrator a hidden zone keeps a dashed `rule-strong` contour over a `rule-strong` hatch; a revealed zone drops the fill and shows its name. For a player a hidden zone is a flat `sunken` fill with no contour, name or hatch, and the union of revealed zones always wins where they overlap. `fog_outside` covers everything outside a revealed zone with the same `sunken` fill. Zone names sit in Barlow small caps with a `sunken` stroke so they read over the map.
-
-A token is a square with 3px corners and at least a 2.25rem hit target at any zoom, centered in its cells. PC tokens take the sand border, NPC tokens the oxide border, and the viewer's own token carries an amber ring. The label is a placard under the token and hides below 48rem. Dragging uses pointer capture, a local preview and a commit on drop; another viewer's drag marks the token with an oxide dashed outline and the viewer's name for 3 seconds, without blocking input. The marker is a dashed oxide border on the token (`.map__token.is-remote-drag`) plus a raised-plate placard above it carrying the actor's name (`.map__drag-tag`); it clears on the drop or three seconds after the last accepted move and never takes a pointer. Zoom keys step the surface between fit and 3x, and below 48rem the surface keeps a 32px cell minimum and scrolls inside the viewport. The map never uses the music dock.
-
-### The Turn Panel
-
-The turn panel is one plate in the table's 20rem column, above Conducting. It opens with a plate label, a single readout line for the open turn (or `Sem turno aberto.`), then the public participants as rows divided by 1px rules. A row pairs the participant label in JetBrains Mono sand with a Barlow small-caps state: `EM TURNO` in amber, `AGIU` in faint ash, `PENDENTE` in dim ash. A pending row carries one arrow key at the end of the row; the narrator's arrow opens the turn when none is open and passes when one is, and the player of the turn sees the same arrow to pass. The end key sits in a key strip under the list and stays bone ink at rest; the panel never makes it sand. No new color enters the panel: amber is the live turn, faint ash is the past turn, and the plate and rules are the shared ladder.
 
 ### The Seek Scale (signature)
 - The seek control is a stepped amber scale in the dock: flex 1, min-width 8rem, 2.5rem tall (2.75rem on coarse pointers), sunken fill ruled with the unlit steps (7px of raised plate, 3px off), inside a 1px bright rule with 3px corners.

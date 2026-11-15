@@ -1,6 +1,6 @@
 # Harpi
 
-Harpi is a Discord Integrated VTT. Its features includes music playing through voice channels, dice rolling, map making, character sheet manager and campaign managing.
+Harpi is a Discord bot that plays music through voice channels, rolls dice, and speaks through TTS, with one Svelte web panel for controlling the music.
 
 ## Verify
 
