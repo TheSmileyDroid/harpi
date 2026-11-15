@@ -9,9 +9,7 @@ status serialization all run as they do in production.
 from __future__ import annotations
 
 import asyncio
-import base64
 import os
-import shutil
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -24,8 +22,6 @@ from quart import request, session
 
 import app as app_module
 from pages import api as api_page
-from pages import campaigns as campaigns_page
-from pages import tables as tables_page
 from src import bot_state
 from src.harpi_lib.audio.session import LayerInfo, LoopMode, SessionStatus
 from src.harpi_lib.music import source_policy
@@ -33,10 +29,6 @@ from src.harpi_lib.music.ytmusic import YTMusicData
 from src.panel import login as panel_login
 from src.panel import rate_limit
 from src.panel import state as panel_state
-from src.panel import vault, vault_index, vault_sync
-from src.panel.schemas import SceneCreate
-from src.panel import scenes as panel_scenes
-from src.storage import get_database
 from src.storage.registry import Actor
 from tests.fakes import (
     GUILD_A,
@@ -206,163 +198,6 @@ source_policy.resolve_host_addresses = lambda host: ("93.184.216.34",)
 HARNESS_ACTOR = Actor(id="555", username="harness")
 BASE_GUILDS = frozenset({GUILD_A, SECOND_GUILD_ID})
 
-TINY_PNG = base64.b64decode(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQ"
-    "HwAFAAH/q842iQAAAABJRU5ErkJggg=="
-)
-VAULT_ROOT = Path(os.environ.get("HARPI_VAULT_PATH", "data/e2e-vault"))
-
-
-def write_note(relative: str, body: str) -> None:
-    path = VAULT_ROOT / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(body, encoding="utf-8")
-
-
-SHEET_BLOCK = """\
-```harpi-sheet
-refresh: 7
-fate_points: 3
-aspects:
-  - {label: Conceito, text: "Piloto de carga"}
-  - {label: Problema, text: "Sem memória"}
-  - {label: Aspecto, text: "Ligada à rede"}
-  - {label: Aspecto, text: "Ligada à rede"}
-  - {label: Aspecto, text: "Ligada à rede"}
-skills:
-  - {name: Hackear, rank: 4}
-  - {name: Atirar, rank: 3}
-stunts:
-  - {name: "Escudo", text: "Torna um objeto indestrutível.", refresh_cost: 1}
-  - {name: "Escudo", text: "Repete o nome de propósito.", refresh_cost: 0}
-stress:
-  - track: Físico
-    boxes:
-      - {value: 1, checked: true}
-      - {value: 2, checked: false}
-consequences:
-  - {severity: Leve, value: 2, text: "Casco rachado"}
-extras:
-  - {kind: Noética, name: Constructo, text: "Corpo artificial.", cost: 0}
-  - {kind: Noética, name: Constructo, text: "Repete o extra.", cost: 1}
-inventory:
-  - {item: "[[Espada de Lancelot]]", qty: 1, note: "Relíquia"}
-  - {item: "[[Espada de Lancelot]]", qty: 2, note: "Outra cópia"}
-```
-"""
-
-
-def seed_vault() -> None:
-    campaign = "Harpi/Campaigns/paratheos"
-    write_note(
-        f"{campaign}/config.md",
-        "```harpi-campaign\n"
-        "name: Paratheos\n"
-        "system: fate\n"
-        "ladder:\n"
-        "  - {rank: 4, label: Ótimo}\n"
-        "  - {rank: 3, label: Bom}\n"
-        "  - {rank: 2, label: Razoável}\n"
-        "  - {rank: 1, label: Regular}\n"
-        "stress:\n"
-        "  - {track: Físico, boxes: [1, 2, 3]}\n"
-        "  - {track: Mental, boxes: [1, 2]}\n"
-        "consequences:\n"
-        "  - {severity: Leve, value: 2}\n"
-        "  - {severity: Moderada, value: 4}\n"
-        "  - {severity: Severa, value: 6}\n"
-        "refresh: 7\n"
-        "extras:\n"
-        "  - Noética\n"
-        "```\n",
-    )
-    write_note(
-        f"{campaign}/characters/Ana.md",
-        "---\n"
-        "tipo: personagem\n"
-        "harpi-id: chr_ana\n"
-        "harpi-campanha: paratheos\n"
-        "harpi-status: ativo\n"
-        'imagem: "[[Arte/ana.png]]"\n'
-        "---\n"
-        "- **Conceito:** Piloto de carga\n\n"
-        "Mensageira sem memória.\n",
-    )
-    write_note(
-        f"{campaign}/sheets/Ana.md",
-        "---\n"
-        "tipo: ficha\n"
-        "harpi-id: sht_ana\n"
-        "harpi-campanha: paratheos\n"
-        "harpi-character-id: chr_ana\n"
-        "harpi-owner: '555'\n"
-        "harpi-status: ativo\n"
-        "---\n"
-        "\n## História\n\nUma piloto sem memória.\n\n"
-        f"{SHEET_BLOCK}",
-    )
-    write_note(
-        f"{campaign}/characters/Eva.md",
-        "---\n"
-        "tipo: personagem\n"
-        "harpi-id: chr_eva\n"
-        "harpi-campanha: paratheos\n"
-        "harpi-status: arquivado\n"
-        "---\n"
-        "Saiu do elenco.\n",
-    )
-    write_note(
-        f"{campaign}/sheets/Eva.md",
-        "---\n"
-        "tipo: ficha\n"
-        "harpi-id: sht_eva\n"
-        "harpi-campanha: paratheos\n"
-        "harpi-character-id: chr_eva\n"
-        "harpi-owner: '555'\n"
-        "harpi-status: arquivado\n"
-        "---\n"
-        "\n```harpi-sheet\nrefresh: 2\n```\n",
-    )
-    write_note(
-        f"{campaign}/characters/Quebrado.md",
-        "---\n"
-        "tipo: personagem\n"
-        "harpi-id: chr_quebrado\n"
-        "harpi-campanha: paratheos\n"
-        "harpi-status: ativo\n"
-        "---\n"
-        "Ficha quebrada.\n",
-    )
-    write_note(
-        f"{campaign}/sheets/Quebrado.md",
-        "---\n"
-        "tipo: ficha\n"
-        "harpi-id: sht_quebrado\n"
-        "harpi-campanha: paratheos\n"
-        "harpi-character-id: chr_quebrado\n"
-        "harpi-owner: '555'\n"
-        "harpi-status: ativo\n"
-        "---\n"
-        "\n```harpi-sheet\nrefresh: [2\n```\n",
-    )
-    write_note(
-        f"{campaign}/characters/Velho.md",
-        "---\n"
-        "tipo: personagem\n"
-        "harpi-id: chr_velho\n"
-        "harpi-campanha: paratheos\n"
-        "harpi-status: arquivado\n"
-        "---\n"
-        "Saiu do elenco.\n",
-    )
-    portrait = VAULT_ROOT / "Arte" / "ana.png"
-    portrait.parent.mkdir(parents=True, exist_ok=True)
-    portrait.write_bytes(TINY_PNG)
-
-
-seed_vault()
-
-
 async def _run_inline(coro, timeout: float | None = None):
     del timeout
     return await coro
@@ -389,33 +224,6 @@ async def select_guild(response):
     return response
 
 
-async def _reconcile_campaign() -> None:
-    database = get_database()
-    if database is not None:
-        await vault_sync.reconcile(database, VAULT_ROOT, {"paratheos"})
-
-
-@quart_app.post("/__test__/vault-replace")
-async def replace_in_vault():
-    payload = await request.get_json()
-    path = VAULT_ROOT / payload["path"]
-    text = path.read_text(encoding="utf-8")
-    replaced = text.replace(payload["old"], payload["new"])
-    path.write_text(replaced, encoding="utf-8")
-    await _reconcile_campaign()
-    await vault_index.refresh_once(vault.configured())
-    return {"ok": True, "changed": replaced != text}
-
-
-@quart_app.post("/__test__/vault-delete")
-async def delete_from_vault():
-    payload = await request.get_json()
-    (VAULT_ROOT / payload["path"]).unlink(missing_ok=True)
-    await _reconcile_campaign()
-    await vault_index.refresh_once(vault.configured())
-    return {"ok": True}
-
-
 @quart_app.get("/__test__/ping")
 async def ping():
     return {"ok": True}
@@ -439,62 +247,6 @@ async def login():
     return {"ok": True}
 
 
-@quart_app.post("/__test__/enroll")
-async def enroll():
-    payload = await request.get_json()
-    database = get_database()
-    if database is None:
-        return {"ok": False}, 503
-    user_id = str(payload["user_id"])
-    name = str(payload["name"])
-    campaign = "Harpi/Campaigns/paratheos"
-    sheet_path = f"{campaign}/sheets/{name}.md"
-    for relative in (f"{campaign}/characters/{name}.md", sheet_path):
-        (VAULT_ROOT / relative).unlink(missing_ok=True)
-    await database.execute(
-        "DELETE FROM approvals WHERE sheet_path = ?", (sheet_path,)
-    )
-    await database.execute(
-        "DELETE FROM sheet_files WHERE path = ?", (sheet_path,)
-    )
-    if payload.get("member"):
-        await database.execute(
-            "INSERT OR IGNORE INTO members ("
-            "campaign_slug, user_id, display_name, joined_at"
-            ") VALUES ('paratheos', ?, ?, 1700000000)",
-            (user_id, str(payload.get("display_name", "Jogador"))),
-        )
-    await vault_index.refresh_once(vault.configured())
-    return {"ok": True}
-
-
-@quart_app.post("/__test__/scene")
-async def seed_scene():
-    payload = await request.get_json()
-    database = get_database()
-    index = vault_index.configured()
-    if database is None or index.root is None:
-        return {"ok": False}, 503
-    blueprint = panel_scenes.build_blueprint(
-        index, "paratheos", SceneCreate.model_validate(payload)
-    )
-    text = panel_scenes.canonical_text(blueprint)
-    await asyncio.to_thread(
-        panel_scenes.write_new,
-        index.root,
-        "paratheos",
-        blueprint.slug,
-        text,
-    )
-    await panel_scenes.store_new(
-        database,
-        "paratheos",
-        blueprint,
-        panel_scenes.blueprint_hash(blueprint),
-    )
-    return {"ok": True}
-
-
 @quart_app.post("/__test__/track")
 async def set_track():
     payload = await request.get_json()
@@ -511,7 +263,6 @@ async def set_bot():
 
 @quart_app.post("/__test__/reset")
 async def reset():
-    await _reset_campaign_state()
     bot.online = True
     session_obj._status = status_for("Now Track")
     session_obj.calls.clear()
@@ -519,51 +270,13 @@ async def reset():
     bot._guilds.pop(EXTRA_GUILD_ID, None)
     panel_state.run_on_bot_loop = _run_inline
     await panel_state.record_user_guilds(HARNESS_ACTOR, BASE_GUILDS)
-    return {"ok": True}
-
-
-async def _reset_campaign_state() -> None:
-    database = get_database()
-    if database is not None:
-        for table in (
-            "approvals",
-            "sheet_conflicts",
-            "character_visibility",
-            "sheet_files",
-            "tables",
-            "scenes",
-            "members",
-        ):
-            await database.execute(f"DELETE FROM {table}")
-        shutil.rmtree(
-            database.path.parent / "vault-backups", ignore_errors=True
-        )
-    shutil.rmtree(VAULT_ROOT, ignore_errors=True)
-    VAULT_ROOT.mkdir(parents=True, exist_ok=True)
-    seed_vault()
-    await vault_index.refresh_once(vault.configured())
-    await _reconcile_campaign()
     api_page.SEARCH_BUCKETS = rate_limit.UserTokenBuckets(
         rate_limit.SEARCHES_PER_MINUTE
     )
     api_page.QUEUE_BUCKETS = rate_limit.UserTokenBuckets(
         rate_limit.QUEUE_ACTIONS_PER_MINUTE
     )
-    campaigns_page.SHEET_WRITE_BUCKETS = rate_limit.UserTokenBuckets(
-        rate_limit.SHEET_WRITES_PER_MINUTE
-    )
-    campaigns_page.APPROVAL_BUCKETS = rate_limit.UserTokenBuckets(
-        rate_limit.APPROVALS_PER_MINUTE
-    )
-    tables_page.MOVE_BUCKETS = rate_limit.UserTokenBuckets(
-        rate_limit.MOVES_PER_MINUTE
-    )
-    tables_page.ROLL_POST_BUCKETS = rate_limit.UserTokenBuckets(
-        rate_limit.ROLLS_PER_MINUTE
-    )
-    tables_page.ROLL_READ_BUCKETS = rate_limit.UserTokenBuckets(
-        rate_limit.ROLL_READS_PER_MINUTE
-    )
+    return {"ok": True}
 
 
 @quart_app.post("/__test__/loop")

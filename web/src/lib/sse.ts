@@ -6,13 +6,6 @@ import {
   Presence,
   ReloadEvent,
   StatusSnapshot,
-  TableClosedEvent,
-  TableDragMarker,
-  TableRoll,
-  TableSheetChanged,
-  TableStreamDelta,
-  TableStreamSnapshot,
-  TableStreamViewers,
 } from "./contract/panel.gen";
 
 export const BASE_BACKOFF_MS = 1000;
@@ -43,44 +36,6 @@ const SSE_SCHEMAS = {
 } as const;
 
 export type SseEventName = keyof typeof SSE_SCHEMAS;
-
-type TableSnapshotFrame = {
-  type: "table.snapshot";
-  data: TableStreamSnapshot;
-};
-type TableDeltaFrame = { type: "table.delta"; data: TableStreamDelta };
-type TablePresenceFrame = {
-  type: "table.viewers";
-  data: TableStreamViewers;
-};
-type TableDragFrame = { type: "table.drag"; data: TableDragMarker };
-type SheetChangedFrame = {
-  type: "sheet.changed";
-  data: TableSheetChanged;
-};
-type TableRollFrame = { type: "table.roll"; data: TableRoll };
-type TableHeartbeatFrame = { type: "heartbeat"; data: Heartbeat };
-type TableClosedFrame = { type: "table.closed"; data: TableClosedEvent };
-export type TableSseFrame =
-  | TableSnapshotFrame
-  | TableDeltaFrame
-  | TablePresenceFrame
-  | TableDragFrame
-  | SheetChangedFrame
-  | TableRollFrame
-  | TableHeartbeatFrame
-  | TableClosedFrame;
-
-const TABLE_SSE_SCHEMAS = {
-  "table.snapshot": TableStreamSnapshot,
-  "table.delta": TableStreamDelta,
-  "table.viewers": TableStreamViewers,
-  "table.drag": TableDragMarker,
-  "sheet.changed": TableSheetChanged,
-  "table.roll": TableRoll,
-  heartbeat: Heartbeat,
-  "table.closed": TableClosedEvent,
-} as const;
 
 type Timer = ReturnType<typeof setTimeout>;
 
@@ -142,16 +97,6 @@ type EventSourceCtor = new (
   options?: { withCredentials?: boolean },
 ) => EventSourceLike;
 
-interface AwakeSource {
-  addEventListener(type: string, listener: () => void): void;
-  removeEventListener(type: string, listener: () => void): void;
-}
-
-export interface AwakeTargets {
-  document?: AwakeSource & { visibilityState?: string };
-  window?: AwakeSource;
-}
-
 export interface EventStreamOptions {
   url?: string;
   EventSourceImpl?: EventSourceCtor;
@@ -169,17 +114,6 @@ interface StreamOptions<F> extends Omit<EventStreamOptions, "onEvent"> {
   schemas: SchemaMap;
   parse: (name: string, data: string) => F | null;
   onEvent?: (frame: F) => void;
-  awake?: AwakeTargets | null;
-}
-
-function defaultAwake(): AwakeTargets | null {
-  const document = (globalThis as { document?: AwakeTargets["document"] })
-    .document;
-  const window = (globalThis as { window?: AwakeTargets["window"] }).window;
-  const targets: AwakeTargets = {};
-  if (document) targets.document = document;
-  if (window) targets.window = window;
-  return document || window ? targets : null;
 }
 
 function createStream<F>({
@@ -195,14 +129,12 @@ function createStream<F>({
   baseDelay = BASE_BACKOFF_MS,
   maxDelay = MAX_BACKOFF_MS,
   stallAfter = STALL_MS,
-  awake = null,
 }: StreamOptions<F>) {
   let source: EventSourceLike | null = null;
   let timer: Timer | null = null;
   let watchdog: Timer | null = null;
   let attempt = 0;
   let stopped = true;
-  let watching = false;
 
   const names = Object.keys(schemas);
 
@@ -288,40 +220,16 @@ function createStream<F>({
     drop();
   }
 
-  function resume() {
-    forceReconnect();
-  }
-
-  function onVisibility() {
-    if (awake?.document?.visibilityState === "visible") resume();
-  }
-
-  function watch() {
-    if (watching || !awake) return;
-    watching = true;
-    awake.document?.addEventListener("visibilitychange", onVisibility);
-    awake.window?.addEventListener("online", resume);
-  }
-
-  function unwatch() {
-    if (!watching || !awake) return;
-    watching = false;
-    awake.document?.removeEventListener("visibilitychange", onVisibility);
-    awake.window?.removeEventListener("online", resume);
-  }
-
   return {
     start() {
       if (!stopped) return;
       stopped = false;
-      watch();
       connect();
     },
     stop() {
       stopped = true;
       clearTimer();
       clearWatchdog();
-      unwatch();
       source?.close();
       source = null;
     },
@@ -338,31 +246,5 @@ export function createEventStream(options: EventStreamOptions = {}) {
       SSE_SCHEMAS,
       (name, payload) => ({ type: name, data: payload }) as SseFrame,
     ),
-  });
-}
-
-export interface TableEventStreamOptions extends Omit<
-  EventStreamOptions,
-  "onEvent"
-> {
-  tableId: string;
-  onEvent?: (frame: TableSseFrame) => void;
-  awake?: AwakeTargets | null;
-}
-
-export function createTableEventStream({
-  tableId,
-  awake,
-  ...options
-}: TableEventStreamOptions) {
-  return createStream<TableSseFrame>({
-    ...options,
-    url: `/api/tables/${encodeURIComponent(tableId)}/events`,
-    schemas: TABLE_SSE_SCHEMAS,
-    parse: parserFor(
-      TABLE_SSE_SCHEMAS,
-      (name, payload) => ({ type: name, data: payload }) as TableSseFrame,
-    ),
-    awake: awake === undefined ? defaultAwake() : awake,
   });
 }

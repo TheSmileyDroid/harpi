@@ -31,14 +31,10 @@ from pages.auth import CALLBACK_PATH as AUTH_CALLBACK_PATH
 from pages.auth import LOGIN_PATH as AUTH_LOGIN_PATH
 from pages.auth import LOGOUT_PATH as AUTH_LOGOUT_PATH
 from pages.auth import bp as auth_bp
-from pages.campaigns import bp as campaigns_bp
-from pages.campaigns import characters_page_refusal
 from pages.contract import ContractOpenAPIProvider
 from pages.events import bp as events_bp
-from pages.tables import bp as tables_bp
 
 from src import alerts
-from src.bot_state import clear_panel_loop, init_panel_loop
 from src.config import Settings
 from src.discord_bot import run_bot_in_background
 from src.logging_setup import configure_logging
@@ -48,22 +44,17 @@ from src.panel import (
     login,
     retention,
     state,
-    vault,
-    vault_index,
-    vault_sync,
 )
 from src.security_log import alert_for_status, event_for_request, record_event
 from src.storage import (
     clear_database,
     clear_registry,
-    get_database,
     get_registry,
     init_database,
     init_registry,
 )
 from src.storage.database import Database
 from src.storage.registry import SqliteRegistry
-from src.storage.seed import paratheos
 
 BOOT_SETTINGS = Settings.from_env()
 configure_logging(BOOT_SETTINGS)
@@ -71,12 +62,6 @@ configure_logging(BOOT_SETTINGS)
 WEB_BUILD = Path(__file__).resolve().parent / "web" / "build"
 
 MAX_REQUEST_BODY_BYTES = 64 * 1024
-UPLOAD_REQUEST_BODY_BYTES = vault_index.MAX_IMAGE_BYTES + 64 * 1024
-ASSET_UPLOAD_PATH = re.compile(r"^/api/campaigns/[^/]+/assets$")
-
-
-def _is_asset_upload(method: str, path: str) -> bool:
-    return method == "POST" and ASSET_UPLOAD_PATH.fullmatch(path) is not None
 
 
 class PanelRequest(Request):
@@ -96,8 +81,6 @@ class PanelRequest(Request):
         send_push_promise: Callable[[str, Headers], Awaitable[None]],
     ) -> None:
         limit = max_content_length or MAX_REQUEST_BODY_BYTES
-        if _is_asset_upload(method, path):
-            limit = UPLOAD_REQUEST_BODY_BYTES
         super().__init__(
             method,
             scheme,
@@ -199,7 +182,7 @@ MAX_REQUEST_BODY_BYTES = 64 * 1024
 def configure_security(settings: Settings) -> None:
     app.config["PUBLIC_MODE"] = settings.public_mode
     app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BODY_BYTES
-    app.config["MAX_FORM_MEMORY_SIZE"] = UPLOAD_REQUEST_BODY_BYTES
+    app.config["MAX_FORM_MEMORY_SIZE"] = MAX_REQUEST_BODY_BYTES
     app.config["SECURITY_HEADERS"] = build_security_headers(WEB_BUILD)
 
 
@@ -351,20 +334,6 @@ async def panel_index() -> Response:
     return await send_from_directory(WEB_BUILD, "index.html")
 
 
-@app.get("/c/<slug>/personagens")
-async def panel_characters_page(slug: str) -> Response:
-    refusal = await characters_page_refusal(slug)
-    if refusal is not None:
-        return refusal
-    return await send_from_directory(WEB_BUILD, "index.html")
-
-
-@app.get("/c/<path:path>")
-async def panel_campaign_route(path: str) -> Response:
-    del path
-    return await panel_index()
-
-
 @app.get("/<path:filename>")
 async def panel_asset(filename: str) -> Response:
     return await send_from_directory(WEB_BUILD, filename)
@@ -373,34 +342,21 @@ async def panel_asset(filename: str) -> Response:
 app.register_blueprint(events_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(auth_bp)
-app.register_blueprint(campaigns_bp)
-app.register_blueprint(tables_bp)
 
 _database: Database | None = None
 _retention_task: asyncio.Task[None] | None = None
 _backup_task: asyncio.Task[None] | None = None
 _disk_task: asyncio.Task[None] | None = None
-_sync_task: asyncio.Task[None] | None = None
 
 
 @app.before_serving
 async def startup():
     global _database, _retention_task, _backup_task, _disk_task
-    global _sync_task
-    init_panel_loop(asyncio.get_running_loop())
     settings = Settings.from_env()
     alerts.configure_alerts(settings.alert_webhook)
-    vault.configure(vault.from_settings(settings))
-    await vault_index.refresh_once(vault.configured())
-    campaign = paratheos(settings.narrator_id, settings.campaign_guild_id)
-    if campaign is None:
-        logger.warning(
-            "HARPI_NARRATOR_ID and HARPI_GUILD_ID are unset or invalid: "
-            "the Paratheos campaign was not seeded"
-        )
     if get_registry() is None:
         try:
-            _database = Database(settings.db_path, campaign=campaign)
+            _database = Database(settings.db_path)
             await _database.open()
             init_registry(SqliteRegistry(_database))
             init_database(_database)
@@ -409,7 +365,6 @@ async def startup():
         except Exception as e:
             _database = None
             logger.opt(exception=True).error(f"Panel storage unavailable: {e}")
-    _sync_task = vault_sync.start_sync(vault.configured(), get_database())
     _retention_task = retention.start_daily_purge(settings)
     _backup_task = backup.start_daily_backup(settings)
     _disk_task = disk_pressure.start_disk_watch(settings)
@@ -422,7 +377,7 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    global _database, _retention_task, _backup_task, _disk_task, _sync_task
+    global _database, _retention_task, _backup_task, _disk_task
     task = _retention_task
     _retention_task = None
     if task is not None:
@@ -435,14 +390,7 @@ async def shutdown():
     _disk_task = None
     if disk_task is not None:
         await disk_pressure.stop_disk_watch(disk_task)
-    sync_task = _sync_task
-    _sync_task = None
-    if sync_task is not None:
-        await vault_sync.stop_sync(sync_task)
     await alerts.stop_alerts()
-    clear_panel_loop()
-    vault.configure(vault.Vault())
-    vault_index.configure(vault_index.VaultIndex())
     database = _database
     _database = None
     clear_database()

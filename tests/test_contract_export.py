@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from src.panel.schemas import SSE_EVENTS, TABLE_SSE_EVENTS
+from src.panel.schemas import SSE_EVENTS
 from tools.export_contract import build_document
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -89,18 +89,3 @@ def test_emitted_sse_event_names_match_the_client_schema_map():
     client_names = schema_keys(SSE_CLIENT.read_text(), "SSE_SCHEMAS")
 
     assert client_names == set(SSE_EVENTS)
-
-
-def test_table_events_are_documented_as_text_event_stream():
-    document = json.loads(build_document())
-    content = document["paths"]["/api/tables/{table_id}/events"]["get"][
-        "responses"
-    ]["200"]["content"]
-
-    assert list(content) == ["text/event-stream"]
-
-
-def test_table_sse_event_names_match_the_client_schema_map():
-    client_names = schema_keys(SSE_CLIENT.read_text(), "TABLE_SSE_SCHEMAS")
-
-    assert client_names == set(TABLE_SSE_EVENTS)

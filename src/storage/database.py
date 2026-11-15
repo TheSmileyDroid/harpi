@@ -1,25 +1,19 @@
 from __future__ import annotations
 
 import time
-from collections.abc import AsyncGenerator, Sequence
-from contextlib import asynccontextmanager
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 import aiosqlite
 from loguru import logger
 
-from src.storage.seed import CampaignSeed, seed_campaign
-
 MIGRATIONS = Path(__file__).with_name("migrations")
 
 
 class Database:
-    def __init__(
-        self, path: str | Path, campaign: CampaignSeed | None = None
-    ) -> None:
+    def __init__(self, path: str | Path) -> None:
         self._path = Path(path)
-        self._campaign = campaign
         self._connection: aiosqlite.Connection | None = None
 
     @property
@@ -35,8 +29,6 @@ class Database:
         await connection.execute("PRAGMA busy_timeout=5000")
         self._connection = connection
         await self._migrate()
-        if self._campaign is not None:
-            await seed_campaign(self, self._campaign)
         self._restrict_permissions()
 
     async def close(self) -> None:
@@ -49,23 +41,6 @@ class Database:
         connection = self._require()
         await connection.execute(sql, params)
         await connection.commit()
-
-    @asynccontextmanager
-    async def transaction(self) -> AsyncGenerator[aiosqlite.Connection]:
-        connection = await aiosqlite.connect(self._path)
-        connection.row_factory = aiosqlite.Row
-        try:
-            await connection.execute("PRAGMA foreign_keys=ON")
-            await connection.execute("PRAGMA busy_timeout=5000")
-            await connection.execute("BEGIN IMMEDIATE")
-            try:
-                yield connection
-            except BaseException:
-                await connection.rollback()
-                raise
-            await connection.commit()
-        finally:
-            await connection.close()
 
     async def execute_rowcount(
         self, sql: str, params: Sequence[Any] = ()

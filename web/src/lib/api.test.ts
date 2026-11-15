@@ -74,16 +74,16 @@ describe("createApiClient", () => {
     const client = createApiClient({
       fetchImpl: async () =>
         jsonResponse(409, {
-          ...fixtures.SheetConflictDetail,
+          error: {
+            code: "playback_conflict",
+            message: "The track is already playing",
+          },
+          detail: { track: "abc" },
         }),
     });
 
-    await expect(
-      client.writeSheet("paratheos", "sht_ana", {
-        base_hash: "a".repeat(64),
-      }),
-    ).rejects.toMatchObject({
-      code: "sheet_field_conflict",
+    await expect(client.queue("https://example.com/x")).rejects.toMatchObject({
+      code: "playback_conflict",
       status: 409,
     });
   });
@@ -335,140 +335,6 @@ describe("createApiClient", () => {
     });
   });
 
-  it("reads the campaign and its role", async () => {
-    const client = createApiClient({
-      fetchImpl: async (path) => {
-        expect(path).toBe("/api/campaigns/paratheos");
-        return jsonResponse(200, fixtures.CampaignDetail);
-      },
-    });
-
-    await expect(client.campaign("paratheos")).resolves.toEqual(
-      fixtures.CampaignDetail,
-    );
-  });
-
-  it("creates a character from the draft", async () => {
-    const { client, calls } = recordingClient(fixtures.CharacterDetail);
-
-    await client.createCharacter("paratheos", {
-      name: "Nina",
-      concept: "Mensageira",
-      summary: "Sem memória.",
-    });
-
-    expect(calls[0]!.path).toBe("/api/campaigns/paratheos/characters");
-    expect(calls[0]!.options.method).toBe("POST");
-    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
-      name: "Nina",
-      concept: "Mensageira",
-      summary: "Sem memória.",
-      sheet: null,
-    });
-  });
-
-  it("submits a sheet with an empty JSON body", async () => {
-    const { client, calls } = recordingClient(fixtures.CharacterDetail.sheet);
-
-    await client.submitSheet("paratheos", "sht_ana");
-
-    expect(calls[0]!.path).toBe(
-      "/api/campaigns/paratheos/sheets/sht_ana/submit",
-    );
-    expect(calls[0]!.options.method).toBe("POST");
-    expect(calls[0]!.options.body).toBe("{}");
-    expect(calls[0]!.options.headers).toEqual({
-      "Content-Type": "application/json",
-    });
-  });
-
-  it("reads the approval queue", async () => {
-    const client = createApiClient({
-      fetchImpl: async (path) => {
-        expect(path).toBe("/api/campaigns/paratheos/approvals");
-        return jsonResponse(200, fixtures.ApprovalList);
-      },
-    });
-
-    await expect(client.approvals("paratheos")).resolves.toEqual(
-      fixtures.ApprovalList,
-    );
-  });
-
-  it("decides an approval with a note", async () => {
-    const { client, calls } = recordingClient(fixtures.ApprovalList);
-
-    await client.decideApproval("paratheos", "apr_1", {
-      decision: "reject",
-      note: "Falta o problema.",
-    });
-
-    expect(calls[0]!.path).toBe("/api/campaigns/paratheos/approvals/apr_1");
-    expect(calls[0]!.options.method).toBe("POST");
-    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
-      decision: "reject",
-      note: "Falta o problema.",
-    });
-  });
-
-  it("reads the conflict queue", async () => {
-    const client = createApiClient({
-      fetchImpl: async (path) => {
-        expect(path).toBe("/api/campaigns/paratheos/conflicts");
-        return jsonResponse(200, fixtures.SheetConflictList);
-      },
-    });
-
-    await expect(client.conflicts("paratheos")).resolves.toEqual(
-      fixtures.SheetConflictList,
-    );
-  });
-
-  it("reads the sheet notice queue", async () => {
-    const client = createApiClient({
-      fetchImpl: async (path) => {
-        expect(path).toBe("/api/campaigns/paratheos/notices");
-        return jsonResponse(200, fixtures.SheetNoticeList);
-      },
-    });
-
-    await expect(client.notices("paratheos")).resolves.toEqual(
-      fixtures.SheetNoticeList,
-    );
-  });
-
-  it("resolves a conflict per field", async () => {
-    const { client, calls } = recordingClient(fixtures.SheetConflictList);
-
-    await client.resolveConflict("paratheos", "cnf_1", { decision: "both" });
-
-    expect(calls[0]!.path).toBe(
-      "/api/campaigns/paratheos/conflicts/cnf_1/resolve",
-    );
-    expect(calls[0]!.options.method).toBe("POST");
-    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
-      decision: "both",
-    });
-  });
-
-  it("restores and forgets a missing sheet", async () => {
-    const { client, calls } = recordingClient(fixtures.CharacterDetail.sheet);
-
-    await client.restoreSheet("paratheos", "sht_ana");
-
-    expect(calls[0]!.path).toBe(
-      "/api/campaigns/paratheos/sheets/sht_ana/restore",
-    );
-    expect(calls[0]!.options.body).toBe("{}");
-
-    const forgetting = recordingClient(fixtures.SheetActionResult);
-    await forgetting.client.forgetSheet("paratheos", "sht_ana");
-
-    expect(forgetting.calls[0]!.path).toBe(
-      "/api/campaigns/paratheos/sheets/sht_ana/forget",
-    );
-  });
-
   it("rejects a drifted response as a contract violation", async () => {
     const reported: ApiError[] = [];
     const client = createApiClient({
@@ -514,111 +380,5 @@ describe("createApiClient", () => {
     });
 
     expect(reported).toHaveLength(1);
-  });
-
-  it("lists the scenes of a campaign", async () => {
-    const client = createApiClient({
-      fetchImpl: async (path) => {
-        expect(path).toBe("/api/campaigns/paratheos/scenes");
-        return jsonResponse(200, fixtures.SceneList);
-      },
-    });
-
-    await expect(client.scenes("paratheos")).resolves.toEqual(
-      fixtures.SceneList,
-    );
-  });
-
-  it("opens one scene blueprint", async () => {
-    const client = createApiClient({
-      fetchImpl: async (path) => {
-        expect(path).toBe("/api/campaigns/paratheos/scenes/cripta");
-        return jsonResponse(200, fixtures.SceneDetail);
-      },
-    });
-
-    await expect(client.scene("paratheos", "cripta")).resolves.toEqual(
-      fixtures.SceneDetail,
-    );
-  });
-
-  it("creates a scene from a vault image", async () => {
-    const { client, calls } = recordingClient(fixtures.SceneDetail);
-
-    const zones = [
-      {
-        id: "zon_mapa",
-        label: "Mapa",
-        revealed: false,
-        rects: [{ x: 0, y: 0, w: 1, h: 1 }],
-      },
-    ];
-    await client.createScene("paratheos", {
-      name: "Cripta",
-      source: "image",
-      image: "Harpi/Campaigns/paratheos/assets/a.png",
-      zones,
-    });
-
-    expect(calls[0]!.path).toBe("/api/campaigns/paratheos/scenes");
-    expect(calls[0]!.options.method).toBe("POST");
-    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
-      name: "Cripta",
-      source: "image",
-      image: "Harpi/Campaigns/paratheos/assets/a.png",
-      image_width: null,
-      image_height: null,
-      grid: null,
-      fog_outside: false,
-      zones,
-    });
-  });
-
-  it("saves a scene with its base hash", async () => {
-    const { client, calls } = recordingClient(fixtures.SceneDetail);
-
-    await client.saveScene("paratheos", "cripta", {
-      base_hash: "a".repeat(64),
-      name: "Cripta",
-      grid: { cell_px: 70, offset_x: 0, offset_y: 0, visible: true },
-      fog_outside: true,
-      zones: [
-        {
-          id: "zon_mapa",
-          label: "Mapa",
-          revealed: false,
-          rects: [{ x: 0, y: 0, w: 1, h: 1 }],
-        },
-      ],
-    });
-
-    expect(calls[0]!.path).toBe("/api/campaigns/paratheos/scenes/cripta");
-    expect(calls[0]!.options.method).toBe("PUT");
-    expect(JSON.parse(calls[0]!.options.body as string)).toEqual({
-      base_hash: "a".repeat(64),
-      name: "Cripta",
-      grid: { cell_px: 70, offset_x: 0, offset_y: 0, visible: true },
-      fog_outside: true,
-      zones: [
-        {
-          id: "zon_mapa",
-          label: "Mapa",
-          revealed: false,
-          rects: [{ x: 0, y: 0, w: 1, h: 1 }],
-        },
-      ],
-    });
-  });
-
-  it("uploads an image as multipart form data", async () => {
-    const { client, calls } = recordingClient(fixtures.AssetDetail);
-    const file = new File(["pixels"], "mapa.png", { type: "image/png" });
-
-    await client.uploadAsset("paratheos", file);
-
-    expect(calls[0]!.path).toBe("/api/campaigns/paratheos/assets");
-    expect(calls[0]!.options.method).toBe("POST");
-    expect(calls[0]!.options.body).toBeInstanceOf(FormData);
-    expect((calls[0]!.options.body as FormData).get("file")).toBe(file);
   });
 });

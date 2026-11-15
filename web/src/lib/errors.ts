@@ -1,5 +1,4 @@
 import { get, writable } from "svelte/store";
-import { ApiError } from "./api";
 
 export interface ErrorEntry {
   id: number;
@@ -8,46 +7,15 @@ export interface ErrorEntry {
   key: string;
 }
 
-export function codeNote(
-  error: unknown,
-  messages: Record<string, string>,
-  fallback: string,
-): string {
-  if (error instanceof ApiError) {
-    const message = messages[error.code];
-    if (message) return message;
-  }
-  return fallback;
-}
-
 let nextId = 0;
 
 const MESSAGES_BY_CODE: Record<string, string> = {
   bad_request: "Requisição inválida.",
   forbidden: "Sem permissão.",
-  invalid_decision: "A decisão é inválida.",
-  invalid_payload: "Confira os dados enviados.",
-  invalid_sheet: "A ficha é inválida.",
   not_found: "Não encontrado.",
   payload_too_large: "O conteúdo enviado é grande demais.",
-  quota_exceeded: "A cota de armazenamento acabou.",
-  sheet_conflict: "A ficha mudou no disco.",
-  sheet_invalid: "A ficha é inválida.",
-  sheet_missing: "O arquivo da ficha não está no vault.",
-  sheet_present: "O arquivo da ficha já está no vault.",
-  sheet_read_only: "A ficha está somente leitura.",
-  storage_unavailable: "O armazenamento está indisponível.",
-  table_closed: "A mesa está fechada.",
   too_many_requests: "Muitas requisições — espere um pouco.",
-  vault_unavailable: "O vault está indisponível.",
-  vault_write_failed: "Não foi possível gravar no vault.",
 };
-
-export function codeMessage(error: unknown): string | null {
-  const code = readString(error, "code");
-  if (!code) return null;
-  return MESSAGES_BY_CODE[code] ?? null;
-}
 
 function messageFor(error: unknown, code: string): string {
   const known = MESSAGES_BY_CODE[code];
